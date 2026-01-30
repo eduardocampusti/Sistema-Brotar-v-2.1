@@ -1,0 +1,292 @@
+
+
+export enum Gender {
+  MALE = 'Masculino',
+  FEMALE = 'Feminino',
+  OTHER = 'Outro'
+}
+
+export enum Specialty {
+  PSYCHOLOGY = 'Psicologia',
+  SOCIAL_WORK = 'Serviço Social',
+  PSYCHOPEDAGOGY = 'Psicopedagogia',
+  OCCUPATIONAL_THERAPY = 'Terapia Ocupacional',
+  SPEECH_THERAPY = 'Fonoaudiologia',
+  PHYSIOTHERAPY = 'Fisioterapia',
+  NUTRITION = 'Nutrição'
+}
+
+// Novos tipos para autenticação
+export type UserRole = 'ADMIN' | 'SPECIALIST' | 'ASSISTANT' | 'EDUCATION_SECRETARY';
+export type UserScope = 'GLOBAL' | 'COCAL'; // Escopo de acesso (Sede ou Distrito)
+
+// --- PERMISSION SYSTEM ---
+export type Permission = 'can_access_security_data' | 'can_access_backup_restore';
+
+export const hasPermission = (user: User, permission: Permission): boolean => {
+  // Regra Centralizada de Permissões
+  // Somente ADMIN tem acesso a dados de segurança e backups
+  if (permission === 'can_access_security_data' || permission === 'can_access_backup_restore') {
+    return user.role === 'ADMIN';
+  }
+  return false;
+};
+
+export interface User {
+  id: string;
+  name: string;
+  username: string;
+  password?: string; // Opcional na listagem por segurança
+  role: UserRole;
+  isActive: boolean;
+  mustChangePassword?: boolean; // Flag para forçar troca de senha
+
+  // Novos Campos
+  scope?: UserScope; // Define se vê tudo (Sede) ou apenas regional (Cocal)
+  photoUrl?: string; // Foto de perfil
+  signatureUrl?: string; // Assinatura digital/Carimbo
+  email?: string;
+  phone?: string;
+  jobTitle?: string; // Cargo ou Profissão
+  specialty?: Specialty; // Se for especialista clínico
+  address?: Address;
+}
+
+export interface Address {
+  street: string;
+  number: string;
+  district: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
+export interface School {
+  id: string;
+  name: string;
+  inep: string;
+  director?: string;
+  phone?: string;
+  address?: Address;
+  isActive: boolean;
+  district?: string; // Bairro ou Distrito Administrativo
+
+  // Conectividade
+  hasInternet?: boolean;
+  internetType?: 'Via Satélite' | 'Fibra Óptica';
+  internetProviderContact?: string;
+}
+
+export interface SupportProfessional {
+  id: string;
+  name: string;
+  photoUrl?: string; // Foto do profissional
+  cpf: string;
+  phone: string;
+  email: string;
+
+  // Dados Contratuais e Formação
+  education?: string; // Formação
+  contractStartDate?: string; // Início de contrato
+  workload?: string; // Carga horária
+
+  address?: Address; // Endereço completo
+
+  schoolId: string; // Vínculo com a escola
+  regentTeacher: string; // Professor Regente
+  studentId: string; // Vínculo com o aluno
+  createdAt: string;
+}
+
+export interface Guardian {
+  name: string;
+  cpf?: string;
+  rg?: string;
+  issuingBody?: string; // Órgão Expedidor
+  ethnicity?: string; // Cor/Etnia
+  relationship: string;
+  phone: string;
+  email: string;
+  occupation: string;
+}
+
+export interface ClinicalInfo {
+  diagnosis: string;
+  cid?: string; // Código Internacional de Doenças
+  medications: string;
+  allergies: string;
+  weight?: string;
+  height?: string;
+  specialNeeds: string[]; // Altas Habilidades, Auditiva, Física, Mental, etc.
+  therapiesHistory: string; // Histórico de terapias anteriores
+
+  // Dados Específicos por Especialidade (JSONB)
+  pp_data?: any; // Psicopedagogia
+  psych_data?: any; // Psicologia
+  social_data?: any; // Serviço Social
+  ot_data?: any; // Terapia Ocupacional
+  st_data?: any; // Fonoaudiologia
+  pt_data?: any; // Fisioterapia
+  nutrition_data?: any; // Nutrição
+}
+
+export interface SchoolInfo {
+  schoolName: string; // Pode ser vinculado ao ID da School no futuro
+  grade: string;
+  shift?: 'Manhã' | 'Tarde' | 'Noite' | 'Integral';
+  schedule?: string; // Horário: Das X às Y
+  teachingType?: 'Regular' | 'EJA' | 'Especial';
+  hasSpecialAide: boolean; // Se tem acompanhante terapêutico/monitor
+  difficulties: string;
+  district?: string; // Bairro ou Distrito Administrativo
+}
+
+export interface Session {
+  id: string;
+  date: string;
+  specialty: Specialty;
+  professionalName: string;
+  notes: string;
+  // Campos futuros podem ser adicionados aqui via JSON stringify no notes ou novos campos
+  startTime?: string;
+  endTime?: string;
+  serviceType?: string;
+  privateNotes?: string;
+  content?: any; // JSON completo da sessão (estruturado por especialidade)
+}
+
+export type DocumentType = 'Laudo Médico' | 'Receita Médica' | 'Cartão de Vacina' | 'Cartão SUS' | 'Certidão de Nascimento' | 'PEI' | 'Outros';
+
+export interface StudentDocument {
+  id: string;
+  type: DocumentType;
+  fileName: string;
+  url: string; // Base64 string for local storage demo
+  uploadedAt: string;
+}
+
+export interface SavedDocument {
+  id: string;
+  studentId: string;
+  studentName: string;
+  docType: string;
+  code: string;
+  content: string;
+  createdAt: string; // ISO String
+  professionalName: string;
+}
+
+export interface SocialInfo {
+  nis?: string;
+  bolsaFamilia: boolean;
+  bpc: boolean;
+}
+
+export interface Student {
+  id: string;
+  fullName: string;
+  birthDate: string;
+  gender: Gender;
+  photoUrl?: string; // Optional URL for placeholder
+
+  // Dados Pessoais Expandidos
+  cpf: string;
+  rg?: string;
+  susCard: string;
+  motherName?: string;
+  fatherName?: string;
+  nationality?: string;
+  birthPlace?: string; // Naturalidade/Estado
+
+  address: Address;
+  guardians: Guardian[];
+
+  clinical: ClinicalInfo;
+  school: SchoolInfo;
+
+  // Novos campos baseados no PDF
+  socialInfo?: SocialInfo;
+  documents: StudentDocument[]; // Upload de arquivos
+
+  history: Session[]; // Histórico de atendimentos
+
+  status: 'Active' | 'Inactive' | 'Pending';
+  createdAt: string;
+}
+
+export interface DashboardStats {
+  totalStudents: number;
+  newThisMonth: number;
+  bySpecialtyDemand: { name: string; value: number }[];
+}
+
+// --- PORTAGE IPO TYPES ---
+export interface PortageAssessment {
+  id: string;
+  studentId: string;
+  date: string;
+  professionalName: string;
+  studentAgeYears: number;
+  studentAgeMonths: number;
+  scores: {
+    socializacao: number[]; // 6 values
+    linguagem: number[];
+    cognicao: number[];
+    autocuidados: number[];
+    motor: number[];
+  };
+  results: {
+    socializacao: number;
+    linguagem: number;
+    cognicao: number;
+    autocuidados: number;
+    motor: number;
+    general: number;
+  };
+  createdAt: string;
+}
+
+// --- SYSTEM SETTINGS TYPES ---
+
+export interface ThemePalette {
+  id: string;
+  name: string;
+  colors: {
+    50: string;
+    100: string;
+    200: string;
+    300: string;
+    400: string;
+    500: string;
+    600: string;
+    700: string;
+    800: string;
+    900: string;
+    950: string;
+  };
+}
+
+export interface SystemSettings {
+  systemName: string;
+  logoUrl?: string; // Base64 or URL
+  loginBackgroundImage?: string; // Base64 ou URL para o fundo do login
+  showLoginInfo?: boolean; // Se false, esconde cards e logo (modo banner)
+  activeThemeId: string;
+}
+
+export interface PapelTimbradoConfig {
+  logoUrl: string | null;
+  tituloLinha1: string;
+  tituloLinha2: string;
+  tituloLinha3: string;
+  cnpj: string;
+  endereco: string;
+  telefone: string;
+  rodapeTexto: string;
+  rodapeImg: string | null;
+
+  // Flags de Visibilidade
+  showLogo: boolean;
+  showTitulos: boolean;
+  showContato: boolean;
+}

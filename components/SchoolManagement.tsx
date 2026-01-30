@@ -1,0 +1,361 @@
+
+import React, { useState, useEffect } from 'react';
+import { School } from '../types';
+import { SupabaseService } from '../services/SupabaseService';
+import { Save, School as SchoolIcon, X, MapPin, Phone, Building, AlertCircle, Wifi, Globe } from 'lucide-react';
+
+export const SchoolManagement: React.FC = () => {
+    const [schools, setSchools] = useState<School[]>([]);
+    const [isAdding, setIsAdding] = useState(false);
+    const [error, setError] = useState<string>('');
+    const [formData, setFormData] = useState<Partial<School>>({
+        name: '',
+        inep: '',
+        director: '',
+        phone: '',
+        district: '',
+        address: { street: '', number: '', district: '', city: '', state: '', zipCode: '' },
+        isActive: true,
+        hasInternet: false,
+        internetType: undefined,
+        internetProviderContact: ''
+    });
+
+    useEffect(() => {
+        loadSchools();
+    }, []);
+
+    const loadSchools = async () => {
+        const data = await SupabaseService.getSchools();
+        setSchools(data);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (!formData.name || !formData.inep) return;
+
+        // Check for duplicate INEP
+        const isDuplicateInep = schools.some(
+            school => school.inep === formData.inep && school.id !== formData.id
+        );
+
+        if (isDuplicateInep) {
+            setError('Já existe uma escola cadastrada com este código INEP.');
+            return;
+        }
+
+        const newSchool: School = {
+            id: formData.id || crypto.randomUUID(),
+            name: formData.name,
+            inep: formData.inep,
+            director: formData.director,
+            phone: formData.phone,
+            address: formData.address,
+            isActive: formData.isActive ?? true,
+            district: formData.district,
+            hasInternet: formData.hasInternet,
+            internetType: formData.hasInternet ? formData.internetType : undefined,
+            internetProviderContact: formData.hasInternet ? formData.internetProviderContact : undefined
+        };
+
+        try {
+            await SupabaseService.saveSchool(newSchool);
+            await loadSchools();
+            setIsAdding(false);
+            resetForm();
+        } catch (err) {
+            console.error(err);
+            setError('Erro ao salvar escola. Tente novamente.');
+        }
+    };
+
+    const resetForm = () => {
+        setFormData({
+            name: '',
+            inep: '',
+            director: '',
+            phone: '',
+            district: '',
+            address: { street: '', number: '', district: '', city: '', state: '', zipCode: '' },
+            isActive: true,
+            hasInternet: false,
+            internetType: undefined,
+            internetProviderContact: ''
+        });
+        setError('');
+    };
+
+    const handleEdit = (school: School) => {
+        setFormData(school);
+        setError('');
+        setIsAdding(true);
+    };
+
+    const handleAddressChange = (field: string, value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            address: {
+                ...prev.address!,
+                [field]: value
+            }
+        }));
+    };
+
+    return (
+        <div className="max-w-5xl mx-auto space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800">Unidades Escolares</h2>
+                    <p className="text-slate-500">Cadastro de escolas e código INEP</p>
+                </div>
+                <button
+                    onClick={() => { setIsAdding(true); resetForm(); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                    <SchoolIcon size={18} /> Nova Escola
+                </button>
+            </div>
+
+            {isAdding && (
+                <div className="bg-white rounded-xl shadow-lg border border-primary-100 p-6 animate-fadeIn">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-slate-700">Dados da Escola</h3>
+                        <button onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-slate-600">
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
+                            <AlertCircle size={18} />
+                            {error}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label className="block">
+                                <span className="text-sm font-medium text-slate-700">Nome da Escola *</span>
+                                <input required type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"
+                                    value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                            </label>
+                            <label className="block">
+                                <span className="text-sm font-medium text-slate-700">Código INEP *</span>
+                                <input required type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"
+                                    value={formData.inep} onChange={e => setFormData({ ...formData, inep: e.target.value })} placeholder="Ex: 12345678" />
+                            </label>
+                            <label className="block">
+                                <span className="text-sm font-medium text-slate-700">Diretor(a)</span>
+                                <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"
+                                    value={formData.director} onChange={e => setFormData({ ...formData, director: e.target.value })} />
+                            </label>
+                            <label className="block">
+                                <span className="text-sm font-medium text-slate-700">Telefone</span>
+                                <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border"
+                                    value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                            </label>
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                            <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                                <Globe size={16} /> Localização Administrativa
+                            </h4>
+                            <div>
+                                <label className="block">
+                                    <span className="text-sm font-bold text-slate-700">Distrito/Região Administrativa (Importante para Filtros)</span>
+                                    <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2 border border-l-4 border-l-orange-400"
+                                        value={formData.district} onChange={e => setFormData({ ...formData, district: e.target.value })}
+                                        placeholder="Ex: Cocal, Sede, Zona Rural..." />
+                                    <p className="text-xs text-slate-500 mt-1">Utilizado para definir quais secretárias regionais podem acessar esta escola (Ex: preencha 'Cocal' para aparecer no perfil da Secretária Cocal).</p>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Seção de Conectividade */}
+                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                            <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                                <Wifi size={16} /> Conectividade e Internet
+                            </h4>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-6">
+                                    <span className="text-sm font-medium text-slate-700">A escola possui acesso à internet?</span>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="hasInternet"
+                                                className="text-primary-600 focus:ring-primary-500"
+                                                checked={formData.hasInternet === true}
+                                                onChange={() => setFormData({ ...formData, hasInternet: true })}
+                                            />
+                                            <span className="text-sm text-slate-700">Sim</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="hasInternet"
+                                                className="text-primary-600 focus:ring-primary-500"
+                                                checked={formData.hasInternet === false}
+                                                onChange={() => setFormData({ ...formData, hasInternet: false })}
+                                            />
+                                            <span className="text-sm text-slate-700">Não</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {formData.hasInternet && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-blue-200 animate-fadeIn">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Banda Larga</label>
+                                            <select
+                                                className="block w-full rounded-md border-slate-300 shadow-sm p-2 border bg-white"
+                                                value={formData.internetType || ''}
+                                                onChange={(e) => setFormData({ ...formData, internetType: e.target.value as any })}
+                                            >
+                                                <option value="">Selecione...</option>
+                                                <option value="Via Satélite">Via Satélite</option>
+                                                <option value="Fibra Óptica">Fibra Óptica</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Telefone de Suporte da Provedora</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    className="block w-full rounded-md border-slate-300 shadow-sm p-2 border pl-9"
+                                                    value={formData.internetProviderContact || ''}
+                                                    onChange={(e) => setFormData({ ...formData, internetProviderContact: e.target.value })}
+                                                    placeholder="(00) 0000-0000"
+                                                />
+                                                <Phone className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                            <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                                <MapPin size={16} /> Endereço
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="md:col-span-2">
+                                    <input type="text" placeholder="Rua/Av" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                        value={formData.address?.street} onChange={e => handleAddressChange('street', e.target.value)} />
+                                </div>
+                                <div>
+                                    <input type="text" placeholder="Número" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                        value={formData.address?.number} onChange={e => handleAddressChange('number', e.target.value)} />
+                                </div>
+                                <div>
+                                    <input type="text" placeholder="Bairro" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                        value={formData.address?.district} onChange={e => handleAddressChange('district', e.target.value)} />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <input type="text" placeholder="Cidade" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                        value={formData.address?.city} onChange={e => handleAddressChange('city', e.target.value)} />
+                                </div>
+                                <div>
+                                    <input type="text" placeholder="UF" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                        value={formData.address?.state} onChange={e => handleAddressChange('state', e.target.value)} />
+                                </div>
+                                <div>
+                                    <input type="text" placeholder="CEP" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                        value={formData.address?.zipCode} onChange={e => handleAddressChange('zipCode', e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 mt-4">
+                            <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                            <button type="submit" className="flex items-center gap-2 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+                                <Save size={18} /> Salvar Escola
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Escola</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">INEP / Distrito</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Direção / Contato</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Internet</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Localização</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                        {schools.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">Nenhuma escola cadastrada.</td>
+                            </tr>
+                        ) : schools.map(school => (
+                            <tr key={school.id} className="hover:bg-slate-50">
+                                <td className="px-6 py-4">
+                                    <div className="font-medium text-slate-900 flex items-center gap-2">
+                                        <Building size={16} className="text-primary-500" />
+                                        {school.name}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 font-mono w-fit">
+                                            {school.inep}
+                                        </span>
+                                        {school.district && (
+                                            <span className={`text-xs font-bold ${school.district.toLowerCase().includes('cocal') ? 'text-orange-600' : 'text-slate-500'}`}>
+                                                Distrito: {school.district}
+                                            </span>
+                                        )}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-slate-600">
+                                    <div>{school.director}</div>
+                                    <div className="flex items-center gap-1 text-slate-400 text-xs mt-1">
+                                        <Phone size={12} /> {school.phone || '-'}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-sm">
+                                    {school.hasInternet ? (
+                                        <div className="flex flex-col gap-1">
+                                            <span className="flex items-center gap-1 text-green-700 text-xs font-medium bg-green-50 px-2 py-0.5 rounded w-fit">
+                                                <Wifi size={12} /> {school.internetType || 'Conectado'}
+                                            </span>
+                                            {school.internetProviderContact && (
+                                                <span className="text-xs text-slate-400 flex items-center gap-1">
+                                                    <Phone size={10} /> {school.internetProviderContact}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="text-slate-400 text-xs flex items-center gap-1">
+                                            <Wifi size={12} className="text-slate-300" /> Sem internet
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-slate-500">
+                                    {school.address?.city}/{school.address?.state}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <button
+                                        onClick={() => handleEdit(school)}
+                                        className="text-primary-600 hover:text-primary-800 text-sm font-medium"
+                                    >
+                                        Editar
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
