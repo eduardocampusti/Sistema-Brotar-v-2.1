@@ -483,10 +483,29 @@ export class SupabaseService {
     }
 
     static async deleteUser(id: string): Promise<void> {
-        const { error } = await supabase.from('profiles').delete().eq('id', id);
-        if (error) {
-            console.error('Erro ao excluir usuário:', error);
-            throw error;
+        // Tenta usar a RPC completa primeiro (remove Auth + Profile)
+        const { error: rpcError } = await supabase.rpc('delete_user_complete', { target_user_id: id });
+        if (rpcError) {
+            console.warn('Erro na RPC de exclusão (talvez função não exista), tentando método legado:', rpcError);
+
+            // Fallback: Exclusão apenas do Profile (não remove Auth, mas remove da lista visual)
+            const { error, data } = await supabase.from('profiles').delete().eq('id', id).select();
+
+            if (error) {
+                console.error('Erro ao excluir perfil de usuário:', error);
+                throw error;
+            }
+
+            // [FIX] Verifica se algo foi realmente deletado
+            if (!data || data.length === 0) {
+                console.error('Exclusão silenciada (RLS ou RPC ausente).');
+                throw new Error(
+                    `ERRO DE PERMISSÃO / FALHA TÉCNICA:\n\n` +
+                    `Supabase RPC Error: ${rpcError.message} (Code: ${rpcError.code})\n\n` +
+                    `Causa provável: A função "delete_user_complete" não existe ou você não tem permissão para executá-la.\n` +
+                    `Por favor, execute o script SQL enviado (incluindo os GRANTs) no SQL Editor.`
+                );
+            }
         }
     }
 

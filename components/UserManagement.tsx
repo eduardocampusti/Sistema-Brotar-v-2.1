@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole, Specialty, UserScope } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { useToast } from '../contexts/ToastContext';
-import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2 } from 'lucide-react';
+import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle } from 'lucide-react';
 
 const JOB_TITLES = [
     'Administrador(a)',
@@ -25,7 +25,13 @@ export const UserManagement: React.FC = () => {
     const { success, error: showError } = useToast(); // Renamed to avoid collision with error state if any, though here it's fine
     const [users, setUsers] = useState<User[]>([]);
     const [isAdding, setIsAdding] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); // [NEW] Bloqueio de envio
+    const [userToDelete, setUserToDelete] = useState<User | null>(null); // [NEW] Modal de Exclusão
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // ... (rest of the code)
+
+
     const [formData, setFormData] = useState<Partial<User>>({
         name: '',
         username: '',
@@ -52,15 +58,28 @@ export const UserManagement: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.username || !formData.password || !formData.name) return;
+        if (isLoading) return; // [NEW] Previne duplo clique
+
+        setIsLoading(true); // [NEW] Bloqueia
 
         // Se tiver ID, é EDIÇÃO. Se não, é CRIAÇÃO.
         const isEditing = !!formData.id;
 
+        // Normalização
+        const normalizedUsername = formData.username?.trim().toLowerCase();
+
+        console.log('Submitting User Form:', {
+            originalUsername: formData.username,
+            normalizedUsername,
+            email: formData.email,
+            password: formData.password
+        });
+
         const newUser: User = {
-            id: formData.id || '', // Se for novo, o ID virá da criação do Auth
+            id: formData.id || '',
             name: formData.name,
-            username: formData.username,
-            password: formData.password, // Importante para criação
+            username: normalizedUsername || '', // Garante que usa o normalizado
+            password: formData.password,
             role: formData.role as UserRole,
             isActive: formData.isActive ?? true,
             scope: formData.role === 'EDUCATION_SECRETARY' ? formData.scope : 'GLOBAL',
@@ -82,6 +101,7 @@ export const UserManagement: React.FC = () => {
                 const result = await SupabaseService.createAccountAsAdmin(newUser, formData.password!);
                 if (!result.success) {
                     showError(result.error || 'Erro ao criar usuário', 'Falha no cadastro');
+                    setIsLoading(false);
                     return;
                 }
 
@@ -98,6 +118,8 @@ export const UserManagement: React.FC = () => {
         } catch (err) {
             console.error(err);
             showError('Erro inesperado ao salvar usuário.', 'Erro do sistema');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -146,21 +168,27 @@ export const UserManagement: React.FC = () => {
         }
     };
 
-    const handleDelete = async (user: User) => {
+    const handleDelete = (user: User) => {
         if (user.username === 'admin') {
             showError('O usuário administrador principal não pode ser excluído.', 'Ação negada');
             return;
         }
+        setUserToDelete(user); // Abre o modal
+    };
 
-        if (window.confirm(`Tem certeza que deseja excluir o usuário ${user.name}? Esta ação não pode ser desfeita.`)) {
-            try {
-                await SupabaseService.deleteUser(user.id);
-                success('Usuário excluído com sucesso!', 'Excluído');
-                loadUsers();
-            } catch (err) {
-                console.error(err);
-                showError('Erro ao excluir usuário. Verifique se ele possui registros vinculados.', 'Erro na exclusão');
-            }
+    const confirmDelete = async () => {
+        if (!userToDelete) return;
+
+        try {
+            await SupabaseService.deleteUser(userToDelete.id);
+            success('Usuário excluído com sucesso!', 'Excluído');
+            loadUsers();
+        } catch (err: any) {
+            console.error(err);
+            // Mostra a mensagem real do erro (se existir) ou o fallback genérico
+            showError(err.message || 'Erro ao excluir usuário. Verifique se ele possui registros vinculados.', 'Erro na exclusão');
+        } finally {
+            setUserToDelete(null); // Fecha o modal
         }
     };
 
@@ -276,7 +304,15 @@ export const UserManagement: React.FC = () => {
                                             <span className="text-sm font-medium text-slate-700">E-mail</span>
                                             <div className="relative">
                                                 <input type="email" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2.5 border pl-9"
-                                                    value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                                    value={formData.email} onChange={e => {
+                                                        const val = e.target.value;
+                                                        // Sincroniza E-mail com Username automaticamente se estiver criando
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            email: val,
+                                                            username: val // Mantém sincronizado sempre
+                                                        }));
+                                                    }} />
                                                 <Mail className="absolute left-3 top-4 text-slate-400" size={16} />
                                             </div>
                                         </label>
@@ -339,10 +375,14 @@ export const UserManagement: React.FC = () => {
                                     <label className="block">
                                         <span className="text-sm font-medium text-slate-700">Nome de Usuário (Login) *</span>
                                         <div className="relative">
-                                            <input required type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2.5 border pl-9 bg-white"
-                                                value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} />
+                                            <input required type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2.5 border pl-9 bg-slate-100 text-slate-500 cursor-not-allowed"
+                                                value={formData.username}
+                                                readOnly
+                                                title="O login é preenchido automaticamente pelo e-mail"
+                                                onChange={e => setFormData({ ...formData, username: e.target.value })} />
                                             <UserIcon className="absolute left-3 top-4 text-slate-400" size={16} />
                                         </div>
+                                        <p className="text-[10px] text-slate-400 mt-1">Vinculado ao e-mail informado</p>
                                     </label>
                                 </div>
                                 <div>
@@ -403,9 +443,10 @@ export const UserManagement: React.FC = () => {
                         </div>
 
                         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                            <button type="button" onClick={() => setIsAdding(false)} className="px-6 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancelar</button>
-                            <button type="submit" className="flex items-center gap-2 px-8 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium shadow-md">
-                                <Save size={18} /> Salvar Usuário
+                            <button type="button" onClick={() => setIsAdding(false)} disabled={isLoading} className="px-6 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-medium disabled:opacity-50">Cancelar</button>
+                            <button type="submit" disabled={isLoading} className="flex items-center gap-2 px-8 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium shadow-md disabled:opacity-70 disabled:cursor-wait">
+                                {isLoading ? <span className="animate-spin">⏳</span> : <Save size={18} />}
+                                {isLoading ? 'Salvando...' : 'Salvar Usuário'}
                             </button>
                         </div>
                     </form>
@@ -497,6 +538,37 @@ export const UserManagement: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+            {/* Modal de Confirmação de Exclusão */}
+            {userToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-scaleIn">
+                        <div className="p-6 text-center">
+                            <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-100 mb-4">
+                                <AlertTriangle className="h-8 w-8 text-red-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">Confirmar Exclusão</h3>
+                            <p className="text-slate-500 mb-6">
+                                Tem certeza que deseja excluir o usuário <span className="font-bold text-slate-700">{userToDelete.name}</span>?
+                                <br />Esta ação é irreversível e removerá o acesso ao sistema.
+                            </p>
+                            <div className="flex justify-center gap-3">
+                                <button
+                                    onClick={() => setUserToDelete(null)}
+                                    className="px-5 py-2.5 bg-white text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 font-medium transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium shadow-md transition-colors flex items-center gap-2"
+                                >
+                                    <Trash2 size={18} /> Sim, Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
