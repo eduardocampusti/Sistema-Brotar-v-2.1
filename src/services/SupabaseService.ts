@@ -307,15 +307,43 @@ export class SupabaseService {
     // --- Falta implementar tabelas secundárias (Escolas, etc) ---
     // Mantendo compatibilidade básica
     static async getSchools(): Promise<School[]> {
-        const { data } = await supabase.from('schools').select('*');
+        const { data } = await supabase.from('schools').select('*').order('name');
         return (data || []).map((s: any) => ({
             id: s.id,
             name: s.name,
             inep: s.inep,
+            director: s.director,
+            phone: s.phone,
             district: s.district,
             isActive: s.is_active,
-            address: { street: '', number: '', district: s.district, city: 'Brotas', state: 'BA', zipCode: '' }
+            hasInternet: s.has_internet,
+            internetType: s.internet_type,
+            internetProviderContact: s.internet_provider_contact,
+            address: s.address || { street: '', number: '', district: s.district, city: 'Brotas', state: 'BA', zipCode: '' }
         }));
+    }
+
+    static async saveSchool(school: School): Promise<void> {
+        const payload = {
+            name: school.name,
+            inep: school.inep,
+            director: school.director,
+            phone: school.phone,
+            district: school.district,
+            is_active: school.isActive,
+            has_internet: school.hasInternet,
+            internet_type: school.internetType,
+            internet_provider_contact: school.internetProviderContact,
+            address: school.address
+        };
+
+        if (school.id && school.id.length > 10) { // UUID check roughly
+            const { error } = await supabase.from('schools').update(payload).eq('id', school.id);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase.from('schools').insert(payload);
+            if (error) throw error;
+        }
     }
 
     // --- System Settings ---

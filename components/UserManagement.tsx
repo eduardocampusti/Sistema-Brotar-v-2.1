@@ -57,7 +57,8 @@ export const UserManagement: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.username || !formData.password || !formData.name) return;
+        // Na edição (com ID), a senha é opcional. Na criação, é obrigatória.
+        if (!formData.username || (!formData.id && !formData.password) || !formData.name) return;
         if (isLoading) return; // [NEW] Previne duplo clique
 
         setIsLoading(true); // [NEW] Bloqueia
