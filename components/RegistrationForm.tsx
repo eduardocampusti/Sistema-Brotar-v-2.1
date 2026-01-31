@@ -126,6 +126,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         });
     };
 
+    const handleBooleanChange = (section: 'socialInfo' | 'school', field: string, value: boolean) => {
+        setFormData(prev => {
+            const currentSection = (prev[section] as any) || {};
+            return {
+                ...prev,
+                [section]: {
+                    ...currentSection,
+                    [field]: value
+                }
+            };
+        });
+    };
+
     const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
@@ -610,13 +623,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                                 <label className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-blue-200 shadow-sm cursor-pointer hover:bg-blue-50 transition-colors">
                                                     <input type="checkbox" className="rounded text-blue-600 focus:ring-blue-500"
                                                         checked={formData.socialInfo?.bolsaFamilia || false}
-                                                        onChange={e => handleCheckboxChange('socialInfo', 'bolsaFamilia', e.target.checked)} />
+                                                        onChange={e => handleBooleanChange('socialInfo', 'bolsaFamilia', e.target.checked)} />
                                                     <span className="text-sm text-blue-900">Bolsa Família</span>
                                                 </label>
                                                 <label className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-blue-200 shadow-sm cursor-pointer hover:bg-blue-50 transition-colors">
                                                     <input type="checkbox" className="rounded text-blue-600 focus:ring-blue-500"
                                                         checked={formData.socialInfo?.bpc || false}
-                                                        onChange={e => handleCheckboxChange('socialInfo', 'bpc', e.target.checked)} />
+                                                        onChange={e => handleBooleanChange('socialInfo', 'bpc', e.target.checked)} />
                                                     <span className="text-sm text-blue-900">BPC / LOAS</span>
                                                 </label>
                                             </div>
