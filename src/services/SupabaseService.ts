@@ -287,6 +287,9 @@ export class SupabaseService {
         };
 
         if (student.id && student.id.length > 5) { // Verifica se é UUID e não '1' (seed)
+            console.log(`[SupabaseService] Tentando atualizar aluno ${student.id}`);
+            console.log(`[SupabaseService] Photo URL length: ${dbPayload.photo_url?.length || 0}`);
+
             const { data, error } = await supabase
                 .from('students')
                 .update(dbPayload)
