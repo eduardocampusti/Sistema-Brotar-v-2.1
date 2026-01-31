@@ -517,12 +517,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Responsável</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.guardians?.[0]?.name} onChange={e => handleInputChange('guardians', 'name', e.target.value)} />
+                                                value={formData.guardians?.[0]?.name || ''} onChange={e => handleInputChange('guardians', 'name', e.target.value)} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Parentesco</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.guardians?.[0]?.relationship} onChange={e => handleInputChange('guardians', 'relationship', e.target.value)} placeholder="Mãe, Pai, Avó..." />
+                                                value={formData.guardians?.[0]?.relationship || ''} onChange={e => handleInputChange('guardians', 'relationship', e.target.value)} placeholder="Mãe, Pai, Avó..." />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Cor / Etnia</label>
@@ -555,12 +555,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Telefone / WhatsApp</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.guardians?.[0]?.phone} onChange={e => handleInputChange('guardians', 'phone', e.target.value)} />
+                                                value={formData.guardians?.[0]?.phone || ''} onChange={e => handleInputChange('guardians', 'phone', e.target.value)} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Ocupação</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.guardians?.[0]?.occupation} onChange={e => handleInputChange('guardians', 'occupation', e.target.value)} />
+                                                value={formData.guardians?.[0]?.occupation || ''} onChange={e => handleInputChange('guardians', 'occupation', e.target.value)} />
                                         </div>
                                     </div>
                                 </div>
@@ -571,21 +571,21 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         <div>
                                             <label className="block text-sm font-medium text-blue-800 mb-1">Número NIS</label>
                                             <input type="text" className="w-full rounded-lg border-blue-200 focus:ring-blue-500 focus:border-blue-500 p-2.5 border bg-white"
-                                                value={formData.socialInfo?.nis || ''} onChange={e => setFormData(prev => ({ ...prev, socialInfo: { ...prev.socialInfo!, nis: e.target.value } }))} />
+                                                value={formData.socialInfo?.nis || ''} onChange={e => handleInputChange('socialInfo', 'nis', e.target.value)} />
                                         </div>
                                         <div className="flex flex-col justify-center space-y-3">
                                             <span className="text-sm font-medium text-blue-800">Programas Sociais</span>
                                             <div className="flex gap-4">
                                                 <label className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-blue-200 shadow-sm cursor-pointer hover:bg-blue-50 transition-colors">
                                                     <input type="checkbox" className="rounded text-blue-600 focus:ring-blue-500"
-                                                        checked={formData.socialInfo?.bolsaFamilia}
-                                                        onChange={e => setFormData(prev => ({ ...prev, socialInfo: { ...prev.socialInfo!, bolsaFamilia: e.target.checked } }))} />
+                                                        checked={formData.socialInfo?.bolsaFamilia || false}
+                                                        onChange={e => handleCheckboxChange('socialInfo', 'bolsaFamilia', e.target.checked)} />
                                                     <span className="text-sm text-blue-900">Bolsa Família</span>
                                                 </label>
                                                 <label className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-blue-200 shadow-sm cursor-pointer hover:bg-blue-50 transition-colors">
                                                     <input type="checkbox" className="rounded text-blue-600 focus:ring-blue-500"
-                                                        checked={formData.socialInfo?.bpc}
-                                                        onChange={e => setFormData(prev => ({ ...prev, socialInfo: { ...prev.socialInfo!, bpc: e.target.checked } }))} />
+                                                        checked={formData.socialInfo?.bpc || false}
+                                                        onChange={e => handleCheckboxChange('socialInfo', 'bpc', e.target.checked)} />
                                                     <span className="text-sm text-blue-900">BPC / LOAS</span>
                                                 </label>
                                             </div>
