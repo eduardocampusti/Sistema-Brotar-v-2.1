@@ -580,6 +580,11 @@ export class SupabaseService {
             .single();
 
         if (error || !data) {
+            console.error('ALERTA DE DEBUG: Falha ao buscar cabeçalho personalizado. Usando padrão.', error);
+            // Se o erro for de permissão (42501), o usuário precisa dar GRANT
+            if (error?.code === '42501' || error?.message?.includes('permission')) {
+                console.error('ERRO DE PERMISSÃO (RLS): A tabela letterhead_config não pode ser lida.');
+            }
             return {
                 tituloLinha1: "PREFEITURA MUNICIPAL DE BROTAS DE MACAÚBAS",
                 tituloLinha2: "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
@@ -589,6 +594,8 @@ export class SupabaseService {
                 showLogo: true, showTitulos: true, showContato: true
             };
         }
+
+        console.log('DEBUG: Config timbrado carregada do banco:', data);
 
         return {
             logoUrl: data.logo_url,

@@ -131,6 +131,8 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
     if (!printWindow) return;
 
     const config = await SupabaseService.getPapelTimbradoConfig();
+    console.log('DEBUG: Config usada na impressão:', config);
+
     const html = `
       <html>
         <head>

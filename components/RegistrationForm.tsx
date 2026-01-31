@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Student, Gender, DocumentType, StudentDocument } from '../types';
+import { Student, Gender, DocumentType, StudentDocument, School } from '../types';
 import { Save, X, Activity, User, BookOpen, Users as UsersIcon, Upload, Trash2, FileText, Check, Paperclip, AlertCircle, Download } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 
@@ -16,6 +16,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const docInputRef = useRef<HTMLInputElement>(null);
     const [selectedDocType, setSelectedDocType] = useState<DocumentType>('Outros');
     const [showSuccessModal, setShowSuccessModal] = useState(false); // State for professional feedback modal
+    const [schools, setSchools] = useState<School[]>([]); // State for schools list
 
     const handleCloseSuccess = () => {
         setShowSuccessModal(false);
@@ -48,6 +49,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         }
     }, [initialData]);
 
+    // Load schools list
+    useEffect(() => {
+        async function loadSchools() {
+            try {
+                const schoolsData = await SupabaseService.getSchools();
+                setSchools(schoolsData);
+            } catch (error) {
+                console.error("Erro ao carregar escolas:", error);
+            }
+        }
+        loadSchools();
+    }, []);
+
     // Função auxiliar para formatar CPF
     const formatCPF = (value: string) => {
         return value
@@ -59,21 +73,41 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     };
 
     const handleInputChange = (section: keyof Student | null, field: string, value: any) => {
-        if (section && typeof formData[section] === 'object' && section !== 'documents') {
-            setFormData(prev => ({
-                ...prev,
-                [section]: {
-                    ...(prev[section] as any),
-                    [field]: value
-                }
-            }));
+        // Seções que são objetos aninhados
+        const objectSections = ['address', 'clinical', 'school', 'socialInfo'];
+
+        if (section && objectSections.includes(section)) {
+            setFormData(prev => {
+                // Garante que a seção existe (fallback para objeto vazio)
+                const currentSection = (prev[section] as any) || {};
+                return {
+                    ...prev,
+                    [section]: {
+                        ...currentSection,
+                        [field]: value
+                    }
+                };
+            });
         } else if (section === 'guardians') {
-            const newGuardians = [...(formData.guardians || [])];
-            if (newGuardians.length > 0) {
+            setFormData(prev => {
+                const currentGuardians = prev.guardians || [];
+                const newGuardians = [...currentGuardians];
+
+                if (newGuardians.length === 0) {
+                    // Se não houver responsável, cria o primeiro
+                    newGuardians.push({
+                        name: '', relationship: '', phone: '', email: '',
+                        occupation: '', ethnicity: '', cpf: '', rg: ''
+                    } as any);
+                }
+
+                // Atualiza o primeiro responsável (índice 0)
                 newGuardians[0] = { ...newGuardians[0], [field]: value };
-            }
-            setFormData(prev => ({ ...prev, guardians: newGuardians }));
+
+                return { ...prev, guardians: newGuardians };
+            });
         } else {
+            // Atualização na raiz do objeto (ex: fullName, birthDate)
             setFormData(prev => ({ ...prev, [field]: value }));
         }
     };
@@ -568,13 +602,62 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Escola</label>
-                                        <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                            value={formData.school?.schoolName} onChange={e => handleInputChange('school', 'schoolName', e.target.value)} />
+                                        <select
+                                            className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                            value={formData.school?.schoolName || ''}
+                                            onChange={e => handleInputChange('school', 'schoolName', e.target.value)}
+                                        >
+                                            <option value="">Selecione a Escola...</option>
+                                            {schools.map(school => (
+                                                <option key={school.id} value={school.name}>{school.name}</option>
+                                            ))}
+                                            <option value="Outra (Não Listada)">Outra (Não Listada)</option>
+                                        </select>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Série/Ano Escolar</label>
-                                        <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                            value={formData.school?.grade} onChange={e => handleInputChange('school', 'grade', e.target.value)} />
+                                        <select
+                                            className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                            value={formData.school?.grade || ''}
+                                            onChange={e => handleInputChange('school', 'grade', e.target.value)}
+                                        >
+                                            <option value="">Selecione...</option>
+                                            <optgroup label="Educação Infantil">
+                                                <option value="Berçário I">Berçário I</option>
+                                                <option value="Berçário II">Berçário II</option>
+                                                <option value="Maternal I">Maternal I</option>
+                                                <option value="Maternal II">Maternal II</option>
+                                                <option value="Pré I">Pré I</option>
+                                                <option value="Pré II">Pré II</option>
+                                            </optgroup>
+                                            <optgroup label="Ensino Fundamental I">
+                                                <option value="1º Ano">1º Ano</option>
+                                                <option value="2º Ano">2º Ano</option>
+                                                <option value="3º Ano">3º Ano</option>
+                                                <option value="4º Ano">4º Ano</option>
+                                                <option value="5º Ano">5º Ano</option>
+                                            </optgroup>
+                                            <optgroup label="Ensino Fundamental II">
+                                                <option value="6º Ano">6º Ano</option>
+                                                <option value="7º Ano">7º Ano</option>
+                                                <option value="8º Ano">8º Ano</option>
+                                                <option value="9º Ano">9º Ano</option>
+                                            </optgroup>
+                                            <optgroup label="Ensino Médio">
+                                                <option value="1º Ano Médio">1º Ano Médio</option>
+                                                <option value="2º Ano Médio">2º Ano Médio</option>
+                                                <option value="3º Ano Médio">3º Ano Médio</option>
+                                            </optgroup>
+                                            <optgroup label="EJA">
+                                                <option value="EJA - Ciclo I">EJA - Ciclo I</option>
+                                                <option value="EJA - Ciclo II">EJA - Ciclo II</option>
+                                                <option value="EJA - Ensino Médio">EJA - Ensino Médio</option>
+                                            </optgroup>
+                                            <optgroup label="Outros">
+                                                <option value="Classe Especial">Classe Especial</option>
+                                                <option value="Aceleração">Aceleração</option>
+                                            </optgroup>
+                                        </select>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Ensino</label>
