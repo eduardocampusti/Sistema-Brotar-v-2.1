@@ -46,7 +46,17 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     // Load initial data if editing
     useEffect(() => {
         if (initialData) {
-            setFormData(initialData);
+            // [FIX] Ensure deeply nested objects exist to prevent crashes
+            const safeData = {
+                ...initialData,
+                guardians: (initialData.guardians && initialData.guardians.length > 0)
+                    ? initialData.guardians
+                    : [{ name: '', relationship: '', phone: '', email: '', occupation: '', ethnicity: '', cpf: '', rg: '' }],
+                socialInfo: initialData.socialInfo || { nis: '', bolsaFamilia: false, bpc: false },
+                clinical: initialData.clinical || { diagnosis: '', medications: '', allergies: '', specialNeeds: [], therapiesHistory: '' },
+                school: initialData.school || { schoolName: '', grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' }
+            };
+            setFormData(safeData);
         }
     }, [initialData]);
 
