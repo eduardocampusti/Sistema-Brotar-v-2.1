@@ -271,6 +271,7 @@ export class SupabaseService {
             shift: student.school.shift,
             address: student.address,
             guardians: student.guardians,
+            photo_url: student.photoUrl, // [FIX] Added missing field
             // Campos JSONB
             clinical_info: {
                 ...student.clinical,
@@ -286,9 +287,17 @@ export class SupabaseService {
         };
 
         if (student.id && student.id.length > 5) { // Verifica se é UUID e não '1' (seed)
-            await supabase.from('students').update(dbPayload).eq('id', student.id);
+            const { data, error } = await supabase
+                .from('students')
+                .update(dbPayload)
+                .eq('id', student.id)
+                .select(); // Return updated rows to confirm impact
+
+            if (error) throw error;
+            if (!data || data.length === 0) throw new Error("A atualização não afetou nenhum registro. Verifique se o aluno existe e se você tem permissão.");
         } else {
-            await supabase.from('students').insert(dbPayload);
+            const { error } = await supabase.from('students').insert(dbPayload);
+            if (error) throw error;
         }
     }
 
