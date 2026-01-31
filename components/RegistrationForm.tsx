@@ -17,6 +17,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const [selectedDocType, setSelectedDocType] = useState<DocumentType>('Outros');
     const [showSuccessModal, setShowSuccessModal] = useState(false); // State for professional feedback modal
     const [schools, setSchools] = useState<School[]>([]); // State for schools list
+    const [saveError, setSaveError] = useState<string | null>(null); // State for save errors
 
     const handleCloseSuccess = () => {
         setShowSuccessModal(false);
@@ -182,13 +183,17 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         setIsSubmitting(true);
 
         try {
+            setSaveError(null); // Clear previous errors
             await SupabaseService.saveStudent(formData as Student);
             setIsSubmitting(false);
             setShowSuccessModal(true); // Show success modal instead of closing immediately
-        } catch (err) {
-            console.error('Erro ao salvar aluno:', err);
+        } catch (err: any) {
+            console.error('Erro detalhado ao salvar aluno:', err);
+            const errorMessage = err?.message || err?.error_description || 'Erro desconhecido ao salvar.';
+            setSaveError(`Não foi possível salvar os dados. Detalhe: ${errorMessage}`);
             setIsSubmitting(false);
-            alert('Erro ao salvar aluno no banco de dados.');
+            // Scroll to top to show error
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
 
@@ -231,6 +236,32 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     return (
         <>
             <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-140px)] md:h-auto">
+
+                {saveError && (
+                    <div className="bg-red-50 border-l-4 border-red-500 p-4 m-6 mb-0">
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <AlertCircle className="h-5 w-5 text-red-500" />
+                            </div>
+                            <div className="ml-3">
+                                <p className="text-sm text-red-700 font-medium">
+                                    Ocorreu um erro ao salvar
+                                </p>
+                                <p className="text-xs text-red-600 mt-1">
+                                    {saveError}
+                                </p>
+                            </div>
+                            <div className="ml-auto pl-3">
+                                <button
+                                    className="-mx-1.5 -my-1.5 bg-red-50 text-red-500 hover:text-red-800 rounded-lg p-1.5 inline-flex h-8 w-8 items-center justify-center transition-colors"
+                                    onClick={() => setSaveError(null)}
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {/* ... existing content ... */}
                 {/* Due to tool limits, I'm replacing the WRAPPER only, but I need to be careful to not lose content. 
                    Actually, replacing the entire return is risky with tool limits.
