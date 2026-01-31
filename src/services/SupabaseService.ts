@@ -8,7 +8,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     fullName: dbStudent.full_name,
     birthDate: dbStudent.birth_date,
     gender: (dbStudent.clinical_info?.gender || 'Outro') as any, // Fallback se não tiver na coluna
-    photoUrl: dbStudent.clinical_info?.photoUrl,
+    photoUrl: dbStudent.photo_url || dbStudent.clinical_info?.photoUrl || '', // [FIX] Read from root col first
     cpf: dbStudent.cpf || '',
     rg: dbStudent.clinical_info?.rg,
     susCard: dbStudent.sus_card,
@@ -29,7 +29,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
         hasSpecialAide: false,
         difficulties: ''
     },
-    socialInfo: dbStudent.social_info,
+    socialInfo: dbStudent.social_info || { nis: '', bolsaFamilia: false, bpc: false }, // [FIX] Ensure object
     documents: [], // Busca separada depois
     history: sessions.map(s => ({
         id: s.id,
