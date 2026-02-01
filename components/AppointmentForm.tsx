@@ -35,6 +35,9 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
     const [searchName, setSearchName] = useState(initialData?.studentName || '');
     const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
 
+    // State for selected duration (default 40min)
+    const [duration, setDuration] = useState(40);
+
     const [newApt, setNewApt] = useState<Partial<Appointment>>({
         unit: initialData?.unit || (currentUser.role === 'ADMIN' ? 'SEDE' : (currentUser.scope as Unit || 'SEDE')),
         status: 'AGENDADO',
@@ -325,6 +328,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                         <button
                                             key={dur}
                                             onClick={() => {
+                                                setDuration(dur);
                                                 if (newApt.startTime) {
                                                     const [h, m] = newApt.startTime.split(':').map(Number);
                                                     const d = new Date();
@@ -333,7 +337,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                                     setNewApt({ ...newApt, endTime: nextEnd });
                                                 }
                                             }}
-                                            className="px-2 py-1 bg-slate-100 hover:bg-primary-50 text-slate-500 hover:text-primary-600 rounded-lg text-[10px] font-bold transition-all"
+                                            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${duration === dur ? 'bg-primary-500 text-white shadow-md' : 'bg-slate-100 hover:bg-primary-50 text-slate-500 hover:text-primary-600'}`}
                                             title={`Definir duração de ${dur} min`}
                                         >
                                             {dur}m
@@ -350,10 +354,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                         <button
                                             key={time}
                                             onClick={() => {
-                                                // Auto-set End Time (Default 40m)
+                                                // Auto-set End Time using current duration state
                                                 const [h, m] = time.split(':').map(Number);
                                                 const d = new Date();
-                                                d.setHours(h, m + 40);
+                                                d.setHours(h, m + duration);
                                                 const nextEnd = d.toTimeString().slice(0, 5);
                                                 setNewApt({ ...newApt, startTime: time, endTime: nextEnd });
                                             }}
@@ -369,10 +373,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                         <button
                                             key={time}
                                             onClick={() => {
-                                                // Auto-set End Time (Default 40m)
+                                                // Auto-set End Time using current duration state
                                                 const [h, m] = time.split(':').map(Number);
                                                 const d = new Date();
-                                                d.setHours(h, m + 40);
+                                                d.setHours(h, m + duration);
                                                 const nextEnd = d.toTimeString().slice(0, 5);
                                                 setNewApt({ ...newApt, startTime: time, endTime: nextEnd });
                                             }}
@@ -392,11 +396,11 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                         value={newApt.startTime}
                                         onChange={(e) => {
                                             const newStart = e.target.value;
-                                            // Auto calc +40m only if end is not set or empty, or just strictly auto-calc
+                                            // Auto calc +duration only if end is not set or empty, or just strictly auto-calc
                                             if (newStart) {
                                                 const [h, m] = newStart.split(':').map(Number);
                                                 const d = new Date();
-                                                d.setHours(h, m + 40);
+                                                d.setHours(h, m + duration);
                                                 const nextEnd = d.toTimeString().slice(0, 5);
                                                 setNewApt({ ...newApt, startTime: newStart, endTime: nextEnd });
                                             } else {
