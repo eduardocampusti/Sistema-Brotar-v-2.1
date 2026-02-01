@@ -5872,6 +5872,29 @@ const extractNutritionData = (student: Student): NutritionPrivateData => {
 };
 
 // --- DASHBOARD ESPECÍFICO DE NUTRIÇÃO ---
+
+const StyledInput = ({ label, value, onChange, rows, placeholder }: any) => (
+    <label className="block">
+        <span className="text-sm font-bold text-slate-700 block mb-2">{label}</span>
+        {rows ? (
+            <textarea
+                rows={rows}
+                className="w-full rounded-lg border-slate-300 p-3 border placeholder:text-slate-400 focus:ring-2 focus:ring-green-500 outline-none transition-all resize-none"
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+            />
+        ) : (
+            <input
+                type="text"
+                className="w-full rounded-lg border-slate-300 p-3 border placeholder:text-slate-400 focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                value={value}
+                onChange={onChange}
+                placeholder={placeholder}
+            />
+        )}
+    </label>
+);
 const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStudent?: Student }> = ({ title, onNavigateNew, currentUser, preSelectedStudent }) => {
     const [students, setStudents] = useState<Student[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(preSelectedStudent || null);
