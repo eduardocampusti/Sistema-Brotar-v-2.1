@@ -321,7 +321,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                 </div>
                                 {/* Duration Toggles */}
                                 <div className="flex gap-1">
-                                    {[30, 45, 50, 60].map(dur => (
+                                    {[30, 40, 50, 60].map(dur => (
                                         <button
                                             key={dur}
                                             onClick={() => {
@@ -346,14 +346,14 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                             <div className="flex flex-col gap-2">
                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sugestões de Início (Manhã)</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {['07:30', '08:00', '08:50', '09:40', '10:00', '10:30', '11:00'].map(time => (
+                                    {['08:00', '08:40', '09:20', '10:00', '11:00'].map(time => (
                                         <button
                                             key={time}
                                             onClick={() => {
-                                                // Auto-set End Time (Default 50m)
+                                                // Auto-set End Time (Default 40m)
                                                 const [h, m] = time.split(':').map(Number);
                                                 const d = new Date();
-                                                d.setHours(h, m + 50);
+                                                d.setHours(h, m + 40);
                                                 const nextEnd = d.toTimeString().slice(0, 5);
                                                 setNewApt({ ...newApt, startTime: time, endTime: nextEnd });
                                             }}
@@ -365,14 +365,14 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                 </div>
                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Sugestões de Início (Tarde)</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {['13:00', '13:30', '14:00', '14:50', '15:00', '15:40', '16:00', '16:30', '17:00'].map(time => (
+                                    {['13:00', '13:40', '14:20', '15:00', '15:40', '16:20'].map(time => (
                                         <button
                                             key={time}
                                             onClick={() => {
-                                                // Auto-set End Time (Default 50m)
+                                                // Auto-set End Time (Default 40m)
                                                 const [h, m] = time.split(':').map(Number);
                                                 const d = new Date();
-                                                d.setHours(h, m + 50);
+                                                d.setHours(h, m + 40);
                                                 const nextEnd = d.toTimeString().slice(0, 5);
                                                 setNewApt({ ...newApt, startTime: time, endTime: nextEnd });
                                             }}
@@ -392,11 +392,11 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                         value={newApt.startTime}
                                         onChange={(e) => {
                                             const newStart = e.target.value;
-                                            // Auto calc +50m only if end is not set or empty, or just strictly auto-calc
+                                            // Auto calc +40m only if end is not set or empty, or just strictly auto-calc
                                             if (newStart) {
                                                 const [h, m] = newStart.split(':').map(Number);
                                                 const d = new Date();
-                                                d.setHours(h, m + 50);
+                                                d.setHours(h, m + 40);
                                                 const nextEnd = d.toTimeString().slice(0, 5);
                                                 setNewApt({ ...newApt, startTime: newStart, endTime: nextEnd });
                                             } else {
