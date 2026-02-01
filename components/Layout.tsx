@@ -64,7 +64,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
     // Grupo 1: Navegação Principal
     const main = [
       { id: 'dashboard', label: 'Visão Geral', icon: <LayoutDashboard size={20} /> },
-      { id: 'agenda', label: 'Agenda & Sessões', icon: <Calendar size={20} /> },
+      { id: 'scheduling', label: 'Central de Agendamentos', icon: <Calendar size={20} /> },
       { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
       { id: 'documents', label: 'Documentos', icon: <FileText size={20} /> },
       { id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> },
@@ -95,7 +95,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
   const getStandardMenuItems = () => {
     const items = [
       { id: 'dashboard', label: 'Visão Geral', icon: <LayoutDashboard size={20} /> },
-      { id: 'agenda', label: 'Agenda & Sessões', icon: <Calendar size={20} /> },
+      { id: 'scheduling', label: 'Central de Agendamentos', icon: <Calendar size={20} /> },
       { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
     ];
 

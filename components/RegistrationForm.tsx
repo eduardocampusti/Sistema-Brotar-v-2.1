@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Student, Gender, DocumentType, StudentDocument, School } from '../types';
 import { Save, X, Activity, User, BookOpen, Users as UsersIcon, Upload, Trash2, FileText, Check, Paperclip, AlertCircle, Download } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
+import { generateStudentPDF } from '../utils/pdfExport';
 
 interface RegistrationFormProps {
     onSuccess: () => void;
@@ -18,6 +19,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const [showSuccessModal, setShowSuccessModal] = useState(false); // State for professional feedback modal
     const [schools, setSchools] = useState<School[]>([]); // State for schools list
     const [saveError, setSaveError] = useState<string | null>(null); // State for save errors
+    const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null); // State for photo upload
+    const [documentFiles, setDocumentFiles] = useState<{ file: File, type: string }[]>([]); // Estado para arquivos de documentos COM TIPO
 
     const handleCloseSuccess = () => {
         setShowSuccessModal(false);
@@ -26,7 +29,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
     // Initial State
     const [formData, setFormData] = useState<Partial<Student>>({
-        id: crypto.randomUUID(),
+        id: '',
         status: 'Active',
         createdAt: new Date().toISOString(),
         photoUrl: '',
@@ -38,7 +41,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         address: { street: '', number: '', district: '', city: '', state: '', zipCode: '' },
         guardians: [{ name: '', relationship: '', phone: '', email: '', occupation: '', ethnicity: '', cpf: '', rg: '' }],
         clinical: { diagnosis: '', cid: '', medications: '', allergies: '', therapiesHistory: '', weight: '', height: '', specialNeeds: [] },
-        school: { schoolName: '', grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' },
+        school: { schoolId: '', schoolName: '', grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' },
         socialInfo: { nis: '', bolsaFamilia: false, bpc: false },
         documents: []
     });
@@ -54,7 +57,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                     : [{ name: '', relationship: '', phone: '', email: '', occupation: '', ethnicity: '', cpf: '', rg: '' }],
                 socialInfo: initialData.socialInfo || { nis: '', bolsaFamilia: false, bpc: false },
                 clinical: initialData.clinical || { diagnosis: '', medications: '', allergies: '', specialNeeds: [], therapiesHistory: '' },
-                school: initialData.school || { schoolName: '', grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' }
+                school: initialData.school || { schoolId: '', schoolName: '', grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' }
             };
             setFormData(safeData);
         }
@@ -152,6 +155,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
+            setSelectedPhotoFile(file); // Store file for upload
             const reader = new FileReader();
             reader.onloadend = () => {
                 setFormData(prev => ({ ...prev, photoUrl: reader.result as string }));
@@ -162,6 +166,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
     const handleRemovePhoto = () => {
         setFormData(prev => ({ ...prev, photoUrl: '' }));
+        setSelectedPhotoFile(null); // Clear file
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -186,6 +191,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                     ...prev,
                     documents: [...(prev.documents || []), newDoc]
                 }));
+
+                // Salva o arquivo real com seu tipo para envio posterior
+                setDocumentFiles(prev => [...prev, { file, type: docType }]);
             };
             reader.readAsDataURL(file);
         }
@@ -206,40 +214,60 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         setIsSubmitting(true);
 
         try {
-            setSaveError(null); // Clear previous errors
-            await SupabaseService.saveStudent(formData as Student);
+            setSaveError(null);
+
+            // Salva e recupera o ID (novo ou existente)
+            console.log('[RegistrationForm] Enviando para saveStudent - ID:', formData.id, 'CPF:', formData.cpf);
+            const savedId = await SupabaseService.saveStudent(
+                formData as Student,
+                selectedPhotoFile || undefined,
+                documentFiles
+            );
+
+            // Limpa arquivos após sucesso
+            setDocumentFiles([]);
+            setSelectedPhotoFile(null);
+
+            // Atualiza o formulário com o ID retornado para garantir que próximos salvamentos sejam UPDATE
+            setFormData(prev => ({ ...prev, id: savedId }));
+
             setIsSubmitting(false);
-            setShowSuccessModal(true); // Show success modal instead of closing immediately
+            setShowSuccessModal(true);
         } catch (err: any) {
             console.error('Erro detalhado ao salvar aluno:', err);
-            const errorMessage = err?.message || err?.error_description || 'Erro desconhecido ao salvar.';
+            // Tenta extrair o máximo de detalhes possível do erro
+            let errorMessage = err?.message || err?.error_description || 'Erro desconhecido ao salvar.';
+
+            // Se o erro for um objeto genérico, tenta stringify para ver o conteúdo
+            if (typeof err === 'object' && err !== null) {
+                try {
+                    errorMessage += ` | Detalhes: ${JSON.stringify(err)}`;
+                } catch (e) {
+                    errorMessage += ` | (Erro não serializável)`;
+                }
+            }
+
             setSaveError(`Não foi possível salvar os dados. Detalhe: ${errorMessage}`);
             setIsSubmitting(false);
-            // Scroll to top to show error
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
 
-    const handleExportJSON = () => {
+    const handleExportPDF = async () => {
         if (!formData.fullName) return;
 
-        const exportData = {
-            ...formData,
-            exportedAt: new Date().toISOString(),
-            systemVersion: "2.0"
-        };
+        const originalText = "Exportar PDF";
+        const button = document.getElementById('btn-export-pdf');
+        if (button) button.innerText = "Gerando...";
 
-        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-            JSON.stringify(exportData, null, 2)
-        )}`;
-
-        const link = document.createElement("a");
-        link.href = jsonString;
-        link.download = `ficha_aluno_${formData.fullName.replace(/\s+/g, "_").toLowerCase()}.json`;
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        try {
+            await generateStudentPDF(formData as Student);
+        } catch (error) {
+            console.error("Erro ao gerar PDF:", error);
+            alert("Erro ao gerar PDF. Verifique o console.");
+        } finally {
+            if (button) button.innerText = originalText;
+        }
     };
 
     const TabButton = ({ id, label, icon: Icon }: any) => (
@@ -303,12 +331,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                     <div className="flex items-center gap-2">
                         {initialData && (
                             <button
+                                id="btn-export-pdf"
                                 type="button"
-                                onClick={handleExportJSON}
-                                className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-lg transition-colors mr-2"
-                                title="Exportar dados para JSON (Migração)"
+                                onClick={handleExportPDF}
+                                className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors mr-2"
+                                title="Baixar Ficha Completa (PDF)"
                             >
-                                <Download size={16} /> Exportar Ficha
+                                <Download size={16} /> Exportar PDF
                             </button>
                         )}
                         <button onClick={onCancel} className="text-slate-400 hover:text-red-500 transition-colors p-2 hover:bg-slate-100 rounded-full">
@@ -658,12 +687,25 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Escola</label>
                                         <select
                                             className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                            value={formData.school?.schoolName || ''}
-                                            onChange={e => handleInputChange('school', 'schoolName', e.target.value)}
+                                            value={formData.school?.schoolId || formData.school?.schoolName || ''}
+                                            onChange={e => {
+                                                const selectedId = e.target.value;
+                                                const school = schools.find(s => s.id === selectedId);
+                                                if (school) {
+                                                    handleInputChange('school', 'schoolId', school.id);
+                                                    handleInputChange('school', 'schoolName', school.name);
+                                                } else {
+                                                    // Caso for "Outra" ou vazio
+                                                    handleInputChange('school', 'schoolId', '');
+                                                    handleInputChange('school', 'schoolName', selectedId);
+                                                }
+                                            }}
                                         >
                                             <option value="">Selecione a Escola...</option>
                                             {schools.map(school => (
-                                                <option key={school.id} value={school.name}>{school.name}</option>
+                                                <option key={school.id} value={school.id}>
+                                                    {school.name} {school.inep ? `(INEP: ${school.inep})` : ''}
+                                                </option>
                                             ))}
                                             <option value="Outra (Não Listada)">Outra (Não Listada)</option>
                                         </select>
@@ -771,21 +813,44 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                             { type: 'Cartão de Vacina', icon: Check },
                                             { type: 'Cartão SUS', icon: Activity },
                                             { type: 'Certidão de Nascimento', icon: User },
-                                            { type: 'PEI', icon: BookOpen }
-                                        ].map((docItem) => (
-                                            <div key={docItem.type} className="relative group">
-                                                <label className="flex flex-col items-center justify-center p-4 h-32 bg-white border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-all">
-                                                    <docItem.icon className="text-slate-400 mb-2 group-hover:text-primary-600" size={24} />
-                                                    <span className="text-xs font-medium text-center text-slate-600 group-hover:text-primary-700 leading-tight">{docItem.type}</span>
-                                                    <input
-                                                        type="file"
-                                                        className="hidden"
-                                                        accept="image/*,application/pdf"
-                                                        onChange={(e) => handleDocumentUpload(e, docItem.type as DocumentType)}
-                                                    />
-                                                </label>
-                                            </div>
-                                        ))}
+                                            { type: 'PEI', icon: BookOpen },
+                                            // Novo item solicitado
+                                            { type: 'Autorização de Uso de Imagem', icon: FileText },
+                                            { type: 'RG', icon: User },
+                                            { type: 'CPF', icon: FileText }
+                                        ].map((docItem) => {
+                                            // Verifica se já existe documento deste tipo (visual feedback)
+                                            const hasFile = formData.documents?.some(d => d.type === docItem.type) ||
+                                                documentFiles.some(d => d.type === docItem.type);
+
+                                            return (
+                                                <div key={docItem.type} className="relative group">
+                                                    <label className={`flex flex-col items-center justify-center p-4 h-32 bg-white border-2 border-dashed rounded-lg cursor-pointer transition-all
+                                                    ${hasFile
+                                                            ? 'border-green-500 bg-green-50'
+                                                            : 'border-slate-300 hover:border-primary-500 hover:bg-primary-50'
+                                                        }`}>
+
+                                                        {hasFile ? (
+                                                            <Check className="text-green-600 mb-2" size={24} />
+                                                        ) : (
+                                                            <docItem.icon className="text-slate-400 mb-2 group-hover:text-primary-600" size={24} />
+                                                        )}
+
+                                                        <span className={`text-xs font-medium text-center leading-tight ${hasFile ? 'text-green-700' : 'text-slate-600 group-hover:text-primary-700'}`}>
+                                                            {docItem.type}
+                                                            {hasFile && <span className="block text-[10px] font-normal">(Anexado)</span>}
+                                                        </span>
+                                                        <input
+                                                            type="file"
+                                                            className="hidden"
+                                                            accept="image/*,application/pdf"
+                                                            onChange={(e) => handleDocumentUpload(e, docItem.type as DocumentType)}
+                                                        />
+                                                    </label>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
 
                                     <div className="mt-8 pt-6 border-t border-slate-200 text-left">
@@ -799,6 +864,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                                 >
                                                     <option value="Outros">Outros Documentos</option>
                                                     <option value="Laudo Médico">Laudo Médico</option>
+                                                    <option value="RG">RG</option>
+                                                    <option value="CPF">CPF</option>
+                                                    <option value="Receita Médica">Receita Médica</option>
                                                     <option value="Receita Médica">Receita Médica</option>
                                                     <option value="Cartão de Vacina">Cartão de Vacina</option>
                                                     <option value="PEI">PEI (Plano de Ensino Indiv.)</option>

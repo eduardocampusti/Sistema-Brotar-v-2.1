@@ -22,6 +22,8 @@ const SystemSettingsPanel = React.lazy(() => import('./components/SystemSettings
 const PapelTimbradoConfigPanel = React.lazy(() => import('./components/PapelTimbradoConfig').then(m => ({ default: m.PapelTimbradoConfigPanel })));
 const AboutSystem = React.lazy(() => import('./components/AboutSystem').then(m => ({ default: m.AboutSystem })));
 const DocumentGenerator = React.lazy(() => import('./components/DocumentGenerator').then(m => ({ default: m.DocumentGenerator })));
+const SchedulingCenter = React.lazy(() => import('./components/SchedulingCenter').then(m => ({ default: m.SchedulingCenter })));
+const AppointmentForm = React.lazy(() => import('./components/AppointmentForm').then(m => ({ default: m.AppointmentForm })));
 
 // --- Lazy Clinical Pages (Named Exports) ---
 const PsychologyDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.PsychologyDashboardPage })));
@@ -256,6 +258,8 @@ function App() {
         }
         return <Dashboard students={students} />;
 
+      case 'scheduling': return <SchedulingCenter students={students} currentUser={user} onNavigate={handleNavigate} />;
+      case 'new-appointment': return <AppointmentForm students={students} currentUser={user} onCancel={() => handleNavigate('scheduling')} onSuccess={() => handleNavigate('scheduling')} />;
       case 'agenda': return <Agenda students={students} currentUser={user} onNavigate={handleNavigate} />;
       case 'list': return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
       case 'register': return <RegistrationForm onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('list')} />;

@@ -8,7 +8,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     fullName: dbStudent.full_name,
     birthDate: dbStudent.birth_date,
     gender: (dbStudent.clinical_info?.gender || 'Outro') as any, // Fallback se não tiver na coluna
-    photoUrl: dbStudent.photo_url || dbStudent.clinical_info?.photoUrl || '', // [FIX] Read from root col first
+    photoUrl: dbStudent.photo_url || dbStudent.clinical_info?.photoUrl,
     cpf: dbStudent.cpf || '',
     rg: dbStudent.clinical_info?.rg,
     susCard: dbStudent.sus_card,
@@ -260,23 +260,67 @@ export class SupabaseService {
         return students.map((s: any) => mapStudentFromDB(s, s.clinical_sessions));
     }
 
-    static async saveStudent(student: Student): Promise<void> {
+    static async saveStudent(student: Student, photoFile?: File, documentFiles?: { file: File, type: string }[]): Promise<string> {
+        // [DEBUG] Log user context for RLS
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('[SupabaseService] Tentando salvar como usuário:', session?.user?.id);
+
+        // Check profile role logic client-side just to be sure
+        if (session?.user) {
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+            console.log('[SupabaseService] Role do usuário no banco:', profile?.role);
+        }
+
+        let finalPhotoUrl = student.photoUrl;
+
+        // 1. Upload da foto se houver (Try-catch isolado para não bloquear o cadastro)
+        if (photoFile) {
+            try {
+                const fileName = `student_${Date.now()}_${photoFile.name}`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('students-photos')
+                    .upload(fileName, photoFile);
+
+                if (uploadError) {
+                    console.error("ERRO UPLOAD FOTO:", uploadError);
+                    throw new Error(`Falha no upload da foto: ${uploadError.message}`);
+                }
+
+                if (uploadData) {
+                    const { data: publicUrlData } = supabase.storage
+                        .from('students-photos')
+                        .getPublicUrl(uploadData.path);
+                    finalPhotoUrl = publicUrlData.publicUrl;
+                }
+            } catch (photoErr: any) {
+                console.error("Erro fatal no upload da foto:", photoErr);
+                throw new Error(photoErr.message || "Erro desconhecido no upload da foto.");
+            }
+        }
+
+        // Sanitização: Converter strings vazias para null para não violar UNIQUE constraints
+        const sanitizeField = (value: string | undefined | null) => {
+            if (!value || typeof value !== 'string') return null;
+            const cleaned = value.trim();
+            return cleaned === '' ? null : cleaned;
+        };
+
         const dbPayload = {
-            // id: student.id, // Se for novo, gera UUID auto. Se update, precisa passar ID.
+            // id: student.id, // ID é gerado pelo banco no insert
             full_name: student.fullName,
             birth_date: student.birthDate,
-            cpf: student.cpf,
-            sus_card: student.susCard,
+            cpf: sanitizeField(student.cpf),
+            sus_card: sanitizeField(student.susCard),
             grade: student.school.grade,
             shift: student.school.shift,
             address: student.address,
             guardians: student.guardians,
-            photo_url: student.photoUrl, // [FIX] Added missing field
+            photo_url: finalPhotoUrl,
             // Campos JSONB
             clinical_info: {
                 ...student.clinical,
                 gender: student.gender,
-                rg: student.rg,
+                rg: sanitizeField(student.rg),
                 fatherName: student.fatherName,
                 motherName: student.motherName,
                 nationality: student.nationality,
@@ -286,21 +330,97 @@ export class SupabaseService {
             status: student.status
         };
 
-        if (student.id && student.id.length > 5) { // Verifica se é UUID e não '1' (seed)
-            console.log(`[SupabaseService] Tentando atualizar aluno ${student.id}`);
-            console.log(`[SupabaseService] Photo URL length: ${dbPayload.photo_url?.length || 0}`);
+        // 2. Upload de Documentos (Tipados)
+        if (documentFiles && documentFiles.length > 0) {
+            const uploadedDocs = [];
+
+            for (const docItem of documentFiles) {
+                try {
+                    const saneFileName = docItem.file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const filePath = `docs/${Date.now()}_${saneFileName}`;
+
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('student-documents')
+                        .upload(filePath, docItem.file);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicUrlData } = supabase.storage
+                        .from('student-documents')
+                        .getPublicUrl(filePath);
+
+                    uploadedDocs.push({
+                        id: crypto.randomUUID(),
+                        type: docItem.type, // Usa o tipo correto passado do form
+                        fileName: docItem.file.name,
+                        url: publicUrlData.publicUrl,
+                        uploadedAt: new Date().toISOString()
+                    });
+                } catch (docErr) {
+                    console.error(`Erro ao enviar documento (${docItem.type}):`, docErr);
+                    // Não lança erro fatal para não perder o cadastro do aluno
+                }
+            }
+
+            // Mesclar documentos novos com existentes
+            const existingDocs = student.documents || [];
+            // @ts-ignore
+            dbPayload.documents = [...existingDocs, ...uploadedDocs];
+        }
+
+        // [FIX] Smart Save: Verifica se já existe por CPF se o ID não foi informado ou é inválido
+        let targetId = student.id;
+
+        // Só busca por CPF se o CPF for válido (não nulo)
+        if ((!targetId || targetId.length < 5) && dbPayload.cpf) {
+            console.log(`[SupabaseService] Buscando aluno por CPF: '${dbPayload.cpf}'`);
+            const { data: existingStudent } = await supabase
+                .from('students')
+                .select('id')
+                .eq('cpf', dbPayload.cpf)
+                .maybeSingle();
+
+            if (existingStudent) {
+                console.log(`[SupabaseService] Aluno encontrado por CPF (${dbPayload.cpf}). ID: ${existingStudent.id}. Modo UPDATE.`);
+                targetId = existingStudent.id;
+            } else {
+                console.log(`[SupabaseService] CPF '${dbPayload.cpf}' não encontrado no banco.`);
+            }
+        }
+
+        if (targetId && targetId.length > 5) { // Update
+            console.log(`[SupabaseService] Atualizando aluno ${targetId}`);
 
             const { data, error } = await supabase
                 .from('students')
                 .update(dbPayload)
-                .eq('id', student.id)
-                .select(); // Return updated rows to confirm impact
+                .eq('id', targetId)
+                .select('id')
+                .single();
 
-            if (error) throw error;
-            if (!data || data.length === 0) throw new Error("A atualização não afetou nenhum registro. Verifique se o aluno existe e se você tem permissão.");
-        } else {
-            const { error } = await supabase.from('students').insert(dbPayload);
-            if (error) throw error;
+            if (error) {
+                console.error('[SupabaseService] Erro ao atualizar:', error);
+                throw error; // Re-throw para ser pego pelo form, mas agora já logado
+            }
+            return targetId;
+        } else { // Insert
+            console.log(`[SupabaseService] Criando novo aluno`);
+            const { data, error } = await supabase
+                .from('students')
+                .insert(dbPayload)
+                .select('id')
+                .single();
+
+            if (error) {
+                console.error('[SupabaseService] Erro ao criar (INSERT):', error);
+                throw error;
+            }
+            if (!data) {
+                console.error('[SupabaseService] Erro: Insert realizado mas nenhum dado retornado.');
+                throw new Error("Erro ao criar aluno: Nenhum dado retornado.");
+            }
+
+            return data.id;
         }
     }
 

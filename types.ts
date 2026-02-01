@@ -73,8 +73,9 @@ export interface School {
 
   // Conectividade
   hasInternet?: boolean;
-  internetType?: 'Via Satélite' | 'Fibra Óptica';
+  internetType?: string;
   internetProviderContact?: string;
+  internetProviders?: Record<string, { company: string, contact: string }>;
 }
 
 export interface SupportProfessional {
@@ -115,6 +116,7 @@ export interface ClinicalInfo {
   cid?: string; // Código Internacional de Doenças
   medications: string;
   allergies: string;
+  bloodType?: string;
   weight?: string;
   height?: string;
   specialNeeds: string[]; // Altas Habilidades, Auditiva, Física, Mental, etc.
@@ -131,6 +133,7 @@ export interface ClinicalInfo {
 }
 
 export interface SchoolInfo {
+  schoolId?: string; // ID relacional da tabela schools
   schoolName: string; // Pode ser vinculado ao ID da School no futuro
   grade: string;
   shift?: 'Manhã' | 'Tarde' | 'Noite' | 'Integral';
@@ -155,7 +158,25 @@ export interface Session {
   content?: any; // JSON completo da sessão (estruturado por especialidade)
 }
 
-export type DocumentType = 'Laudo Médico' | 'Receita Médica' | 'Cartão de Vacina' | 'Cartão SUS' | 'Certidão de Nascimento' | 'PEI' | 'Outros';
+export type AppointmentStatus = 'AGENDADO' | 'ATENDIDO' | 'FALTOU' | 'REMARCAR';
+export type Unit = 'SEDE' | 'COCAL';
+
+export interface Appointment {
+  id: string;
+  studentId: string;
+  studentName: string;
+  professionalId: string;
+  professionalName: string;
+  specialty: Specialty;
+  unit: Unit;
+  date: string; // ISO Date YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  status: AppointmentStatus;
+  createdAt: string;
+}
+
+export type DocumentType = 'Laudo Médico' | 'Receita Médica' | 'Cartão de Vacina' | 'Cartão SUS' | 'Certidão de Nascimento' | 'PEI' | 'RG' | 'CPF' | 'Autorização de Uso de Imagem' | 'Outros';
 
 export interface StudentDocument {
   id: string;

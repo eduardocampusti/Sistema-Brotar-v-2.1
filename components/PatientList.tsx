@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Student, School, User } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
-import { Search, ChevronRight, User as UserIcon, Trash2, AlertTriangle, X, UserPlus, Edit, School as SchoolIcon, Filter, Globe } from 'lucide-react';
+import { generateStudentPDF } from '../utils/pdfExport';
+import { Search, ChevronRight, User as UserIcon, Trash2, AlertTriangle, X, UserPlus, Edit, School as SchoolIcon, Filter, Globe, FileText } from 'lucide-react';
 
 interface StudentListProps {
   students: Student[];
@@ -15,8 +16,13 @@ interface StudentListProps {
 
 export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStudent, onDelete, onRegister, onEdit, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterSchool, setFilterSchool] = useState('');
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
   const [schools, setSchools] = useState<School[]>([]);
+
+  // Função auxiliar para normalizar texto (remover acentos)
+  const normalizeText = (text: string) => {
+    return (text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  };
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
   useEffect(() => {
@@ -45,13 +51,14 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
     }
 
     // 2. Search Term Filter
+    const normalizedSearch = normalizeText(searchTerm);
     const matchesSearch =
-      p.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.clinical.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.cpf.includes(searchTerm);
+      normalizeText(p.fullName || '').includes(normalizedSearch) ||
+      normalizeText(p.clinical?.diagnosis || '').includes(normalizedSearch) ||
+      (p.cpf || '').includes(searchTerm);
 
     // 3. School Dropdown Filter
-    const matchesSchool = filterSchool === '' || p.school.schoolName === filterSchool;
+    const matchesSchool = selectedSchoolId === 'ALL' || p.school?.schoolId === selectedSchoolId;
 
     return matchesSearch && matchesSchool;
   });
@@ -85,16 +92,13 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
             <SchoolIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <select
               className="w-full pl-10 pr-8 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none bg-white text-slate-700 truncate"
-              value={filterSchool}
-              onChange={(e) => setFilterSchool(e.target.value)}
+              value={selectedSchoolId}
+              onChange={(e) => setSelectedSchoolId(e.target.value)}
             >
-              <option value="">Todas as Escolas</option>
-              {schools
-                // Filter dropdown too if restricted
-                .filter(s => isRestricted ? s.name.toLowerCase().includes('cocal') : true)
-                .map(school => (
-                  <option key={school.id} value={school.name}>{school.name}</option>
-                ))}
+              <option value="ALL">Todas as Escolas</option>
+              {Array.from(new Map(students.filter(s => s.school?.schoolId).map(s => [s.school?.schoolId, s.school?.schoolName])).entries()).map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
               <Filter size={14} className="text-slate-400" />
@@ -198,6 +202,16 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
                           title="Excluir"
                         >
                           <Trash2 size={18} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            generateStudentPDF(student);
+                          }}
+                          className="flex items-center gap-1 p-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition-colors text-xs font-bold"
+                          title="Baixar Ficha PDF"
+                        >
+                          <FileText size={16} /> PDF
                         </button>
                         <button className="text-primary-600 hover:text-primary-900 flex items-center gap-1 ml-2">
                           Ver <ChevronRight size={16} />

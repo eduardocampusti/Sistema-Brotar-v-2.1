@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { Student, User, School, SupportProfessional, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment } from '../types';
+import { Student, User, School, SupportProfessional, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit } from '../types';
 import { createClient } from '@supabase/supabase-js'; // Import para conexão auxiliar
 
 // Mapeamento de campos snake_case do banco para camelCase do frontend
@@ -8,7 +8,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     fullName: dbStudent.full_name,
     birthDate: dbStudent.birth_date,
     gender: (dbStudent.clinical_info?.gender || 'Outro') as any, // Fallback se não tiver na coluna
-    photoUrl: dbStudent.clinical_info?.photoUrl,
+    photoUrl: dbStudent.photo_url || dbStudent.clinical_info?.photoUrl,
     cpf: dbStudent.cpf || '',
     rg: dbStudent.clinical_info?.rg,
     susCard: dbStudent.sus_card,
@@ -22,6 +22,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
         diagnosis: '', medications: '', allergies: '', specialNeeds: [], therapiesHistory: ''
     },
     school: {
+        schoolId: dbStudent.school_id, // Captura o UUID da tabela schools
         schoolName: (Array.isArray(dbStudent.schools) ? dbStudent.schools[0]?.name : dbStudent.schools?.name) || 'Não vinculada',
         grade: dbStudent.grade,
         shift: dbStudent.shift as any,
@@ -30,7 +31,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
         difficulties: ''
     },
     socialInfo: dbStudent.social_info,
-    documents: [], // Busca separada depois
+    documents: dbStudent.documents || [],
     history: (sessions || []).map(s => ({
         id: s.id,
         date: s.date,
@@ -44,6 +45,28 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
 });
 
 export class SupabaseService {
+    // Mapeamento centralizado de especialidades para o banco de dados
+    private static readonly SPECIALTY_MAP: Record<string, string> = {
+        'Psicologia': 'PSICOLOGIA',
+        'Fonoaudiologia': 'FONOAUDIOLOGIA',
+        'Psicopedagogia': 'PSICOPEDAGOGIA',
+        'Terapia Ocupacional': 'TERAPIA_OCUPACIONAL',
+        'Serviço Social': 'SERVICO_SOCIAL',
+        'Fisioterapia': 'FISIOTERAPIA',
+        'Enfermagem': 'ENFERMAGEM',
+        'Nutrição': 'NUTRICAO'
+    };
+
+    private static readonly REVERSE_SPECIALTY_MAP: Record<string, Specialty> = {
+        'PSICOLOGIA': Specialty.PSYCHOLOGY,
+        'FONOAUDIOLOGIA': Specialty.SPEECH_THERAPY,
+        'PSICOPEDAGOGIA': Specialty.PSYCHOPEDAGOGY,
+        'TERAPIA_OCUPACIONAL': Specialty.OCCUPATIONAL_THERAPY,
+        'SERVICO_SOCIAL': Specialty.SOCIAL_WORK,
+        'FISIOTERAPIA': Specialty.PHYSIOTHERAPY,
+        'ENFERMAGEM': 'Enfermagem' as any,
+        'NUTRICAO': Specialty.NUTRITION
+    };
 
     // --- Auth ---
     static async authenticate(email: string, password: string): Promise<User | null> {
@@ -298,22 +321,72 @@ export class SupabaseService {
         return students.map((s: any) => mapStudentFromDB(s, s.clinical_sessions));
     }
 
-    static async saveStudent(student: Student): Promise<void> {
-        const dbPayload = {
-            id: student.id, // Important: Include ID for upsert to work
+    static async saveStudent(student: Student, photoFile?: File, documentFiles?: { file: File, type: string }[]): Promise<string> {
+        // [DEBUG] Log user context for RLS
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('[SupabaseService] Tentando salvar como usuário:', session?.user?.id);
+
+        // Check profile role logic client-side just to be sure
+        if (session?.user) {
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+            console.log('[SupabaseService] Role do usuário no banco:', profile?.role);
+        }
+
+        let finalPhotoUrl = student.photoUrl;
+
+        // 1. Upload da foto se houver (Try-catch isolado para não bloquear o cadastro)
+        if (photoFile) {
+            try {
+                const fileName = `student_${Date.now()}_${photoFile.name}`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('students-photos')
+                    .upload(fileName, photoFile);
+
+                if (uploadError) {
+                    console.error("ERRO UPLOAD FOTO:", uploadError);
+                    throw new Error(`Falha no upload da foto: ${uploadError.message}`);
+                }
+                if (uploadData) {
+                    // alert(`[DEBUG] Upload Sucesso! Path: ${uploadData.path}`);
+                    const { data: publicUrlData } = supabase.storage
+                        .from('students-photos')
+                        .getPublicUrl(uploadData.path);
+                    finalPhotoUrl = publicUrlData.publicUrl;
+                    // alert(`[DEBUG] URL Gerada: ${finalPhotoUrl}`);
+                }
+            } catch (error: any) {
+                console.error("Erro no upload da foto:", error);
+                // Não interrompe o salvamento do aluno, apenas a foto falha
+            }
+        }
+
+        // Campo documents será preenchido abaixo com a nova lógica tipada
+
+        // Sanitização: Converter strings vazias para null para não violar UNIQUE constraints
+        const sanitizeField = (value: string | undefined | null) => {
+            if (!value || typeof value !== 'string') return null;
+            const cleaned = value.trim();
+            return cleaned === '' ? null : cleaned;
+        };
+
+        const dbPayload: any = {
+            // id: student.id, // ID é gerado pelo banco no insert
             full_name: student.fullName,
             birth_date: student.birthDate,
-            cpf: student.cpf,
-            sus_card: student.susCard,
+            cpf: sanitizeField(student.cpf),
+            sus_card: sanitizeField(student.susCard),
             grade: student.school.grade,
             shift: student.school.shift,
+            school_id: student.school.schoolId, // PERSISTÊNCIA DO ID DA ESCOLA
             address: student.address,
             guardians: student.guardians,
+            photo_url: finalPhotoUrl,
+            documents: student.documents || [],
             // Campos JSONB
             clinical_info: {
                 ...student.clinical,
                 gender: student.gender,
-                rg: student.rg,
+                rg: sanitizeField(student.rg),
                 fatherName: student.fatherName,
                 motherName: student.motherName,
                 nationality: student.nationality,
@@ -323,13 +396,100 @@ export class SupabaseService {
             status: student.status
         };
 
-        // Uses upsert to handle both Create (new ID) and Update (existing ID)
-        const { error } = await supabase.from('students').upsert(dbPayload);
+        // 2. Upload de Documentos (Tipados)
+        if (documentFiles && documentFiles.length > 0) {
+            const uploadedDocs = [];
 
-        if (error) {
-            console.error('Erro ao salvar aluno:', error);
-            throw error;
+            for (const docItem of documentFiles) {
+                try {
+                    const saneFileName = docItem.file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const filePath = `docs/${Date.now()}_${saneFileName}`;
+
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('student-documents')
+                        .upload(filePath, docItem.file);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicUrlData } = supabase.storage
+                        .from('student-documents')
+                        .getPublicUrl(filePath);
+
+                    uploadedDocs.push({
+                        id: crypto.randomUUID(),
+                        type: docItem.type, // Usa o tipo correto passado do form
+                        fileName: docItem.file.name,
+                        url: publicUrlData.publicUrl,
+                        uploadedAt: new Date().toISOString()
+                    });
+                } catch (docErr) {
+                    console.error(`Erro ao enviar documento (${docItem.type}):`, docErr);
+                    // Não lança erro fatal para não perder o cadastro do aluno
+                }
+            }
+
+            // Mesclar documentos novos com existentes
+            const existingDocs = student.documents || [];
+            // @ts-ignore
+            dbPayload.documents = [...existingDocs, ...uploadedDocs];
         }
+
+        // [FIX] Smart Save: Verifica se já existe por CPF se o ID não foi informado ou é inválido
+        let targetId = student.id;
+
+        // Só busca por CPF se o CPF for válido (não nulo)
+        if ((!targetId || targetId.length < 5) && dbPayload.cpf) {
+            console.log(`[SupabaseService] Buscando aluno por CPF: '${dbPayload.cpf}'`);
+            const { data: existingStudent } = await supabase
+                .from('students')
+                .select('id')
+                .eq('cpf', dbPayload.cpf)
+                .maybeSingle();
+
+            if (existingStudent) {
+                console.log(`[SupabaseService] Aluno encontrado por CPF (${dbPayload.cpf}). ID: ${existingStudent.id}. Modo UPDATE.`);
+                targetId = existingStudent.id;
+            } else {
+                console.log(`[SupabaseService] CPF '${dbPayload.cpf}' não encontrado no banco.`);
+            }
+        }
+
+        let savedId = targetId;
+
+        if (targetId && targetId.length > 5) { // Update
+            console.log(`[SupabaseService] Atualizando aluno ${targetId}`);
+
+            const { data, error } = await supabase
+                .from('students')
+                .update(dbPayload)
+                .eq('id', targetId)
+                .select('id')
+                .single();
+
+            if (error) {
+                console.error('Erro ao atualizar aluno:', error);
+                throw error;
+            }
+            if (data) savedId = data.id;
+        } else { // Insert
+            console.log(`[SupabaseService] Criando novo aluno`);
+            // Remove ID placeholder if empty
+            if (dbPayload.id === '' || dbPayload.id === undefined) delete (dbPayload as any).id;
+
+            const { data, error } = await supabase
+                .from('students')
+                .insert(dbPayload)
+                .select('id')
+                .single();
+
+            if (error) {
+                console.error('Erro ao criar aluno:', error);
+                throw error;
+            }
+            if (data) savedId = data.id;
+        }
+
+        return savedId;
     }
 
     static async deleteStudent(id: string): Promise<void> {
@@ -379,12 +539,21 @@ export class SupabaseService {
             address: s.address || { street: '', number: '', district: s.district, city: 'Brotas', state: 'BA', zipCode: '' },
             hasInternet: s.has_internet,
             internetType: s.internet_type,
-            internetProviderContact: s.internet_provider_contact
+            internetProviderContact: s.internet_provider_contact,
+            internetProviders: (() => {
+                try {
+                    // Tenta parsear o JSON armazenado na coluna de contato
+                    const parsed = JSON.parse(s.internet_provider_contact || '{}');
+                    return typeof parsed === 'object' ? parsed : {};
+                } catch {
+                    return {};
+                }
+            })()
         }));
     }
 
     static async saveSchool(school: School): Promise<void> {
-        const payload = {
+        const payload: any = {
             name: school.name,
             inep: school.inep,
             director: school.director,
@@ -394,13 +563,18 @@ export class SupabaseService {
             address: school.address,
             has_internet: school.hasInternet,
             internet_type: school.internetType,
-            internet_provider_contact: school.internetProviderContact
+            // Salva os provedores estruturados como JSON na coluna de contato para evitar erros de schema
+            internet_provider_contact: JSON.stringify(school.internetProviders || {})
         };
 
-        if (school.id && school.id.length > 10) {
-            await supabase.from('schools').update(payload).eq('id', school.id);
-        } else {
-            await supabase.from('schools').insert(payload);
+        if (school.id) {
+            payload.id = school.id;
+        }
+
+        const { error } = await supabase.from('schools').upsert(payload);
+        if (error) {
+            console.error('Erro ao salvar escola:', error);
+            throw error;
         }
     }
 
@@ -648,23 +822,121 @@ export class SupabaseService {
         const currentHistory = Array.isArray(ppData.ipoHistory) ? ppData.ipoHistory : [];
 
         // Adiciona a nova avaliação ao histórico
-        const newHistory = [assessment, ...currentHistory]; // Mais recente primeiro
-
-        // Atualiza apenas o campo pp_data dentro do clinical_info (Deep Merge via JSONB seria ideal, mas aqui fazemos via spread no app)
-        const updatedClinicalInfo = {
-            ...clinicalInfo,
-            pp_data: {
-                ...ppData,
-                ipoHistory: newHistory
-            }
-        };
+        const updatedHistory = [assessment, ...currentHistory];
 
         const { error: updateError } = await supabase
             .from('students')
-            .update({ clinical_info: updatedClinicalInfo })
+            .update({
+                clinical_info: {
+                    ...clinicalInfo,
+                    pp_data: {
+                        ...ppData,
+                        ipoHistory: updatedHistory
+                    }
+                }
+            })
             .eq('id', studentId);
 
         if (updateError) throw updateError;
+    }
+
+    // --- Scheduling Center (Agendamentos) ---
+    static async getAppointments(filters: { date?: string, unit?: Unit, specialty?: Specialty, status?: AppointmentStatus }): Promise<Appointment[]> {
+        let query = supabase.from('appointments').select('*');
+
+        if (filters.date) query = query.eq('date', filters.date);
+        if (filters.unit) query = query.eq('unit', filters.unit);
+        if (filters.specialty) {
+            const dbSpecialty = this.SPECIALTY_MAP[filters.specialty] || filters.specialty;
+            query = query.eq('specialty', dbSpecialty);
+        }
+        if (filters.status) query = query.eq('status', filters.status);
+
+        const { data, error } = await query.order('start_time', { ascending: true });
+
+        if (error) {
+            console.error('Erro ao buscar agendamentos:', error);
+            return [];
+        }
+
+        return (data || []).map((a: any) => ({
+            id: a.id,
+            studentId: a.student_id,
+            studentName: a.student_name,
+            professionalId: a.professional_id,
+            professionalName: a.professional_name,
+            specialty: a.specialty ? (this.REVERSE_SPECIALTY_MAP[a.specialty] || a.specialty) : undefined,
+            unit: a.unit,
+            date: a.date,
+            startTime: a.start_time,
+            endTime: a.end_time,
+            status: a.status,
+            createdAt: a.created_at
+        }));
+    }
+
+    static async saveAppointment(appointment: Partial<Appointment>): Promise<void> {
+        const payload: any = {
+            student_id: appointment.studentId,
+            student_name: appointment.studentName,
+            professional_id: appointment.professionalId,
+            professional_name: appointment.professionalName,
+            specialty: appointment.specialty ? (this.SPECIALTY_MAP[appointment.specialty] || appointment.specialty) : undefined,
+            unit: appointment.unit,
+            date: appointment.date,
+            start_time: appointment.startTime,
+            end_time: appointment.endTime,
+            status: appointment.status || 'AGENDADO'
+        };
+
+        if (appointment.id) payload.id = appointment.id;
+
+        const { error } = await supabase.from('appointments').upsert(payload);
+        if (error) {
+            console.error('Erro detalhado ao salvar agendamento:', error);
+            throw error;
+        }
+    }
+
+    static async getProfessionalsBySpecialty(specialty: Specialty): Promise<User[]> {
+        const dbSpecialty = this.SPECIALTY_MAP[specialty] || specialty;
+
+        // O sistema deve buscar na tabela 'profiles', pois 'users' não existe ou é inacessível diretamente
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('specialty', dbSpecialty);
+
+        if (error) {
+            console.error('Erro ao buscar profissionais por especialidade:', error);
+            return [];
+        }
+
+        return (data || []).map((p: any) => ({
+            id: p.id,
+            name: p.full_name,
+            username: p.username || p.email,
+            email: p.email,
+            role: p.role,
+            specialty: p.specialty ? (this.REVERSE_SPECIALTY_MAP[p.specialty] || p.specialty) : undefined,
+            isActive: p.is_active,
+            scope: p.scope || 'GLOBAL',
+            jobTitle: p.job_title,
+            phone: p.phone,
+            photoUrl: p.photo_url,
+            address: p.address || {},
+            password: ''
+        }));
+    }
+
+    static async getStudentsByUnit(unit: Unit): Promise<Student[]> {
+        const { data, error } = await supabase
+            .from('students')
+            .select('*')
+            .eq('address->district', unit === 'COCAL' ? 'COCAL' : 'SEDE'); // Lógica simplificada baseada no endereço
+
+        if (error) return [];
+        return data as Student[];
     }
 
     // --- Generated Documents ---
