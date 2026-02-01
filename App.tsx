@@ -5,7 +5,7 @@ import { Layout } from './components/Layout';
 import { Login } from './components/Login';
 import { SupabaseService } from './services/SupabaseService';
 import { useToast } from './contexts/ToastContext';
-import { Student, User, Specialty, SystemSettings, hasPermission } from './types';
+import { Student, User, Specialty, SystemSettings, hasPermission, Appointment } from './types';
 import { Loader2 } from 'lucide-react';
 
 // --- Lazy Loaded Components ---
@@ -90,6 +90,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [rescheduleData, setRescheduleData] = useState<Appointment | null>(null);
   const { error: showError } = useToast();
 
   // Initialize settings directly from storage
@@ -258,8 +259,32 @@ function App() {
         }
         return <Dashboard students={students} />;
 
-      case 'scheduling': return <SchedulingCenter students={students} currentUser={user} onNavigate={handleNavigate} />;
-      case 'new-appointment': return <AppointmentForm students={students} currentUser={user} onCancel={() => handleNavigate('scheduling')} onSuccess={() => handleNavigate('scheduling')} />;
+      case 'scheduling': return (
+        <SchedulingCenter
+          students={students}
+          currentUser={user}
+          onNavigate={handleNavigate}
+          onReschedule={(apt) => {
+            setRescheduleData(apt);
+            setCurrentPage('new-appointment');
+          }}
+        />
+      );
+      case 'new-appointment': return (
+        <AppointmentForm
+          students={students}
+          currentUser={user}
+          initialData={rescheduleData}
+          onCancel={() => {
+            setRescheduleData(null);
+            handleNavigate('scheduling');
+          }}
+          onSuccess={() => {
+            setRescheduleData(null);
+            handleNavigate('scheduling');
+          }}
+        />
+      );
       case 'agenda': return <Agenda students={students} currentUser={user} onNavigate={handleNavigate} />;
       case 'list': return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
       case 'register': return <RegistrationForm onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('list')} />;

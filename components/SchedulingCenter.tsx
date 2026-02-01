@@ -14,7 +14,8 @@ import {
     User as UserIcon,
     ChevronLeft,
     ChevronRight,
-    Loader2
+    Loader2,
+    Trash2
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { Appointment, AppointmentStatus, Unit, Specialty, Student, User } from '../types';
@@ -24,9 +25,11 @@ interface SchedulingCenterProps {
     currentUser: User;
     students: Student[];
     onNavigate?: (page: string) => void;
+    onReschedule?: (appointment: Appointment) => void;
 }
 
-export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser, students, onNavigate }) => {
+export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser, students, onNavigate, onReschedule }) => {
+
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -60,6 +63,9 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         loadAppointments();
     }, [selectedDate, filterUnit, filterSpecialty, filterStatus]);
 
+    // State para Modal de Exclusão
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
     const handleStatusUpdate = async (id: string, newStatus: AppointmentStatus) => {
         try {
             await SupabaseService.updateAppointmentStatus(id, newStatus);
@@ -67,6 +73,18 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             loadAppointments();
         } catch (err) {
             showError("Erro ao atualizar status");
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+        try {
+            await SupabaseService.deleteAppointment(itemToDelete);
+            success("Agendamento excluído com sucesso!");
+            loadAppointments();
+            setItemToDelete(null);
+        } catch (err) {
+            showError("Erro ao excluir agendamento");
         }
     };
 
@@ -225,7 +243,12 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                     <div className="hidden sm:flex items-center gap-2">
                                         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${getStatusColor(apt.status)}`}>
                                             {getStatusIcon(apt.status)}
-                                            {apt.status}
+                                            {apt.status === 'REMARCAR' ? 'REMARCADO' : apt.status}
+                                            {apt.status === 'REMARCAR' && apt.notes?.includes('Remarcado para') && (
+                                                <span className="opacity-75 relative pl-1.5 ml-1.5 border-l border-current">
+                                                    PARA {apt.notes.split('para ')[1]}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 
@@ -246,18 +269,25 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                             <XCircle size={18} />
                                         </button>
                                         <button
-                                            onClick={() => handleStatusUpdate(apt.id, 'REMARCAR')}
-                                            className="p-2.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-all"
-                                            title="Solicitar Remarcação"
+                                            onClick={() => {
+                                                if (onReschedule) onReschedule(apt);
+                                                else handleStatusUpdate(apt.id, 'REMARCAR');
+                                            }}
+                                            className={`p-2.5 rounded-xl transition-all ${apt.status === 'FALTOU'
+                                                ? 'text-white bg-orange-500 hover:bg-orange-600 shadow-md animate-pulse font-bold'
+                                                : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
+                                                }`}
+                                            title={apt.status === 'FALTOU' ? "Remarcar Paciente (Faltou)" : "Solicitar Remarcação"}
                                         >
                                             <RotateCcw size={18} />
                                         </button>
                                         <div className="w-px h-6 bg-slate-100 mx-1 hidden sm:block" />
                                         <button
-                                            className="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all hidden sm:block"
-                                            title="Mais opções"
+                                            onClick={() => setItemToDelete(apt.id)}
+                                            className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                            title="Excluir Agendamento"
                                         >
-                                            <MoreHorizontal size={18} />
+                                            <Trash2 size={18} />
                                         </button>
                                     </div>
                                 </div>
@@ -266,6 +296,37 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                     )}
                 </div>
             </div>
+
+            {/* Modal de Confirmação de Exclusão */}
+            {itemToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-scaleIn">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-4">
+                                <Trash2 size={24} className="text-red-500" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">Excluir Agendamento?</h3>
+                            <p className="text-sm text-slate-500 mb-6">
+                                Tem certeza que deseja remover este agendamento? Esta ação não pode ser desfeita.
+                            </p>
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => setItemToDelete(null)}
+                                    className="flex-1 py-2.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="flex-1 py-2.5 px-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30"
+                                >
+                                    Sim, Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

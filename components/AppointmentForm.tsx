@@ -20,24 +20,30 @@ import { useToast } from '../contexts/ToastContext';
 interface AppointmentFormProps {
     currentUser: User;
     students: Student[];
+    initialData?: Appointment | null;
     onCancel: () => void;
     onSuccess: () => void;
 }
 
-export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, students, onCancel, onSuccess }) => {
+export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, students, initialData, onCancel, onSuccess }) => {
     const { success, error: showError } = useToast();
     const [loading, setLoading] = useState(false);
     const [availableProfessionals, setAvailableProfessionals] = useState<User[]>([]);
     const [schools, setSchools] = useState<School[]>([]);
 
     // Estados de Filtro de Aluna
-    const [searchName, setSearchName] = useState('');
+    const [searchName, setSearchName] = useState(initialData?.studentName || '');
     const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
 
     const [newApt, setNewApt] = useState<Partial<Appointment>>({
-        unit: currentUser.role === 'ADMIN' ? 'SEDE' : (currentUser.scope as Unit || 'SEDE'),
+        unit: initialData?.unit || (currentUser.role === 'ADMIN' ? 'SEDE' : (currentUser.scope as Unit || 'SEDE')),
         status: 'AGENDADO',
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        specialty: initialData?.specialty,
+        professionalId: initialData?.professionalId,
+        professionalName: initialData?.professionalName,
+        studentId: initialData?.studentId,
+        studentName: initialData?.studentName
     });
 
     // Carregar profissionais quando a especialidade muda
@@ -75,7 +81,75 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
 
         setLoading(true);
         try {
+            // [ATUALIZADO] Verificação de Conflito de Horário (Client-Side filtering for robustness)
+            // Busca TODOS os agendamentos do aluno para garantir que não haja erro de filtro de data no banco
+            const studentAppointments = await SupabaseService.getAppointments({
+                studentId: newApt.studentId
+            });
+
+            console.log("Verificando conflitos para aluno:", newApt.studentId);
+            console.log("Agendamentos encontrados (Total):", studentAppointments.length);
+
+            const hasConflict = studentAppointments.find(app => {
+                // 1. Verificar Data (Comparação de String YYYY-MM-DD)
+                if (app.date !== newApt.date) return false;
+
+                // 2. Ignora o próprio agendamento (caso seja edição, embora aqui seja sempre novo)
+                if (newApt.id && app.id === newApt.id) return false;
+
+                // 3. Ignora status liberados
+                // 'AGENDADO' e 'ATENDIDO' contam como ocupado.
+                // 'FALTOU' e 'REMARCAR' liberam a vaga?
+                // Se faltou, o horário passou, mas se for futuro, 'FALTOU' não faz sentido. 
+                // Se 'REMARCAR', teoricamente o horário está vago?
+                // Vamos ser conservadores: Só AGENDADO e ATENDIDO bloqueiam.
+                if (app.status !== 'AGENDADO' && app.status !== 'ATENDIDO') return false;
+
+                // 4. Verificação de Sobreposição de Horário
+                // (StartA < EndB) e (StartB < EndA)
+                const newStart = newApt.startTime!;
+                const newEnd = newApt.endTime!;
+                const appStart = app.startTime;
+                const appEnd = app.endTime;
+
+                const overlap = newStart < appEnd && appStart < newEnd;
+
+                if (overlap) {
+                    console.log("Conflito detectado com:", app);
+                }
+
+                return overlap;
+            });
+
+            if (hasConflict) {
+                showError(`Conflito: Já existe agendamento dia ${hasConflict.date.split('-').reverse().join('/')} às ${hasConflict.startTime} (${hasConflict.professionalName}).`);
+                setLoading(false);
+                return;
+            }
+
             await SupabaseService.saveAppointment(newApt);
+
+            // Se for um reagendamento (existe initialData com ID), atualizar o status do anterior
+            if (initialData && initialData.id && newApt.date) {
+                try {
+                    const dateFormatted = newApt.date.split('-').reverse().join('/');
+                    // Tenta atualizar tudo (Status + Notas)
+                    await SupabaseService.updateAppointmentFields(initialData.id, {
+                        status: 'REMARCAR',
+                        notes: `Remarcado para ${dateFormatted}`
+                    });
+                } catch (err) {
+                    console.warn("Falha ao atualizar notas, tentando apenas status...", err);
+                    try {
+                        // Fallback: Tenta atualizar apenas o status (caso a coluna notes não exista)
+                        await SupabaseService.updateAppointmentStatus(initialData.id, 'REMARCAR');
+                    } catch (err2) {
+                        console.error("Falha fatal ao atualizar status anterior", err2);
+                        // Não impede o fluxo, pois o novo já foi criado
+                    }
+                }
+            }
+
             success("Agendamento realizado com sucesso!");
             onSuccess();
         } catch (err: any) {
@@ -238,18 +312,97 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                         </div>
 
                         {/* Seção 4: Horários */}
+                        {/* Seção 4: Horários (Smart Selection) */}
                         <div className="space-y-4">
-                            <div className="flex items-center gap-2 text-slate-400">
-                                <Clock size={16} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Horário</span>
+                            <div className="flex items-center justify-between text-slate-400">
+                                <div className="flex items-center gap-2">
+                                    <Clock size={16} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Horário</span>
+                                </div>
+                                {/* Duration Toggles */}
+                                <div className="flex gap-1">
+                                    {[30, 45, 50, 60].map(dur => (
+                                        <button
+                                            key={dur}
+                                            onClick={() => {
+                                                if (newApt.startTime) {
+                                                    const [h, m] = newApt.startTime.split(':').map(Number);
+                                                    const d = new Date();
+                                                    d.setHours(h, m + dur);
+                                                    const nextEnd = d.toTimeString().slice(0, 5);
+                                                    setNewApt({ ...newApt, endTime: nextEnd });
+                                                }
+                                            }}
+                                            className="px-2 py-1 bg-slate-100 hover:bg-primary-50 text-slate-500 hover:text-primary-600 rounded-lg text-[10px] font-bold transition-all"
+                                            title={`Definir duração de ${dur} min`}
+                                        >
+                                            {dur}m
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+
+                            {/* Preset Start Times */}
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sugestões de Início (Manhã)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['07:30', '08:00', '08:50', '09:40', '10:00', '10:30', '11:00'].map(time => (
+                                        <button
+                                            key={time}
+                                            onClick={() => {
+                                                // Auto-set End Time (Default 50m)
+                                                const [h, m] = time.split(':').map(Number);
+                                                const d = new Date();
+                                                d.setHours(h, m + 50);
+                                                const nextEnd = d.toTimeString().slice(0, 5);
+                                                setNewApt({ ...newApt, startTime: time, endTime: nextEnd });
+                                            }}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${newApt.startTime === time ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300'}`}
+                                        >
+                                            {time}
+                                        </button>
+                                    ))}
+                                </div>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Sugestões de Início (Tarde)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['13:00', '13:30', '14:00', '14:50', '15:00', '15:40', '16:00', '16:30', '17:00'].map(time => (
+                                        <button
+                                            key={time}
+                                            onClick={() => {
+                                                // Auto-set End Time (Default 50m)
+                                                const [h, m] = time.split(':').map(Number);
+                                                const d = new Date();
+                                                d.setHours(h, m + 50);
+                                                const nextEnd = d.toTimeString().slice(0, 5);
+                                                setNewApt({ ...newApt, startTime: time, endTime: nextEnd });
+                                            }}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${newApt.startTime === time ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300'}`}
+                                        >
+                                            {time}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 pt-2">
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-600 px-1">Início</label>
                                     <input
                                         type="time"
                                         value={newApt.startTime}
-                                        onChange={(e) => setNewApt({ ...newApt, startTime: e.target.value })}
+                                        onChange={(e) => {
+                                            const newStart = e.target.value;
+                                            // Auto calc +50m only if end is not set or empty, or just strictly auto-calc
+                                            if (newStart) {
+                                                const [h, m] = newStart.split(':').map(Number);
+                                                const d = new Date();
+                                                d.setHours(h, m + 50);
+                                                const nextEnd = d.toTimeString().slice(0, 5);
+                                                setNewApt({ ...newApt, startTime: newStart, endTime: nextEnd });
+                                            } else {
+                                                setNewApt({ ...newApt, startTime: newStart });
+                                            }
+                                        }}
                                         className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:border-primary-500 focus:bg-white transition-all outline-none"
                                     />
                                 </div>

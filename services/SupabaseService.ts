@@ -841,11 +841,12 @@ export class SupabaseService {
     }
 
     // --- Scheduling Center (Agendamentos) ---
-    static async getAppointments(filters: { date?: string, unit?: Unit, specialty?: Specialty, status?: AppointmentStatus }): Promise<Appointment[]> {
+    static async getAppointments(filters: { date?: string, unit?: Unit, specialty?: Specialty, status?: AppointmentStatus, studentId?: string }): Promise<Appointment[]> {
         let query = supabase.from('appointments').select('*');
 
         if (filters.date) query = query.eq('date', filters.date);
         if (filters.unit) query = query.eq('unit', filters.unit);
+        if (filters.studentId) query = query.eq('student_id', filters.studentId);
         if (filters.specialty) {
             const dbSpecialty = this.SPECIALTY_MAP[filters.specialty] || filters.specialty;
             query = query.eq('specialty', dbSpecialty);
@@ -871,6 +872,7 @@ export class SupabaseService {
             startTime: a.start_time,
             endTime: a.end_time,
             status: a.status,
+            notes: a.notes,
             createdAt: a.created_at
         }));
     }
@@ -886,7 +888,8 @@ export class SupabaseService {
             date: appointment.date,
             start_time: appointment.startTime,
             end_time: appointment.endTime,
-            status: appointment.status || 'AGENDADO'
+            status: appointment.status || 'AGENDADO',
+            notes: appointment.notes
         };
 
         if (appointment.id) payload.id = appointment.id;
@@ -894,6 +897,30 @@ export class SupabaseService {
         const { error } = await supabase.from('appointments').upsert(payload);
         if (error) {
             console.error('Erro detalhado ao salvar agendamento:', error);
+            throw error;
+        }
+    }
+
+    static async deleteAppointment(id: string): Promise<void> {
+        const { error } = await supabase.from('appointments').delete().eq('id', id);
+        if (error) {
+            console.error('Erro ao excluir agendamento:', error);
+            throw error;
+        }
+    }
+
+    static async updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<void> {
+        const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
+        if (error) {
+            console.error('Erro ao atualizar status do agendamento:', error);
+            throw error;
+        }
+    }
+
+    static async updateAppointmentFields(id: string, updates: { status?: string, notes?: string }): Promise<void> {
+        const { error } = await supabase.from('appointments').update(updates).eq('id', id);
+        if (error) {
+            console.error('Erro ao atualizar campos do agendamento:', error);
             throw error;
         }
     }
