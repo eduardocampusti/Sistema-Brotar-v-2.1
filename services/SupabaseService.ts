@@ -968,12 +968,13 @@ export class SupabaseService {
     }
 
     // --- Scheduling Center (Agendamentos) ---
-    static async getAppointments(filters: { date?: string, unit?: Unit, specialty?: Specialty, status?: AppointmentStatus, studentId?: string }): Promise<Appointment[]> {
+    static async getAppointments(filters: { date?: string, unit?: Unit, specialty?: Specialty, status?: AppointmentStatus, studentId?: string, professionalId?: string }): Promise<Appointment[]> {
         let query = supabase.from('appointments').select('*');
 
         if (filters.date) query = query.eq('date', filters.date);
         if (filters.unit) query = query.eq('unit', filters.unit);
         if (filters.studentId) query = query.eq('student_id', filters.studentId);
+        if (filters.professionalId) query = query.eq('professional_id', filters.professionalId);
         if (filters.specialty) {
             const dbSpecialty = this.SPECIALTY_MAP[filters.specialty] || filters.specialty;
             query = query.eq('specialty', dbSpecialty);

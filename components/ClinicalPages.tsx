@@ -1,7 +1,8 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
-import { Student, Specialty, Session, User, PapelTimbradoConfig } from '../types';
+import type { Student, Session, User, PapelTimbradoConfig, School, Appointment } from '../types';
+import { Specialty } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
-import { Plus, Search, Calendar, Clock, User as UserIcon, Save, X, FileText, CheckCircle, Brain, Activity, Lock, StickyNote, Smile, Meh, Frown, Zap, AlertCircle, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight, EyeOff, ShieldAlert, History, AlertTriangle, Layout, AlignLeft, TrendingUp, Users, Flag, Heart, MapPin, Home, Briefcase, GraduationCap, DollarSign, Globe, School, Printer, BarChart2, PieChart as PieIcon, Layers, Baby, Puzzle, ClipboardCheck, Eye, Volume2, Smartphone, PlusCircle, MessageCircle, Shield, Moon, XCircle } from 'lucide-react';
+import { Plus, Search, Calendar, Clock, User as UserIcon, Save, X, FileText, CheckCircle, Brain, Activity, Lock, StickyNote, Smile, Meh, Frown, Zap, AlertCircle, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight, EyeOff, ShieldAlert, History, AlertTriangle, Layout, AlignLeft, TrendingUp, Users, Flag, Heart, MapPin, Home, Briefcase, GraduationCap, DollarSign, Globe, School as SchoolIcon, Printer, BarChart2, PieChart as PieIcon, Layers, Baby, Puzzle, ClipboardCheck, Eye, Volume2, Smartphone, PlusCircle, MessageCircle, Shield, Moon, XCircle } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cell, CartesianGrid, PieChart, Pie } from 'recharts';
 import { PortageCalculator } from './PortageCalculator';
 
@@ -4352,6 +4353,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 // --- DASHBOARD ESPECÍFICO DE SERVIÇO SOCIAL ---
 // --- DASHBOARD ESPECÍFICO DE SERVIÇO SOCIAL ---
 const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStudent?: Student }> = ({ title, onNavigateNew, currentUser, preSelectedStudent }) => {
+    console.log('Mounting SocialServiceDashboard', { user: currentUser?.id });
     const [students, setStudents] = useState<Student[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(preSelectedStudent || null);
     const [activeTab, setActiveTab] = useState<'id' | 'social' | 'health' | 'status' | 'reports'>('id');
@@ -4367,35 +4369,58 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
         professionalName: ''
     });
 
+    const [schools, setSchools] = useState<School[]>([]);
+    const [selectedSchoolFilter, setSelectedSchoolFilter] = useState('');
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [viewMode, setViewMode] = useState<'overview' | 'agenda'>('overview');
+
     useEffect(() => {
         if (preSelectedStudent) setSelectedStudent(preSelectedStudent);
     }, [preSelectedStudent]);
 
     const loadData = async () => {
+        if (!currentUser?.id) return;
         setLoading(true);
-        const data = await SupabaseService.getStudents();
-        setStudents(data);
+        try {
+            const [data, schoolsData, appsData] = await Promise.all([
+                SupabaseService.getStudents(),
+                SupabaseService.getSchools(),
+                SupabaseService.getAppointments({ professionalId: currentUser.id }) // Busca agenda do profissional
+            ]);
 
-        const updates: any[] = [];
-        let count = 0;
+            setStudents(data || []);
+            setSchools(schoolsData || []);
+            setAppointments(appsData || []);
 
-        data.forEach(student => {
-            const sData = student.clinical?.social_data; // This should be SocialServicePrivateData
-            if (sData && sData.lastUpdate && sData.lastUpdate !== student.createdAt) {
-                count++;
-                updates.push({
-                    studentId: student.id,
-                    studentName: student.fullName,
-                    lastUpdate: sData.lastUpdate,
-                    professional: sData.professionalName
-                });
-            }
-        });
+            const updates: any[] = [];
+            let count = 0;
 
-        updates.sort((a, b) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime());
-        setRecentUpdates(updates);
-        setStats({ totalVisits: count, activeSearch: count });
-        setLoading(false);
+            (data || []).forEach(student => {
+                const sData = student.clinical?.social_data; // This should be SocialServicePrivateData
+                if (sData && sData.lastUpdate && sData.lastUpdate !== student.createdAt) {
+                    count++;
+                    updates.push({
+                        studentId: student.id,
+                        studentName: student.fullName,
+                        lastUpdate: sData.lastUpdate,
+                        professional: sData.professionalName,
+                        schoolId: student.school?.schoolId // Captura ID da escola para filtro
+                    });
+                }
+            });
+
+            updates.sort((a, b) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime());
+            setRecentUpdates(updates);
+            setStats({ totalVisits: count, activeSearch: count });
+        } catch (error) {
+            console.error('Erro ao carregar dados do Serviço Social:', error);
+            // Fallback silencioso para não quebrar a UI
+            setStudents([]);
+            setSchools([]);
+            setAppointments([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => { loadData(); }, []);
@@ -4488,7 +4513,11 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
         }
     };
 
-    const filteredUpdates = recentUpdates.filter(u => u.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredUpdates = recentUpdates.filter(u => {
+        const matchesSearch = (u.studentName || '').toLowerCase().includes((searchTerm || '').toLowerCase());
+        const matchesSchool = selectedSchoolFilter ? u.schoolId === selectedSchoolFilter : true;
+        return matchesSearch && matchesSchool;
+    });
 
     const handleArrayToggle = (section: keyof SocialServiceForm, field: string, value: string) => {
         const current = (socialData.formData as any)[section][field] as string[];
@@ -4527,65 +4556,192 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                 <h2 className="text-3xl font-extrabold flex items-center gap-3"><Heart className="text-cyan-300" /> {title}</h2>
                                 <p className="text-cyan-100 mt-2 font-medium">Busca Ativa Escolar e Proteção Social.</p>
                             </div>
-                            <div className="relative w-full md:w-72">
-                                <Search className="absolute left-4 top-4 text-cyan-300" size={20} />
-                                <select
-                                    className="w-full bg-white/20 backdrop-blur-md border border-white/30 rounded-xl p-3 pl-12 text-white outline-none focus:ring-2 focus:ring-white/50"
-                                    onChange={(e) => {
-                                        const s = students.find(st => st.id === e.target.value);
-                                        if (s) setSelectedStudent(s);
-                                    }}
-                                    value=""
-                                >
-                                    <option value="" className="text-slate-800">Buscar aluno para Busca Ativa...</option>
-                                    {students.map(s => <option key={s.id} value={s.id} className="text-slate-800">{s.fullName}</option>)}
-                                </select>
+
+                            <div className="flex items-center gap-4">
+                                <div className="bg-white/10 backdrop-blur-md rounded-xl p-1 flex">
+                                    <button
+                                        onClick={() => setViewMode('overview')}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'overview' ? 'bg-white text-blue-900 shadow-md' : 'text-white hover:bg-white/10'}`}
+                                    >
+                                        Visão Geral
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('agenda')}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'agenda' ? 'bg-white text-blue-900 shadow-md' : 'text-white hover:bg-white/10'}`}
+                                    >
+                                        Minha Agenda
+                                    </button>
+                                </div>
+
+                                <div className="relative w-full md:w-64">
+                                    <Search className="absolute left-4 top-3.5 text-cyan-300" size={18} />
+                                    <select
+                                        className="w-full bg-white/20 backdrop-blur-md border border-white/30 rounded-xl p-3 pl-12 text-white outline-none focus:ring-2 focus:ring-white/50 text-sm font-medium"
+                                        onChange={(e) => {
+                                            const s = students.find(st => st.id === e.target.value);
+                                            if (s) setSelectedStudent(s);
+                                        }}
+                                        value=""
+                                    >
+                                        <option value="" className="text-slate-800">Acesso Rápido ao Aluno...</option>
+                                        {students.map(s => <option key={s.id} value={s.id} className="text-slate-800">{s.fullName}</option>)}
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-cyan-50 p-6 rounded-2xl border border-cyan-100 flex items-center gap-4">
-                            <div className="p-4 bg-white text-cyan-600 rounded-xl shadow-sm"><Home size={24} /></div>
-                            <div><p className="text-xs font-bold text-cyan-800 uppercase">Visitas e Atualizações</p><h3 className="text-2xl font-black text-cyan-900">{stats.totalVisits}</h3></div>
-                        </div>
-                        <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex items-center gap-4">
-                            <div className="p-4 bg-white text-blue-600 rounded-xl shadow-sm"><Search size={24} /></div>
-                            <div><p className="text-xs font-bold text-blue-800 uppercase">Em Acompanhamento Social</p><h3 className="text-2xl font-black text-blue-900">{stats.activeSearch}</h3></div>
-                        </div>
-                    </div>
+                    {/* Main View Switch */}
+                    {viewMode === 'overview' ? (
+                        <>
+                            {/* Stats */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="bg-cyan-50 p-6 rounded-2xl border border-cyan-100 flex items-center gap-4">
+                                    <div className="p-4 bg-white text-cyan-600 rounded-xl shadow-sm"><Home size={24} /></div>
+                                    <div><p className="text-xs font-bold text-cyan-800 uppercase">Visitas e Atualizações</p><h3 className="text-2xl font-black text-cyan-900">{stats.totalVisits}</h3></div>
+                                </div>
+                                <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex items-center gap-4">
+                                    <div className="p-4 bg-white text-blue-600 rounded-xl shadow-sm"><Search size={24} /></div>
+                                    <div><p className="text-xs font-bold text-blue-800 uppercase">Em Acompanhamento Social</p><h3 className="text-2xl font-black text-blue-900">{stats.activeSearch}</h3></div>
+                                </div>
+                                <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 flex items-center gap-4">
+                                    <div className="p-4 bg-white text-indigo-600 rounded-xl shadow-sm"><Calendar size={24} /></div>
+                                    <div><p className="text-xs font-bold text-indigo-800 uppercase">Agendamentos Hoje</p><h3 className="text-2xl font-black text-indigo-900">{appointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length}</h3></div>
+                                </div>
+                            </div>
 
-                    {/* List */}
-                    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                            <h3 className="font-bold text-slate-800">Histórico de Atuação Social</h3>
-                            <input type="text" placeholder="Filtrar aluno..." className="px-4 py-2 rounded-lg border border-slate-300 text-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            {/* List with Filters */}
+                            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+                                <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Layout size={20} className="text-slate-400" /> Histórico de Atuação Social</h3>
+
+                                    <div className="flex items-center gap-3 w-full md:w-auto">
+                                        <div className="relative">
+                                            <SchoolIcon className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                            <select
+                                                value={selectedSchoolFilter}
+                                                onChange={e => setSelectedSchoolFilter(e.target.value)}
+                                                className="pl-10 pr-4 py-2 rounded-lg border border-slate-300 text-sm w-full md:w-64 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                            >
+                                                <option value="">Todas as Escolas</option>
+                                                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            </select>
+                                        </div>
+
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                            <input
+                                                type="text"
+                                                placeholder="Filtrar aluno..."
+                                                className="pl-10 pr-4 py-2 rounded-lg border border-slate-300 text-sm w-full md:w-64 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                                value={searchTerm}
+                                                onChange={e => setSearchTerm(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="overflow-x-auto min-h-[300px]">
+                                    <table className="min-w-full divide-y divide-slate-100">
+                                        <thead className="bg-slate-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Aluno</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Escola</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Última Visita</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Profissional</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-slate-100">
+                                            {filteredUpdates.length > 0 ? filteredUpdates.map((item, idx) => {
+                                                const studentSchool = students.find(s => s.id === item.studentId)?.school?.schoolName || 'Não vinculada';
+                                                return (
+                                                    <tr key={idx} className="hover:bg-slate-50 cursor-pointer" onClick={() => {
+                                                        const s = students.find(st => st.id === item.studentId);
+                                                        if (s) setSelectedStudent(s);
+                                                    }}>
+                                                        <td className="px-6 py-4 font-bold text-slate-700">{item.studentName}</td>
+                                                        <td className="px-6 py-4 text-sm text-slate-500">{studentSchool}</td>
+                                                        <td className="px-6 py-4 text-sm text-slate-600">{
+                                                            (() => {
+                                                                try {
+                                                                    return item.lastUpdate ? new Date(item.lastUpdate).toLocaleDateString() : '-';
+                                                                } catch { return '-'; }
+                                                            })()
+                                                        }</td>
+                                                        <td className="px-6 py-4 text-sm text-slate-600">{item.professional}</td>
+                                                    </tr>
+                                                );
+                                            }) : (
+                                                <tr>
+                                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                                                        Nenhum registro encontrado para os filtros selecionados.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden min-h-[600px] p-8">
+                            <div className="flex justify-between items-center mb-8">
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3"><Calendar className="text-blue-600" /> Agenda de Atendimentos</h3>
+                                    <p className="text-slate-500 mt-1">Gerencie seus agendamentos e visitas para Serviço Social.</p>
+                                </div>
+                                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                    <p className="text-xs font-bold text-blue-600 uppercase mb-1">Total Agendado</p>
+                                    <p className="text-3xl font-black text-blue-900">{appointments.length}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {appointments.length > 0 ? appointments.map(app => {
+                                    const student = students.find(s => s.id === app.studentId);
+                                    const isToday = app.date === new Date().toISOString().split('T')[0];
+
+                                    return (
+                                        <div key={app.id} className={`p-6 rounded-2xl border border-slate-200 hover:shadow-lg transition-all group ${isToday ? 'bg-indigo-50 border-indigo-200' : 'bg-white'}`}>
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className={`px-3 py-1 rounded-full text-xs font-bold ${isToday ? 'bg-indigo-200 text-indigo-800' : 'bg-slate-100 text-slate-600'}`}>
+                                                    {new Date(app.date).toLocaleDateString()}
+                                                </div>
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${app.status === 'ATENDIDO' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{app.status}</span>
+                                            </div>
+
+                                            <h4 className="font-bold text-slate-800 text-lg mb-1">{app.studentName}</h4>
+                                            <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
+                                                <SchoolIcon size={14} />
+                                                <span className="truncate">{student?.school?.schoolName || 'Escola não informada'}</span>
+                                            </div>
+
+                                            <div className="flex items-center gap-3 pt-4 border-t border-slate-100/50">
+                                                <div className="flex items-center gap-2 text-slate-600 text-sm font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+                                                    <Clock size={14} /> {app.startTime} - {app.endTime}
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        if (student) setSelectedStudent(student);
+                                                    }}
+                                                    className="ml-auto text-blue-600 hover:text-blue-800 font-bold text-sm flex items-center gap-1 group-hover:underline"
+                                                >
+                                                    Abrir Prontuário <ChevronRight size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                }) : (
+                                    <div className="col-span-full py-20 text-center">
+                                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                                            <Calendar size={40} />
+                                        </div>
+                                        <h4 className="text-xl font-bold text-slate-400">Nenhum agendamento encontrado</h4>
+                                        <p className="text-slate-400 text-sm">Seus agendamentos aparecerão aqui.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-slate-100">
-                                <thead className="bg-slate-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Aluno</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Última Visita</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Profissional</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-slate-100">
-                                    {filteredUpdates.map((item, idx) => (
-                                        <tr key={idx} className="hover:bg-slate-50 cursor-pointer" onClick={() => {
-                                            const s = students.find(st => st.id === item.studentId);
-                                            if (s) setSelectedStudent(s);
-                                        }}>
-                                            <td className="px-6 py-4 font-bold text-slate-700">{item.studentName}</td>
-                                            <td className="px-6 py-4 text-sm text-slate-600">{new Date(item.lastUpdate).toLocaleDateString()}</td>
-                                            <td className="px-6 py-4 text-sm text-slate-600">{item.professional}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    )}
                 </div>
             ) : (
                 <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col md:flex-row min-h-[700px]">
@@ -6544,3 +6700,5 @@ export const NutritionDashboardPage: React.FC<{ onNavigateNew: () => void; curre
 export const NutritionSessionFormPage: React.FC<{ onCancel: () => void; currentUser: User; preSelectedStudent?: Student }> = (props) => (
     <NutritionDashboardPage onNavigateNew={() => { }} currentUser={props.currentUser} preSelectedStudent={props.preSelectedStudent} />
 );
+
+
