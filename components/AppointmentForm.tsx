@@ -11,7 +11,8 @@ import {
     Sparkles,
     CheckCircle2,
     Search,
-    School as SchoolIcon
+    School as SchoolIcon,
+    MessageCircle
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { Appointment, Specialty, Student, User, Unit, School } from '../types';
@@ -76,6 +77,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
         return nameMatch && schoolMatch;
     });
 
+    const [createdAppointment, setCreatedAppointment] = useState<{ student: string, professional: string, date: string, time: string, phone: string, guardian: string } | null>(null);
+
     const handleSaveAppointment = async () => {
         if (!newApt.studentId || !newApt.professionalId || !newApt.startTime || !newApt.endTime || !newApt.date || !newApt.specialty) {
             showError("Preencha todos os campos obrigatórios");
@@ -85,43 +88,21 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
         setLoading(true);
         try {
             // [ATUALIZADO] Verificação de Conflito de Horário (Client-Side filtering for robustness)
-            // Busca TODOS os agendamentos do aluno para garantir que não haja erro de filtro de data no banco
             const studentAppointments = await SupabaseService.getAppointments({
                 studentId: newApt.studentId
             });
 
-            console.log("Verificando conflitos para aluno:", newApt.studentId);
-            console.log("Agendamentos encontrados (Total):", studentAppointments.length);
-
             const hasConflict = studentAppointments.find(app => {
-                // 1. Verificar Data (Comparação de String YYYY-MM-DD)
                 if (app.date !== newApt.date) return false;
-
-                // 2. Ignora o próprio agendamento (caso seja edição, embora aqui seja sempre novo)
                 if (newApt.id && app.id === newApt.id) return false;
-
-                // 3. Ignora status liberados
-                // 'AGENDADO' e 'ATENDIDO' contam como ocupado.
-                // 'FALTOU' e 'REMARCAR' liberam a vaga?
-                // Se faltou, o horário passou, mas se for futuro, 'FALTOU' não faz sentido. 
-                // Se 'REMARCAR', teoricamente o horário está vago?
-                // Vamos ser conservadores: Só AGENDADO e ATENDIDO bloqueiam.
                 if (app.status !== 'AGENDADO' && app.status !== 'ATENDIDO') return false;
 
-                // 4. Verificação de Sobreposição de Horário
-                // (StartA < EndB) e (StartB < EndA)
                 const newStart = newApt.startTime!;
                 const newEnd = newApt.endTime!;
                 const appStart = app.startTime;
                 const appEnd = app.endTime;
 
-                const overlap = newStart < appEnd && appStart < newEnd;
-
-                if (overlap) {
-                    console.log("Conflito detectado com:", app);
-                }
-
-                return overlap;
+                return newStart < appEnd && appStart < newEnd;
             });
 
             if (hasConflict) {
@@ -132,11 +113,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
 
             await SupabaseService.saveAppointment(newApt);
 
-            // Se for um reagendamento (existe initialData com ID), atualizar o status do anterior
+            // Reagendamento: Atualiza anterior
             if (initialData && initialData.id && newApt.date) {
                 try {
                     const dateFormatted = newApt.date.split('-').reverse().join('/');
-                    // Tenta atualizar tudo (Status + Notas)
                     await SupabaseService.updateAppointmentFields(initialData.id, {
                         status: 'REMARCAR',
                         notes: `Remarcado para ${dateFormatted}`
@@ -144,23 +124,56 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                 } catch (err) {
                     console.warn("Falha ao atualizar notas, tentando apenas status...", err);
                     try {
-                        // Fallback: Tenta atualizar apenas o status (caso a coluna notes não exista)
                         await SupabaseService.updateAppointmentStatus(initialData.id, 'REMARCAR');
                     } catch (err2) {
                         console.error("Falha fatal ao atualizar status anterior", err2);
-                        // Não impede o fluxo, pois o novo já foi criado
                     }
                 }
             }
 
+            // [NOVO] Preparar para envio WhatsApp
+            // Buscar dados do aluno para pegar telefone do responsável
+            const studentData = students.find(s => s.id === newApt.studentId);
+            const guardianName = studentData?.guardians?.[0]?.name || 'Responsável';
+            const guardianPhone = studentData?.guardians?.[0]?.phone || '';
+
+            // Define o estado do modal DEPOIS de salvar
+            setCreatedAppointment({
+                student: newApt.studentName || 'Aluno',
+                professional: newApt.professionalName || 'Profissional',
+                date: newApt.date.split('-').reverse().join('/'),
+                time: newApt.startTime!,
+                phone: guardianPhone,
+                guardian: guardianName
+            });
+
             success("Agendamento realizado com sucesso!");
-            onSuccess();
+            // NÃO chama onSuccess() aqui. O Modal vai chamar ao fechar.
+
         } catch (err: any) {
             console.error("Erro ao salvar agendamento:", err);
             showError(`Erro ao salvar agendamento: ${err.message || 'Erro desconhecido'}`);
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleWhatsAppSend = () => {
+        if (!createdAppointment) return;
+
+        // Formata mensagem
+        const msg = `Olá ${createdAppointment.guardian}, confirmamos o agendamento de *${createdAppointment.student}*.\n\n📅 *Data:* ${createdAppointment.date}\n⏰ *Horário:* ${createdAppointment.time}\n👨‍⚕️ *Profissional:* ${createdAppointment.professional}\n\nPor favor, responda *CONFIRMAR* ou *CANCELAR*.`;
+
+        // Limpa telefone (apenas números)
+        const cleanPhone = createdAppointment.phone.replace(/\D/g, '');
+
+        // Se tiver telefone válido, abre api direta, senão abre genérico pra escolher contato
+        const url = cleanPhone.length >= 10
+            ? `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(msg)}`
+            : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+        window.open(url, '_blank');
+        onSuccess(); // Fecha fluxo
     };
 
     return (
@@ -482,6 +495,43 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                     </div>
                 </div>
             </div>
+            {/* Modal de Confirmação WhatsApp */}
+            {createdAppointment && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center space-y-6">
+                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <MessageCircle size={40} className="text-green-600" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-800">Agendamento Realizado!</h2>
+                        <p className="text-slate-600">
+                            Deseja enviar a confirmação agora para o responsável <strong>{createdAppointment.guardian}</strong>?
+                        </p>
+
+                        <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-left text-sm text-green-800 font-mono">
+                            <p>Olá {createdAppointment.guardian}, confirmamos o agendamento de {createdAppointment.student}.</p>
+                            <p className="mt-2">📅 Data: {createdAppointment.date}</p>
+                            <p>⏰ Horário: {createdAppointment.time}</p>
+                            <p>👨‍⚕️ Profissional: {createdAppointment.professional}</p>
+                            <p className="mt-2 font-bold">Responda CONFIRMAR ou CANCELAR.</p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onSuccess}
+                                className="flex-1 py-3 px-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                            >
+                                Pular
+                            </button>
+                            <button
+                                onClick={handleWhatsAppSend}
+                                className="flex-1 py-3 px-4 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition-colors shadow-lg shadow-green-500/30 flex items-center justify-center gap-2"
+                            >
+                                <MessageCircle size={18} /> Enviar WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -8,25 +8,32 @@ interface RegistrationFormProps {
     onSuccess: () => void;
     onCancel: () => void;
     initialData?: Student | null;
+    currentUser?: any; // Recebe o usuário logado para verificar permissões
 }
 
-export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, onCancel, initialData }) => {
+export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, onCancel, initialData, currentUser }) => {
+    // Se for secretária, remove "Clínico". Se for Admin/Especialista, mantém tudo.
+    // userRole pode ser 'ADMIN', 'SPECIALIST', 'EDUCATION_SECRETARY', 'ASSISTANT'
+    // ASSISTANT = Recepção (Secretária Sede/Cocal) -> BLOQUEAR CLÍNICO
+    const isClinicalBlocked = currentUser?.role === 'ASSISTANT' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.role === 'SECRETARIA_COCAL';
+
     const [activeTab, setActiveTab] = useState<'personal' | 'clinical' | 'social' | 'school' | 'documents'>('personal');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const docInputRef = useRef<HTMLInputElement>(null);
     const [selectedDocType, setSelectedDocType] = useState<DocumentType>('Outros');
-    const [showSuccessModal, setShowSuccessModal] = useState(false); // State for professional feedback modal
-    const [schools, setSchools] = useState<School[]>([]); // State for schools list
-    const [saveError, setSaveError] = useState<string | null>(null); // State for save errors
-    const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null); // State for photo upload
-    const [documentFiles, setDocumentFiles] = useState<{ file: File, type: string }[]>([]); // Estado para arquivos de documentos COM TIPO
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [schools, setSchools] = useState<School[]>([]);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+    const [documentFiles, setDocumentFiles] = useState<{ file: File, type: string }[]>([]);
 
     const handleCloseSuccess = () => {
         setShowSuccessModal(false);
         onSuccess();
     };
 
+    // ... (States remain same) ...
     // Initial State
     const [formData, setFormData] = useState<Partial<Student>>({
         id: '',
@@ -46,10 +53,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         documents: []
     });
 
+    // ... (Effects and handlers remain same until Tab rendering) ...
     // Load initial data if editing
     useEffect(() => {
         if (initialData) {
-            // [FIX] Ensure deeply nested objects exist to prevent crashes
             const safeData = {
                 ...initialData,
                 guardians: (initialData.guardians && initialData.guardians.length > 0)
@@ -68,7 +75,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         async function loadSchools() {
             try {
                 const schoolsData = await SupabaseService.getSchools();
-                setSchools(schoolsData);
+                // Filtra escolas se o usuário for regional
+                const unit = (currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.scope === 'COCAL') ? 'COCAL' :
+                    (currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.scope === 'SEDE') ? 'SEDE' : null;
+
+                const filtered = unit ? schoolsData.filter(s => s.district === unit) : schoolsData;
+                setSchools(filtered);
             } catch (error) {
                 console.error("Erro ao carregar escolas:", error);
             }
@@ -79,20 +91,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     // Função auxiliar para formatar CPF
     const formatCPF = (value: string) => {
         return value
-            .replace(/\D/g, '') // Remove tudo o que não é dígito
-            .replace(/(\d{3})(\d)/, '$1.$2') // Coloca um ponto entre o terceiro e o quarto dígitos
-            .replace(/(\d{3})(\d)/, '$1.$2') // Coloca um ponto entre o terceiro e o quarto dígitos de novo (para o segundo bloco de números)
-            .replace(/(\d{3})(\d{1,2})/, '$1-$2') // Coloca um hífen entre o terceiro e o quarto dígitos
-            .replace(/(-\d{2})\d+?$/, '$1'); // Impede que sejam digitados mais de 11 dígitos
+            .replace(/\D/g, '')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+            .replace(/(-\d{2})\d+?$/, '$1');
     };
 
     const handleInputChange = (section: keyof Student | null, field: string, value: any) => {
-        // Seções que são objetos aninhados
         const objectSections = ['address', 'clinical', 'school', 'socialInfo'];
 
         if (section && objectSections.includes(section)) {
             setFormData(prev => {
-                // Garante que a seção existe (fallback para objeto vazio)
                 const currentSection = (prev[section] as any) || {};
                 return {
                     ...prev,
@@ -108,20 +118,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                 const newGuardians = [...currentGuardians];
 
                 if (newGuardians.length === 0) {
-                    // Se não houver responsável, cria o primeiro
                     newGuardians.push({
                         name: '', relationship: '', phone: '', email: '',
                         occupation: '', ethnicity: '', cpf: '', rg: ''
                     } as any);
                 }
 
-                // Atualiza o primeiro responsável (índice 0)
                 newGuardians[0] = { ...newGuardians[0], [field]: value };
-
                 return { ...prev, guardians: newGuardians };
             });
         } else {
-            // Atualização na raiz do objeto (ex: fullName, birthDate)
             setFormData(prev => ({ ...prev, [field]: value }));
         }
     };
@@ -155,7 +161,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            setSelectedPhotoFile(file); // Store file for upload
+            setSelectedPhotoFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setFormData(prev => ({ ...prev, photoUrl: reader.result as string }));
@@ -166,7 +172,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
     const handleRemovePhoto = () => {
         setFormData(prev => ({ ...prev, photoUrl: '' }));
-        setSelectedPhotoFile(null); // Clear file
+        setSelectedPhotoFile(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -192,13 +198,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                     documents: [...(prev.documents || []), newDoc]
                 }));
 
-                // Salva o arquivo real com seu tipo para envio posterior
                 setDocumentFiles(prev => [...prev, { file, type: docType }]);
             };
             reader.readAsDataURL(file);
         }
-
-        // Reset input
         if (event.target) event.target.value = '';
     };
 
@@ -215,8 +218,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
         try {
             setSaveError(null);
-
-            // Salva e recupera o ID (novo ou existente)
             console.log('[RegistrationForm] Enviando para saveStudent - ID:', formData.id, 'CPF:', formData.cpf);
             const savedId = await SupabaseService.saveStudent(
                 formData as Student,
@@ -224,21 +225,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                 documentFiles
             );
 
-            // Limpa arquivos após sucesso
             setDocumentFiles([]);
             setSelectedPhotoFile(null);
-
-            // Atualiza o formulário com o ID retornado para garantir que próximos salvamentos sejam UPDATE
             setFormData(prev => ({ ...prev, id: savedId }));
 
             setIsSubmitting(false);
             setShowSuccessModal(true);
         } catch (err: any) {
             console.error('Erro detalhado ao salvar aluno:', err);
-            // Tenta extrair o máximo de detalhes possível do erro
             let errorMessage = err?.message || err?.error_description || 'Erro desconhecido ao salvar.';
-
-            // Se o erro for um objeto genérico, tenta stringify para ver o conteúdo
             if (typeof err === 'object' && err !== null) {
                 try {
                     errorMessage += ` | Detalhes: ${JSON.stringify(err)}`;
@@ -246,7 +241,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                     errorMessage += ` | (Erro não serializável)`;
                 }
             }
-
             setSaveError(`Não foi possível salvar os dados. Detalhe: ${errorMessage}`);
             setIsSubmitting(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -255,11 +249,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
     const handleExportPDF = async () => {
         if (!formData.fullName) return;
-
         const originalText = "Exportar PDF";
         const button = document.getElementById('btn-export-pdf');
         if (button) button.innerText = "Gerando...";
-
         try {
             await generateStudentPDF(formData as Student);
         } catch (error) {
@@ -313,12 +305,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                         </div>
                     </div>
                 )}
-                {/* ... existing content ... */}
-                {/* Due to tool limits, I'm replacing the WRAPPER only, but I need to be careful to not lose content. 
-                   Actually, replacing the entire return is risky with tool limits.
-                   Wait, I can replace just the return start and end if I do it carefully or use specific anchors.
-                   But since the file is large, I'll use a safer approach: Replace the wrapper div lines.
-                */}
+
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <div>
                         <h2 className="text-xl font-bold text-slate-800">
@@ -329,7 +316,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        {initialData && (
+                        {initialData && !isClinicalBlocked && (
                             <button
                                 id="btn-export-pdf"
                                 type="button"
@@ -348,7 +335,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
                 <div className="flex border-b border-slate-100 overflow-x-auto bg-white sticky top-0 z-10">
                     <TabButton id="personal" label="Dados Pessoais" icon={User} />
-                    <TabButton id="clinical" label="Clínico/Saúde" icon={Activity} />
+                    {!isClinicalBlocked && <TabButton id="clinical" label="Clínico/Saúde" icon={Activity} />}
                     <TabButton id="social" label="Familiar/Social" icon={UsersIcon} />
                     <TabButton id="school" label="Dados Escolares" icon={BookOpen} />
                     <TabButton id="documents" label="Documentação" icon={Paperclip} />

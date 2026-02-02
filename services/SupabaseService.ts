@@ -140,7 +140,9 @@ export class SupabaseService {
             role: profile.role,
             isActive: profile.is_active,
             specialty: frontendSpecialty,
-            email: finalEmail
+            email: finalEmail,
+            photoUrl: profile.photo_url,
+            scope: profile.scope
         };
     }
 
@@ -302,23 +304,36 @@ export class SupabaseService {
     }
 
     // --- Students ---
-    static async getStudents(): Promise<Student[]> {
+    static async getStudents(unit?: Unit): Promise<Student[]> {
         // Busca alunos E sessões (respeitando RLS das sessões automaticamente!)
         // A query clinical_sessions(*) vai retornar APENAS o que o usuário pode ver.
-        const { data: students, error } = await supabase
+        let query = supabase
             .from('students')
             .select(`
-        *,
-        clinical_sessions (*),
-        schools (id, name, district)
-      `);
+                *,
+                clinical_sessions (*),
+                schools (id, name, district)
+            `);
+
+        if (unit) {
+            // Filtra alunos que pertencem a escolas da unidade especificada
+            // Nota: Isso assume que a tabela schools tem a coluna 'district' preenchida com 'SEDE' ou 'COCAL'
+            query = query.filter('schools.district', 'eq', unit);
+        }
+
+        const { data: students, error } = await query;
 
         if (error) {
             console.error('Erro ao buscar alunos:', error);
             return [];
         }
 
-        return students.map((s: any) => mapStudentFromDB(s, s.clinical_sessions));
+        // Filtro manual adicional caso o join filter do supabase não seja suficiente (dependendo da versão)
+        const finalStudents = unit
+            ? students.filter((s: any) => (Array.isArray(s.schools) ? s.schools[0]?.district : s.schools?.district) === unit)
+            : students;
+
+        return finalStudents.map((s: any) => mapStudentFromDB(s, s.clinical_sessions));
     }
 
     static async saveStudent(student: Student, photoFile?: File, documentFiles?: { file: File, type: string }[]): Promise<string> {
@@ -579,8 +594,15 @@ export class SupabaseService {
     }
 
     // --- Users (Profiles) ---
-    static async getUsers(): Promise<User[]> {
-        const { data, error } = await supabase.from('profiles').select('*');
+    static async getUsers(unit?: Unit): Promise<User[]> {
+        let query = supabase.from('profiles').select('*');
+
+        if (unit) {
+            query = query.eq('scope', unit);
+        }
+
+        const { data, error } = await query;
+
         if (error) {
             console.error('Erro ao buscar usuários:', error);
             return [];
@@ -596,7 +618,7 @@ export class SupabaseService {
             'NUTRICAO': Specialty.NUTRITION
         };
 
-        return data.map((p: any) => ({
+        return (data || []).map((p: any) => ({
             id: p.id,
             name: p.full_name,
             username: p.username || p.email, // Fallback
@@ -616,8 +638,6 @@ export class SupabaseService {
     static async saveUser(user: User): Promise<void> {
         // NOTA: Criar usuário no Auth requer admin API ou fluxo de signup.
         // Aqui atualizamos apenas o PERFIL.
-        // Se for um novo usuário (sem ID real), isso falhará se não houver um trigger/auth associado.
-        // Para migração, assumiremos que edição de perfil é o principal, ou inserção direta se Policies permitirem.
 
         const specialtyMap: Record<string, string> = {
             'Psicologia': 'PSICOLOGIA',
@@ -636,7 +656,7 @@ export class SupabaseService {
             full_name: user.name,
             username: user.username,
             role: user.role,
-            specialty: dbSpecialty, // Mapeado
+            specialty: dbSpecialty,
             is_active: user.isActive,
             scope: user.scope,
             job_title: user.jobTitle,
@@ -646,13 +666,23 @@ export class SupabaseService {
             address: user.address
         };
 
+        // Sanitização: remove chaves undefined
+        Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
+
+        let error;
         if (user.id && user.id.length > 5) {
-            await supabase.from('profiles').update(payload).eq('id', user.id);
+            const { error: updateError } = await supabase.from('profiles').update(payload).eq('id', user.id);
+            error = updateError;
         } else {
-            // Tenta inserir (só funciona se o ID for gerado ou se o RLS permitir insert público na profiles)
-            // Idealmente: supabase.auth.signUp() no frontend
+            // Tenta inserir
             console.warn('Criação de usuário via SupabaseService requer auth.signUp. Atualizando apenas dados de perfil se possível.');
-            await supabase.from('profiles').insert(payload);
+            const { error: insertError } = await supabase.from('profiles').insert(payload);
+            error = insertError;
+        }
+
+        if (error) {
+            console.error('Erro ao salvar usuário (Perfil):', error);
+            throw new Error(`Erro ao salvar perfil: ${error.message}`);
         }
     }
 
@@ -747,29 +777,27 @@ export class SupabaseService {
     }
 
     // --- Papel Timbrado ---
-    static async getPapelTimbradoConfig(): Promise<PapelTimbradoConfig> {
+    static async getPapelTimbradoConfig(unit?: Unit): Promise<PapelTimbradoConfig> {
+        // Mapeamento de ID por Unidade
+        const unitId = unit === 'COCAL' ? 2 : 1;
+
         const { data, error } = await supabase
             .from('letterhead_config')
             .select('*')
+            .eq('id', unitId)
             .single();
 
         if (error || !data) {
-            console.error('ALERTA DE DEBUG: Falha ao buscar cabeçalho personalizado. Usando padrão.', error);
-            // Se o erro for de permissão (42501), o usuário precisa dar GRANT
-            if (error?.code === '42501' || error?.message?.includes('permission')) {
-                console.error('ERRO DE PERMISSÃO (RLS): A tabela letterhead_config não pode ser lida.');
-            }
+            console.error(`Falha ao buscar cabeçalho para unidade ${unit || 'SEDE'}. Usando padrão.`, error);
             return {
                 tituloLinha1: "PREFEITURA MUNICIPAL DE BROTAS DE MACAÚBAS",
                 tituloLinha2: "SECRETARIA MUNICIPAL DE EDUCAÇÃO",
-                tituloLinha3: "CENTRO MULTIDISCIPLINAR DE ATENDIMENTO EDUCACIONAL",
+                tituloLinha3: unit === 'COCAL' ? "UNIDADE DISTRITAL DE COCAL" : "CENTRO MULTIDISCIPLINAR DE ATENDIMENTO EDUCACIONAL",
                 cnpj: "", endereco: "", telefone: "", rodapeTexto: "",
                 logoUrl: "", rodapeImg: "",
                 showLogo: true, showTitulos: true, showContato: true
             };
         }
-
-        console.log('DEBUG: Config timbrado carregada do banco:', data);
 
         return {
             logoUrl: data.logo_url,
@@ -787,9 +815,9 @@ export class SupabaseService {
         };
     }
 
-    static async savePapelTimbradoConfig(config: PapelTimbradoConfig): Promise<void> {
+    static async savePapelTimbradoConfig(config: PapelTimbradoConfig, unit?: Unit): Promise<void> {
+        const unitId = unit === 'COCAL' ? 2 : 1;
         const payload = {
-            logo_url: config.logoUrl,
             title_l1: config.tituloLinha1,
             title_l2: config.tituloLinha2,
             title_l3: config.tituloLinha3,
@@ -798,12 +826,98 @@ export class SupabaseService {
             phone: config.telefone,
             footer_text: config.rodapeTexto,
             footer_img: config.rodapeImg,
+            logo_url: config.logoUrl,
             show_logo: config.showLogo,
             show_titles: config.showTitulos,
             show_contact: config.showContato
         };
-        const { error } = await supabase.from('letterhead_config').upsert({ id: 1, ...payload });
-        if (error) throw error;
+
+        const { error } = await supabase.from('letterhead_config').upsert({ id: unitId, ...payload });
+        if (error) {
+            console.error('Erro ao salvar config papel timbrado:', error);
+            throw error;
+        }
+    }
+
+    // --- Notificações / Avisos ---
+    static async getNotifications(userId: string): Promise<any[]> {
+        // --- LIMPEZA AUTOMÁTICA (Lazy Delete) ---
+        // Remove mensagens que foram lidas há mais de 5 minutos
+        try {
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+            await supabase
+                .from('system_messages')
+                .delete()
+                .not('read_at', 'is', null)
+                .lt('read_at', fiveMinutesAgo);
+        } catch (cleanError) {
+            console.error('[NotificationCleanup] Erro ao limpar avisos antigos (Verificar RLS DELETE):', cleanError);
+        }
+
+        // Busca mensagens onde o usuário é o destinatário
+        const { data, error } = await supabase
+            .from('system_messages')
+            .select(`
+                *,
+                sender:profiles!fk_sender (full_name, role)
+            `)
+            .eq('recipient_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Erro ao buscar notificações:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    static async getSentMessages(userId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('system_messages')
+            .select(`
+                *,
+                recipient:profiles!fk_recipient (full_name, role)
+            `)
+            .eq('sender_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Erro ao buscar mensagens enviadas:', error);
+            return [];
+        }
+        return data || [];
+    }
+
+    static async markAsRead(messageId: string): Promise<void> {
+        const { error } = await supabase
+            .from('system_messages')
+            .update({
+                is_read: true,
+                read_at: new Date().toISOString()
+            })
+            .eq('id', messageId);
+
+        if (error) {
+            console.error('Erro ao marcar mensagem como lida no Supabase:', error);
+            throw error; // Lança para o contexto lidar
+        }
+    }
+
+    static async sendSystemMessage(senderId: string, recipientId: string, title: string, content: string, priority: 'normal' | 'urgent' = 'normal'): Promise<void> {
+        const { error } = await supabase
+            .from('system_messages')
+            .insert({
+                sender_id: senderId,
+                recipient_id: recipientId,
+                title,
+                content,
+                priority
+            });
+
+        if (error) {
+            console.error('Erro ao enviar mensagem:', error);
+            throw error;
+        }
     }
 
     // --- IPO Portage ---
@@ -1027,6 +1141,9 @@ export class SupabaseService {
     }
 
     static async saveSupportProfessional(prof: SupportProfessional): Promise<void> {
+        // Helper para converter vazio em null
+        const toNull = (value: any) => (value === '' || value === undefined ? null : value);
+
         const payload = {
             name: prof.name,
             photo_url: prof.photoUrl,
@@ -1034,18 +1151,33 @@ export class SupabaseService {
             phone: prof.phone,
             email: prof.email,
             education: prof.education,
-            contract_start_date: prof.contractStartDate,
+            contract_start_date: toNull(prof.contractStartDate),
             workload: prof.workload,
             address: prof.address,
-            school_id: prof.schoolId,
+            school_id: toNull(prof.schoolId),
             regent_teacher: prof.regentTeacher,
-            student_id: prof.studentId
+            student_id: toNull(prof.studentId)
         };
 
+        // Remove chaves undefined
+        Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
+
+        console.log('[DEBUG] Payload SupportProfessional:', payload);
+
+        let error;
+        // Se tiver ID e for update
         if (prof.id && prof.id.length > 10) {
-            await supabase.from('support_professionals').update(payload).eq('id', prof.id);
+            const { error: updateError } = await supabase.from('support_professionals').update(payload).eq('id', prof.id);
+            error = updateError;
         } else {
-            await supabase.from('support_professionals').insert(payload);
+            // Insert
+            const { error: insertError } = await supabase.from('support_professionals').insert(payload);
+            error = insertError;
+        }
+
+        if (error) {
+            console.error('Erro ao salvar profissional de apoio (Detalhado):', JSON.stringify(error, null, 2));
+            throw new Error(`Erro Banco de Dados: ${error.message} (${error.code || 'sem código'})`);
         }
     }
 

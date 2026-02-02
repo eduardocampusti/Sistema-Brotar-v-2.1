@@ -16,9 +16,8 @@ export enum Specialty {
   NUTRITION = 'Nutrição'
 }
 
-// Novos tipos para autenticação
-export type UserRole = 'ADMIN' | 'SPECIALIST' | 'ASSISTANT' | 'EDUCATION_SECRETARY';
-export type UserScope = 'GLOBAL' | 'COCAL'; // Escopo de acesso (Sede ou Distrito)
+export type UserRole = 'ADMIN' | 'SPECIALIST' | 'ASSISTANT' | 'EDUCATION_SECRETARY' | 'SECRETARIA_SEDE' | 'SECRETARIA_COCAL';
+export type UserScope = 'GLOBAL' | 'SEDE' | 'COCAL'; // Escopo de acesso (Sede ou Distrito)
 
 // --- PERMISSION SYSTEM ---
 export type Permission = 'can_access_security_data' | 'can_access_backup_restore';
@@ -269,6 +268,26 @@ export interface PortageAssessment {
 }
 
 // --- SYSTEM SETTINGS TYPES ---
+
+export interface SystemMessage {
+  id: string;
+  sender_id: string;
+  recipient_id: string | null;
+  title: string;
+  content: string;
+  priority: 'normal' | 'urgent';
+  is_read: boolean;
+  read_at?: string;
+  created_at: string;
+  sender?: {
+    full_name: string;
+    role: string;
+  };
+  recipient?: {
+    full_name: string;
+    role: string;
+  };
+}
 
 export interface ThemePalette {
   id: string;

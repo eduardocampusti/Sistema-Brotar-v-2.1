@@ -34,8 +34,9 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
     loadSchools();
   }, []);
 
-  const isRestricted = currentUser?.role === 'EDUCATION_SECRETARY' && currentUser?.scope === 'COCAL';
-  const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY';
+  const isRestricted = (currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT') && currentUser?.scope === 'COCAL';
+  const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT';
+  const canViewClinical = currentUser?.role === 'ADMIN' || currentUser?.role === 'SPECIALIST';
 
   // Filter students based on search, school filter AND user scope
   const filteredStudents = students.filter(p => {
@@ -54,7 +55,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
     const normalizedSearch = normalizeText(searchTerm);
     const matchesSearch =
       normalizeText(p.fullName || '').includes(normalizedSearch) ||
-      normalizeText(p.clinical?.diagnosis || '').includes(normalizedSearch) ||
+      (canViewClinical && normalizeText(p.clinical?.diagnosis || '').includes(normalizedSearch)) ||
       (p.cpf || '').includes(searchTerm);
 
     // 3. School Dropdown Filter
@@ -110,7 +111,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input
               type="text"
-              placeholder="Buscar por nome, CPF ou diagnóstico..."
+              placeholder={canViewClinical ? "Buscar por nome, CPF ou diagnóstico..." : "Buscar por nome ou CPF..."}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -134,7 +135,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nome / Diagnóstico</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nome / {canViewClinical && 'Diagnóstico'}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Escola / Idade</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Responsável</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Ações</th>
@@ -161,10 +162,12 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-slate-900">{student.fullName}</div>
-                          {/* Diagnóstico em Vermelho logo abaixo do nome */}
-                          <div className="text-xs font-bold text-red-600 mt-0.5">
-                            {student.clinical.diagnosis} {student.clinical.cid ? `(CID: ${student.clinical.cid})` : ''}
-                          </div>
+                          {/* Diagnóstico em Vermelho logo abaixo do nome - Apenas para Clínicos */}
+                          {canViewClinical && (
+                            <div className="text-xs font-bold text-red-600 mt-0.5">
+                              {student.clinical.diagnosis} {student.clinical.cid ? `(CID: ${student.clinical.cid})` : ''}
+                            </div>
+                          )}
                           <div className="text-xs text-slate-400 mt-0.5">SUS: {student.susCard}</div>
                         </div>
                       </div>
@@ -203,16 +206,18 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
                         >
                           <Trash2 size={18} />
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            generateStudentPDF(student);
-                          }}
-                          className="flex items-center gap-1 p-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition-colors text-xs font-bold"
-                          title="Baixar Ficha PDF"
-                        >
-                          <FileText size={16} /> PDF
-                        </button>
+                        {canViewClinical && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              generateStudentPDF(student);
+                            }}
+                            className="flex items-center gap-1 p-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition-colors text-xs font-bold"
+                            title="Baixar Ficha PDF"
+                          >
+                            <FileText size={16} /> PDF
+                          </button>
+                        )}
                         <button className="text-primary-600 hover:text-primary-900 flex items-center gap-1 ml-2">
                           Ver <ChevronRight size={16} />
                         </button>

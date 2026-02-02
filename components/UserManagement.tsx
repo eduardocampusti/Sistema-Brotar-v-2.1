@@ -57,8 +57,21 @@ export const UserManagement: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
         // Na edição (com ID), a senha é opcional. Na criação, é obrigatória.
-        if (!formData.username || (!formData.id && !formData.password) || !formData.name) return;
+        if (!formData.name) {
+            showError('O Nome Completo é obrigatório.', 'Campo Obrigatório');
+            return;
+        }
+        if (!formData.username) {
+            showError('O Nome de Usuário (Login) é obrigatório.', 'Campo Obrigatório');
+            return;
+        }
+        if (!formData.id && !formData.password) {
+            showError('A Senha é obrigatória para novos usuários.', 'Campo Obrigatório');
+            return;
+        }
+
         if (isLoading) return; // [NEW] Previne duplo clique
 
         setIsLoading(true); // [NEW] Bloqueia

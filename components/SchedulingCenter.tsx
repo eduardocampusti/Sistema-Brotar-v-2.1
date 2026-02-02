@@ -60,8 +60,14 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
     };
 
     useEffect(() => {
+        // Se o usuário for regional, travar a unidade
+        if (currentUser.role === 'SECRETARIA_COCAL' || (currentUser.role === 'EDUCATION_SECRETARY' && currentUser.scope === 'COCAL')) {
+            setFilterUnit('COCAL');
+        } else if (currentUser.role === 'SECRETARIA_SEDE' || (currentUser.role === 'EDUCATION_SECRETARY' && currentUser.scope === 'SEDE')) {
+            setFilterUnit('SEDE');
+        }
         loadAppointments();
-    }, [selectedDate, filterUnit, filterSpecialty, filterStatus]);
+    }, [selectedDate, filterUnit, filterSpecialty, filterStatus, currentUser]);
 
     // State para Modal de Exclusão
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -131,14 +137,14 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                     <div className="space-y-1.5">
                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Unidade</label>
                         <select
-                            value={filterUnit}
-                            onChange={(e) => setFilterUnit(e.target.value as any)}
-                            disabled={currentUser.role !== 'ADMIN'}
                             className="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 transition-all"
+                            value={filterUnit}
+                            onChange={(e) => setFilterUnit(e.target.value as Unit | 'ALL')}
+                            disabled={currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'SECRETARIA_SEDE'}
                         >
-                            {currentUser.role === 'ADMIN' && <option value="ALL">Todas as Unidades</option>}
-                            <option value="SEDE">SEDE</option>
-                            <option value="COCAL">COCAL</option>
+                            {(currentUser.role === 'ADMIN' || currentUser.role === 'SPECIALIST') && <option value="ALL">Todas Unidades</option>}
+                            {(!currentUser.role.includes('COCAL') && !currentUser.scope?.includes('COCAL')) && <option value="SEDE">Sede</option>}
+                            {(!currentUser.role.includes('SEDE') && !currentUser.scope?.includes('SEDE')) && <option value="COCAL">Cocal</option>}
                         </select>
                     </div>
 

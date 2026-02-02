@@ -1,5 +1,34 @@
 import React from 'react';
-import { LayoutDashboard, Users, HeartPulse, ShieldCheck, LogOut, Brain, Shapes, Heart, Activity, Mic, Puzzle, School, UserCog, Calendar, Database, Menu, X, Sparkles, Settings, Info, Palette, FileText, Scroll, Apple } from 'lucide-react';
+import {
+  Users,
+  Calendar,
+  Settings,
+  FileText,
+  UserPlus,
+  LogOut,
+  Menu,
+  X,
+  LayoutDashboard,
+  School,
+  UserCog,
+  Shield,
+  FileCheck,
+  Key,
+  Database,
+  HeartPulse, // Retained from original
+  ShieldCheck, // Retained from original
+  Brain, // Retained from original
+  Shapes, // Retained from original
+  Heart, // Retained from original
+  Activity, // Retained from original
+  Mic, // Retained from original
+  Puzzle, // Retained from original
+  Sparkles, // Retained from original
+  Info, // Retained from original
+  Palette, // Retained from original
+  Scroll, // Retained from original
+  Apple // Retained from original
+} from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission } from '../types';
 
 interface LayoutProps {
@@ -28,10 +57,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
       hover: 'hover:bg-white/5 text-slate-300',
       accent: 'text-slate-100'
     };
-    if (currentUser.role === 'EDUCATION_SECRETARY') {
-      return currentUser.scope === 'COCAL'
-        ? { sidebar: 'bg-gradient-to-b from-orange-900 to-orange-800 text-white', active: 'bg-white/20 text-white', hover: 'hover:bg-white/10 text-orange-100', accent: 'text-orange-50' }
-        : { sidebar: 'bg-gradient-to-b from-blue-900 to-blue-800 text-white', active: 'bg-white/20 text-white', hover: 'hover:bg-white/10 text-blue-100', accent: 'text-blue-50' };
+    if (currentUser.role === 'EDUCATION_SECRETARY' || currentUser.role === 'SECRETARIA_SEDE' || currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'ASSISTANT') {
+      if (currentUser.scope === 'COCAL' || currentUser.role === 'SECRETARIA_COCAL') {
+        return { sidebar: 'bg-gradient-to-b from-orange-950 to-orange-900 text-white', active: 'bg-white/20 text-white shadow-[0_0_15px_rgba(251,146,60,0.4)]', hover: 'hover:bg-white/10 text-orange-100', accent: 'text-orange-200' };
+      }
+      return { sidebar: 'bg-gradient-to-b from-blue-950 to-blue-900 text-white', active: 'bg-white/20 text-white shadow-[0_0_15px_rgba(96,165,250,0.4)]', hover: 'hover:bg-white/10 text-blue-100', accent: 'text-blue-200' };
     }
 
     switch (currentUser.specialty) {
@@ -99,19 +129,33 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
       { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
     ];
 
-    // Apenas Admin, Especialistas e Secretárias veem o menu de documentos
-    if (currentUser.role !== 'ASSISTANT') {
+    const isInternalRole = currentUser.role === 'EDUCATION_SECRETARY' ||
+      currentUser.role === 'SECRETARIA_SEDE' ||
+      currentUser.role === 'SECRETARIA_COCAL' ||
+      currentUser.role === 'ASSISTANT' ||
+      currentUser.role === 'ADMIN';
+
+    // Seção de Gestão Escolar (Escolas e Profissionais)
+    if (isInternalRole) {
+      items.push({ id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> });
+
+      // Apenas secretárias e admin veem profissionais de apoio
+      if (currentUser.role !== 'ASSISTANT') {
+        items.push({ id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> });
+      }
+    }
+
+    // Seção do Cofre e Documentos (Novo fluxo)
+    if (isInternalRole) {
+      items.push(
+        { id: 'vault', label: 'Cofre Documentos', icon: <Shield size={20} /> },
+        { id: 'documents', label: 'Documentos Oficiais', icon: <FileCheck size={20} /> },
+        { id: 'my-access', label: 'Meus Acessos', icon: <Key size={20} /> }
+      );
+    } else if (currentUser.role === 'SPECIALIST') {
+      // Especialistas veem o menu de documentos padrão
       items.push({ id: 'documents', label: 'Documentos', icon: <FileText size={20} /> });
     }
-
-    if (currentUser.role === 'EDUCATION_SECRETARY') {
-      items.push(
-        { id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> },
-        { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> }
-      );
-    }
-
-    // Adiciona o item Sobre
 
     return items;
   };
@@ -141,7 +185,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
     switch (currentUser.role) {
       case 'ADMIN': return 'Administração';
       case 'EDUCATION_SECRETARY':
-        return currentUser.scope === 'COCAL' ? 'Sec. Distrital Cocal' : 'Secretaria Sede';
+      case 'SECRETARIA_SEDE':
+        return 'Secretária Sede';
+      case 'SECRETARIA_COCAL':
+        return 'Secretária Cocal';
       case 'SPECIALIST': return currentUser.specialty || 'Especialista';
       default: return 'Recepção';
     }

@@ -23,7 +23,9 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
         notes: ''
     });
 
-    const canViewClinical = currentUser.role === 'ADMIN' || currentUser.role === 'SPECIALIST';
+    const canViewClinicalContent = currentUser.role === 'ADMIN' || currentUser.role === 'SPECIALIST';
+    // Secretárias podem ver que houve um atendimento (data/prof), mas não as notas.
+    const canViewClinicalList = canViewClinicalContent || currentUser.role === 'SECRETARIA_SEDE' || currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'EDUCATION_SECRETARY';
     const isAdmin = currentUser.role === 'ADMIN';
 
     // Ensure history array exists
@@ -113,9 +115,11 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                         <div>
                             <h1 className="text-2xl font-bold text-slate-800">{student.fullName}</h1>
                             {/* Diagnóstico em Vermelho logo abaixo do nome */}
-                            <div className="text-sm font-bold text-red-600 mt-1 mb-1">
-                                {student.clinical.diagnosis} {student.clinical.cid ? `(CID: ${student.clinical.cid})` : ''}
-                            </div>
+                            {canViewClinicalContent && (
+                                <div className="text-sm font-bold text-red-600 mt-1 mb-1">
+                                    {student.clinical.diagnosis} {student.clinical.cid ? `(CID: ${student.clinical.cid})` : ''}
+                                </div>
+                            )}
                             <div className="flex flex-wrap gap-3 text-sm text-slate-500 mt-1">
                                 <span>{age} anos</span>
                                 <span>•</span>
@@ -177,13 +181,13 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
 
                     {/* History Section (NEW) */}
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
-                        {!canViewClinical && (
+                        {!canViewClinicalList && (
                             <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center">
                                 <div className="bg-white p-4 rounded-full shadow-lg mb-3">
                                     <Lock size={32} className="text-slate-400" />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-800">Acesso Restrito</h3>
-                                <p className="text-slate-500 max-w-md">Dados clínicos e históricos de atendimento são visíveis apenas para especialistas e administradores.</p>
+                                <p className="text-slate-500 max-w-md">Dados clínicos e históricos de atendimento são visíveis apenas para especialistas e administradores autorizados.</p>
                             </div>
                         )}
 
@@ -192,7 +196,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                 <Clock size={20} className="text-primary-500" />
                                 Histórico de Atendimentos
                             </h3>
-                            {canViewClinical && !isAddingSession && (
+                            {canViewClinicalContent && !isAddingSession && (
                                 <button
                                     onClick={() => setIsAddingSession(true)}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50 hover:text-primary-600 transition-colors shadow-sm"
@@ -202,7 +206,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                             )}
                         </div>
 
-                        {isAddingSession && canViewClinical && (
+                        {isAddingSession && canViewClinicalContent && (
                             <div className="p-6 border-b border-slate-100 bg-blue-50/50 animate-fadeIn">
                                 <h4 className="text-sm font-bold text-slate-700 mb-3">Registrar Nova Evolução</h4>
                                 <form onSubmit={handleSaveSession} className="space-y-4">
@@ -271,8 +275,8 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                                 </span>
                                             </div>
 
-                                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm text-slate-700 whitespace-pre-wrap">
-                                                {session.notes}
+                                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm text-slate-700 whitespace-pre-wrap italic">
+                                                {canViewClinicalContent ? session.notes : "[CONTEÚDO TÉCNICO RESTRITO - PERFIL ADMINISTRATIVO]"}
                                             </div>
                                         </div>
                                     ))}
@@ -281,59 +285,54 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative">
-                        {!canViewClinical && (
-                            <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
-                                <div className="flex items-center gap-2 text-slate-500 font-medium bg-white px-4 py-2 rounded-full shadow-sm">
-                                    <Lock size={16} /> Dados Clínicos Protegidos
+                    {canViewClinicalContent && (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative">
+                            <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800 mb-4">
+                                <Activity size={20} className="text-primary-500" />
+                                Dados Clínicos
+                            </h3>
+                            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+                                <div>
+                                    <dt className="text-xs font-medium text-slate-500 uppercase">Diagnóstico</dt>
+                                    <dd className="mt-1 text-sm text-red-600 font-bold">{student.clinical.diagnosis}</dd>
                                 </div>
-                            </div>
-                        )}
-                        <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800 mb-4">
-                            <Activity size={20} className="text-primary-500" />
-                            Dados Clínicos
-                        </h3>
-                        <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-                            <div>
-                                <dt className="text-xs font-medium text-slate-500 uppercase">Diagnóstico</dt>
-                                <dd className="mt-1 text-sm text-red-600 font-bold">{student.clinical.diagnosis}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs font-medium text-slate-500 uppercase">CID</dt>
-                                <dd className="mt-1 text-sm text-red-600 font-bold">{student.clinical.cid || 'Não informado'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs font-medium text-slate-500 uppercase">Peso</dt>
-                                <dd className="mt-1 text-sm text-slate-900">{student.clinical.weight || 'Não inf.'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs font-medium text-slate-500 uppercase">Altura</dt>
-                                <dd className="mt-1 text-sm text-slate-900">{student.clinical.height || 'Não inf.'}</dd>
-                            </div>
-                            {student.clinical.specialNeeds && student.clinical.specialNeeds.length > 0 && (
+                                <div>
+                                    <dt className="text-xs font-medium text-slate-500 uppercase">CID</dt>
+                                    <dd className="mt-1 text-sm text-red-600 font-bold">{student.clinical.cid || 'Não informado'}</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-xs font-medium text-slate-500 uppercase">Peso</dt>
+                                    <dd className="mt-1 text-sm text-slate-900">{student.clinical.weight || 'Não inf.'}</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-xs font-medium text-slate-500 uppercase">Altura</dt>
+                                    <dd className="mt-1 text-sm text-slate-900">{student.clinical.height || 'Não inf.'}</dd>
+                                </div>
+                                {student.clinical.specialNeeds && student.clinical.specialNeeds.length > 0 && (
+                                    <div className="md:col-span-2">
+                                        <dt className="text-xs font-medium text-slate-500 uppercase">Necessidades Especiais</dt>
+                                        <dd className="mt-1 flex gap-2 flex-wrap">
+                                            {student.clinical.specialNeeds.map(need => (
+                                                <span key={need} className="px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-xs border border-red-100">{need}</span>
+                                            ))}
+                                        </dd>
+                                    </div>
+                                )}
                                 <div className="md:col-span-2">
-                                    <dt className="text-xs font-medium text-slate-500 uppercase">Necessidades Especiais</dt>
-                                    <dd className="mt-1 flex gap-2 flex-wrap">
-                                        {student.clinical.specialNeeds.map(need => (
-                                            <span key={need} className="px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-xs border border-red-100">{need}</span>
-                                        ))}
+                                    <dt className="text-xs font-medium text-slate-500 uppercase">Medicamentos</dt>
+                                    <dd className="mt-1 text-sm text-slate-900 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        {student.clinical.medications || 'Nenhum medicamento em uso.'}
                                     </dd>
                                 </div>
-                            )}
-                            <div className="md:col-span-2">
-                                <dt className="text-xs font-medium text-slate-500 uppercase">Medicamentos</dt>
-                                <dd className="mt-1 text-sm text-slate-900 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                    {student.clinical.medications || 'Nenhum medicamento em uso.'}
-                                </dd>
-                            </div>
-                            <div className="md:col-span-2">
-                                <dt className="text-xs font-medium text-slate-500 uppercase">Histórico Terapêutico</dt>
-                                <dd className="mt-1 text-sm text-slate-900">
-                                    {student.clinical.therapiesHistory || 'Sem histórico registrado.'}
-                                </dd>
-                            </div>
-                        </dl>
-                    </div>
+                                <div className="md:col-span-2">
+                                    <dt className="text-xs font-medium text-slate-500 uppercase">Histórico Terapêutico</dt>
+                                    <dd className="mt-1 text-sm text-slate-900">
+                                        {student.clinical.therapiesHistory || 'Sem histórico registrado.'}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Column: School, Documents & Other */}

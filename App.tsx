@@ -7,6 +7,8 @@ import { SupabaseService } from './services/SupabaseService';
 import { useToast } from './contexts/ToastContext';
 import { Student, User, Specialty, SystemSettings, hasPermission, Appointment } from './types';
 import { Loader2 } from 'lucide-react';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { NotificationBell } from './components/NotificationBell';
 
 // --- Lazy Loaded Components ---
 const Dashboard = React.lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -24,6 +26,8 @@ const AboutSystem = React.lazy(() => import('./components/AboutSystem').then(m =
 const DocumentGenerator = React.lazy(() => import('./components/DocumentGenerator').then(m => ({ default: m.DocumentGenerator })));
 const SchedulingCenter = React.lazy(() => import('./components/SchedulingCenter').then(m => ({ default: m.SchedulingCenter })));
 const AppointmentForm = React.lazy(() => import('./components/AppointmentForm').then(m => ({ default: m.AppointmentForm })));
+const DocumentVault = React.lazy(() => import('./components/DocumentVault').then(m => ({ default: m.DocumentVault })));
+const MyAccess = React.lazy(() => import('./components/MyAccess').then(m => ({ default: m.MyAccess })));
 
 // --- Lazy Clinical Pages (Named Exports) ---
 const PsychologyDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.PsychologyDashboardPage })));
@@ -44,7 +48,7 @@ const NutritionSessionFormPage = React.lazy(() => import('./components/ClinicalP
 // --- Lazy Role Dashboards (Named Exports) ---
 const AdminDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.AdminDashboard })));
 const EducationSecretaryDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.EducationSecretaryDashboard })));
-const PsychologyDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.PsychologyDashboard })));
+const PsychologyDashboard = React.lazy(() => import('./components/PsychologyDashboard').then(m => ({ default: m.PsychologyDashboard })));
 const PsychopedagogyDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.PsychopedagogyDashboard })));
 const SocialServiceDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.SocialServiceDashboard })));
 const OccupationalTherapyDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.OccupationalTherapyDashboard })));
@@ -210,7 +214,7 @@ function App() {
       return <PatientProfile student={selectedStudent} onBack={() => setCurrentPage('list')} currentUser={user} onEdit={handleEditStudent} onNavigate={handleNavigate} />;
     }
     if (currentPage === 'edit-student' && selectedStudent) {
-      return <RegistrationForm initialData={selectedStudent} onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('profile')} />;
+      return <RegistrationForm initialData={selectedStudent} onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('profile')} currentUser={user} />;
     }
 
     // Rotas Clínicas
@@ -220,7 +224,7 @@ function App() {
       preSelectedStudent: selectedStudent || undefined
     };
 
-    if (currentPage === 'psychology') return <PsychologyDashboardPage onNavigateNew={() => handleNavigate('psychology/new-session')} {...commonProps} />;
+    if (currentPage === 'psychology') return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
     if (currentPage === 'psychopedagogy') return <PsychopedagogyDashboardPage onNavigateNew={() => handleNavigate('psychopedagogy/new-session')} {...commonProps} />;
     if (currentPage === 'social-service') return <SocialServiceDashboardPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} />;
     if (currentPage === 'occupational-therapy') return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
@@ -244,10 +248,10 @@ function App() {
     switch (currentPage) {
       case 'dashboard':
         if (user.role === 'ADMIN') return <AdminDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
-        if (user.role === 'EDUCATION_SECRETARY') return <EducationSecretaryDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
+        if (user.role === 'EDUCATION_SECRETARY' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') return <EducationSecretaryDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
         if (user.role === 'SPECIALIST') {
           switch (user.specialty) {
-            case Specialty.PSYCHOLOGY: return <PsychologyDashboardPage onNavigateNew={() => handleNavigate('psychology/new-session')} {...commonProps} />;
+            case Specialty.PSYCHOLOGY: return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
             case Specialty.SOCIAL_WORK: return <SocialServiceDashboardPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} />;
             case Specialty.PSYCHOPEDAGOGY: return <PsychopedagogyDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
             case Specialty.OCCUPATIONAL_THERAPY: return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
@@ -287,7 +291,7 @@ function App() {
       );
       case 'agenda': return <Agenda students={students} currentUser={user} onNavigate={handleNavigate} />;
       case 'list': return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
-      case 'register': return <RegistrationForm onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('list')} />;
+      case 'register': return <RegistrationForm onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('list')} currentUser={user} />;
       case 'admin': return user.role === 'ADMIN' ? <UserManagement /> : <Dashboard students={students} />;
 
       // ROTAS PROTEGIDAS POR PERMISSÃO
@@ -298,26 +302,45 @@ function App() {
 
       case 'settings': return user.role === 'ADMIN' ? <SystemSettingsPanel /> : <Dashboard students={students} />;
       case 'letterhead-config': return user.role === 'ADMIN' ? <PapelTimbradoConfigPanel /> : <Dashboard students={students} />;
-      case 'schools': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY') ? <SchoolManagement /> : <Dashboard students={students} />;
-      case 'support-professionals': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY') ? <SupportProfessionalManagement /> : <Dashboard students={students} />;
+      case 'schools': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') ? <SchoolManagement /> : <Dashboard students={students} />;
+      case 'support-professionals': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') ? <SupportProfessionalManagement /> : <Dashboard students={students} />;
       case 'about': return <AboutSystem />;
       case 'documents': return <DocumentGenerator currentUser={user} />;
+      case 'vault': return <DocumentVault
+        currentUser={user}
+        students={students}
+        onModelSelect={(model) => {
+          handleNavigate('documents');
+        }}
+      />;
+      case 'my-access': return <MyAccess currentUser={user} />;
       default: return <Dashboard students={students} />;
     }
   };
 
   return (
-    <Layout
-      activePage={currentPage}
-      onNavigate={handleNavigate}
-      currentUser={user}
-      onLogout={handleLogout}
-      systemSettings={systemSettings}
-    >
-      <React.Suspense fallback={<PageLoading />}>
-        {renderContent()}
-      </React.Suspense>
-    </Layout>
+    <NotificationProvider currentUser={user}>
+      <Layout
+        activePage={currentPage}
+        onNavigate={handleNavigate}
+        currentUser={user}
+        onLogout={handleLogout}
+        systemSettings={systemSettings}
+      >
+        {/* Header Controls */}
+        {user && (
+          <div className="flex justify-end items-center gap-3 mb-6 px-4 md:px-0">
+            <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-2 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
+              <NotificationBell currentUser={user} />
+            </div>
+          </div>
+        )}
+
+        <React.Suspense fallback={<PageLoading />}>
+          {renderContent()}
+        </React.Suspense>
+      </Layout>
+    </NotificationProvider>
   );
 }
 

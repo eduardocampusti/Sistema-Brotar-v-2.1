@@ -5873,7 +5873,7 @@ const extractNutritionData = (student: Student): NutritionPrivateData => {
 
 // --- DASHBOARD ESPECÍFICO DE NUTRIÇÃO ---
 
-const StyledInput = ({ label, value, onChange, rows, placeholder }: any) => (
+const NutritionStyledInput = ({ label, value, onChange, rows, placeholder }: any) => (
     <label className="block">
         <span className="text-sm font-bold text-slate-700 block mb-2">{label}</span>
         {rows ? (
@@ -6110,10 +6110,10 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                         <div className="bg-white rounded-2xl shadow-card p-6 border border-slate-100">
                             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><FileText size={18} /> Anamnese Rápida</h3>
                             <div className="space-y-4">
-                                <StyledInput label="Hábitos Alimentares" rows={2} value={nutritionData.anamnesis.eatingHabits} onChange={(e: any) => handleAnamnesisChange('eatingHabits', e.target.value)} />
-                                <StyledInput label="Alergias" value={nutritionData.anamnesis.allergies} onChange={(e: any) => handleAnamnesisChange('allergies', e.target.value)} />
-                                <StyledInput label="Aversões" value={nutritionData.anamnesis.rejectedFoods} onChange={(e: any) => handleAnamnesisChange('rejectedFoods', e.target.value)} />
-                                <StyledInput label="Histórico Familiar" rows={2} value={nutritionData.anamnesis.familyHistory} onChange={(e: any) => handleAnamnesisChange('familyHistory', e.target.value)} />
+                                <NutritionStyledInput label="Hábitos Alimentares" rows={2} value={nutritionData.anamnesis.eatingHabits} onChange={(e: any) => handleAnamnesisChange('eatingHabits', e.target.value)} />
+                                <NutritionStyledInput label="Alergias" value={nutritionData.anamnesis.allergies} onChange={(e: any) => handleAnamnesisChange('allergies', e.target.value)} />
+                                <NutritionStyledInput label="Aversões" value={nutritionData.anamnesis.rejectedFoods} onChange={(e: any) => handleAnamnesisChange('rejectedFoods', e.target.value)} />
+                                <NutritionStyledInput label="Histórico Familiar" rows={2} value={nutritionData.anamnesis.familyHistory} onChange={(e: any) => handleAnamnesisChange('familyHistory', e.target.value)} />
                                 <button onClick={handleSaveAnamnesis} className="w-full py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-900">Salvar Anamnese</button>
                             </div>
                         </div>

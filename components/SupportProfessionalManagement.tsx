@@ -1,15 +1,43 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { SupportProfessional, School, Student } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
-import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload } from 'lucide-react';
+import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle } from 'lucide-react';
+
+// Componente de Toast Simples
+const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => {
+    useEffect(() => {
+        const timer = setTimeout(onClose, 3000);
+        return () => clearTimeout(timer);
+    }, [onClose]);
+
+    return (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transform transition-all animate-slideIn ${type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-500 text-white'
+            }`}>
+            {type === 'success' ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
+            <div>
+                <h4 className="font-bold text-lg">{type === 'success' ? 'Sucesso!' : 'Atenção'}</h4>
+                <p className="text-white/90">{message}</p>
+            </div>
+            <button onClick={onClose} className="ml-4 p-1 hover:bg-white/20 rounded-full transition-colors">
+                <X size={18} />
+            </button>
+        </div>
+    );
+};
 
 export const SupportProfessionalManagement: React.FC = () => {
     const [professionals, setProfessionals] = useState<SupportProfessional[]>([]);
     const [schools, setSchools] = useState<School[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
     const [isAdding, setIsAdding] = useState(false);
+    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Estados para o autocomplete de escola
+    const [schoolSearchTerm, setSchoolSearchTerm] = useState('');
+    const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
+    const schoolInputRef = useRef<HTMLDivElement>(null);
 
     const [formData, setFormData] = useState<Partial<SupportProfessional>>({
         name: '',
@@ -26,25 +54,81 @@ export const SupportProfessionalManagement: React.FC = () => {
         studentId: ''
     });
 
+    const academicOptions = [
+        "Ensino Médio Completo",
+        "Magistério",
+        "Pedagogia",
+        "Psicologia",
+        "Serviço Social",
+        "Fonoaudiologia",
+        "Terapia Ocupacional",
+        "Fisioterapia",
+        "Licenciatura em Educação Especial",
+        "Outra"
+    ];
+
     useEffect(() => {
         loadData();
+
+        // Fechar sugestões ao clicar fora
+        const handleClickOutside = (event: MouseEvent) => {
+            if (schoolInputRef.current && !schoolInputRef.current.contains(event.target as Node)) {
+                setShowSchoolSuggestions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     const loadData = async () => {
-        const profs = await SupabaseService.getSupportProfessionals();
-        const schoolsData = await SupabaseService.getSchools();
-        const studentsData = await SupabaseService.getStudents();
-        setProfessionals(profs);
-        setSchools(schoolsData);
-        setStudents(studentsData);
+        try {
+            const profs = await SupabaseService.getSupportProfessionals();
+            const schoolsData = await SupabaseService.getSchools();
+            const studentsData = await SupabaseService.getStudents();
+            setProfessionals(profs);
+            setSchools(schoolsData);
+            setStudents(studentsData);
+        } catch (error) {
+            console.error('Erro ao carregar dados:', error);
+            showNotification('Erro ao carregar dados.', 'error');
+        }
     };
+
+    const showNotification = (message: string, type: 'success' | 'error') => {
+        setNotification({ message, type });
+    };
+
+    // Atualizar o termo de busca quando o schoolId mudar (edição ou reset)
+    useEffect(() => {
+        if (formData.schoolId) {
+            const school = schools.find(s => s.id === formData.schoolId);
+            if (school) {
+                setSchoolSearchTerm(school.name);
+            }
+        } else {
+            setSchoolSearchTerm('');
+        }
+    }, [formData.schoolId, schools]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name || !formData.schoolId || !formData.studentId) return;
+
+        // Validação explícita para feedback ao usuário
+        if (!formData.name) {
+            showNotification('Por favor, preencha o Nome Completo.', 'error');
+            return;
+        }
+        if (!formData.schoolId) {
+            showNotification('Por favor, selecione uma Escola de Lotação.', 'error');
+            return;
+        }
+        if (!formData.studentId) {
+            showNotification('Por favor, selecione um Aluno Assistido.', 'error');
+            return;
+        }
 
         const newProf: SupportProfessional = {
-            id: formData.id || crypto.randomUUID(),
+            id: formData.id || '', // Se for novo, manda vazio para cair no INSERT do backend
             name: formData.name,
             photoUrl: formData.photoUrl || '',
             cpf: formData.cpf || '',
@@ -62,12 +146,13 @@ export const SupportProfessionalManagement: React.FC = () => {
 
         try {
             await SupabaseService.saveSupportProfessional(newProf);
-            loadData();
+            await loadData();
             setIsAdding(false);
             resetForm();
-        } catch (err) {
+            showNotification('Profissional salvo com sucesso!', 'success');
+        } catch (err: any) {
             console.error(err);
-            alert('Erro ao salvar profissional.');
+            showNotification(`Erro ao salvar profissional: ${err.message || 'Erro desconhecido'}`, 'error');
         }
     };
 
@@ -86,10 +171,10 @@ export const SupportProfessionalManagement: React.FC = () => {
             regentTeacher: '',
             studentId: ''
         });
+        setSchoolSearchTerm('');
     };
 
     const handleEdit = (prof: SupportProfessional) => {
-        // Garantir que o objeto address exista mesmo se vier vazio do banco antigo
         const address = prof.address || { street: '', number: '', district: '', city: '', state: '', zipCode: '' };
         setFormData({ ...prof, address });
         setIsAdding(true);
@@ -100,9 +185,10 @@ export const SupportProfessionalManagement: React.FC = () => {
             try {
                 await SupabaseService.deleteSupportProfessional(id);
                 loadData();
+                showNotification('Profissional excluído.', 'success');
             } catch (err) {
                 console.error(err);
-                alert('Erro ao excluir.');
+                showNotification('Erro ao excluir profissional.', 'error');
             }
         }
     };
@@ -135,11 +221,30 @@ export const SupportProfessionalManagement: React.FC = () => {
         }
     };
 
+    // Lógica para filtrar escolas
+    const filteredSchools = useMemo(() => {
+        if (!schoolSearchTerm) return schools;
+        return schools.filter(s => s.name.toLowerCase().includes(schoolSearchTerm.toLowerCase()));
+    }, [schools, schoolSearchTerm]);
+
+    // Lógica para filtrar alunos baseada na escola selecionada
+    const filteredStudents = useMemo(() => {
+        if (!formData.schoolId) return []; // Retorna vazio se nenhuma escola selecionada
+        return students.filter(s => s.school?.schoolId === formData.schoolId);
+    }, [students, formData.schoolId]);
+
     const getSchoolName = (id: string) => schools.find(s => s.id === id)?.name || 'Desconhecida';
     const getStudentName = (id: string) => students.find(s => s.id === id)?.fullName || 'Desconhecido';
 
     return (
         <div className="max-w-6xl mx-auto space-y-6">
+            {notification && (
+                <Toast
+                    message={notification.message}
+                    type={notification.type}
+                    onClose={() => setNotification(null)}
+                />
+            )}
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800">Profissionais de Apoio Escolar</h2>
@@ -213,9 +318,18 @@ export const SupportProfessionalManagement: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Formação Acadêmica</label>
                                         <div className="relative">
-                                            <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border pl-9"
-                                                value={formData.education} onChange={e => setFormData({ ...formData, education: e.target.value })} placeholder="Ex: Pedagogia, Psicologia..." />
-                                            <GraduationCap className="absolute left-3 top-3 text-slate-400" size={16} />
+                                            <select
+                                                className="w-full rounded-lg border-slate-300 p-2.5 border bg-white appearance-none pl-9"
+                                                value={formData.education}
+                                                onChange={e => setFormData({ ...formData, education: e.target.value })}
+                                            >
+                                                <option value="">Selecione a formação...</option>
+                                                {academicOptions.map(opt => (
+                                                    <option key={opt} value={opt}>{opt}</option>
+                                                ))}
+                                            </select>
+                                            <GraduationCap className="absolute left-3 top-3 text-slate-400 pointer-events-none" size={16} />
+                                            <ChevronDown className="absolute right-3 top-3 text-slate-400 pointer-events-none" size={16} />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
@@ -259,32 +373,96 @@ export const SupportProfessionalManagement: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div>
+                                    {/* Autocomplete de Escola */}
+                                    <div className="relative" ref={schoolInputRef}>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Escola de Lotação *</label>
                                         <div className="relative">
-                                            <select required className="w-full rounded-lg border-slate-300 p-2.5 border bg-white appearance-none"
-                                                value={formData.schoolId} onChange={e => setFormData({ ...formData, schoolId: e.target.value })}>
-                                                <option value="">Selecione uma escola...</option>
-                                                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                            </select>
-                                            <SchoolIcon className="absolute right-3 top-3 text-slate-400 pointer-events-none" size={16} />
+                                            <input
+                                                type="text"
+                                                required={!formData.schoolId}
+                                                className="w-full rounded-lg border-slate-300 p-2.5 border pl-9 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                                                placeholder="Digite o nome da escola..."
+                                                value={schoolSearchTerm}
+                                                onFocus={() => setShowSchoolSuggestions(true)}
+                                                onChange={e => {
+                                                    setSchoolSearchTerm(e.target.value);
+                                                    setShowSchoolSuggestions(true);
+                                                    // Limpar ID se o usuário alterar o texto (para forçar nova seleção)
+                                                    if (formData.schoolId) {
+                                                        setFormData(prev => ({ ...prev, schoolId: '', studentId: '' }));
+                                                    }
+                                                }}
+                                            />
+                                            <Search className="absolute left-3 top-3 text-slate-400" size={16} />
+
+                                            {/* Indicador visual se selecionado validamente */}
+                                            {formData.schoolId && (
+                                                <div className="absolute right-3 top-3 text-green-500">
+                                                    <SchoolIcon size={16} />
+                                                </div>
+                                            )}
                                         </div>
+
+                                        {/* Lista de Sugestões de Escola */}
+                                        {showSchoolSuggestions && filteredSchools.length > 0 && (
+                                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                                {filteredSchools.map(school => (
+                                                    <button
+                                                        key={school.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFormData({ ...formData, schoolId: school.id, studentId: '' }); // Reset student selection too
+                                                            setSchoolSearchTerm(school.name);
+                                                            setShowSchoolSuggestions(false);
+                                                        }}
+                                                        className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700"
+                                                    >
+                                                        <SchoolIcon size={14} className="text-slate-400" />
+                                                        {school.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {showSchoolSuggestions && filteredSchools.length === 0 && schoolSearchTerm && (
+                                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-4 text-center text-slate-500 text-sm">
+                                                Nenhuma escola encontrada.
+                                            </div>
+                                        )}
                                     </div>
+
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Professor Regente</label>
                                         <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
                                             value={formData.regentTeacher} onChange={e => setFormData({ ...formData, regentTeacher: e.target.value })} placeholder="Nome do professor da sala" />
                                     </div>
+
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Aluno Assistido *</label>
                                         <div className="relative">
-                                            <select required className="w-full rounded-lg border-slate-300 p-2.5 border bg-white appearance-none"
-                                                value={formData.studentId} onChange={e => setFormData({ ...formData, studentId: e.target.value })}>
-                                                <option value="">Selecione um aluno...</option>
-                                                {students.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
+                                            <select
+                                                required
+                                                className="w-full rounded-lg border-slate-300 p-2.5 border bg-white appearance-none disabled:bg-slate-100 disabled:text-slate-400"
+                                                value={formData.studentId}
+                                                onChange={e => setFormData({ ...formData, studentId: e.target.value })}
+                                                disabled={!formData.schoolId}
+                                            >
+                                                <option value="">
+                                                    {!formData.schoolId
+                                                        ? 'Selecione uma escola primeiro...'
+                                                        : filteredStudents.length === 0
+                                                            ? 'Nenhum aluno nesta escola'
+                                                            : 'Selecione um aluno...'
+                                                    }
+                                                </option>
+                                                {filteredStudents.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
                                             </select>
                                             <User className="absolute right-3 top-3 text-slate-400 pointer-events-none" size={16} />
                                         </div>
+                                        {formData.schoolId && filteredStudents.length === 0 && (
+                                            <p className="text-xs text-amber-600 mt-1">
+                                                Atenção: Não há alunos vinculados a esta escola no sistema.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
