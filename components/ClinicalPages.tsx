@@ -1912,6 +1912,26 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         }
     };
 
+    const handleDischarge = async () => {
+        if (!selectedStudent) return;
+        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar os dados atuais e gerar o relatório final.");
+        if (!confirmAlta) return;
+
+        try {
+            // Atualizar status para Alta antes de salvar
+            const updatedPpData = { ...ppData, statusAtendimento: 'Alta' as any };
+            setPPData(updatedPpData);
+
+            await handleSaveGeneral();
+            setTimeout(() => {
+                handlePrintPP();
+            }, 500);
+        } catch (err) {
+            console.error('Erro ao processar alta:', err);
+            showToast('Falha ao processar alta.', 'error');
+        }
+    };
+
     if (!isPP) return <div className="p-8 text-center text-red-600 font-bold">Acesso restrito à Psicopedagogia.</div>;
 
     return (
@@ -2192,6 +2212,15 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                 {isEditingSession ? (
                                     <div className="bg-slate-200 p-8 rounded-2xl shadow-lg border-2 border-slate-400 animate-slideUp">
                                         <h4 className="font-black text-slate-800 mb-6 border-b-2 border-slate-300 pb-2 uppercase tracking-wide">Detalhes da Sessão</h4>
+
+                                        {!currentSession.id && ppData.sessions.length > 0 && (
+                                            <div className="mb-6 p-4 bg-pink-100 border border-pink-200 rounded-xl text-sm">
+                                                <p className="font-bold text-pink-800 mb-1 flex items-center gap-2">
+                                                    <History size={14} /> Notas do Último Atendimento ({new Date(ppData.sessions[0].date).toLocaleDateString()}):
+                                                </p>
+                                                <p className="text-pink-700 italic">"{ppData.sessions[0].observacoes || 'Sem observações registradas'}"</p>
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                                             <StyledInput label="Data" type="date" value={currentSession.date} onChange={(e: any) => setCurrentSession({ ...currentSession, date: e.target.value })} />
                                             <div>
@@ -2288,6 +2317,19 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                     >
                                         <Printer size={20} /> Imprimir Relatório Completo
                                     </button>
+
+                                    <div className="mt-12 pt-8 border-t border-slate-100">
+                                        <h4 className="text-rose-600 font-bold mb-2 flex items-center justify-center gap-2">
+                                            <CheckCircle size={18} /> Encerramento de Processo
+                                        </h4>
+                                        <p className="text-slate-500 text-xs mb-6 max-w-xs mx-auto">Clique abaixo para oficializar a alta e gerar o documento de desligamento.</p>
+                                        <button
+                                            onClick={handleDischarge}
+                                            className="px-8 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-xl hover:bg-rose-700 transition-all flex items-center gap-3 mx-auto uppercase tracking-wider text-xs shadow-rose-200"
+                                        >
+                                            <CheckCircle size={18} /> Dar Alta e Gerar Relatório Final
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -2414,6 +2456,22 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
         } catch (e) {
             console.error(e);
             alert('Erro ao salvar sessão.');
+        }
+    };
+
+    const handleDischarge = async () => {
+        if (!selectedStudent) return;
+        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar os dados atuais e gerar o relatório final.");
+        if (!confirmAlta) return;
+
+        try {
+            await handleSaveGeneral();
+            setTimeout(() => {
+                handlePrintSpeech();
+            }, 500);
+        } catch (err) {
+            console.error('Erro ao processar alta:', err);
+            alert('Falha ao processar alta.');
         }
     };
 
@@ -2591,6 +2649,16 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                 {isEditingSession ? (
                                     <div className="bg-white p-6 rounded-xl shadow-lg border border-cyan-200 animate-slideUp">
                                         <h4 className="font-bold text-cyan-700 mb-4 border-b border-cyan-100 pb-2">Registro de Fonoaudiologia</h4>
+
+                                        {!currentSession.id && speechData.sessions.length > 0 && (
+                                            <div className="mb-6 p-4 bg-cyan-50 border border-cyan-100 rounded-xl text-sm">
+                                                <p className="font-bold text-cyan-800 mb-1 flex items-center gap-2">
+                                                    <History size={14} /> Retorno do Último Atendimento ({new Date(speechData.sessions[0].date).toLocaleDateString()}):
+                                                </p>
+                                                <p className="text-cyan-700 italic">"{speechData.sessions[0].observacoes || 'Sem observações registradas'}"</p>
+                                            </div>
+                                        )}
+
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <StyledInput label="Data" type="date" value={currentSession.date} onChange={(e: any) => setCurrentSession({ ...currentSession, date: e.target.value })} />
                                             <StyledInput label="Objetivo" value={currentSession.objetivo} onChange={(e: any) => setCurrentSession({ ...currentSession, objetivo: e.target.value })} />
@@ -2670,6 +2738,19 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                     >
                                         <Printer size={20} /> Imprimir Relatório Completo
                                     </button>
+
+                                    <div className="mt-12 pt-8 border-t border-slate-100">
+                                        <h4 className="text-rose-600 font-bold mb-2 flex items-center justify-center gap-2">
+                                            <AlertCircle size={18} /> Encerramento de Processo
+                                        </h4>
+                                        <p className="text-slate-500 text-sm mb-6">Ao dar alta, o prontuário será salvo permanentemente e o relatório final será gerado para entrega.</p>
+                                        <button
+                                            onClick={handleDischarge}
+                                            className="px-8 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-xl hover:bg-rose-700 transition-all flex items-center gap-3 mx-auto uppercase tracking-wider text-sm shadow-rose-200"
+                                        >
+                                            <CheckCircle size={20} /> Dar Alta e Gerar Relatório Final
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -2775,6 +2856,26 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
         } catch (e) {
             console.error(e);
             alert('Erro ao salvar sessão.');
+        }
+    };
+
+    const handleDischarge = async () => {
+        if (!selectedStudent) return;
+        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar os dados atuais e gerar o relatório final.");
+        if (!confirmAlta) return;
+
+        try {
+            // Atualizar status para Alta antes de salvar
+            const updatedOtData = { ...otData, statusAtendimento: 'Alta' as any };
+            setOtData(updatedOtData);
+
+            await handleSaveGeneral();
+            setTimeout(() => {
+                handlePrintOT();
+            }, 500);
+        } catch (err) {
+            console.error('Erro ao processar alta:', err);
+            alert('Falha ao processar alta.');
         }
     };
 
@@ -2991,6 +3092,15 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                             <h3 className="text-xl font-bold text-slate-800">Registrar Sessão T.O.</h3>
                                             <button onClick={() => setIsEditingSession(false)} className="text-slate-400 hover:text-red-500"><X size={24} /></button>
                                         </div>
+
+                                        {!currentSession.id && otData.sessions.length > 0 && (
+                                            <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-sm">
+                                                <p className="font-bold text-indigo-800 mb-1 flex items-center gap-2">
+                                                    <History size={14} /> Observações do Último Atendimento ({new Date(otData.sessions[0].date).toLocaleDateString()}):
+                                                </p>
+                                                <p className="text-indigo-700 italic">"{otData.sessions[0].observacoes || 'Sem observações registradas'}"</p>
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
                                             <div>
                                                 <label className="block text-sm font-bold text-slate-700 mb-1">Data</label>
@@ -3120,6 +3230,19 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                     <button onClick={handleSaveGeneral} className="mt-8 bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-md w-full">
                                         Atualizar Status
                                     </button>
+
+                                    <div className="mt-12 pt-8 border-t border-slate-100 text-center">
+                                        <h4 className="text-rose-600 font-bold mb-2 flex items-center justify-center gap-2">
+                                            <CheckCircle size={18} /> Processo de Alta
+                                        </h4>
+                                        <p className="text-slate-500 text-sm mb-6">Clique abaixo para encerrar o ciclo de T.O. e gerar o relatório final.</p>
+                                        <button
+                                            onClick={handleDischarge}
+                                            className="px-8 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-xl hover:bg-rose-700 transition-all flex items-center gap-3 mx-auto uppercase tracking-wider text-sm shadow-rose-200"
+                                        >
+                                            Dar Alta e Imprimir Relatório Final
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -3226,6 +3349,26 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
         } catch (e) {
             console.error(e);
             alert('Erro ao salvar sessão.');
+        }
+    };
+
+    const handleDischarge = async () => {
+        if (!selectedStudent) return;
+        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar os dados atuais e gerar o relatório final.");
+        if (!confirmAlta) return;
+
+        try {
+            // Atualizar status para Alta antes de salvar
+            const updatedPtData = { ...ptData, statusAtendimento: 'Alta' as any };
+            setPtData(updatedPtData);
+
+            await handleSaveGeneral();
+            setTimeout(() => {
+                handlePrintPT();
+            }, 500);
+        } catch (err) {
+            console.error('Erro ao processar alta:', err);
+            alert('Falha ao processar alta.');
         }
     };
 
@@ -3551,6 +3694,15 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                 {isEditingSession ? (
                                     <div className="bg-white p-6 rounded-xl shadow-lg border border-blue-200 animate-slideUp">
                                         <h4 className="font-bold text-blue-700 mb-4 border-b border-blue-100 pb-2">Registro de Sessão Fisioterapêutica</h4>
+
+                                        {!currentSession.id && ptData.sessions.length > 0 && (
+                                            <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm">
+                                                <p className="font-bold text-blue-800 mb-1 flex items-center gap-2">
+                                                    <History size={14} /> Notas do Último Atendimento ({new Date(ptData.sessions[0].date).toLocaleDateString()}):
+                                                </p>
+                                                <p className="text-blue-700 italic">"{ptData.sessions[0].observacoesClinicas || 'Sem observações registradas'}"</p>
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                             <StyledInput label="Data" type="date" value={currentSession.date} onChange={(e: any) => setCurrentSession({ ...currentSession, date: e.target.value })} />
                                             <div>
@@ -3636,6 +3788,15 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                             <option>Monitoramento</option>
                                             <option>Alta</option>
                                         </select>
+                                    </div>
+
+                                    <div className="mt-8 pt-6 border-t border-slate-700">
+                                        <button
+                                            onClick={handleDischarge}
+                                            className="w-full px-6 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black shadow-lg transition-all flex items-center justify-center gap-2 uppercase text-sm"
+                                        >
+                                            <CheckCircle size={18} /> Dar Alta e Gerar Relatório Final
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -4311,6 +4472,22 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
         } catch (e) { alert('Erro na impressão.'); }
     };
 
+    const handleDischarge = async () => {
+        if (!selectedStudent) return;
+        const confirmAlta = confirm("Tem certeza que deseja dar alta a este aluno no Serviço Social? Isso irá salvar os dados e gerar o relatório final.");
+        if (!confirmAlta) return;
+
+        try {
+            await handleSaveSocial();
+            setTimeout(() => {
+                handlePrintSocialReport();
+            }, 500);
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao processar alta.');
+        }
+    };
+
     const filteredUpdates = recentUpdates.filter(u => u.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const handleArrayToggle = (section: keyof SocialServiceForm, field: string, value: string) => {
@@ -4525,6 +4702,19 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                 <h4 className="text-2xl font-black text-slate-800">Relatório de Atuação Social</h4>
                                 <p className="text-slate-500 mb-10 max-w-md mx-auto">Gere o documento oficial de Busca Ativa Escolar contendo todos os dados socioeconômicos e o parecer técnico.</p>
                                 <button onClick={handlePrintSocialReport} className="bg-blue-600 text-white px-12 py-4 rounded-2xl font-black shadow-2xl hover:bg-blue-700 transition-all flex items-center gap-2 mx-auto scale-110"><Printer size={20} /> Gerar PDF Oficial</button>
+
+                                <div className="mt-16 pt-8 border-t border-slate-100 max-w-sm mx-auto">
+                                    <h5 className="text-rose-600 font-bold mb-2 flex items-center justify-center gap-2">
+                                        <ShieldAlert size={18} /> Encerramento de Processo
+                                    </h5>
+                                    <p className="text-slate-400 text-xs mb-6">Oficializar a alta social e emitir documento de desligamento.</p>
+                                    <button
+                                        onClick={handleDischarge}
+                                        className="w-full py-3 bg-rose-600 text-white rounded-xl font-bold shadow-lg hover:bg-rose-700 transition-all flex items-center justify-center gap-2 uppercase text-xs"
+                                    >
+                                        <CheckCircle size={16} /> Dar Alta Social
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -4827,6 +5017,28 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
         }
     };
 
+    const handleDischarge = async () => {
+        if (!selectedStudent) return;
+
+        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar o prontuário e gerar o relatório final.");
+        if (!confirmAlta) return;
+
+        try {
+            // 1. Salvar o formulário completo (Simulando o evento para reuso da lógica)
+            await saveFullForm({ preventDefault: () => { } } as React.FormEvent);
+
+            // 2. Aguardar brevemente para garantir que o estado local esteja sincronizado
+            // e disparar a impressão automática
+            setTimeout(() => {
+                handlePrintPsychology();
+            }, 500);
+
+        } catch (err) {
+            console.error('Erro ao processar alta:', err);
+            showFeedback('error', 'Falha ao processar alta.');
+        }
+    };
+
     // --- Handlers de Sessão ---
 
     const startNewSession = () => {
@@ -5066,7 +5278,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                 </div>
 
                 {!selectedStudent ? (
-                    <div className="p-16 text-center bg-[#E0AAFF] flex flex-col items-center justify-center min-h-[400px]">
+                    <div className="p-16 text-center bg-[#FAF9FF] flex flex-col items-center justify-center min-h-[400px]">
                         <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-slate-200 text-purple-500"><UserIcon size={40} /></div>
                         <h3 className="text-xl font-bold text-slate-700 mb-2">Selecione um Paciente</h3>
                         <p className="text-slate-500 mb-8 max-w-md">Para acessar o prontuário ou registrar sessões, localize o aluno na lista abaixo.</p>
@@ -5079,7 +5291,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col min-h-[600px] bg-[#E0AAFF]">
+                    <div className="flex flex-col min-h-[600px] bg-[#FAF9FF]">
 
                         {/* --- ABA FORMULÁRIO (PRONTUÁRIO) --- */}
                         {activeTab === 'formulario' && (
@@ -5159,6 +5371,24 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                             <FormSection title="IX. Encerramento / Alta" icon={Flag} isPrivate>
                                                 <StyledInput label="Motivo da Alta" value={privateData.formData.encerramento.motivoAlta} onChange={(e: any) => handlePrivateChange('encerramento', 'motivoAlta', e.target.value)} />
                                                 <StyledInput label="Resumo dos Ganhos" rows={2} value={privateData.formData.encerramento.resumoGanhos} onChange={(e: any) => handlePrivateChange('encerramento', 'resumoGanhos', e.target.value)} />
+
+                                                <div className="mt-8 p-6 bg-purple-50 rounded-2xl border border-purple-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                                                    <div className="flex items-center gap-4 text-purple-900">
+                                                        <div className="p-3 bg-white rounded-xl shadow-sm text-purple-600"><Flag size={24} /></div>
+                                                        <div>
+                                                            <p className="font-bold">Finalizar Acompanhamento</p>
+                                                            <p className="text-xs opacity-70">Salva os dados finais e gera o relatório de alta automaticamente.</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleDischarge}
+                                                        className="w-full md:w-auto px-6 py-3 bg-purple-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-700 shadow-lg shadow-purple-600/20 transition-all active:scale-95 group"
+                                                    >
+                                                        <CheckCircle size={18} className="group-hover:animate-bounce" />
+                                                        Dar Alta e Gerar Relatório
+                                                    </button>
+                                                </div>
                                             </FormSection>
                                         </div>
                                     ) : (
@@ -5180,7 +5410,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
 
                         {/* --- ABA SESSÕES (EVOLUÇÃO) --- */}
                         {activeTab === 'sessoes' && canAccessPrivate && (
-                            <div className="flex-1 bg-[#E0AAFF] p-8 space-y-6 animate-fadeIn max-w-5xl mx-auto w-full">
+                            <div className="flex-1 bg-[#FAF9FF] p-8 space-y-6 animate-fadeIn max-w-5xl mx-auto w-full">
 
                                 {viewMode === 'list' && (
                                     <>
@@ -6044,6 +6274,62 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
         }
     };
 
+    const handlePrintNutrition = async (targetSession?: NutritionSession) => {
+        if (!selectedStudent || !isNutritionist) return;
+        try {
+            const config = await SupabaseService.getPapelTimbradoConfig();
+            const session = targetSession || (nutritionData.sessions.length > 0 ? nutritionData.sessions[0] : null);
+
+            const contentHTML = `
+                <h2 class="section-title">I. DADOS ANTROPOMÉTRICOS</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">PESO:</span> <span class="value">${session?.weight || nutritionData.lastAssessment.weight || '-'} kg</span></div>
+                    <div class="data-row"><span class="label">ALTURA:</span> <span class="value">${session?.height || nutritionData.lastAssessment.height || '-'} m</span></div>
+                    <div class="data-row"><span class="label">IMC:</span> <span class="value">${session?.bmi || nutritionData.lastAssessment.bmi || '-'} (${session?.bmi ? calculateBMI(session.weight, session.height).classification : nutritionData.lastAssessment.classification})</span></div>
+                </div>
+
+                <h2 class="section-title">II. ANAMNESE E HÁBITOS</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">HÁBITOS:</span> <div class="value">${nutritionData.anamnesis.eatingHabits || '-'}</div></div>
+                    <div class="data-row"><span class="label">ALERGIAS/AVERSÕES:</span> <div class="value">${nutritionData.anamnesis.allergies || '-'} / ${nutritionData.anamnesis.rejectedFoods || '-'}</div></div>
+                </div>
+
+                ${session ? `
+                <h2 class="section-title">III. EVOLUÇÃO E RECOMENDAÇÕES</h2>
+                <div class="box" style="border-left: 4px solid #10b981; background: #f0fdf4;">
+                    <div class="data-row"><span class="label">DATA:</span> <span class="value">${new Date(session.date).toLocaleDateString()}</span></div>
+                    <div class="data-row"><span class="label">EVOLUÇÃO:</span> <div class="value">${session.evolution || 'Sem notas.'}</div></div>
+                    <div class="data-row"><span class="label">PLANO ALIMENTAR:</span> <div class="value">${session.dietPlan || '-'}</div></div>
+                    <div class="data-row"><span class="label">RECOMENDAÇÕES:</span> <div class="value">${session.recommendations || '-'}</div></div>
+                </div>
+                ` : ''}
+            `;
+
+            const html = generateClinicalPrintHTML(selectedStudent, config, 'Relatório Nutricional', contentHTML, {
+                name: currentUser.name, jobTitle: currentUser.jobTitle || 'Nutricionista', specialty: currentUser.specialty, signatureUrl: currentUser.signatureUrl
+            });
+
+            const win = window.open('', '_blank');
+            if (win) { win.document.write(html); win.document.close(); setTimeout(() => { win.focus(); win.print(); win.close(); }, 500); }
+        } catch (e) { alert('Erro na impressão.'); }
+    };
+
+    const handleDischarge = async () => {
+        if (!selectedStudent) return;
+        const confirmAlta = confirm("Deseja dar alta a este paciente? Isso irá salvar os dados e gerar o relatório final.");
+        if (!confirmAlta) return;
+
+        try {
+            await handleSaveAnamnesis();
+            setTimeout(() => {
+                handlePrintNutrition();
+            }, 500);
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao processar alta.');
+        }
+    };
+
     if (!isNutritionist) {
         return (
             <div className="p-10 flex flex-col items-center justify-center text-center">
@@ -6117,6 +6403,17 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                                 <button onClick={handleSaveAnamnesis} className="w-full py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-900">Salvar Anamnese</button>
                             </div>
                         </div>
+
+                        <div className="bg-white rounded-2xl shadow-card p-6 border border-slate-100 border-t-4 border-t-rose-500">
+                            <h3 className="font-bold text-rose-600 mb-2 flex items-center gap-2 text-xs uppercase tracking-widest"><ShieldAlert size={14} /> Encerramento</h3>
+                            <p className="text-slate-500 text-[10px] mb-4">Gerar relatório final e oficializar a alta nutricional.</p>
+                            <button
+                                onClick={handleDischarge}
+                                className="w-full py-3 bg-rose-600 text-white rounded-xl text-xs font-black uppercase shadow-lg shadow-rose-100 hover:bg-rose-700 transition-all"
+                            >
+                                Dar Alta e Imprimir
+                            </button>
+                        </div>
                     </div>
 
                     {/* RIGHT: SESSIONS & EVOLUTION */}
@@ -6144,6 +6441,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                                                         <h4 className="font-bold text-slate-800 text-lg mt-2">Acompanhamento Nutricional</h4>
                                                     </div>
                                                     <div className="flex gap-2">
+                                                        <button onClick={() => handlePrintNutrition(session)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Imprimir Consulta"><Printer size={18} /></button>
                                                         <button onClick={() => { setCurrentSession(session); setViewMode('form'); }} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg"><Edit2 size={18} /></button>
                                                     </div>
                                                 </div>
@@ -6169,6 +6467,15 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                                     <h3 className="font-bold text-slate-800 text-xl">{currentSession.id ? 'Editar Consulta' : 'Nova Consulta'}</h3>
                                     <button onClick={() => setViewMode('list')} className="text-slate-400 hover:text-slate-800"><X size={24} /></button>
                                 </div>
+
+                                {!currentSession.id && nutritionData.sessions.length > 0 && (
+                                    <div className="mb-8 p-4 bg-green-50 border border-green-100 rounded-xl text-sm">
+                                        <p className="font-bold text-green-800 mb-1 flex items-center gap-2">
+                                            <History size={14} /> Notas do Último Atendimento ({new Date(nutritionData.sessions[0].date).toLocaleDateString()}):
+                                        </p>
+                                        <p className="text-green-700 italic">"{nutritionData.sessions[0].evolution || 'Sem evolução registrada'}"</p>
+                                    </div>
+                                )}
 
                                 <form onSubmit={handleSaveSession} className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

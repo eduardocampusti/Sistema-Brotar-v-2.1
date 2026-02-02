@@ -842,14 +842,27 @@ export class SupabaseService {
     // --- Notificações / Avisos ---
     static async getNotifications(userId: string): Promise<any[]> {
         // --- LIMPEZA AUTOMÁTICA (Lazy Delete) ---
-        // Remove mensagens que foram lidas há mais de 5 minutos
+        // Remove mensagens que foram lidas há mais de 5 minutos ou marcadas como lidas sem data (órfãs)
         try {
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+            // 1. Deleta mensagens lidas com mais de 5 minutos
             await supabase
                 .from('system_messages')
                 .delete()
                 .not('read_at', 'is', null)
                 .lt('read_at', fiveMinutesAgo);
+
+            // 2. Deleta mensagens marcadas como lidas que ficaram com read_at nulo por erro (segurança extra)
+            // Se foi lida mas não tem data, e foi criada há mais de 10 minutos, removemos
+            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+            await supabase
+                .from('system_messages')
+                .delete()
+                .eq('is_read', true)
+                .is('read_at', null)
+                .lt('created_at', tenMinutesAgo);
+
         } catch (cleanError) {
             console.error('[NotificationCleanup] Erro ao limpar avisos antigos (Verificar RLS DELETE):', cleanError);
         }
@@ -899,7 +912,7 @@ export class SupabaseService {
 
         if (error) {
             console.error('Erro ao marcar mensagem como lida no Supabase:', error);
-            throw error; // Lança para o contexto lidar
+            throw error;
         }
     }
 

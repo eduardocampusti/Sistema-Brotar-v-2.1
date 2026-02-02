@@ -288,39 +288,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin, systemSettings }) => {
                                     <button onClick={() => { setUsername('admin@brotar.com'); setPassword('admin123'); }} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-slate-500 text-xs rounded-full">Preencher Admin</button>
                                     <button onClick={() => { setUsername('sede@edu.com'); setPassword('123456'); }} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-slate-500 text-xs rounded-full">Preencher Sede</button>
                                 </div>
-                                <div className="text-center mt-4">
-                                    <button
-                                        onClick={async () => {
-                                            setIsLoading(true);
-                                            try {
-                                                const adminUser: User = {
-                                                    id: '',
-                                                    name: 'Administrador Demo',
-                                                    username: 'admin',
-                                                    email: 'admin@brotar.com',
-                                                    role: 'ADMIN',
-                                                    isActive: true,
-                                                    scope: 'GLOBAL',
-                                                    address: { street: 'Demo', number: '1', district: 'Centro', city: 'Brotas', state: 'BA', zipCode: '00000-000' }
-                                                };
-                                                // Senha deve ter no mínimo 6 caracteres
-                                                const res = await SupabaseService.createAccountAsAdmin(adminUser, 'admin123');
-                                                if (res.success) {
-                                                    alert('Usuário Admin criado com sucesso! Tente entrar agora.');
-                                                } else {
-                                                    alert('Erro ao criar: ' + res.error);
-                                                }
-                                            } catch (e: any) {
-                                                alert('Erro: ' + e.message);
-                                            } finally {
-                                                setIsLoading(false);
-                                            }
-                                        }}
-                                        className="text-primary-600 text-xs hover:underline font-bold"
-                                    >
-                                        (Não funciona? Clique para Criar Admin)
-                                    </button>
-                                </div>
                             </div>
 
                             <div className="w-full flex justify-center gap-6 text-xs font-bold text-slate-400 mt-8 lg:mt-0">
