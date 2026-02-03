@@ -226,7 +226,7 @@ function App() {
 
     if (currentPage === 'psychology') return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
     if (currentPage === 'psychopedagogy') return <PsychopedagogyDashboardPage onNavigateNew={() => handleNavigate('psychopedagogy/new-session')} {...commonProps} />;
-    if (currentPage === 'social-service') return <SocialServiceDashboardPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} />;
+    if (currentPage === 'social-service') return <SocialServiceDashboardPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} allStudents={students} />;
     if (currentPage === 'occupational-therapy') return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
     if (currentPage === 'speech-therapy') return <SpeechTherapyDashboardPage onNavigateNew={() => handleNavigate('speech-therapy/new-session')} {...commonProps} />;
     if (currentPage === 'physiotherapy') return <PhysiotherapyDashboardPage onNavigateNew={() => handleNavigate('physiotherapy/new-session')} {...commonProps} />;
@@ -252,7 +252,7 @@ function App() {
         if (user.role === 'SPECIALIST') {
           switch (user.specialty) {
             case Specialty.PSYCHOLOGY: return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
-            case Specialty.SOCIAL_WORK: return <SocialServiceDashboardPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} />;
+            case Specialty.SOCIAL_WORK: return <SocialServiceDashboardPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} allStudents={students} />;
             case Specialty.PSYCHOPEDAGOGY: return <PsychopedagogyDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
             case Specialty.OCCUPATIONAL_THERAPY: return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
             case Specialty.SPEECH_THERAPY: return <SpeechTherapyDashboardPage onNavigateNew={() => handleNavigate('speech-therapy/new-session')} {...commonProps} />;

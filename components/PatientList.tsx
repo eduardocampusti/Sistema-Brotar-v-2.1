@@ -4,6 +4,7 @@ import { Student, School, User } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
 import { Search, ChevronRight, User as UserIcon, Trash2, AlertTriangle, X, UserPlus, Edit, School as SchoolIcon, Filter, Globe, FileText } from 'lucide-react';
+import SearchableSelect from './SearchableSelect';
 
 interface StudentListProps {
   students: Student[];
@@ -89,20 +90,21 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
         </div>
         <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
           {/* Filtro de Escola */}
-          <div className="relative w-full md:w-64">
-            <SchoolIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <select
-              className="w-full pl-10 pr-8 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent appearance-none bg-white text-slate-700 truncate"
-              value={selectedSchoolId}
-              onChange={(e) => setSelectedSchoolId(e.target.value)}
-            >
-              <option value="ALL">Todas as Escolas</option>
-              {Array.from(new Map(students.filter(s => s.school?.schoolId).map(s => [s.school?.schoolId, s.school?.schoolName])).entries()).map(([id, name]) => (
-                <option key={id} value={id}>{name}</option>
-              ))}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-              <Filter size={14} className="text-slate-400" />
+          {/* Filtro de Escola */}
+          <div className="w-full md:w-80 z-20">
+            <div className="relative">
+              <SearchableSelect
+                options={[
+                  { value: 'ALL', label: 'Todas as Escolas' },
+                  ...Array.from(new Map(students.filter(s => s.school?.schoolId).map(s => [s.school?.schoolId, s.school?.schoolName])).entries())
+                    .map(([id, name]) => ({ value: id, label: name }))
+                    .sort((a, b) => a.label.localeCompare(b.label))
+                ]}
+                value={selectedSchoolId}
+                onChange={setSelectedSchoolId}
+                placeholder="Filtrar por Escola..."
+                className="w-full"
+              />
             </div>
           </div>
 

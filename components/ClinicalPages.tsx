@@ -2,9 +2,10 @@
 import type { Student, Session, User, PapelTimbradoConfig, School, Appointment } from '../types';
 import { Specialty } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
-import { Plus, Search, Calendar, Clock, User as UserIcon, Save, X, FileText, CheckCircle, Brain, Activity, Lock, StickyNote, Smile, Meh, Frown, Zap, AlertCircle, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight, EyeOff, ShieldAlert, History, AlertTriangle, Layout, AlignLeft, TrendingUp, Users, Flag, Heart, MapPin, Home, Briefcase, GraduationCap, DollarSign, Globe, School as SchoolIcon, Printer, BarChart2, PieChart as PieIcon, Layers, Baby, Puzzle, ClipboardCheck, Eye, Volume2, Smartphone, PlusCircle, MessageCircle, Shield, Moon, XCircle } from 'lucide-react';
+import { Plus, Search, Calendar, Clock, User as UserIcon, Save, X, FileText, CheckCircle, Brain, Activity, Lock, StickyNote, Smile, Meh, Frown, Zap, AlertCircle, Edit2, Trash2, ChevronDown, ChevronUp, ChevronRight, EyeOff, ShieldAlert, History, AlertTriangle, Layout, AlignLeft, TrendingUp, Users, Flag, Heart, MapPin, Home, Briefcase, GraduationCap, DollarSign, Globe, School as SchoolIcon, Printer, BarChart2, PieChart as PieIcon, Layers, Baby, Puzzle, ClipboardCheck, Eye, Volume2, Smartphone, PlusCircle, MessageCircle, Shield, Moon, XCircle, ChevronLeft, BookOpen, Send } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cell, CartesianGrid, PieChart, Pie } from 'recharts';
 import { PortageCalculator } from './PortageCalculator';
+import SearchableSelect from './SearchableSelect';
 
 
 const COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#6366f1'];
@@ -182,52 +183,126 @@ const extractPsychData = (student: Student): PsychPrivateData => {
     };
 };
 
+// --- REUSABLE COMPONENTS ---
+const StyledInput = ({ label, value, onChange, type = "text", rows }: any) => (
+    <div className="mb-4">
+        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{label}</label>
+        {rows ? (
+            <textarea
+                className="w-full rounded-xl border-slate-300 p-3 focus:ring-2 focus:ring-cyan-500 min-h-[80px]"
+                rows={rows}
+                value={value}
+                onChange={onChange}
+            />
+        ) : (
+            <input
+                type={type}
+                className="w-full rounded-xl border-slate-300 p-3 focus:ring-2 focus:ring-cyan-500"
+                value={value}
+                onChange={onChange}
+            />
+        )}
+    </div>
+);
+
+const FormSection = ({ title, icon: Icon, children, color = "text-slate-700" }: any) => (
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
+        <h4 className={`text-sm font-black uppercase tracking-widest mb-6 flex items-center gap-3 ${color}`}>
+            <div className="p-2 bg-slate-50 rounded-xl text-slate-400">
+                {Icon && <Icon size={18} />}
+            </div>
+            {title}
+        </h4>
+        <div className="space-y-4">
+            {children}
+        </div>
+    </div>
+);
+
+
+const TriStateField = ({ label, value, onChange }: any) => (
+    <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+        <span className="text-sm font-bold text-slate-600">{label}</span>
+        <div className="flex bg-white rounded-lg shadow-sm border border-slate-100 p-1">
+            <button
+                type="button"
+                onClick={() => onChange(true)}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${value === true ? 'bg-emerald-100 text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+                SIM
+            </button>
+            <button
+                type="button"
+                onClick={() => onChange(false)}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${value === false ? 'bg-rose-100 text-rose-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+                NÃO
+            </button>
+        </div>
+    </div>
+);
+
 // --- PRIVACY & STORAGE HELPERS FOR SOCIAL SERVICE ---
 const SOCIAL_STORAGE_KEY = 'brotar_socialService_private';
 
 interface SocialServiceForm {
+    // SEÇÃO 1: IDENTIFICAÇÃO (Dados complementares à identificação do aluno)
     identificacao: {
-        matriculadoAtualmente: string;
-        nomeEscolaAtual: string;
+        responsavelFamiliar: string;
+        composicaoFamiliar: string[]; // Lista de strings ou poderia ser objeto estruturado. Usaremos string multi-linha por simplicidade inicial ou JSON string.
+        enderecoCompleto: string; // Pode vir do aluno, mas permitimos editar para correção na visita
     };
-    historicoEscolar: {
-        frequentouEscola: string;
-        ultimaEscola: string;
-        ultimoAno: string;
-        anoParou: string;
-        idadeSaiu: string;
-        motivoSaida: string[];
-        motivoSaidaOutros: string;
+
+    // SEÇÃO 2: FUNDAMENTAÇÃO
+    fundamentacao: {
+        textoBase: string;
     };
-    condicoesSociais: {
-        responsaveisLegais: string;
-        fonteRenda: string;
-        programasSociais: string[];
-        deficienciaCasa: string;
-        criancaDeficiencia: string;
-        situacoesEnfrentadas: string[];
-        adultosAlfabetizados: string;
-        educacaoPrioridade: string;
+
+    // SEÇÃO 3: EIXOS DE OBSERVAÇÃO
+    condicoesMoradia: {
+        estruturaFisica: string;
+        ventilacaoIluminacao: 'Adequada' | 'Parcialmente Adequada' | 'Inadequada' | '';
+        saneamento: 'Sim' | 'Não' | 'Parcial' | '';
     };
-    saude: {
-        acompanhamentoMedico: string;
-        medicacaoContinua: string;
-        acompanhamentoPsi: string;
-        conselhoTutelar: string;
-        atendidoCapsCras: string;
+    higieneCuidados: {
+        situacaoCriancas: string;
+        produtosHigiene: 'Sim' | 'Não' | 'Insuficiente' | '';
+        rotinaCuidados: string;
     };
-    situacaoAtual: {
-        desejoRetornar: string;
-        familiaApoia: string;
-        fatoresDificultam: string[];
-        fatoresDificultamOutros: string;
-        apoiosNecessarios: string[];
-        apoiosNecessariosOutros: string;
+    acessoPolíticas: {
+        beneficios: string[]; // Bolsa Família, BPC, etc.
+        suficienciaRenda: 'Suficiente' | 'Insuficiente' | '';
+        destinoRenda: string;
     };
-    observacoes: {
-        textoLivre: string;
-        acoesRecomendadas: string[];
-        statusCaso: string;
+    relacoesFamiliares: {
+        vinculos: 'Preservados' | 'Fragilizados' | 'Rompantes' | '';
+        redeApoio: 'Sim' | 'Não' | 'Frágil' | '';
+        conflitosFragilidades: string;
+    };
+
+    // SEÇÃO 5: PERGUNTAS ORIENTADORAS (Seção 4 é texto estático)
+    perguntasOrientadoras: {
+        higieneCuidados: string; // Organização da rotina...
+        alimentacaoRenda: string; // Suficiência, prioridades...
+        desafiosEstrategias: string; // Desafios cotidiano...
+    };
+
+    // SEÇÃO 6: ANÁLISE TÉCNICA (Sigilosa)
+    analiseTecnica: {
+        expressoesQuestaoSocial: string;
+        direitosViolados: string[];
+        estrategiasSobrevivencia: string;
+        necessidadeArticulacao: string;
+    };
+
+    // SEÇÃO 7: ENCAMINHAMENTOS
+    encaminhamentos: {
+        orientacoesRealizadas: string; // Educativas
+        encaminhamentoCrasCreas: boolean;
+        articulacaoSaude: boolean;
+        acionamentoRede: boolean;
+        observacoesFinais: string;
+        statusCaso?: string;
     };
 }
 
@@ -237,20 +312,31 @@ interface SocialServicePrivateData {
     professionalName: string;
 }
 
+const DEFAULT_FUNDAMENTACAO = `A presente visita domiciliar insere-se no âmbito da proteção social básica e especial, com o objetivo de realizar busca ativa escolar e compreender a realidade social do estudante. Fundamenta-se na garantia de direitos, no fortalecimento de vínculos familiares e comunitários, e na articulação com a rede de proteção, conforme diretrizes da Política Nacional de Assistência Social (PNAS). A abordagem pauta-se no respeito, na escuta qualificada e no caráter não punitivo, visando superar vulnerabilidades e promover a permanência escolar.`;
+
 const initialSocialForm: SocialServiceForm = {
-    identificacao: { matriculadoAtualmente: '', nomeEscolaAtual: '' },
-    historicoEscolar: { frequentouEscola: '', ultimaEscola: '', ultimoAno: '', anoParou: '', idadeSaiu: '', motivoSaida: [], motivoSaidaOutros: '' },
-    condicoesSociais: { responsaveisLegais: '', fonteRenda: '', programasSociais: [], deficienciaCasa: '', criancaDeficiencia: '', situacoesEnfrentadas: [], adultosAlfabetizados: '', educacaoPrioridade: '' },
-    saude: { acompanhamentoMedico: '', medicacaoContinua: '', acompanhamentoPsi: '', conselhoTutelar: '', atendidoCapsCras: '' },
-    situacaoAtual: { desejoRetornar: '', familiaApoia: '', fatoresDificultam: [], fatoresDificultamOutros: '', apoiosNecessarios: [], apoiosNecessariosOutros: '' },
-    observacoes: { textoLivre: '', acoesRecomendadas: [], statusCaso: 'Em Acompanhamento' }
+    identificacao: { responsavelFamiliar: '', composicaoFamiliar: [], enderecoCompleto: '' },
+    fundamentacao: { textoBase: DEFAULT_FUNDAMENTACAO },
+    condicoesMoradia: { estruturaFisica: '', ventilacaoIluminacao: '', saneamento: '' },
+    higieneCuidados: { situacaoCriancas: '', produtosHigiene: '', rotinaCuidados: '' },
+    acessoPolíticas: { beneficios: [], suficienciaRenda: '', destinoRenda: '' },
+    relacoesFamiliares: { vinculos: '', redeApoio: '', conflitosFragilidades: '' },
+    perguntasOrientadoras: { higieneCuidados: '', alimentacaoRenda: '', desafiosEstrategias: '' },
+    analiseTecnica: { expressoesQuestaoSocial: '', direitosViolados: [], estrategiasSobrevivencia: '', necessidadeArticulacao: '' },
+    encaminhamentos: { orientacoesRealizadas: '', encaminhamentoCrasCreas: false, articulacaoSaude: false, acionamentoRede: false, observacoesFinais: '', statusCaso: 'Em Acompanhamento' }
 };
 
 const extractSocialData = (student: Student): SocialServicePrivateData => {
-    const raw = student.clinical.social_data || {};
+    // PROTECTED ACCESS: clinical might be null/undefined
+    const rawNew = student.clinical?.social_data;
+    const rawOld = student.socialInfo;
+
+    // Unified Source Check
+    const raw = rawNew || rawOld || {};
+
     return {
         formData: raw.formData || initialSocialForm,
-        lastUpdate: raw.lastUpdate || student.createdAt,
+        lastUpdate: raw.lastUpdate || student.createdAt || new Date().toISOString(),
         professionalName: raw.professionalName || ''
     };
 };
@@ -967,10 +1053,7 @@ const PremiumTriStateField: React.FC<{ label: string, value: boolean | null, onC
     </div>
 );
 
-// --- COMPATIBILITY ALIASES (AUTO-UPGRADE ALL DASHBOARDS) ---
-const StyledInput = PremiumStyledInput;
-const FormSection = PremiumFormSection;
-const TriStateField = PremiumTriStateField;
+
 
 const PPAnamnesisV1LegacyView: React.FC<{ data: PPAnamnesisForm, onMigrate: () => void }> = ({ data, onMigrate }) => (
     <div className="space-y-6 animate-fadeIn pb-20">
@@ -1250,18 +1333,20 @@ const PPAnamnesisV2Form: React.FC<{
                                 <PremiumStyledInput label="Motivo do Encaminhamento" value={data.queixaPrincipal} onChange={(e: any) => updatePath('queixaPrincipal', e.target.value)} rows={4} placeholder="Descreva os motivos relatados pela escola ou família..." />
                             </PremiumFormSection>
 
-                            <PremiumFormSection title="III. Sono e Repouso" icon={Moon}>
+                            // FIX REPLACEMENT
+                            <FormSection title="III. Sono e Repouso" icon={Moon}>
                                 <div className="space-y-4">
-                                    <PremiumTriStateField label="Dorme Bem?" value={data.sono.dormeBem} onChange={(v) => updatePath('sono.dormeBem', v)} />
-                                    <PremiumTriStateField label="Acorda Durante a Noite?" value={data.sono.acordaNoite} onChange={(v) => updatePath('sono.acordaNoite', v)} />
-                                    <PremiumTriStateField label="Dificuldade p/ Pegar no Sono?" value={data.sono.dificuldadeDormir} onChange={(v) => updatePath('sono.dificuldadeDormir', v)} />
-                                    <PremiumStyledInput label="Horário de Sono e OBS" value={data.sono.obs} onChange={(e: any) => updatePath('sono.obs', e.target.value)} rows={2} />
+                                    <TriStateField label="Dorme Bem?" value={data.sono.dormeBem} onChange={(v: any) => updatePath('sono.dormeBem', v)} />
+                                    <TriStateField label="Acorda Durante a Noite?" value={data.sono.acordaNoite} onChange={(v: any) => updatePath('sono.acordaNoite', v)} />
+                                    <TriStateField label="Dificuldade p/ Pegar no Sono?" value={data.sono.dificuldadeDormir} onChange={(v: any) => updatePath('sono.dificuldadeDormir', v)} />
+                                    <StyledInput label="Horário de Sono e OBS" value={data.sono.obs} onChange={(e: any) => updatePath('sono.obs', e.target.value)} rows={2} />
                                 </div>
-                            </PremiumFormSection>
+                            </FormSection>
+
                         </div>
 
                         {/* DESENVOLVIMENTO COMPLETO */}
-                        <PremiumFormSection title="IV. Desenvolvimento Integrado" icon={Activity}>
+                        <FormSection title="IV. Desenvolvimento Integrado" icon={Activity}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                                 {/* Marcos */}
                                 <div className="space-y-6">
@@ -1302,19 +1387,19 @@ const PPAnamnesisV2Form: React.FC<{
                                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-4">
                                         <div className="w-2 h-2 rounded-full bg-blue-500" /> Linguagem
                                     </h4>
-                                    <PremiumStyledInput label="Fala" value={data.linguagem.fala} onChange={(e: any) => updatePath('linguagem.fala', e.target.value)} />
-                                    <PremiumStyledInput label="Compreensão" value={data.linguagem.compreensao} onChange={(e: any) => updatePath('linguagem.compreensao', e.target.value)} />
-                                    <PremiumStyledInput label="Trocas / Gagueira" value={data.linguagem.trocasOuGagueira} onChange={(e: any) => updatePath('linguagem.trocasOuGagueira', e.target.value)} />
+                                    <StyledInput label="Fala" value={data.linguagem.fala} onChange={(e: any) => updatePath('linguagem.fala', e.target.value)} />
+                                    <StyledInput label="Compreensão" value={data.linguagem.compreensao} onChange={(e: any) => updatePath('linguagem.compreensao', e.target.value)} />
+                                    <StyledInput label="Trocas / Gagueira" value={data.linguagem.trocasOuGagueira} onChange={(e: any) => updatePath('linguagem.trocasOuGagueira', e.target.value)} />
                                 </div>
                             </div>
-                        </PremiumFormSection>
+                        </FormSection>
                     </div>
                 )}
 
                 {/* STEP 3: HISTÓRICO ESCOLAR */}
                 {activeStep === 3 && (
                     <div className="animate-fadeIn space-y-8">
-                        <PremiumFormSection title="V. Histórico Escolar" icon={School}>
+                        <FormSection title="V. Histórico Escolar" icon={SchoolIcon}>
                             <div className="space-y-4">
                                 {data.escolaridade.historico.map((h, hIdx) => (
                                     <div key={hIdx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-4 bg-slate-50/50 border border-slate-100 rounded-2xl relative">
@@ -1363,26 +1448,27 @@ const PPAnamnesisV2Form: React.FC<{
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-100">
-                                <PremiumStyledInput label="Dificuldades na Escola" value={data.escolaridade.dificuldadesEscola} onChange={(e: any) => updatePath('escolaridade.dificuldadesEscola', e.target.value)} rows={3} />
-                                <PremiumStyledInput label="Relacionamento Social" value={data.escolaridade.relacaoSocialEscolar} onChange={(e: any) => updatePath('escolaridade.relacaoSocialEscolar', e.target.value)} rows={3} />
+                                <StyledInput label="Dificuldades na Escola" value={data.escolaridade.dificuldadesEscola} onChange={(e: any) => updatePath('escolaridade.dificuldadesEscola', e.target.value)} rows={3} />
+                                <StyledInput label="Relacionamento Social" value={data.escolaridade.relacaoSocialEscolar} onChange={(e: any) => updatePath('escolaridade.relacaoSocialEscolar', e.target.value)} rows={3} />
                             </div>
-                        </PremiumFormSection>
+                        </FormSection>
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <PremiumFormSection title="VI. Áreas de Dificuldade" icon={AlertTriangle}>
+                            <FormSection title="VI. Áreas de Dificuldade" icon={AlertTriangle}>
                                 <div className="grid grid-cols-2 gap-3">
                                     {['leitura', 'escrita', 'matematica', 'atencao', 'memoria', 'organizacao'].map((key) => (
-                                        <PremiumTriStateField key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} value={(data.dificuldadesAprendizagem as any)[key]} onChange={(v) => updatePath(`dificuldadesAprendizagem.${key}`, v)} />
+                                        <TriStateField key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} value={(data.dificuldadesAprendizagem as any)[key]} onChange={(v: any) => updatePath(`dificuldadesAprendizagem.${key}`, v)} />
                                     ))}
                                 </div>
-                            </PremiumFormSection>
-                            <PremiumFormSection title="VII. Conhecimentos Básicos" icon={Puzzle}>
+                            </FormSection>
+                            <FormSection title="VII. Conhecimentos Básicos" icon={Puzzle}>
+
                                 <div className="grid grid-cols-2 gap-3">
                                     {['letras', 'numeros', 'cores', 'formas', 'lateralidade', 'espacoTempo'].map((key) => (
-                                        <PremiumTriStateField key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} value={(data.conhecimentosBasicos as any)[key]} onChange={(v) => updatePath(`conhecimentosBasicos.${key}`, v)} />
+                                        <TriStateField key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} value={(data.conhecimentosBasicos as any)[key]} onChange={(v: any) => updatePath(`conhecimentosBasicos.${key}`, v)} />
                                     ))}
                                 </div>
-                            </PremiumFormSection>
+                            </FormSection>
                         </div>
                     </div>
                 )}
@@ -1392,42 +1478,43 @@ const PPAnamnesisV2Form: React.FC<{
                 {activeStep === 4 && (
                     <div className="animate-fadeIn space-y-8">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <PremiumFormSection title="VIII. Visão" icon={Eye}>
+                            <FormSection title="VIII. Visão" icon={Eye}>
                                 <div className="space-y-4">
-                                    <PremiumTriStateField label="Usa Óculos?" value={data.visao.usaOculos} onChange={(v) => updatePath('visao.usaOculos', v)} />
-                                    <PremiumTriStateField label="Dificuldades?" value={data.visao.dificuldades} onChange={(v) => updatePath('visao.dificuldades', v)} />
-                                    <PremiumStyledInput label="Obs." value={data.visao.obs} onChange={(e: any) => updatePath('visao.obs', e.target.value)} />
+                                    <TriStateField label="Usa Óculos?" value={data.visao.usaOculos} onChange={(v: any) => updatePath('visao.usaOculos', v)} />
+                                    <TriStateField label="Dificuldades?" value={data.visao.dificuldades} onChange={(v: any) => updatePath('visao.dificuldades', v)} />
+                                    <StyledInput label="Obs." value={data.visao.obs} onChange={(e: any) => updatePath('visao.obs', e.target.value)} />
                                 </div>
-                            </PremiumFormSection>
+                            </FormSection>
 
-                            <PremiumFormSection title="IX. Audição" icon={Volume2}>
+                            <FormSection title="IX. Audição" icon={Volume2}>
                                 <div className="space-y-4">
-                                    <PremiumTriStateField label="Parece não ouvir?" value={data.audicao.pareceNaoOuvir} onChange={(v) => updatePath('audicao.pareceNaoOuvir', v)} />
-                                    <PremiumTriStateField label="Dificuldades?" value={data.audicao.dificuldades} onChange={(v) => updatePath('audicao.dificuldades', v)} />
-                                    <PremiumStyledInput label="Obs." value={data.audicao.obs} onChange={(e: any) => updatePath('audicao.obs', e.target.value)} />
+                                    <TriStateField label="Parece não ouvir?" value={data.audicao.pareceNaoOuvir} onChange={(v: any) => updatePath('audicao.pareceNaoOuvir', v)} />
+                                    <TriStateField label="Dificuldades?" value={data.audicao.dificuldades} onChange={(v: any) => updatePath('audicao.dificuldades', v)} />
+                                    <StyledInput label="Obs." value={data.audicao.obs} onChange={(e: any) => updatePath('audicao.obs', e.target.value)} />
                                 </div>
-                            </PremiumFormSection>
+                            </FormSection>
                         </div>
 
-                        <PremiumFormSection title="X. Uso de Telas" icon={Smartphone}>
+                        <FormSection title="X. Uso de Telas" icon={Smartphone}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <PremiumTriStateField label="Celular" value={data.estimulacaoTelas.celular} onChange={(v) => updatePath('estimulacaoTelas.celular', v)} />
-                                    <PremiumTriStateField label="TV" value={data.estimulacaoTelas.tv} onChange={(v) => updatePath('estimulacaoTelas.tv', v)} />
+                                    <TriStateField label="Celular" value={data.estimulacaoTelas.celular} onChange={(v: any) => updatePath('estimulacaoTelas.celular', v)} />
+                                    <TriStateField label="TV" value={data.estimulacaoTelas.tv} onChange={(v: any) => updatePath('estimulacaoTelas.tv', v)} />
                                 </div>
                                 <div className="space-y-3">
-                                    <PremiumStyledInput label="Tempo Diário" value={data.estimulacaoTelas.tempoDiario} onChange={(e: any) => updatePath('estimulacaoTelas.tempoDiario', e.target.value)} />
-                                    <PremiumStyledInput label="O que assiste?" value={data.estimulacaoTelas.conteudo} onChange={(e: any) => updatePath('estimulacaoTelas.conteudo', e.target.value)} />
+                                    <StyledInput label="Tempo Diário" value={data.estimulacaoTelas.tempoDiario} onChange={(e: any) => updatePath('estimulacaoTelas.tempoDiario', e.target.value)} />
+                                    <StyledInput label="O que assiste?" value={data.estimulacaoTelas.conteudo} onChange={(e: any) => updatePath('estimulacaoTelas.conteudo', e.target.value)} />
                                 </div>
                             </div>
-                        </PremiumFormSection>
+                        </FormSection>
 
-                        <PremiumFormSection title="XI. Dados Sensíveis / Comportamento" icon={Lock} isPrivate={true}>
+                        <FormSection title="XI. Dados Sensíveis / Comportamento" icon={Lock} isPrivate={true}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <PremiumStyledInput label="Descrição do Comportamento" value={data.comportamento.descricao} onChange={(e: any) => updatePath('comportamento.descricao', e.target.value)} rows={4} />
-                                <PremiumStyledInput label="Sexualidade / Obs. Sigilosas" value={data.sexualidade.obs} onChange={(e: any) => updatePath('sexualidade.obs', e.target.value)} rows={4} />
+                                <StyledInput label="Descrição do Comportamento" value={data.comportamento.descricao} onChange={(e: any) => updatePath('comportamento.descricao', e.target.value)} rows={4} />
+                                <StyledInput label="Sexualidade / Obs. Sigilosas" value={data.sexualidade.obs} onChange={(e: any) => updatePath('sexualidade.obs', e.target.value)} rows={4} />
                             </div>
-                        </PremiumFormSection>
+                        </FormSection>
+
                     </div>
                 )}
 
@@ -3494,7 +3581,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                         {[
                             { id: 'anamnese', label: 'Anamnese', icon: FileText },
                             { id: 'avaliacao', label: 'Avaliação Motora', icon: Activity },
-                            { id: 'funcionalidade', label: 'Rotina Escolar', icon: School },
+                            { id: 'funcionalidade', label: 'Rotina Escolar', icon: SchoolIcon },
                             { id: 'sessions', label: 'Atendimentos', icon: History },
                             { id: 'conclusao', label: 'Conclusão', icon: ClipboardCheck },
                             { id: 'reports', label: 'Relatórios', icon: Printer },
@@ -4350,17 +4437,67 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
     );
 };
 
+// --- COMPONENTES AUXILIARES SOCIAL ---
+const SocialSection = ({ title, isOpen, onToggle, children, icon: Icon, color = 'cyan' }: any) => {
+    return (
+        <div className={`border border-slate-200 rounded-2xl bg-white overflow-hidden transition-all duration-300 shadow-sm ${isOpen ? 'ring-2 ring-cyan-100 shadow-md' : 'hover:shadow'}`}>
+            <button
+                onClick={onToggle}
+                type="button"
+                className={`w-full flex items-center justify-between p-5 text-left transition-colors ${isOpen ? 'bg-slate-50' : 'bg-white hover:bg-slate-50'}`}
+            >
+                <div className="flex items-center gap-4">
+                    <div className={`p-2.5 rounded-xl ${isOpen ? `bg-${color}-100 text-${color}-700` : 'bg-slate-100 text-slate-500'}`}>
+                        {Icon && <Icon size={20} />}
+                    </div>
+                    <div>
+                        <h3 className={`font-bold text-lg ${isOpen ? 'text-slate-800' : 'text-slate-600'}`}>{title}</h3>
+                        {isOpen && <div className="h-1 w-12 bg-cyan-400 rounded-full mt-1"></div>}
+                    </div>
+                </div>
+                <div className={`text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+                    <ChevronDown size={20} />
+                </div>
+            </button>
+
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="p-6 border-t border-slate-100">
+                    {/* Error Barrier: If socialData is missing deep props, this might crash. But we normalized it. */}
+                    {children}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- DASHBOARD ESPECÍFICO DE SERVIÇO SOCIAL ---
 // --- DASHBOARD ESPECÍFICO DE SERVIÇO SOCIAL ---
-const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStudent?: Student }> = ({ title, onNavigateNew, currentUser, preSelectedStudent }) => {
-    console.log('Mounting SocialServiceDashboard', { user: currentUser?.id });
-    const [students, setStudents] = useState<Student[]>([]);
+const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStudent?: Student; allStudents?: Student[] }> = ({ title, onNavigateNew, currentUser, preSelectedStudent, allStudents }) => {
+    console.log('🔥🔥🔥 [CRITICAL DEBUG] SocialServiceSpecificDashboard MOUNTING 🔥🔥🔥');
+    console.log('[DEBUG] Props:', {
+        hasUser: !!currentUser,
+        userId: currentUser?.id,
+        studentCount: allStudents?.length,
+        preSelected: preSelectedStudent?.fullName
+    });
+    // [DEBUG] Logs inserted successfully.
+
+
+    const [students, setStudents] = useState<Student[]>(allStudents || []);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(preSelectedStudent || null);
+    console.log('[DEBUG] State initialized. selectedStudent:', selectedStudent?.id);
+
     const [activeTab, setActiveTab] = useState<'id' | 'social' | 'health' | 'status' | 'reports'>('id');
-    const [recentUpdates, setRecentUpdates] = useState<{ studentName: string, lastUpdate: string, professional: string, studentId: string }[]>([]);
+    const [recentUpdates, setRecentUpdates] = useState<{ studentName: string, lastUpdate: string, professional: string, studentId: string, schoolId?: string }[]>([]);
     const [stats, setStats] = useState({ totalVisits: 0, activeSearch: 0 });
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
+    const [openSections, setOpenSections] = useState<string[]>(['identificacao', 'fundamentacao']);
+
+    const toggleSection = (id: string) => {
+        console.log('[DEBUG] Toggling section:', id);
+        setOpenSections(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
 
     // Dados do Aluno Selecionado
     const [socialData, setSocialData] = useState<SocialServicePrivateData>({
@@ -4369,10 +4506,13 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
         professionalName: ''
     });
 
+    console.log('[DEBUG] socialData initialized:', socialData ? 'OK' : 'NULL');
+
     const [schools, setSchools] = useState<School[]>([]);
     const [selectedSchoolFilter, setSelectedSchoolFilter] = useState('');
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [viewMode, setViewMode] = useState<'overview' | 'agenda'>('overview');
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (preSelectedStudent) setSelectedStudent(preSelectedStudent);
@@ -4381,23 +4521,39 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
     const loadData = async () => {
         if (!currentUser?.id) return;
         setLoading(true);
+        setError(null);
         try {
-            const [data, schoolsData, appsData] = await Promise.all([
-                SupabaseService.getStudents(),
-                SupabaseService.getSchools(),
-                SupabaseService.getAppointments({ professionalId: currentUser.id }) // Busca agenda do profissional
-            ]);
+            let data = allStudents || [];
+            let schoolsData: School[] = [];
+            let appsData: Appointment[] = [];
+
+            if (!allStudents || allStudents.length === 0) {
+                [data, schoolsData, appsData] = await Promise.all([
+                    SupabaseService.getStudents(),
+                    SupabaseService.getSchools(),
+                    SupabaseService.getAppointments({ professionalId: currentUser.id })
+                ]);
+            } else {
+                [schoolsData, appsData] = await Promise.all([
+                    SupabaseService.getSchools(),
+                    SupabaseService.getAppointments({ professionalId: currentUser.id })
+                ]);
+            }
 
             setStudents(data || []);
             setSchools(schoolsData || []);
             setAppointments(appsData || []);
 
+            console.log('[SocialDashboard] Students loaded:', data?.length);
+            console.log('[SocialDashboard] Schools loaded:', schoolsData?.length);
+
             const updates: any[] = [];
             let count = 0;
 
             (data || []).forEach(student => {
-                const sData = student.clinical?.social_data; // This should be SocialServicePrivateData
-                if (sData && sData.lastUpdate && sData.lastUpdate !== student.createdAt) {
+                const sData = extractSocialData(student);
+
+                if (sData) {
                     count++;
                     updates.push({
                         studentId: student.id,
@@ -4412,8 +4568,9 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
             updates.sort((a, b) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime());
             setRecentUpdates(updates);
             setStats({ totalVisits: count, activeSearch: count });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erro ao carregar dados do Serviço Social:', error);
+            setError(error.message || 'Erro desconhecido ao carregar dados.');
             // Fallback silencioso para não quebrar a UI
             setStudents([]);
             setSchools([]);
@@ -4423,19 +4580,75 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
         }
     };
 
-    useEffect(() => { loadData(); }, []);
+    useEffect(() => { loadData(); }, [currentUser]);
 
-    useEffect(() => {
-        if (selectedStudent) {
-            // Ensure social_data exists, otherwise initialize with default
-            setSocialData(selectedStudent.clinical?.social_data || {
+    // Função Helper para normalizar dados antigos vs novos e garantir integridade estrutural
+    const normalizeSocialData = (rawData: any): SocialServicePrivateData => {
+        // 1. Se não houver dados, retorna estrutura inicial limpa
+        if (!rawData || !rawData.formData) {
+            return {
                 formData: initialSocialForm,
                 lastUpdate: '',
                 professionalName: ''
-            });
+            };
+        }
+
+        const incomingForm = rawData.formData;
+
+        // Helper para garantir que arrays sejam arrays (e não null/undefined)
+        const ensureArray = (arr: any) => Array.isArray(arr) ? arr : [];
+
+        // 2. Construção segura do objeto
+        // Para cada seção, fazemos o merge E garantimos que campos críticos (arrays) não sejam null/undefined
+        // Se incomingForm.secao for undefined, o spread usa o default.
+        // Se incomingForm.secao for null, precisamos proteger.
+        // Se incomingForm.secao.campoArray for null, precisamos proteger.
+
+        const safeMerge = (defaultSection: any, incomingSection: any) => {
+            if (!incomingSection) return defaultSection;
+            return { ...defaultSection, ...incomingSection };
+        };
+
+        const mergedFormData: SocialServiceForm = {
+            identificacao: {
+                ...initialSocialForm.identificacao,
+                ...(incomingForm.identificacao || {}),
+                composicaoFamiliar: ensureArray(incomingForm.identificacao?.composicaoFamiliar || initialSocialForm.identificacao.composicaoFamiliar)
+            },
+            fundamentacao: { ...initialSocialForm.fundamentacao, ...(incomingForm.fundamentacao || {}) },
+            condicoesMoradia: { ...initialSocialForm.condicoesMoradia, ...(incomingForm.condicoesMoradia || {}) },
+            higieneCuidados: { ...initialSocialForm.higieneCuidados, ...(incomingForm.higieneCuidados || {}) },
+            acessoPolíticas: {
+                ...initialSocialForm.acessoPolíticas,
+                ...(incomingForm.acessoPolíticas || {}),
+                beneficios: ensureArray(incomingForm.acessoPolíticas?.beneficios || initialSocialForm.acessoPolíticas.beneficios)
+            },
+            relacoesFamiliares: { ...initialSocialForm.relacoesFamiliares, ...(incomingForm.relacoesFamiliares || {}) },
+            perguntasOrientadoras: { ...initialSocialForm.perguntasOrientadoras, ...(incomingForm.perguntasOrientadoras || {}) },
+            analiseTecnica: {
+                ...initialSocialForm.analiseTecnica,
+                ...(incomingForm.analiseTecnica || {}),
+                direitosViolados: ensureArray(incomingForm.analiseTecnica?.direitosViolados || initialSocialForm.analiseTecnica.direitosViolados)
+            },
+            encaminhamentos: { ...initialSocialForm.encaminhamentos, ...(incomingForm.encaminhamentos || {}) }
+        };
+
+        return {
+            ...rawData,
+            formData: mergedFormData
+        };
+    };
+
+    useEffect(() => {
+        if (selectedStudent) {
+            // Use normalizeSocialData to ensure structure validity
+            // UNIFIED DATA LOAD: Check both locations (new and legacy)
+            const savedData = selectedStudent.clinical?.social_data || selectedStudent.socialInfo;
+            setSocialData(normalizeSocialData(savedData));
             setActiveTab('id');
         }
     }, [selectedStudent]);
+
 
     const handleSaveSocial = async () => {
         if (!selectedStudent) return;
@@ -4470,26 +4683,90 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                 ? `<ul style="margin: 0; padding-left: 20px;">${items.map(i => `<li>${i}</li>`).join('')}</ul>`
                 : 'Não informado';
 
-            const contentHTML = `
-                                                                    <h2 class="section-title">I. IDENTIFICAÇÃO E DADOS ESCOLARES</h2>
-                                                                    <div class="box">
-                                                                        <div class="data-row"><span class="label">MATRICULADO:</span><span class="value">${socialData.formData.identificacao.matriculadoAtualmente}</span></div>
-                                                                        <div class="data-row"><span class="label">ESCOLA ATUAL:</span><span class="value">${socialData.formData.identificacao.nomeEscolaAtual || '-'}</span></div>
-                                                                    </div>
-                                                                    <h2 class="section-title">II. CONDIÇÕES SOCIOECONÔMICAS</h2>
-                                                                    <div class="box">
-                                                                        <div class="data-row"><span class="label">RESPONSÁVEIS:</span><span class="value">${socialData.formData.condicoesSociais.responsaveisLegais || '-'}</span></div>
-                                                                        <div class="data-row"><span class="label">FONTE DE RENDA:</span><span class="value">${socialData.formData.condicoesSociais.fonteRenda || '-'}</span></div>
-                                                                        <div class="data-row"><span class="label">PROGRAMAS SOCIAIS:</span><span class="value">${renderList(socialData.formData.condicoesSociais.programasSociais)}</span></div>
-                                                                    </div>
-                                                                    <h2 class="section-title">III. PARECER TÉCNICO SOCIAL</h2>
-                                                                    <div class="box">
-                                                                        <div class="data-row"><span class="label">SITUAÇÃO ATUAL:</span><div class="value" style="white-space: pre-wrap;">${socialData.formData.observacoes.textoLivre || 'Sem observações.'}</div></div>
-                                                                    </div>
-                                                                    `;
+            const f = socialData.formData;
 
-            const html = generateClinicalPrintHTML(selectedStudent, config, 'Relatório de Atendimento Social', contentHTML, {
-                name: currentUser.name, jobTitle: currentUser.jobTitle || 'Assistente Social', specialty: currentUser.specialty, signatureUrl: currentUser.signatureUrl
+            const contentHTML = `
+                <style>
+                    .section-title { font-size: 14px; font-weight: bold; background-color: #f1f5f9; padding: 5px 10px; border-left: 4px solid #0891b2; margin-top: 15px; margin-bottom: 10px; }
+                    .box { border: 1px solid #e2e8f0; padding: 10px; border-radius: 5px; margin-bottom: 5px; }
+                    .box-title { font-size: 12px; font-weight: bold; color: #475569; margin-bottom: 5px; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px; }
+                    .data-row { display: flex; margin-bottom: 4px; border-bottom: 1px dashed #f1f5f9; padding-bottom: 2px; }
+                    .label { font-weight: bold; width: 180px; font-size: 11px; color: #64748b; }
+                    .value { flex: 1; font-size: 12px; color: #0f172a; }
+                    .full-text { font-size: 12px; color: #334155; white-space: pre-wrap; line-height: 1.4; text-align: justify; }
+                    .alert-box { border: 1px solid #ef4444; background-color: #fef2f2; padding: 8px; border-radius: 4px; margin-top: 10px; }
+                </style>
+
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase;">RELATÓRIO TÉCNICO DE BUSCA ATIVA / VISITA DOMICILIAR</h1>
+                    <p style="font-size: 12px; color: #64748b;">Instrumental sigiloso de Serviço Social</p>
+                </div>
+
+                <h2 class="section-title">1. IDENTIFICAÇÃO DA VISITA</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">DATA DA VISITA:</span><span class="value">${new Date(socialData.lastUpdate || new Date()).toLocaleDateString()}</span></div>
+                    <div class="data-row"><span class="label">RESPONSÁVEL FAMILIAR:</span><span class="value">${f.identificacao.responsavelFamiliar || '-'}</span></div>
+                    <div class="data-row"><span class="label">ENDEREÇO CONFIRMADO:</span><span class="value">${f.identificacao.enderecoCompleto || '-'}</span></div>
+                    <div class="data-row"><span class="label">COMPOSIÇÃO FAMILIAR:</span><span class="value">${f.identificacao.composicaoFamiliar[0] || 'Não informado'}</span></div>
+                </div>
+
+                <h2 class="section-title">2. FUNDAMENTAÇÃO E OBJETIVO</h2>
+                <div class="box">
+                    <div class="full-text">${f.fundamentacao.textoBase || '-'}</div>
+                </div>
+
+                <h2 class="section-title">3. EIXOS DE OBSERVAÇÃO</h2>
+                <div class="box">
+                    <div class="box-title">3.1 CONDIÇÕES DE MORADIA</div>
+                    <div class="data-row"><span class="label">ESTRUTURA FÍSICA:</span><span class="value">${f.condicoesMoradia.estruturaFisica || '-'}</span></div>
+                    <div class="data-row"><span class="label">VENTILAÇÃO/LIMPEZA:</span><span class="value">${f.condicoesMoradia.ventilacaoIluminacao || '-'}</span></div>
+                    <div class="data-row"><span class="label">SANEAMENTO:</span><span class="value">${f.condicoesMoradia.saneamento || '-'}</span></div>
+                </div>
+                <div class="box">
+                    <div class="box-title">3.2 HIGIENE E CUIDADOS</div>
+                    <div class="data-row"><span class="label">SITUAÇÃO CRIANÇAS:</span><span class="value">${f.higieneCuidados.situacaoCriancas || '-'}</span></div>
+                    <div class="data-row"><span class="label">PRODUTOS HIGIENE:</span><span class="value">${f.higieneCuidados.produtosHigiene || '-'}</span></div>
+                    <div class="data-row"><span class="label">ROTINA OBSERVADA:</span><span class="value">${f.higieneCuidados.rotinaCuidados || '-'}</span></div>
+                </div>
+                <div class="box">
+                    <div class="box-title">3.3 POLÍTICAS SOCIAIS E RENDA</div>
+                    <div class="data-row"><span class="label">BENEFÍCIOS:</span><span class="value">${renderList(f.acessoPolíticas.beneficios)}</span></div>
+                    <div class="data-row"><span class="label">SUFICIÊNCIA DA RENDA:</span><span class="value">${f.acessoPolíticas.suficienciaRenda || '-'} (Destino: ${f.acessoPolíticas.destinoRenda || '-'})</span></div>
+                </div>
+
+                <h2 class="section-title">4. PERGUNTAS ORIENTADORAS</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">HIGIENE/CUIDADOS:</span><span class="value">${f.perguntasOrientadoras.higieneCuidados || '-'}</span></div>
+                    <div class="data-row"><span class="label">ALIMENTAÇÃO/RENDA:</span><span class="value">${f.perguntasOrientadoras.alimentacaoRenda || '-'}</span></div>
+                    <div class="data-row"><span class="label">DESAFIOS/ESTRATÉGIAS:</span><span class="value">${f.perguntasOrientadoras.desafiosEstrategias || '-'}</span></div>
+                </div>
+
+                <h2 class="section-title">5. ANÁLISE TÉCNICA (ÁREA RESTRITA)</h2>
+                <div class="box" style="background-color: #fefce8;">
+                    <div class="data-row"><span class="label">EXPRESSÕES QUESTÃO SOCIAL:</span><div class="value full-text">${f.analiseTecnica.expressoesQuestaoSocial || '-'}</div></div>
+                    <div class="data-row"><span class="label">DIREITOS VIOLADOS:</span><span class="value">${renderList(f.analiseTecnica.direitosViolados)}</span></div>
+                    <div class="data-row"><span class="label">ESTRATÉGIAS SOBREVIVÊNCIA:</span><span class="value">${f.analiseTecnica.estrategiasSobrevivencia || '-'}</span></div>
+                    <div class="data-row"><span class="label">NECESSIDADE ARTICULAÇÃO:</span><span class="value">${f.analiseTecnica.necessidadeArticulacao || '-'}</span></div>
+                </div>
+
+                <h2 class="section-title">6. ENCAMINHAMENTOS E DESFECHO</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">ORIENTAÇÕES REALIZADAS:</span><div class="value full-text">${f.encaminhamentos.orientacoesRealizadas || '-'}</div></div>
+                    <div class="data-row"><span class="label">ENCAMINHAMENTOS:</span><span class="value">
+                        ${f.encaminhamentos.encaminhamentoCrasCreas ? '[x] CRAS/CREAS ' : ''}
+                        ${f.encaminhamentos.articulacaoSaude ? '[x] SAÚDE ' : ''}
+                        ${f.encaminhamentos.acionamentoRede ? '[x] REDE PROTEÇÃO' : ''}
+                    </span></div>
+                    <div class="data-row"><span class="label">OBSERVAÇÕES FINAIS:</span><div class="value full-text">${f.encaminhamentos.observacoesFinais || '-'}</div></div>
+                    <div class="data-row" style="margin-top: 5px; font-weight: bold; font-size: 13px;"><span class="label">STATUS DO CASO:</span><span class="value">${f.encaminhamentos.statusCaso}</span></div>
+                </div>
+            `;
+
+            const html = generateClinicalPrintHTML(selectedStudent, config, 'Relatório de Visita Domiciliar', contentHTML, {
+                name: socialData.professionalName || currentUser.name,
+                jobTitle: currentUser.jobTitle || 'Assistente Social',
+                specialty: currentUser.specialty,
+                signatureUrl: currentUser.signatureUrl
             });
 
             const win = window.open('', '_blank');
@@ -4546,6 +4823,13 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
 
     return (
         <div className="max-w-6xl mx-auto animate-fadeIn pb-12">
+
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                    <strong className="font-bold">Erro de Carregamento: </strong>
+                    <span className="block sm:inline">{error}</span>
+                </div>
+            )}
             {!selectedStudent ? (
                 <div className="space-y-8">
                     {/* Header */}
@@ -4616,16 +4900,18 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2"><Layout size={20} className="text-slate-400" /> Histórico de Atuação Social</h3>
 
                                     <div className="flex items-center gap-3 w-full md:w-auto">
-                                        <div className="relative">
-                                            <SchoolIcon className="absolute left-3 top-2.5 text-slate-400" size={16} />
-                                            <select
-                                                value={selectedSchoolFilter}
-                                                onChange={e => setSelectedSchoolFilter(e.target.value)}
-                                                className="pl-10 pr-4 py-2 rounded-lg border border-slate-300 text-sm w-full md:w-64 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                                            >
-                                                <option value="">Todas as Escolas</option>
-                                                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                            </select>
+                                        <div className="w-full md:w-64 z-20">
+                                            <div className="relative">
+                                                <SearchableSelect
+                                                    options={[
+                                                        { value: "", label: "Todas as Escolas" },
+                                                        ...schools.map(s => ({ value: s.id, label: s.name })).sort((a, b) => a.label.localeCompare(b.label))
+                                                    ]}
+                                                    value={selectedSchoolFilter}
+                                                    onChange={setSelectedSchoolFilter}
+                                                    placeholder="Filtrar por Escola..."
+                                                />
+                                            </div>
                                         </div>
 
                                         <div className="relative">
@@ -4744,139 +5030,228 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                     )}
                 </div>
             ) : (
-                <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col md:flex-row min-h-[700px]">
-                    {/* Sidebar */}
-                    <div className="w-full md:w-64 bg-slate-50 border-r border-slate-200 flex flex-col">
-                        <div className="p-6 border-b border-slate-200 bg-white">
-                            <button onClick={() => setSelectedStudent(null)} className="flex items-center gap-2 text-xs font-bold text-blue-600 mb-4 hover:underline"><Plus size={14} className="rotate-45" /> Voltar ao Painel</button>
-                            <h3 className="font-black text-slate-900 leading-tight">{selectedStudent.fullName}</h3>
-                        </div>
-                        <div className="flex-1 py-4">
-                            {[
-                                { id: 'id', label: 'Identificação', icon: GraduationCap },
-                                { id: 'social', label: 'Dados Sociais', icon: Home },
-                                { id: 'health', label: 'Saúde e Proteção', icon: ShieldAlert },
-                                { id: 'status', label: 'Situação Atual', icon: Search },
-                                { id: 'reports', label: 'Relatórios', icon: Printer },
-                            ].map(tab => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id as any)}
-                                    className={`w-full p-4 flex items-center gap-3 text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-lg ml-2 rounded-l-xl' : 'text-slate-500 hover:bg-white hover:text-blue-600'}`}
-                                >
-                                    <tab.icon size={18} /> {tab.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
 
-                    {/* Content */}
-                    <div className="flex-1 p-8 bg-white overflow-y-auto max-h-[700px]">
-                        <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-2xl font-black text-slate-800">Busca Ativa Escolar</h3>
-                            <button onClick={handleSaveSocial} className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 shadow-xl transition-all"><Save size={20} /> Salvar Dados</button>
+                <div className="bg-slate-50 min-h-screen pb-20">
+                    <div className="max-w-4xl mx-auto pt-6">
+
+                        {/* Header de Ação */}
+                        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 mb-8 flex justify-between items-center sticky top-4 z-30">
+                            <div>
+                                <button onClick={() => setSelectedStudent(null)} className="flex items-center gap-2 text-xs font-bold text-cyan-600 mb-1 hover:underline"><ChevronLeft size={14} /> Voltar à Lista</button>
+                                <h3 className="text-2xl font-black text-slate-800">{selectedStudent.fullName}</h3>
+                                <p className="text-slate-500 text-sm flex items-center gap-2"><MapPin size={12} /> {selectedStudent.address?.street || 'Endereço não cadastrado'}</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={handleSaveSocial} className="bg-cyan-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-cyan-700 shadow-lg shadow-cyan-200 transition-all hover:-translate-y-0.5"><Save size={20} /> Salvar Ficha</button>
+                            </div>
                         </div>
 
-                        {activeTab === 'id' && (
-                            <div className="space-y-6 animate-fadeIn">
-                                <FormSection title="Situação Escolar" icon={GraduationCap} color="text-blue-600">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Matriculado atualmente?</label>
-                                            <select className="w-full p-2.5 rounded-xl border border-slate-300" value={socialData.formData.identificacao.matriculadoAtualmente} onChange={e => handleInputChange('identificacao', 'matriculadoAtualmente', e.target.value)}>
-                                                <option>Sim</option><option>Não</option><option>Evadido</option>
-                                            </select>
-                                        </div>
-                                        <StyledInput label="Nome da Escola" value={socialData.formData.identificacao.nomeEscolaAtual} onChange={e => handleInputChange('identificacao', 'nomeEscolaAtual', e.target.value)} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <StyledInput label="Última Escola Frequentada" value={socialData.formData.historicoEscolar.ultimaEscola} onChange={e => handleInputChange('historicoEscolar', 'ultimaEscola', e.target.value)} />
-                                        <StyledInput label="Ano que parou" value={socialData.formData.historicoEscolar.anoParou} onChange={e => handleInputChange('historicoEscolar', 'anoParou', e.target.value)} />
-                                    </div>
-                                </FormSection>
-                            </div>
-                        )}
+                        <div className="space-y-4">
 
-                        {activeTab === 'social' && (
-                            <div className="space-y-6 animate-fadeIn">
-                                <FormSection title="Família e Renda" icon={Home} color="text-blue-600">
-                                    <StyledInput label="Responsáveis Legais" value={socialData.formData.condicoesSociais.responsaveisLegais} onChange={e => handleInputChange('condicoesSociais', 'responsaveisLegais', e.target.value)} />
-                                    <StyledInput label="Fonte de Renda Familiar" value={socialData.formData.condicoesSociais.fonteRenda} onChange={e => handleInputChange('condicoesSociais', 'fonteRenda', e.target.value)} />
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Programas Sociais</label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {['Bolsa Família', 'BPC / LOAS', 'Auxílio Gás', 'Outros'].map(p => (
-                                                <button key={p} onClick={() => handleArrayToggle('condicoesSociais', 'programasSociais', p)} className={`p-3 rounded-xl border text-sm font-bold transition-all ${socialData.formData.condicoesSociais.programasSociais.includes(p) ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>{p}</button>
-                                            ))}
+                            {/* SEÇÃO 1: IDENTIFICAÇÃO */}
+                            <SocialSection title="1. Identificação da Visita" icon={UserIcon} isOpen={openSections.includes('identificacao')} onToggle={() => toggleSection('identificacao')} color="cyan">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data da Visita</label>
+                                        <div className="font-bold text-slate-800">{new Date(socialData.lastUpdate || new Date()).toLocaleDateString()}</div>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Profissional Responsável</label>
+                                        <div className="font-bold text-slate-800">{socialData.professionalName || currentUser.name}</div>
+                                    </div>
+                                    <div className="col-span-full">
+                                        <StyledInput label="Endereço da Família (Confirmado na Visita)" value={socialData.formData.identificacao.enderecoCompleto} onChange={e => handleInputChange('identificacao', 'enderecoCompleto', e.target.value)} />
+                                    </div>
+                                    <div className="col-span-full">
+                                        <StyledInput label="Responsável Familiar (Quem recebeu a equipe)" value={socialData.formData.identificacao.responsavelFamiliar} onChange={e => handleInputChange('identificacao', 'responsavelFamiliar', e.target.value)} />
+                                    </div>
+                                    {/* Composição Familiar simplificada como Textarea por enquanto, futuramente tabela dinâmica */}
+                                    <div className="col-span-full">
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">Composição Familiar (Nome, Idade, Vínculo, Escolaridade, Ocupação)</label>
+                                        <textarea
+                                            className="w-full rounded-xl border-slate-300 p-4 min-h-[100px] focus:ring-2 focus:ring-cyan-500"
+                                            placeholder="Ex: Maria (Mãe, 35 anos, Fundamental Incompleto, Do lar)..."
+                                            value={socialData.formData.identificacao.composicaoFamiliar[0] || ''}
+                                            onChange={e => {
+                                                const newVal = e.target.value;
+                                                setSocialData({
+                                                    ...socialData,
+                                                    formData: {
+                                                        ...socialData.formData,
+                                                        identificacao: {
+                                                            ...socialData.formData.identificacao,
+                                                            composicaoFamiliar: [newVal] // Salva como primeiro item do array
+                                                        }
+                                                    }
+                                                });
+                                            }}
+                                        />
+                                        <p className="text-xs text-slate-400 mt-1">Liste cada membro da família em uma nova linha ou separado por vírgulas.</p>
+                                    </div>
+                                </div>
+                            </SocialSection>
+
+                            {/* SEÇÃO 2: FUNDAMENTAÇÃO */}
+                            <SocialSection title="2. Fundamentação e Objetivo" icon={BookOpen} isOpen={openSections.includes('fundamentacao')} onToggle={() => toggleSection('fundamentacao')} color="indigo">
+                                <StyledInput label="Fundamentação da Visita (Editável)" rows={6} value={socialData.formData.fundamentacao.textoBase} onChange={e => handleInputChange('fundamentacao', 'textoBase', e.target.value)} />
+                            </SocialSection>
+
+                            {/* SEÇÃO 3: EIXOS */}
+                            <SocialSection title="3. Eixos de Observação" icon={Layout} isOpen={openSections.includes('eixos')} onToggle={() => toggleSection('eixos')} color="blue">
+                                <div className="space-y-6">
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">3.1 Condições de Moradia e Saneamento</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="col-span-full"><StyledInput label="Estrutura Física da Residência" value={socialData.formData.condicoesMoradia.estruturaFisica} onChange={e => handleInputChange('condicoesMoradia', 'estruturaFisica', e.target.value)} /></div>
+                                            <div className="col-span-1">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Ventilação/Iluminação/Limpeza</label>
+                                                <select className="w-full rounded-lg border-slate-300 p-2.5" value={socialData.formData.condicoesMoradia.ventilacaoIluminacao} onChange={e => handleInputChange('condicoesMoradia', 'ventilacaoIluminacao', e.target.value)}>
+                                                    <option value="">Selecione...</option><option>Adequada</option><option>Parcialmente Adequada</option><option>Inadequada</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Saneamento Básico</label>
+                                                <select className="w-full rounded-lg border-slate-300 p-2.5" value={socialData.formData.condicoesMoradia.saneamento} onChange={e => handleInputChange('condicoesMoradia', 'saneamento', e.target.value)}>
+                                                    <option value="">Selecione...</option><option>Sim</option><option>Não</option><option>Parcial</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
-                                </FormSection>
-                            </div>
-                        )}
 
-                        {activeTab === 'health' && (
-                            <div className="space-y-6 animate-fadeIn">
-                                <FormSection title="Saúde e Rede de Proteção" icon={ShieldAlert} color="text-blue-600">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Acompanhamento Médico</label>
-                                            <select className="w-full p-2.5 rounded-xl border border-slate-300" value={socialData.formData.saude.acompanhamentoMedico} onChange={e => handleInputChange('saude', 'acompanhamentoMedico', e.target.value)}>
-                                                <option>Sim</option><option>Não</option><option>Irregular</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Conselho Tutelar</label>
-                                            <select className="w-full p-2.5 rounded-xl border border-slate-300" value={socialData.formData.saude.conselhoTutelar} onChange={e => handleInputChange('saude', 'conselhoTutelar', e.target.value)}>
-                                                <option>Nunca acionado</option><option>Já acionado</option><option>Acompanhamento Ativo</option>
-                                            </select>
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">3.2 Higiene Pessoal e Cuidados</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="col-span-full"><StyledInput label="Situação da Higiene (Crianças/Adolescentes)" value={socialData.formData.higieneCuidados.situacaoCriancas} onChange={e => handleInputChange('higieneCuidados', 'situacaoCriancas', e.target.value)} /></div>
+                                            <div className="col-span-1">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Produtos de Higiene</label>
+                                                <select className="w-full rounded-lg border-slate-300 p-2.5" value={socialData.formData.higieneCuidados.produtosHigiene} onChange={e => handleInputChange('higieneCuidados', 'produtosHigiene', e.target.value)}>
+                                                    <option value="">Selecione...</option><option>Sim</option><option>Não</option><option>Insuficiente</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-span-full"><StyledInput label="Rotina descrita pela família" value={socialData.formData.higieneCuidados.rotinaCuidados} onChange={e => handleInputChange('higieneCuidados', 'rotinaCuidados', e.target.value)} /></div>
                                         </div>
                                     </div>
-                                    <StyledInput label="Uso de Medicação Contínua" value={socialData.formData.saude.medicacaoContinua} onChange={e => handleInputChange('saude', 'medicacaoContinua', e.target.value)} />
-                                </FormSection>
-                            </div>
-                        )}
 
-                        {activeTab === 'status' && (
-                            <div className="space-y-6 animate-fadeIn">
-                                <FormSection title="Parecer do Serviço Social" icon={AlignLeft} color="text-blue-600">
-                                    <StyledInput label="Descrição da Situação Atual" rows={6} value={socialData.formData.observacoes.textoLivre} onChange={e => handleInputChange('observacoes', 'textoLivre', e.target.value)} placeholder="Descreva os detalhes observados na visita ou atendimento..." />
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Principais Barreiras Identificadas</label>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {['Distância da Escola', 'Necessidade de Trabalhar', 'Falta de Documentação', 'Problemas de Saúde na Família', 'Violência no Território'].map(b => (
-                                                <button key={b} onClick={() => handleArrayToggle('situacaoAtual', 'fatoresDificultam', b)} className={`p-4 rounded-2xl border text-left text-sm font-bold transition-all ${socialData.formData.situacaoAtual.fatoresDificultam.includes(b) ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{b}</button>
-                                            ))}
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">3.3 Acesso a Políticas Sociais</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="col-span-full">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Benefícios Recebidos</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {['Bolsa Família', 'BPC', 'Tarifa Social', 'Cesta Básica (Eventual)', 'Nenhum'].map(opt => (
+                                                        <button key={opt} type="button"
+                                                            onClick={(e) => { e.preventDefault(); handleArrayToggle('acessoPolíticas', 'beneficios', opt); }}
+                                                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${socialData.formData.acessoPolíticas.beneficios.includes(opt) ? 'bg-green-600 text-white shadow' : 'bg-white border border-slate-300 text-slate-600'}`}>
+                                                            {opt}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Suficiência da Renda</label>
+                                                <select className="w-full rounded-lg border-slate-300 p-2.5" value={socialData.formData.acessoPolíticas.suficienciaRenda} onChange={e => handleInputChange('acessoPolíticas', 'suficienciaRenda', e.target.value)}>
+                                                    <option value="">Selecione...</option><option>Suficiente</option><option>Insuficiente</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-span-1"><StyledInput label="Destino Prioritário da Renda" value={socialData.formData.acessoPolíticas.destinoRenda} onChange={e => handleInputChange('acessoPolíticas', 'destinoRenda', e.target.value)} /></div>
                                         </div>
                                     </div>
-                                </FormSection>
-                            </div>
-                        )}
-
-                        {activeTab === 'reports' && (
-                            <div className="space-y-6 animate-fadeIn text-center py-20">
-                                <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner"><Printer size={48} /></div>
-                                <h4 className="text-2xl font-black text-slate-800">Relatório de Atuação Social</h4>
-                                <p className="text-slate-500 mb-10 max-w-md mx-auto">Gere o documento oficial de Busca Ativa Escolar contendo todos os dados socioeconômicos e o parecer técnico.</p>
-                                <button onClick={handlePrintSocialReport} className="bg-blue-600 text-white px-12 py-4 rounded-2xl font-black shadow-2xl hover:bg-blue-700 transition-all flex items-center gap-2 mx-auto scale-110"><Printer size={20} /> Gerar PDF Oficial</button>
-
-                                <div className="mt-16 pt-8 border-t border-slate-100 max-w-sm mx-auto">
-                                    <h5 className="text-rose-600 font-bold mb-2 flex items-center justify-center gap-2">
-                                        <ShieldAlert size={18} /> Encerramento de Processo
-                                    </h5>
-                                    <p className="text-slate-400 text-xs mb-6">Oficializar a alta social e emitir documento de desligamento.</p>
-                                    <button
-                                        onClick={handleDischarge}
-                                        className="w-full py-3 bg-rose-600 text-white rounded-xl font-bold shadow-lg hover:bg-rose-700 transition-all flex items-center justify-center gap-2 uppercase text-xs"
-                                    >
-                                        <CheckCircle size={16} /> Dar Alta Social
-                                    </button>
+                                </div>
+                            </SocialSection>
+                            {/* SEÇÃO 4: ABORDAGEM ÉTICA */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex gap-4 text-slate-600">
+                                <div className="text-cyan-600"><AlertCircle size={24} /></div>
+                                <div className="text-sm italic">
+                                    <strong>Abordagem Ética (Diretrizes):</strong> A visita deve ser acolhedora, baseada na escuta qualificada e livre de julgamentos, reconhecendo as vulnerabilidades estruturais e evitando caráter policialesco.
                                 </div>
                             </div>
-                        )}
+
+                            {/* SEÇÃO 5: PERGUNTAS ORIENTADORAS */}
+                            <SocialSection title="5. Perguntas Orientadoras" icon={MessageCircle} isOpen={openSections.includes('perguntas')} onToggle={() => toggleSection('perguntas')} color="purple">
+                                <div className="space-y-4">
+                                    <StyledInput label="Higiene e Cuidados (Organização, dificuldades, acesso a itens)" rows={3} value={socialData.formData.perguntasOrientadoras.higieneCuidados} onChange={e => handleInputChange('perguntasOrientadoras', 'higieneCuidados', e.target.value)} />
+                                    <StyledInput label="Alimentação e Renda (Suficiência, prioridades, dificuldades)" rows={3} value={socialData.formData.perguntasOrientadoras.alimentacaoRenda} onChange={e => handleInputChange('perguntasOrientadoras', 'alimentacaoRenda', e.target.value)} />
+                                    <StyledInput label="Desafios e Estratégias (Cotidiano, apoios da rede, demandas urgentes)" rows={3} value={socialData.formData.perguntasOrientadoras.desafiosEstrategias} onChange={e => handleInputChange('perguntasOrientadoras', 'desafiosEstrategias', e.target.value)} />
+                                </div>
+                            </SocialSection>
+
+                            {/* SEÇÃO 6: ANÁLISE TÉCNICA (SIGILOSO) */}
+                            {currentUser.specialty === Specialty.SOCIAL_WORK || currentUser.role === 'ADMIN' ? (
+                                <SocialSection title="6. Análise Técnica (Sigiloso)" icon={Lock} isOpen={openSections.includes('tecnica')} onToggle={() => toggleSection('tecnica')} color="red">
+                                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-red-800 text-xs font-bold flex items-center gap-2">
+                                        <Lock size={14} /> ÁREA RESTRITA: Visível apenas para Assistentes Sociais.
+                                    </div>
+                                    <div className="space-y-4">
+                                        <StyledInput label="Expressões da Questão Social Identificadas" rows={4} value={socialData.formData.analiseTecnica.expressoesQuestaoSocial} onChange={e => handleInputChange('analiseTecnica', 'expressoesQuestaoSocial', e.target.value)} />
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Direitos Sociais Violados</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Alimentação', 'Moradia', 'Educação', 'Saúde', 'Convivência Familiar', 'Documentação', 'Trabalho Infantil', 'Violência'].map(opt => (
+                                                    <button key={opt} type="button"
+                                                        onClick={(e) => { e.preventDefault(); handleArrayToggle('analiseTecnica', 'direitosViolados', opt); }}
+                                                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${socialData.formData.analiseTecnica.direitosViolados.includes(opt) ? 'bg-red-600 text-white shadow' : 'bg-white border border-slate-300 text-slate-600'}`}>
+                                                        {opt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <StyledInput label="Estratégias de Sobrevivência da Família" value={socialData.formData.analiseTecnica.estrategiasSobrevivencia} onChange={e => handleInputChange('analiseTecnica', 'estrategiasSobrevivencia', e.target.value)} />
+                                        <StyledInput label="Necessidade de Articulação Intersetorial" value={socialData.formData.analiseTecnica.necessidadeArticulacao} onChange={e => handleInputChange('analiseTecnica', 'necessidadeArticulacao', e.target.value)} />
+                                    </div>
+                                </SocialSection>
+                            ) : null}
+
+                            {/* SEÇÃO 7: ENCAMINHAMENTOS */}
+                            <SocialSection title="7. Encaminhamentos" icon={Send} isOpen={openSections.includes('encaminhamentos')} onToggle={() => toggleSection('encaminhamentos')} color="green">
+                                <div className="space-y-4">
+                                    <StyledInput label="Orientações Educativas Realizadas" rows={3} value={socialData.formData.encaminhamentos.orientacoesRealizadas} onChange={e => handleInputChange('encaminhamentos', 'orientacoesRealizadas', e.target.value)} />
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="p-3 border rounded-xl bg-slate-50">
+                                            <label className="flex items-center gap-3 cursor-pointer">
+                                                <input type="checkbox" className="w-5 h-5 rounded text-cyan-600" checked={socialData.formData.encaminhamentos.encaminhamentoCrasCreas} onChange={e => setSocialData({ ...socialData, formData: { ...socialData.formData, encaminhamentos: { ...socialData.formData.encaminhamentos, encaminhamentoCrasCreas: e.target.checked } } })} />
+                                                <span className="font-bold text-slate-700">Encaminhar CRAS/CREAS</span>
+                                            </label>
+                                        </div>
+                                        <div className="p-3 border rounded-xl bg-slate-50">
+                                            <label className="flex items-center gap-3 cursor-pointer">
+                                                <input type="checkbox" className="w-5 h-5 rounded text-cyan-600" checked={socialData.formData.encaminhamentos.articulacaoSaude} onChange={e => setSocialData({ ...socialData, formData: { ...socialData.formData, encaminhamentos: { ...socialData.formData.encaminhamentos, articulacaoSaude: e.target.checked } } })} />
+                                                <span className="font-bold text-slate-700">Articulação Saúde</span>
+                                            </label>
+                                        </div>
+                                        <div className="p-3 border rounded-xl bg-slate-50">
+                                            <label className="flex items-center gap-3 cursor-pointer">
+                                                <input type="checkbox" className="w-5 h-5 rounded text-cyan-600" checked={socialData.formData.encaminhamentos.acionamentoRede} onChange={e => setSocialData({ ...socialData, formData: { ...socialData.formData, encaminhamentos: { ...socialData.formData.encaminhamentos, acionamentoRede: e.target.checked } } })} />
+                                                <span className="font-bold text-slate-700">Acionar Rede Proteção</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <StyledInput label="Observações Finais" rows={3} value={socialData.formData.encaminhamentos.observacoesFinais} onChange={e => handleInputChange('encaminhamentos', 'observacoesFinais', e.target.value)} />
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status do Caso</label>
+                                        <select className="w-full rounded-xl border-slate-300 p-3 bg-slate-50 font-bold text-cyan-900" value={socialData.formData.encaminhamentos.statusCaso} onChange={e => handleInputChange('encaminhamentos', 'statusCaso', e.target.value)}>
+                                            <option>Em Acompanhamento</option>
+                                            <option>Aguardando Visita</option>
+                                            <option>Encaminhado para Rede</option>
+                                            <option>Concluído / Arquivado</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </SocialSection>
+
+                            <div className="flex justify-end pt-8 pb-12">
+                                <button onClick={handleSaveSocial} className="bg-cyan-700 text-white px-8 py-4 rounded-xl font-bold flex items-center gap-2 hover:bg-cyan-800 shadow-xl transition-all hover:scale-105"><Save size={24} /> Salvar Relatório de Busca Ativa</button>
+                            </div>
+
+                        </div>
                     </div>
                 </div>
             )}
-        </div>
+        </div >
     );
 };
 
@@ -5480,7 +5855,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                             <StyledInput label="Histórico Geral" rows={3} value={publicData.historicoFamiliar.historicoGeral} onChange={(e: any) => handlePublicChange('historicoFamiliar', 'historicoGeral', e.target.value)} />
                                         </FormSection>
 
-                                        <FormSection title="IV. Histórico Escolar" icon={School}>
+                                        <FormSection title="IV. Histórico Escolar" icon={SchoolIcon}>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <StyledInput label="Desempenho" value={publicData.historicoEscolar.desempenho} onChange={(e: any) => handlePublicChange('historicoEscolar', 'desempenho', e.target.value)} />
                                                 <StyledInput label="Dificuldades" value={publicData.historicoEscolar.dificuldades} onChange={(e: any) => handlePublicChange('historicoEscolar', 'dificuldades', e.target.value)} />
@@ -5724,429 +6099,9 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
     );
 };
 
-// --- FORMULÁRIO EXCLUSIVO DE SERVIÇO SOCIAL (BUSCA ATIVA) ---
+// Componente SocialServiceSessionForm removido na refatoração (v2.1)
+// O formulário de Busca Ativa agora é integrado ao SocialServiceSpecificDashboard.
 
-const SocialServiceSessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, currentUser }) => {
-    const [students, setStudents] = useState<Student[]>([]);
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-    const [socialData, setSocialData] = useState<SocialServiceForm>(initialSocialForm);
-    const [lastUpdate, setLastUpdate] = useState('');
-    const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-
-    // GATEKEEPER: Apenas Assistente Social
-    const isSocialWorker = currentUser.specialty === Specialty.SOCIAL_WORK || currentUser.role === 'ADMIN';
-
-    useEffect(() => {
-        SupabaseService.getStudents().then(setStudents);
-    }, []);
-
-    useEffect(() => {
-        if (selectedStudent && isSocialWorker) {
-            const data = extractSocialData(selectedStudent);
-            setSocialData(data.formData);
-            setLastUpdate(data.lastUpdate);
-        }
-    }, [selectedStudent, isSocialWorker]);
-
-    const handleStudentSelect = (id: string) => {
-        const student = students.find(s => s.id === id);
-        setSelectedStudent(student || null);
-    };
-
-    const handleChange = (section: keyof SocialServiceForm, field: string, value: any) => {
-        setSocialData(prev => ({
-            ...prev,
-            [section]: { ...prev[section], [field]: value }
-        }));
-    };
-
-    const toggleMultiSelect = (section: keyof SocialServiceForm, field: string, item: string) => {
-        setSocialData(prev => {
-            const list = (prev[section] as any)[field] as string[];
-            const newList = list.includes(item) ? list.filter(i => i !== item) : [...list, item];
-            return {
-                ...prev,
-                [section]: { ...prev[section], [field]: newList }
-            };
-        });
-    };
-
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedStudent) return;
-
-        try {
-            const now = new Date().toISOString();
-            const dataToSave: SocialServicePrivateData = {
-                formData: socialData,
-                lastUpdate: now,
-                professionalName: currentUser.name
-            };
-
-            // 1. Update Student Record (Private Data)
-            const updatedStudent = {
-                ...selectedStudent,
-                clinical: {
-                    ...selectedStudent.clinical,
-                    social_data: dataToSave
-                }
-            };
-            await SupabaseService.saveStudent(updatedStudent);
-            setLastUpdate(now);
-
-            // 2. Create History Log (Session)
-            const historyRecord: Session = {
-                id: crypto.randomUUID(),
-                date: now.split('T')[0],
-                specialty: Specialty.SOCIAL_WORK,
-                professionalName: currentUser.name,
-                notes: 'Atualização do formulário de Busca Ativa Escolar.',
-                serviceType: 'Busca Ativa',
-                content: { summary: 'Atualização de formulário' }
-            };
-
-            await SupabaseService.saveSession(historyRecord, selectedStudent.id, currentUser.id);
-
-            setFeedback({ type: 'success', message: 'Busca Ativa salva com sucesso!' });
-
-            // Update local state if needed (optional for view)
-
-            setTimeout(() => setFeedback(null), 3000);
-        } catch (err) {
-            console.error(err);
-            setFeedback({ type: 'error', message: 'Erro ao salvar dados.' });
-        }
-    };
-
-    // --- FUNÇÃO DE IMPRESSÃO SOCIAL (NOVA) ---
-    const handlePrintSocial = async () => {
-        if (!selectedStudent || !isSocialWorker) return;
-
-        try {
-            const config = await SupabaseService.getPapelTimbradoConfig();
-            const renderList = (list: string[]) => list && list.length > 0 ? list.join(', ') : 'Nenhum selecionado';
-
-            const contentHTML = `
-                                                                                                    <div style="text-align:center; margin-bottom:20px; font-weight:bold; color:#0e7490; background:#ecfeff; padding:10px; border-radius:8px; border:1px solid #0891b2;">
-                                                                                                        STATUS DO CASO: ${socialData.observacoes.statusCaso || 'Em Acompanhamento'}
-                                                                                                    </div>
-
-                                                                                                    <h2 class="section-title">I. IDENTIFICAÇÃO E ESCOLA</h2>
-                                                                                                    <div class="box">
-                                                                                                        <div class="data-row"><span class="label">ALUNO MATRICULADO?</span><span class="value">${socialData.identificacao.matriculadoAtualmente || '-'}</span></div>
-                                                                                                        <div class="data-row"><span class="label">ESCOLA ATUAL</span><span class="value">${socialData.identificacao.nomeEscolaAtual || '-'}</span></div>
-                                                                                                    </div>
-
-                                                                                                    <h2 class="section-title">II. HISTÓRICO ESCOLAR</h2>
-                                                                                                    <div class="box">
-                                                                                                        <div class="data-row"><span class="label">ÚLTIMA ESCOLA</span><span class="value">${socialData.historicoEscolar.ultimaEscola || '-'}</span></div>
-                                                                                                        <div class="data-row"><span class="label">ANO QUE PAROU</span><span class="value">${socialData.historicoEscolar.anoParou || '-'}</span></div>
-                                                                                                        <div class="data-row"><span class="label">MOTIVOS DA EVASÃO</span><span class="value">${renderList(socialData.historicoEscolar.motivoSaida)}</span></div>
-                                                                                                        ${socialData.historicoEscolar.motivoSaidaOutros ? `<div class="data-row"><span class="label">OUTROS MOTIVOS</span><span class="value">${socialData.historicoEscolar.motivoSaidaOutros}</span></div>` : ''}
-                                                                                                    </div>
-
-                                                                                                    <h2 class="section-title">III. CONDIÇÕES SOCIAIS</h2>
-                                                                                                    <div class="box">
-                                                                                                        <div class="data-row"><span class="label">RESPONSÁVEIS LEGAIS</span><span class="value">${socialData.condicoesSociais.responsaveisLegais || '-'}</span></div>
-                                                                                                        <div class="data-row"><span class="label">FONTE DE RENDA</span><span class="value">${socialData.condicoesSociais.fonteRenda || '-'}</span></div>
-                                                                                                        <div class="data-row"><span class="label">PROGRAMAS SOCIAIS</span><span class="value">${renderList(socialData.condicoesSociais.programasSociais)}</span></div>
-                                                                                                        <div class="data-row" style="margin-top:5px;"><span class="label" style="color:#b91c1c;">SITUAÇÕES DE RISCO</span><span class="value">${renderList(socialData.condicoesSociais.situacoesEnfrentadas)}</span></div>
-                                                                                                    </div>
-
-                                                                                                    <h2 class="section-title">IV. SAÚDE</h2>
-                                                                                                    <div class="box">
-                                                                                                        <div class="data-row">
-                                                                                                            <span class="label">ACOMP. MÉDICO / PSI</span>
-                                                                                                            <span class="value">${socialData.saude.acompanhamentoMedico || '-'} / ${socialData.saude.acompanhamentoPsi || '-'}</span>
-                                                                                                        </div>
-                                                                                                        <div class="data-row"><span class="label">MEDICAÇÃO</span><span class="value">${socialData.saude.medicacaoContinua || 'Não informada'}</span></div>
-                                                                                                        <div class="data-row"><span class="label">REDE DE APOIO (CAPS/CRAS/CONSELHO)</span><span class="value">${socialData.saude.atendidoCapsCras || '-'} / ${socialData.saude.conselhoTutelar || '-'}</span></div>
-                                                                                                    </div>
-
-                                                                                                    <h2 class="section-title">V. SITUAÇÃO ATUAL</h2>
-                                                                                                    <div class="box">
-                                                                                                        <div class="data-row"><span class="label">DESEJO DE RETORNO / APOIO FAMILIAR</span><span class="value">${socialData.situacaoAtual.desejoRetornar || '-'} / ${socialData.situacaoAtual.familiaApoia || '-'}</span></div>
-                                                                                                        <div class="data-row"><span class="label">FATORES DIFICULTADORES</span><span class="value">${renderList(socialData.situacaoAtual.fatoresDificultam)}</span></div>
-                                                                                                    </div>
-
-                                                                                                    <h2 class="section-title">VI. PARECER TÉCNICO / OBSERVAÇÕES</h2>
-                                                                                                    <div class="box">
-                                                                                                        <div class="value" style="white-space: pre-wrap;">${socialData.observacoes.textoLivre || 'Sem observações adicionais.'}</div>
-                                                                                                        <div style="margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top:10px;"><span class="label">ENCAMINHAMENTOS SUGERIDOS</span><span class="value">${renderList(socialData.observacoes.acoesRecomendadas)}</span></div>
-                                                                                                    </div>
-                                                                                                    `;
-
-            const html = generateClinicalPrintHTML(
-                selectedStudent,
-                config,
-                'Busca Ativa Escolar - Relatório Social',
-                contentHTML,
-                { name: currentUser.name, jobTitle: currentUser.jobTitle || 'Assistente Social', specialty: currentUser.specialty, signatureUrl: currentUser.signatureUrl }
-            );
-
-            const printWindow = window.open('', '_blank', 'width=900,height=600');
-            if (!printWindow) return;
-            printWindow.document.write(html);
-            printWindow.document.close();
-            setTimeout(() => {
-                printWindow.focus();
-                printWindow.print();
-                printWindow.close();
-            }, 500);
-        } catch (e) {
-            console.error('Erro ao gerar impressão:', e);
-            alert('Erro ao carregar configurações de papel timbrado.');
-        }
-    };
-
-    if (!isSocialWorker) {
-        return (
-            <div className="p-10 flex flex-col items-center justify-center text-center">
-                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4 text-red-600"><Lock size={40} /></div>
-                <h3 className="text-xl font-bold text-slate-800">Acesso Restrito</h3>
-                <p className="text-slate-500 max-w-md mt-2">Este módulo é exclusivo para profissionais de Serviço Social. Entre em contato com o administrador se acredita que isso é um erro.</p>
-                <button onClick={onCancel} className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900">Voltar</button>
-            </div>
-        );
-    }
-
-    return (
-        <div className="max-w-5xl mx-auto animate-fadeIn pb-12">
-            {feedback && (
-                <div className={`fixed top-20 right-6 z-50 px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 ${feedback.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-                    {feedback.type === 'success' ? <CheckCircle size={24} /> : <AlertTriangle size={24} />}
-                    <span className="font-bold">{feedback.message}</span>
-                </div>
-            )}
-
-            <div className="flex items-center gap-2 mb-6 text-slate-500 hover:text-cyan-600 cursor-pointer w-fit" onClick={onCancel}>
-                <X size={18} /> Cancelar e Voltar
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-900 to-cyan-900 text-white p-8">
-                    <div className="flex justify-between items-start md:items-center">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20"><Heart size={32} className="text-cyan-200" /></div>
-                            <div>
-                                <h2 className="text-2xl font-bold uppercase tracking-wide">Busca Ativa Escolar</h2>
-                                <p className="text-cyan-100 opacity-90 text-sm mt-1">Formulário Oficial de Acompanhamento Social</p>
-                            </div>
-                        </div>
-                        {selectedStudent && (
-                            <button
-                                onClick={handlePrintSocial}
-                                className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-all backdrop-blur-sm border border-white/20 shadow-lg"
-                            >
-                                <Printer size={16} /> Imprimir Relatório
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {!selectedStudent ? (
-                    <div className="p-12 text-center bg-slate-50">
-                        <h3 className="text-lg font-bold text-slate-700 mb-4">Selecione o aluno para iniciar a Busca Ativa</h3>
-                        <div className="relative w-full max-w-md mx-auto">
-                            <select className="block w-full rounded-xl border-slate-300 p-4 pl-12 border bg-white shadow-sm" onChange={(e) => handleStudentSelect(e.target.value)} value="">
-                                <option value="">Buscar aluno...</option>
-                                {students.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-                            </select>
-                            <Search className="absolute left-4 top-5 text-slate-400" size={20} />
-                        </div>
-                    </div>
-                ) : (
-                    <form onSubmit={handleSave} className="p-8 space-y-8 bg-slate-50">
-                        {lastUpdate && (
-                            <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-xs text-blue-800 flex items-center gap-2 mb-4 font-medium">
-                                <History size={14} /> Última atualização em {new Date(lastUpdate).toLocaleString()} por um profissional autorizado.
-                            </div>
-                        )}
-
-                        {/* I. Identificação */}
-                        <div className="bg-white rounded-xl shadow-sm border-l-4 border-l-cyan-600 border-y border-r border-slate-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                                <UserIcon size={20} className="text-cyan-700" />
-                                <h3 className="font-bold text-lg text-cyan-900">I. Identificação do Aluno</h3>
-                            </div>
-                            <div className="p-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
-                                    <div><span className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Nome</span> <span className="font-bold text-slate-900 text-lg">{selectedStudent.fullName}</span></div>
-                                    <div><span className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Idade</span> <span className="font-bold text-slate-900">{new Date().getFullYear() - new Date(selectedStudent.birthDate).getFullYear()} anos</span></div>
-                                    <div><span className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Responsável</span> <span className="font-bold text-slate-900">{selectedStudent.guardians[0]?.name}</span></div>
-                                    <div><span className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Endereço</span> <span className="font-bold text-slate-900">{selectedStudent.address.street}, {selectedStudent.address.number}</span></div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <StyledInput label="Está matriculado atualmente?" value={socialData.identificacao.matriculadoAtualmente} onChange={(e: any) => handleChange('identificacao', 'matriculadoAtualmente', e.target.value)} placeholder="Sim / Não" />
-                                    <StyledInput label="Nome da Escola Atual (se houver)" value={socialData.identificacao.nomeEscolaAtual} onChange={(e: any) => handleChange('identificacao', 'nomeEscolaAtual', e.target.value)} />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* II. Histórico Escolar */}
-                        <div className="bg-white rounded-xl shadow-sm border-l-4 border-l-cyan-600 border-y border-r border-slate-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                                <Layout size={20} className="text-cyan-700" />
-                                <h3 className="font-bold text-lg text-cyan-900">II. Histórico Escolar</h3>
-                            </div>
-                            <div className="p-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <StyledInput label="Já frequentou escola?" value={socialData.historicoEscolar.frequentouEscola} onChange={(e: any) => handleChange('historicoEscolar', 'frequentouEscola', e.target.value)} />
-                                    <StyledInput label="Última Escola" value={socialData.historicoEscolar.ultimaEscola} onChange={(e: any) => handleChange('historicoEscolar', 'ultimaEscola', e.target.value)} />
-                                    <StyledInput label="Último Ano Cursado" value={socialData.historicoEscolar.ultimoAno} onChange={(e: any) => handleChange('historicoEscolar', 'ultimoAno', e.target.value)} />
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <StyledInput label="Ano em que parou" value={socialData.historicoEscolar.anoParou} onChange={(e: any) => handleChange('historicoEscolar', 'anoParou', e.target.value)} />
-                                    <StyledInput label="Idade em que saiu" value={socialData.historicoEscolar.idadeSaiu} onChange={(e: any) => handleChange('historicoEscolar', 'idadeSaiu', e.target.value)} />
-                                </div>
-                                <div className="mt-6">
-                                    <label className="block text-sm font-bold text-slate-800 uppercase mb-3 border-b border-slate-100 pb-2">Motivo(s) da Saída</label>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        {['Falta de transporte', 'Doença', 'Gravidez', 'Trabalho', 'Mudança de endereço', 'Violência na escola', 'Dificuldade de aprendizado', 'Bullying'].map(opt => (
-                                            <label key={opt} className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border transition-all ${socialData.historicoEscolar.motivoSaida.includes(opt) ? 'bg-cyan-600 border-cyan-700 text-white shadow-md' : 'bg-white border-slate-200 hover:border-cyan-300 text-slate-600'}`}>
-                                                <input type="checkbox" checked={socialData.historicoEscolar.motivoSaida.includes(opt)} onChange={() => toggleMultiSelect('historicoEscolar', 'motivoSaida', opt)} className="hidden" />
-                                                <span className="text-sm font-semibold">{opt}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                    <div className="mt-4"><StyledInput label="Outros Motivos" value={socialData.historicoEscolar.motivoSaidaOutros} onChange={(e: any) => handleChange('historicoEscolar', 'motivoSaidaOutros', e.target.value)} /></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* III. Condições Sociais */}
-                        <div className="bg-white rounded-xl shadow-sm border-l-4 border-l-cyan-600 border-y border-r border-slate-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                                <Users size={20} className="text-cyan-700" />
-                                <h3 className="font-bold text-lg text-cyan-900">III. Condições Familiares e Sociais</h3>
-                            </div>
-                            <div className="p-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <StyledInput label="Responsáveis Legais" value={socialData.condicoesSociais.responsaveisLegais} onChange={(e: any) => handleChange('condicoesSociais', 'responsaveisLegais', e.target.value)} />
-                                    <StyledInput label="Principal Fonte de Renda" value={socialData.condicoesSociais.fonteRenda} onChange={(e: any) => handleChange('condicoesSociais', 'fonteRenda', e.target.value)} />
-                                </div>
-                                <div className="mt-4">
-                                    <label className="block text-sm font-bold text-slate-800 uppercase mb-3 border-b border-slate-100 pb-2">Programas Sociais</label>
-                                    <div className="flex gap-4 flex-wrap">
-                                        {['Bolsa Família', 'BPC', 'CRAS', 'Tarifa Social'].map(opt => (
-                                            <label key={opt} className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border transition-all ${socialData.condicoesSociais.programasSociais.includes(opt) ? 'bg-green-600 border-green-700 text-white shadow-md' : 'bg-white border-slate-200 hover:border-green-300 text-slate-600'}`}>
-                                                <input type="checkbox" checked={socialData.condicoesSociais.programasSociais.includes(opt)} onChange={() => toggleMultiSelect('condicoesSociais', 'programasSociais', opt)} className="hidden" />
-                                                <span className="text-sm font-semibold">{opt}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                                    <StyledInput label="Deficiência na Casa (Quem?)" value={socialData.condicoesSociais.deficienciaCasa} onChange={(e: any) => handleChange('condicoesSociais', 'deficienciaCasa', e.target.value)} />
-                                    <StyledInput label="Deficiência na Criança (Qual?)" value={socialData.condicoesSociais.criancaDeficiencia} onChange={(e: any) => handleChange('condicoesSociais', 'criancaDeficiencia', e.target.value)} />
-                                </div>
-                                <div className="mt-6 p-4 bg-red-50 rounded-lg border border-red-100">
-                                    <label className="block text-sm font-bold text-red-700 uppercase mb-3 flex items-center gap-2">
-                                        <AlertTriangle size={16} /> Situações de Risco Enfrentadas
-                                    </label>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        {['Situação de Rua', 'Violência Doméstica', 'Trabalho Infantil', 'Dependência Química', 'Conflito com Lei', 'Abuso Sexual', 'Negligência'].map(opt => (
-                                            <label key={opt} className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border transition-all ${socialData.condicoesSociais.situacoesEnfrentadas.includes(opt) ? 'bg-red-600 border-red-700 text-white shadow-md' : 'bg-white border-slate-200 hover:border-red-300 text-slate-600'}`}>
-                                                <input type="checkbox" checked={socialData.condicoesSociais.situacoesEnfrentadas.includes(opt)} onChange={() => toggleMultiSelect('condicoesSociais', 'situacoesEnfrentadas', opt)} className="hidden" />
-                                                <span className="text-sm font-semibold">{opt}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* IV. Saúde */}
-                        <div className="bg-white rounded-xl shadow-sm border-l-4 border-l-cyan-600 border-y border-r border-slate-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                                <Activity size={20} className="text-cyan-700" />
-                                <h3 className="font-bold text-lg text-cyan-900">IV. Situação de Saúde</h3>
-                            </div>
-                            <div className="p-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <StyledInput label="Acomp. Médico Regular?" value={socialData.saude.acompanhamentoMedico} onChange={(e: any) => handleChange('saude', 'acompanhamentoMedico', e.target.value)} placeholder="Sim/Não" />
-                                    <StyledInput label="Medicação Contínua?" value={socialData.saude.medicacaoContinua} onChange={(e: any) => handleChange('saude', 'medicacaoContinua', e.target.value)} placeholder="Sim/Não e Qual" />
-                                    <StyledInput label="Acomp. Psicológico?" value={socialData.saude.acompanhamentoPsi} onChange={(e: any) => handleChange('saude', 'acompanhamentoPsi', e.target.value)} placeholder="Sim/Não" />
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <StyledInput label="Já acionou Conselho Tutelar?" value={socialData.saude.conselhoTutelar} onChange={(e: any) => handleChange('saude', 'conselhoTutelar', e.target.value)} />
-                                    <StyledInput label="Atendido por CAPS/CRAS?" value={socialData.saude.atendidoCapsCras} onChange={(e: any) => handleChange('saude', 'atendidoCapsCras', e.target.value)} />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* V. Situação Atual */}
-                        <div className="bg-white rounded-xl shadow-sm border-l-4 border-l-cyan-600 border-y border-r border-slate-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                                <Flag size={20} className="text-cyan-700" />
-                                <h3 className="font-bold text-lg text-cyan-900">V. Situação Atual e Retorno</h3>
-                            </div>
-                            <div className="p-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <StyledInput label="Desejo de Retornar à Escola?" value={socialData.situacaoAtual.desejoRetornar} onChange={(e: any) => handleChange('situacaoAtual', 'desejoRetornar', e.target.value)} />
-                                    <StyledInput label="Família Apoia o Retorno?" value={socialData.situacaoAtual.familiaApoia} onChange={(e: any) => handleChange('situacaoAtual', 'familiaApoia', e.target.value)} />
-                                </div>
-                                <div className="mt-4">
-                                    <label className="block text-sm font-bold text-slate-800 uppercase mb-3 border-b border-slate-100 pb-2">Fatores que Dificultam</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {['Falta de Vaga', 'Distância', 'Falta de Transporte', 'Necessidade de Trabalhar', 'Bullying', 'Doença na Família'].map(opt => (
-                                            <label key={opt} className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border transition-all ${socialData.situacaoAtual.fatoresDificultam.includes(opt) ? 'bg-orange-500 border-orange-600 text-white shadow-md' : 'bg-white border-slate-200 hover:border-orange-300 text-slate-600'}`}>
-                                                <input type="checkbox" checked={socialData.situacaoAtual.fatoresDificultam.includes(opt)} onChange={() => toggleMultiSelect('situacaoAtual', 'fatoresDificultam', opt)} className="hidden" />
-                                                <span className="text-sm font-semibold">{opt}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                    <div className="mt-4"><StyledInput label="Outros Fatores" value={socialData.situacaoAtual.fatoresDificultamOutros} onChange={(e: any) => handleChange('situacaoAtual', 'fatoresDificultamOutros', e.target.value)} /></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* VI. Observações */}
-                        <div className="bg-white rounded-xl shadow-sm border-l-4 border-l-cyan-600 border-y border-r border-slate-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                                <FileText size={20} className="text-cyan-700" />
-                                <h3 className="font-bold text-lg text-cyan-900">VI. Observações e Encaminhamentos</h3>
-                            </div>
-                            <div className="p-6">
-                                <div className="mb-4">
-                                    <label className="block text-sm font-bold text-slate-800 uppercase mb-1.5 ml-1">Status do Caso</label>
-                                    <select
-                                        className="w-full rounded-lg border-slate-300 bg-slate-50 p-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-cyan-500 transition-all"
-                                        value={socialData.observacoes.statusCaso}
-                                        onChange={(e) => handleChange('observacoes', 'statusCaso', e.target.value)}
-                                    >
-                                        <option>Em Acompanhamento</option>
-                                        <option>Aguardando Visita</option>
-                                        <option>Encaminhado para Rede</option>
-                                        <option>Concluído / Arquivado</option>
-                                    </select>
-                                </div>
-                                <StyledInput label="Considerações Relevantes (Texto Livre)" rows={6} value={socialData.observacoes.textoLivre} onChange={(e: any) => handleChange('observacoes', 'textoLivre', e.target.value)} />
-                                <div className="mt-4">
-                                    <label className="block text-sm font-bold text-slate-800 uppercase mb-3 border-b border-slate-100 pb-2">Ações Recomendadas</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {['Encaminhamento ao CRAS', 'Encaminhamento à Saúde', 'Visita da Escola', 'Contato com Conselho Tutelar', 'Matrícula Imediata', 'Inserção em Programas Sociais'].map(opt => (
-                                            <label key={opt} className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border transition-all ${socialData.observacoes.acoesRecomendadas.includes(opt) ? 'bg-cyan-700 border-cyan-800 text-white shadow-md' : 'bg-white border-slate-200 hover:border-cyan-300 text-slate-600'}`}>
-                                                <input type="checkbox" checked={socialData.observacoes.acoesRecomendadas.includes(opt)} onChange={() => toggleMultiSelect('observacoes', 'acoesRecomendadas', opt)} className="hidden" />
-                                                <span className="text-sm font-semibold">{opt}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-4 sticky bottom-4">
-                            <button type="submit" className="px-8 py-4 bg-cyan-700 text-white rounded-xl shadow-xl hover:bg-cyan-800 font-bold flex items-center gap-2 transition-transform hover:-translate-y-1 text-lg">
-                                <Save size={24} /> Salvar Busca Ativa
-                            </button>
-                        </div>
-                    </form>
-                )}
-            </div>
-        </div>
-    );
-};
 
 // --- EXPORTS DE PÁGINAS ---
 export const PsychologyDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student }> = (props) => (
@@ -6157,12 +6112,10 @@ export const PsychologySessionFormPage: React.FC<{ onCancel: () => void; current
     <PsychologySessionForm specialty={Specialty.PSYCHOLOGY} {...props} />
 );
 
-export const SocialServiceDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student }> = (props) => (
-    <SocialServiceSpecificDashboard title="Serviço Social" specialty={Specialty.SOCIAL_WORK} {...props} />
-);
+// (Definição duplicada movida para o final do arquivo)
 
-export const SocialServiceSessionFormPage: React.FC<{ onCancel: () => void; currentUser: User }> = (props) => (
-    <SocialServiceSessionForm specialty={Specialty.SOCIAL_WORK} {...props} />
+export const SocialServiceSessionFormPage: React.FC<{ onCancel: () => void; currentUser: User; preSelectedStudent?: Student }> = (props) => (
+    <SocialServiceSpecificDashboard title="Serviço Social" specialty={Specialty.SOCIAL_WORK} onNavigateNew={() => { }} {...props} />
 );
 
 export const SpeechTherapyDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; autoOpenSession?: boolean }> = (props) => (
@@ -6693,12 +6646,14 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
     );
 };
 
-export const NutritionDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; autoOpenSession?: boolean }> = (props) => (
-    <NutritionSpecificDashboard title="Nutrição Clínica" specialty={Specialty.NUTRITION} {...props} />
+export const SocialServiceDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; autoOpenSession?: boolean; allStudents?: Student[] }> = (props) => (
+    <SocialServiceSpecificDashboard title="Serviço Social" specialty={Specialty.SOCIAL_WORK} {...props} />
 );
 
 export const NutritionSessionFormPage: React.FC<{ onCancel: () => void; currentUser: User; preSelectedStudent?: Student }> = (props) => (
-    <NutritionDashboardPage onNavigateNew={() => { }} currentUser={props.currentUser} preSelectedStudent={props.preSelectedStudent} />
+    <NutritionSpecificDashboard title="Nutrição" specialty={Specialty.NUTRITION} onNavigateNew={() => { }} currentUser={props.currentUser} preSelectedStudent={props.preSelectedStudent} />
 );
+
+export const NutritionDashboardPage = NutritionSpecificDashboard;
 
 
