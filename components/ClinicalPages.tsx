@@ -184,36 +184,41 @@ const extractPsychData = (student: Student): PsychPrivateData => {
 };
 
 // --- REUSABLE COMPONENTS ---
-const StyledInput = ({ label, value, onChange, type = "text", rows }: any) => (
-    <div className="mb-4">
-        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{label}</label>
+const StyledInput = ({ label, value, onChange, type = "text", rows, placeholder }: any) => (
+    <div className="mb-6 group">
+        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 group-focus-within:text-cyan-600 transition-colors">{label}</label>
         {rows ? (
             <textarea
-                className="w-full rounded-xl border-slate-300 p-3 focus:ring-2 focus:ring-cyan-500 min-h-[80px]"
+                className="w-full rounded-2xl border-slate-200 bg-slate-50/50 p-4 text-slate-700 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 outline-none transition-all min-h-[120px] shadow-sm hover:border-slate-300"
                 rows={rows}
                 value={value}
                 onChange={onChange}
+                placeholder={placeholder}
             />
         ) : (
             <input
                 type={type}
-                className="w-full rounded-xl border-slate-300 p-3 focus:ring-2 focus:ring-cyan-500"
+                className="w-full rounded-2xl border-slate-200 bg-slate-50/50 p-4 text-slate-700 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 outline-none transition-all shadow-sm hover:border-slate-300"
                 value={value}
                 onChange={onChange}
+                placeholder={placeholder}
             />
         )}
     </div>
 );
 
-const FormSection = ({ title, icon: Icon, children, color = "text-slate-700" }: any) => (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
-        <h4 className={`text-sm font-black uppercase tracking-widest mb-6 flex items-center gap-3 ${color}`}>
-            <div className="p-2 bg-slate-50 rounded-xl text-slate-400">
-                {Icon && <Icon size={18} />}
+const FormSection = ({ title, icon: Icon, children, color = "text-slate-800" }: any) => (
+    <div className="bg-gradient-to-br from-white to-slate-50/30 p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 transition-all hover:shadow-2xl hover:shadow-slate-300/50 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity pointer-events-none">
+            {Icon && <Icon size={120} />}
+        </div>
+        <h4 className={`text-base font-black uppercase tracking-[0.2em] mb-8 flex items-center gap-4 ${color}`}>
+            <div className="p-3 bg-white rounded-2xl text-cyan-600 shadow-header border border-slate-100/50 group-hover:scale-110 transition-transform">
+                {Icon && <Icon size={22} strokeWidth={2.5} />}
             </div>
             {title}
         </h4>
-        <div className="space-y-4">
+        <div className="space-y-6 relative z-10">
             {children}
         </div>
     </div>
@@ -221,20 +226,23 @@ const FormSection = ({ title, icon: Icon, children, color = "text-slate-700" }: 
 
 
 const TriStateField = ({ label, value, onChange }: any) => (
-    <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-        <span className="text-sm font-bold text-slate-600">{label}</span>
-        <div className="flex bg-white rounded-lg shadow-sm border border-slate-100 p-1">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all gap-4">
+        <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${value === true ? 'bg-emerald-500' : value === false ? 'bg-rose-500' : 'bg-slate-300'} animate-pulse`} />
+            <span className="text-sm font-black text-slate-700 uppercase tracking-wider">{label}</span>
+        </div>
+        <div className="flex bg-slate-100/80 backdrop-blur-md rounded-2xl p-1.5 border border-slate-200/50 w-full sm:w-auto">
             <button
                 type="button"
                 onClick={() => onChange(true)}
-                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${value === true ? 'bg-emerald-100 text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${value === true ? 'bg-white text-emerald-600 shadow-lg shadow-emerald-500/10 scale-105' : 'text-slate-400 hover:text-slate-600'}`}
             >
                 SIM
             </button>
             <button
                 type="button"
                 onClick={() => onChange(false)}
-                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${value === false ? 'bg-rose-100 text-rose-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${value === false ? 'bg-white text-rose-600 shadow-lg shadow-rose-500/10 scale-105' : 'text-slate-400 hover:text-slate-600'}`}
             >
                 NÃO
             </button>
@@ -4438,31 +4446,40 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 };
 
 // --- COMPONENTES AUXILIARES SOCIAL ---
+// --- COMPONENTES AUXILIARES SOCIAL ---
 const SocialSection = ({ title, isOpen, onToggle, children, icon: Icon, color = 'cyan' }: any) => {
+    const colorMap: any = {
+        cyan: 'text-cyan-600 bg-cyan-50 border-cyan-100 ring-cyan-50',
+        indigo: 'text-indigo-600 bg-indigo-50 border-indigo-100 ring-indigo-50',
+        blue: 'text-blue-600 bg-blue-50 border-blue-100 ring-blue-50',
+        purple: 'text-purple-600 bg-purple-50 border-purple-100 ring-purple-50'
+    };
+
+    const activeColor = colorMap[color] || colorMap.cyan;
+
     return (
-        <div className={`border border-slate-200 rounded-2xl bg-white overflow-hidden transition-all duration-300 shadow-sm ${isOpen ? 'ring-2 ring-cyan-100 shadow-md' : 'hover:shadow'}`}>
+        <div className={`rounded-[2.5rem] bg-white border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-slate-300/40 group ${isOpen ? 'ring-4 ring-slate-100/50' : ''}`}>
             <button
                 onClick={onToggle}
                 type="button"
-                className={`w-full flex items-center justify-between p-5 text-left transition-colors ${isOpen ? 'bg-slate-50' : 'bg-white hover:bg-slate-50'}`}
+                className={`w-full flex items-center justify-between p-8 text-left transition-all duration-300 ${isOpen ? 'bg-slate-50/50' : 'bg-white hover:bg-slate-50'}`}
             >
-                <div className="flex items-center gap-4">
-                    <div className={`p-2.5 rounded-xl ${isOpen ? `bg-${color}-100 text-${color}-700` : 'bg-slate-100 text-slate-500'}`}>
-                        {Icon && <Icon size={20} />}
+                <div className="flex items-center gap-6">
+                    <div className={`p-4 rounded-2xl shadow-inner transition-all duration-500 ${isOpen ? activeColor : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'}`}>
+                        {Icon && <Icon size={24} strokeWidth={2.5} />}
                     </div>
                     <div>
-                        <h3 className={`font-bold text-lg ${isOpen ? 'text-slate-800' : 'text-slate-600'}`}>{title}</h3>
-                        {isOpen && <div className="h-1 w-12 bg-cyan-400 rounded-full mt-1"></div>}
+                        <h3 className={`text-lg font-black uppercase tracking-widest transition-colors duration-300 ${isOpen ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-700'}`}>{title}</h3>
+                        {isOpen && <div className={`h-1.5 w-12 bg-gradient-to-r from-${color}-500 to-${color}-300 rounded-full mt-2 shadow-sm animate-pulse`}></div>}
                     </div>
                 </div>
-                <div className={`text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-                    <ChevronDown size={20} />
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${isOpen ? 'bg-slate-900 text-white rotate-180' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'}`}>
+                    <ChevronDown size={20} strokeWidth={3} />
                 </div>
             </button>
 
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                <div className="p-6 border-t border-slate-100">
-                    {/* Error Barrier: If socialData is missing deep props, this might crash. But we normalized it. */}
+            <div className={`transition-all duration-700 ease-in-out overflow-hidden ${isOpen ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="p-10 border-t border-slate-100 bg-white/50 backdrop-blur-sm">
                     {children}
                 </div>
             </div>
@@ -4831,135 +4848,160 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                 </div>
             )}
             {!selectedStudent ? (
-                <div className="space-y-8">
-                    {/* Header */}
-                    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 to-cyan-900 p-8 text-white shadow-xl">
-                        <div className="absolute top-0 right-0 p-4 opacity-10"><Heart size={200} /></div>
-                        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                            <div>
-                                <h2 className="text-3xl font-extrabold flex items-center gap-3"><Heart className="text-cyan-300" /> {title}</h2>
-                                <p className="text-cyan-100 mt-2 font-medium">Busca Ativa Escolar e Proteção Social.</p>
+                <div className="space-y-10">
+                    {/* Premium Header */}
+                    <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-10 text-white shadow-2xl border border-white/5 group">
+                        <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] group-hover:bg-cyan-500/20 transition-all duration-700" />
+                        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] group-hover:bg-indigo-500/20 transition-all duration-700" />
+
+                        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+                            <div className="animate-slideRight">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg">
+                                        <Heart className="text-cyan-400 group-hover:scale-110 transition-transform" size={28} />
+                                    </div>
+                                    <h2 className="text-3xl font-black tracking-tight uppercase">{title}</h2>
+                                </div>
+                                <p className="text-slate-300 font-medium text-lg leading-relaxed max-w-md">Busca Ativa Escolar e Proteção Social com excelência e cuidado.</p>
                             </div>
 
-                            <div className="flex items-center gap-4">
-                                <div className="bg-white/10 backdrop-blur-md rounded-xl p-1 flex">
+                            <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto animate-slideLeft">
+                                <div className="bg-white/5 backdrop-blur-xl rounded-[1.5rem] p-1.5 flex border border-white/10 shadow-inner w-full sm:w-auto">
                                     <button
                                         onClick={() => setViewMode('overview')}
-                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'overview' ? 'bg-white text-blue-900 shadow-md' : 'text-white hover:bg-white/10'}`}
+                                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-500 ${viewMode === 'overview' ? 'bg-white text-slate-900 shadow-xl scale-105' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}
                                     >
                                         Visão Geral
                                     </button>
                                     <button
                                         onClick={() => setViewMode('agenda')}
-                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'agenda' ? 'bg-white text-blue-900 shadow-md' : 'text-white hover:bg-white/10'}`}
+                                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-500 ${viewMode === 'agenda' ? 'bg-white text-slate-900 shadow-xl scale-105' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}
                                     >
                                         Minha Agenda
                                     </button>
                                 </div>
 
-                                <div className="relative w-full md:w-64">
-                                    <Search className="absolute left-4 top-3.5 text-cyan-300" size={18} />
+                                <div className="relative w-full sm:w-72 group/search">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 opacity-50 group-focus-within/search:opacity-100 transition-opacity" size={20} />
                                     <select
-                                        className="w-full bg-white/20 backdrop-blur-md border border-white/30 rounded-xl p-3 pl-12 text-white outline-none focus:ring-2 focus:ring-white/50 text-sm font-medium"
+                                        className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 pl-12 text-white outline-none focus:ring-4 focus:ring-cyan-500/20 focus:border-white/20 text-sm font-black uppercase tracking-widest appearance-none cursor-pointer transition-all hover:bg-white/10"
                                         onChange={(e) => {
                                             const s = students.find(st => st.id === e.target.value);
                                             if (s) setSelectedStudent(s);
                                         }}
                                         value=""
                                     >
-                                        <option value="" className="text-slate-800">Acesso Rápido ao Aluno...</option>
-                                        {students.map(s => <option key={s.id} value={s.id} className="text-slate-800">{s.fullName}</option>)}
+                                        <option value="" className="text-slate-900">Buscar Aluno...</option>
+                                        {students.map(s => <option key={s.id} value={s.id} className="text-slate-900">{s.fullName}</option>)}
                                     </select>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
+                                        <ChevronDown size={18} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Main View Switch */}
-                    {viewMode === 'overview' ? (
-                        <>
-                            {/* Stats */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="bg-cyan-50 p-6 rounded-2xl border border-cyan-100 flex items-center gap-4">
-                                    <div className="p-4 bg-white text-cyan-600 rounded-xl shadow-sm"><Home size={24} /></div>
-                                    <div><p className="text-xs font-bold text-cyan-800 uppercase">Visitas e Atualizações</p><h3 className="text-2xl font-black text-cyan-900">{stats.totalVisits}</h3></div>
-                                </div>
-                                <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex items-center gap-4">
-                                    <div className="p-4 bg-white text-blue-600 rounded-xl shadow-sm"><Search size={24} /></div>
-                                    <div><p className="text-xs font-bold text-blue-800 uppercase">Em Acompanhamento Social</p><h3 className="text-2xl font-black text-blue-900">{stats.activeSearch}</h3></div>
-                                </div>
-                                <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 flex items-center gap-4">
-                                    <div className="p-4 bg-white text-indigo-600 rounded-xl shadow-sm"><Calendar size={24} /></div>
-                                    <div><p className="text-xs font-bold text-indigo-800 uppercase">Agendamentos Hoje</p><h3 className="text-2xl font-black text-indigo-900">{appointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length}</h3></div>
-                                </div>
+                    {viewMode === 'overview' && (
+                        <div className="space-y-10 animate-fadeIn">
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                {[
+                                    { label: 'Visitas Realizadas', val: stats.totalVisits, icon: Home, color: 'cyan', bg: 'bg-cyan-50', text: 'text-cyan-600' },
+                                    { label: 'Acompanhamentos Ativos', val: stats.activeSearch, icon: Search, color: 'blue', bg: 'bg-blue-50', text: 'text-blue-600' },
+                                    { label: 'Agendamentos Hoje', val: appointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length, icon: Calendar, color: 'indigo', bg: 'bg-indigo-50', text: 'text-indigo-600' }
+                                ].map((stat, i) => (
+                                    <div key={i} className={`p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden bg-white`}>
+                                        <div className={`p-5 rounded-2xl ${stat.bg} ${stat.text} shadow-inner group-hover:scale-110 transition-transform`}>
+                                            <stat.icon size={28} strokeWidth={2.5} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                                            <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stat.val}</h3>
+                                        </div>
+                                        <div className={`absolute -bottom-4 -right-4 w-24 h-24 ${stat.bg} opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity`} />
+                                    </div>
+                                ))}
                             </div>
 
                             {/* List with Filters */}
-                            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-                                <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
-                                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Layout size={20} className="text-slate-400" /> Histórico de Atuação Social</h3>
+                            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden group/list">
+                                <div className="p-8 border-b border-slate-100 bg-slate-50/30 flex flex-col lg:flex-row justify-between items-center gap-6">
+                                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-3 uppercase tracking-wider">
+                                        <div className="p-3 bg-white text-indigo-600 rounded-2xl shadow-header border border-slate-100/50">
+                                            <History size={22} strokeWidth={2.5} />
+                                        </div>
+                                        Histórico de Atuação Social
+                                    </h3>
 
-                                    <div className="flex items-center gap-3 w-full md:w-auto">
-                                        <div className="w-full md:w-64 z-20">
-                                            <div className="relative">
-                                                <SearchableSelect
-                                                    options={[
-                                                        { value: "", label: "Todas as Escolas" },
-                                                        ...schools.map(s => ({ value: s.id, label: s.name })).sort((a, b) => a.label.localeCompare(b.label))
-                                                    ]}
-                                                    value={selectedSchoolFilter}
-                                                    onChange={setSelectedSchoolFilter}
-                                                    placeholder="Filtrar por Escola..."
-                                                />
-                                            </div>
+                                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+                                        <div className="w-full sm:w-64 z-20">
+                                            <SearchableSelect
+                                                options={[
+                                                    { value: "", label: "Todas as Escolas" },
+                                                    ...schools.map(s => ({ value: s.id, label: s.name })).sort((a, b) => a.label.localeCompare(b.label))
+                                                ]}
+                                                value={selectedSchoolFilter}
+                                                onChange={setSelectedSchoolFilter}
+                                                placeholder="Filtrar por Escola..."
+                                            />
                                         </div>
 
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                        <div className="relative w-full sm:w-64">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                             <input
                                                 type="text"
                                                 placeholder="Filtrar aluno..."
-                                                className="pl-10 pr-4 py-2 rounded-lg border border-slate-300 text-sm w-full md:w-64 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all shadow-sm"
                                                 value={searchTerm}
                                                 onChange={e => setSearchTerm(e.target.value)}
                                             />
                                         </div>
                                     </div>
                                 </div>
-                                <div className="overflow-x-auto min-h-[300px]">
-                                    <table className="min-w-full divide-y divide-slate-100">
-                                        <thead className="bg-slate-50">
+
+                                <div className="overflow-x-auto min-h-[400px]">
+                                    <table className="min-w-full divide-y divide-slate-100 border-separate border-spacing-0">
+                                        <thead className="bg-slate-50/50 backdrop-blur-md sticky top-0 z-10 font-black">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Aluno</th>
-                                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Escola</th>
-                                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Última Visita</th>
-                                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Profissional</th>
+                                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">Aluno</th>
+                                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">Escola</th>
+                                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">Última Visita</th>
+                                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">Profissional</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-slate-100">
+                                        <tbody className="bg-white divide-y divide-slate-50">
                                             {filteredUpdates.length > 0 ? filteredUpdates.map((item, idx) => {
                                                 const studentSchool = students.find(s => s.id === item.studentId)?.school?.schoolName || 'Não vinculada';
                                                 return (
-                                                    <tr key={idx} className="hover:bg-slate-50 cursor-pointer" onClick={() => {
+                                                    <tr key={idx} className="hover:bg-slate-50/80 hover:scale-[1.002] transition-all cursor-pointer group" onClick={() => {
                                                         const s = students.find(st => st.id === item.studentId);
                                                         if (s) setSelectedStudent(s);
                                                     }}>
-                                                        <td className="px-6 py-4 font-bold text-slate-700">{item.studentName}</td>
-                                                        <td className="px-6 py-4 text-sm text-slate-500">{studentSchool}</td>
-                                                        <td className="px-6 py-4 text-sm text-slate-600">{
-                                                            (() => {
-                                                                try {
-                                                                    return item.lastUpdate ? new Date(item.lastUpdate).toLocaleDateString() : '-';
-                                                                } catch { return '-'; }
-                                                            })()
-                                                        }</td>
-                                                        <td className="px-6 py-4 text-sm text-slate-600">{item.professional}</td>
+                                                        <td className="px-8 py-5 font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{item.studentName}</td>
+                                                        <td className="px-8 py-5 text-sm font-semibold text-slate-500">{studentSchool}</td>
+                                                        <td className="px-8 py-5">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                                <span className="text-sm font-bold text-slate-700">{item.lastUpdate ? new Date(item.lastUpdate).toLocaleDateString() : '-'}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-5">
+                                                            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-100/50 px-3 py-1.5 rounded-lg w-fit">
+                                                                <UserIcon size={14} className="text-slate-400" />
+                                                                {item.professional}
+                                                            </div>
+                                                        </td>
                                                     </tr>
                                                 );
                                             }) : (
                                                 <tr>
-                                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
-                                                        Nenhum registro encontrado para os filtros selecionados.
+                                                    <td colSpan={4} className="px-6 py-20 text-center">
+                                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                                                            <Search size={32} />
+                                                        </div>
+                                                        <p className="text-slate-400 font-bold">Nenhum registro encontrado.</p>
                                                     </td>
                                                 </tr>
                                             )}
@@ -4967,62 +5009,71 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                     </table>
                                 </div>
                             </div>
-                        </>
-                    ) : (
-                        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden min-h-[600px] p-8">
-                            <div className="flex justify-between items-center mb-8">
+                        </div>
+                    )}
+
+                    {viewMode === 'agenda' && (
+                        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden min-h-[600px] p-10 animate-fadeIn">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
                                 <div>
-                                    <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3"><Calendar className="text-blue-600" /> Agenda de Atendimentos</h3>
-                                    <p className="text-slate-500 mt-1">Gerencie seus agendamentos e visitas para Serviço Social.</p>
+                                    <h3 className="text-2xl font-black text-slate-900 flex items-center gap-3 uppercase tracking-wider">
+                                        <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl shadow-header">
+                                            <Calendar size={28} strokeWidth={2.5} />
+                                        </div>
+                                        Agenda de Atendimentos
+                                    </h3>
+                                    <p className="text-slate-500 mt-2 font-medium">Gerencie seus compromissos e visitas domiciliares.</p>
                                 </div>
-                                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                                    <p className="text-xs font-bold text-blue-600 uppercase mb-1">Total Agendado</p>
-                                    <p className="text-3xl font-black text-blue-900">{appointments.length}</p>
+                                <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl border border-blue-100 flex flex-col items-center">
+                                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Total de Agendamentos</p>
+                                    <p className="text-4xl font-black text-blue-900 tracking-tighter">{appointments.length}</p>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {appointments.length > 0 ? appointments.map(app => {
                                     const student = students.find(s => s.id === app.studentId);
                                     const isToday = app.date === new Date().toISOString().split('T')[0];
 
                                     return (
-                                        <div key={app.id} className={`p-6 rounded-2xl border border-slate-200 hover:shadow-lg transition-all group ${isToday ? 'bg-indigo-50 border-indigo-200' : 'bg-white'}`}>
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className={`px-3 py-1 rounded-full text-xs font-bold ${isToday ? 'bg-indigo-200 text-indigo-800' : 'bg-slate-100 text-slate-600'}`}>
-                                                    {new Date(app.date).toLocaleDateString()}
+                                        <div key={app.id} className={`p-8 rounded-[2rem] border transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl ${isToday ? 'bg-indigo-50/50 border-indigo-200 shadow-xl shadow-indigo-100/50' : 'bg-white border-slate-100 shadow-lg shadow-slate-100/30'}`}>
+                                            <div className="flex justify-between items-start mb-6">
+                                                <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isToday ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 animate-pulse' : 'bg-slate-100 text-slate-500'}`}>
+                                                    {isToday ? 'Hoje' : new Date(app.date).toLocaleDateString()}
                                                 </div>
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${app.status === 'ATENDIDO' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{app.status}</span>
+                                                <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${app.status === 'ATENDIDO' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    {app.status}
+                                                </div>
                                             </div>
 
-                                            <h4 className="font-bold text-slate-800 text-lg mb-1">{app.studentName}</h4>
-                                            <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
-                                                <SchoolIcon size={14} />
+                                            <h4 className="font-black text-slate-900 text-xl mb-2 group-hover:text-blue-600 transition-colors">{app.studentName}</h4>
+                                            <div className="flex items-center gap-2 text-sm font-bold text-slate-400 mb-6">
+                                                <SchoolIcon size={16} />
                                                 <span className="truncate">{student?.school?.schoolName || 'Escola não informada'}</span>
                                             </div>
 
-                                            <div className="flex items-center gap-3 pt-4 border-t border-slate-100/50">
-                                                <div className="flex items-center gap-2 text-slate-600 text-sm font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200">
-                                                    <Clock size={14} /> {app.startTime} - {app.endTime}
+                                            <div className="flex items-center justify-between pt-6 border-t border-slate-200/50">
+                                                <div className="flex items-center gap-2 text-slate-700 text-sm font-black bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100">
+                                                    <Clock size={16} className="text-blue-500" /> {app.startTime}
                                                 </div>
                                                 <button
                                                     onClick={() => {
                                                         if (student) setSelectedStudent(student);
                                                     }}
-                                                    className="ml-auto text-blue-600 hover:text-blue-800 font-bold text-sm flex items-center gap-1 group-hover:underline"
+                                                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-blue-600 transition-all hover:scale-110 shadow-lg"
                                                 >
-                                                    Abrir Prontuário <ChevronRight size={16} />
+                                                    <ChevronRight size={20} strokeWidth={3} />
                                                 </button>
                                             </div>
                                         </div>
                                     );
                                 }) : (
                                     <div className="col-span-full py-20 text-center">
-                                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                                        <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300 scale-125">
                                             <Calendar size={40} />
                                         </div>
-                                        <h4 className="text-xl font-bold text-slate-400">Nenhum agendamento encontrado</h4>
-                                        <p className="text-slate-400 text-sm">Seus agendamentos aparecerão aqui.</p>
+                                        <h4 className="text-2xl font-black text-slate-900 uppercase tracking-widest">Agenda Vazia</h4>
+                                        <p className="text-slate-400 mt-2 font-medium">Nenhum agendamento para este período.</p>
                                     </div>
                                 )}
                             </div>
@@ -5030,49 +5081,71 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                     )}
                 </div>
             ) : (
-
                 <div className="bg-slate-50 min-h-screen pb-20">
                     <div className="max-w-4xl mx-auto pt-6">
-
-                        {/* Header de Ação */}
-                        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 mb-8 flex justify-between items-center sticky top-4 z-30">
-                            <div>
-                                <button onClick={() => setSelectedStudent(null)} className="flex items-center gap-2 text-xs font-bold text-cyan-600 mb-1 hover:underline"><ChevronLeft size={14} /> Voltar à Lista</button>
-                                <h3 className="text-2xl font-black text-slate-800">{selectedStudent.fullName}</h3>
-                                <p className="text-slate-500 text-sm flex items-center gap-2"><MapPin size={12} /> {selectedStudent.address?.street || 'Endereço não cadastrado'}</p>
+                        <div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-300/30 border border-white/50 p-8 mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 sticky top-6 z-40">
+                            <div className="flex items-center gap-6">
+                                <button
+                                    onClick={() => setSelectedStudent(null)}
+                                    className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all shadow-sm group"
+                                >
+                                    <ChevronLeft size={24} strokeWidth={3} className="group-hover:-translate-x-0.5 transition-transform" />
+                                </button>
+                                <div>
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <h3 className="text-3xl font-black text-slate-900 tracking-tighter">{selectedStudent.fullName}</h3>
+                                        <div className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest rounded-lg">Ativo</div>
+                                    </div>
+                                    <p className="text-slate-400 text-sm font-semibold flex items-center gap-2"><MapPin size={16} className="text-cyan-500" /> {selectedStudent.address?.street || 'Endereço não cadastrado'}</p>
+                                </div>
                             </div>
-                            <div className="flex gap-3">
-                                <button onClick={handleSaveSocial} className="bg-cyan-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-cyan-700 shadow-lg shadow-cyan-200 transition-all hover:-translate-y-0.5"><Save size={20} /> Salvar Ficha</button>
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <button
+                                    onClick={handlePrintSocialReport}
+                                    className="flex-1 md:flex-none bg-white text-slate-600 border-2 border-slate-100 px-8 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-slate-50 hover:border-slate-200 transition-all shadow-lg active:scale-95"
+                                >
+                                    <Printer size={20} strokeWidth={2.5} /> Imprimir
+                                </button>
+                                <button
+                                    onClick={handleSaveSocial}
+                                    className="flex-1 md:flex-none bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-10 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:shadow-2xl hover:shadow-blue-500/30 transition-all active:scale-95 hover:-translate-y-1 shadow-xl shadow-blue-500/20"
+                                >
+                                    <Save size={20} strokeWidth={2.5} /> Salvar Alterações
+                                </button>
                             </div>
                         </div>
 
                         <div className="space-y-4">
-
-                            {/* SEÇÃO 1: IDENTIFICAÇÃO */}
-                            <SocialSection title="1. Identificação da Visita" icon={UserIcon} isOpen={openSections.includes('identificacao')} onToggle={() => toggleSection('identificacao')} color="cyan">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data da Visita</label>
-                                        <div className="font-bold text-slate-800">{new Date(socialData.lastUpdate || new Date()).toLocaleDateString()}</div>
-                                    </div>
-                                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Profissional Responsável</label>
-                                        <div className="font-bold text-slate-800">{socialData.professionalName || currentUser.name}</div>
-                                    </div>
-                                    <div className="col-span-full">
-                                        <StyledInput label="Endereço da Família (Confirmado na Visita)" value={socialData.formData.identificacao.enderecoCompleto} onChange={e => handleInputChange('identificacao', 'enderecoCompleto', e.target.value)} />
-                                    </div>
-                                    <div className="col-span-full">
-                                        <StyledInput label="Responsável Familiar (Quem recebeu a equipe)" value={socialData.formData.identificacao.responsavelFamiliar} onChange={e => handleInputChange('identificacao', 'responsavelFamiliar', e.target.value)} />
-                                    </div>
-                                    {/* Composição Familiar simplificada como Textarea por enquanto, futuramente tabela dinâmica */}
-                                    <div className="col-span-full">
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Composição Familiar (Nome, Idade, Vínculo, Escolaridade, Ocupação)</label>
-                                        <textarea
-                                            className="w-full rounded-xl border-slate-300 p-4 min-h-[100px] focus:ring-2 focus:ring-cyan-500"
-                                            placeholder="Ex: Maria (Mãe, 35 anos, Fundamental Incompleto, Do lar)..."
-                                            value={socialData.formData.identificacao.composicaoFamiliar[0] || ''}
-                                            onChange={e => {
+                            <div className="space-y-10 animate-fadeInUp">
+                                {/* SEÇÃO 1: IDENTIFICAÇÃO */}
+                                <SocialSection title="1. Identificação da Visita" icon={UserIcon} isOpen={openSections.includes('identificacao')} onToggle={() => toggleSection('identificacao')} color="cyan">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4 group/item hover:bg-white hover:shadow-md transition-all">
+                                            <div className="p-3 bg-white text-cyan-600 rounded-2xl shadow-sm border border-slate-100 group-hover/item:scale-110 transition-transform">
+                                                <Calendar size={20} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-black">Data da Visita</label>
+                                                <div className="font-black text-slate-800 text-lg">{new Date(socialData.lastUpdate || new Date()).toLocaleDateString()}</div>
+                                            </div>
+                                        </div>
+                                        <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4 group/item hover:bg-white hover:shadow-md transition-all">
+                                            <div className="p-3 bg-white text-indigo-600 rounded-2xl shadow-sm border border-slate-100 group-hover/item:scale-110 transition-transform">
+                                                <UserIcon size={20} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-black">Profissional Responsável</label>
+                                                <div className="font-black text-slate-800 text-lg">{socialData.professionalName || currentUser.name}</div>
+                                            </div>
+                                        </div>
+                                        <div className="col-span-full">
+                                            <StyledInput label="Endereço da Família (Confirmado na Visita)" value={socialData.formData.identificacao.enderecoCompleto} onChange={e => handleInputChange('identificacao', 'enderecoCompleto', e.target.value)} />
+                                        </div>
+                                        <div className="col-span-full">
+                                            <StyledInput label="Responsável Familiar (Quem recebeu a equipe)" value={socialData.formData.identificacao.responsavelFamiliar} onChange={e => handleInputChange('identificacao', 'responsavelFamiliar', e.target.value)} />
+                                        </div>
+                                        <div className="col-span-full">
+                                            <StyledInput label="Composição Familiar (Nome, Idade, Vínculo, Escolaridade, Ocupação)" rows={4} placeholder="Ex: Maria (Mãe, 35 anos, Fundamental Incompleto, Do lar)..." value={socialData.formData.identificacao.composicaoFamiliar[0] || ''} onChange={e => {
                                                 const newVal = e.target.value;
                                                 setSocialData({
                                                     ...socialData,
@@ -5080,178 +5153,231 @@ const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                                         ...socialData.formData,
                                                         identificacao: {
                                                             ...socialData.formData.identificacao,
-                                                            composicaoFamiliar: [newVal] // Salva como primeiro item do array
+                                                            composicaoFamiliar: [newVal]
                                                         }
                                                     }
                                                 });
-                                            }}
-                                        />
-                                        <p className="text-xs text-slate-400 mt-1">Liste cada membro da família em uma nova linha ou separado por vírgulas.</p>
+                                            }} />
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 px-1">Liste cada membro da família em uma nova linha ou separado por vírgulas.</p>
+                                        </div>
+                                    </div>
+                                </SocialSection>
+
+                                {/* SEÇÃO 2: FUNDAMENTAÇÃO */}
+                                <SocialSection title="2. Fundamentação e Objetivo" icon={BookOpen} isOpen={openSections.includes('fundamentacao')} onToggle={() => toggleSection('fundamentacao')} color="indigo">
+                                    <StyledInput label="Fundamentação da Visita (Editável)" rows={8} value={socialData.formData.fundamentacao.textoBase} onChange={e => handleInputChange('fundamentacao', 'textoBase', e.target.value)} />
+                                </SocialSection>
+
+                                {/* SEÇÃO 3: EIXOS */}
+                                <SocialSection title="3. Eixos de Observação" icon={Layout} isOpen={openSections.includes('eixos')} onToggle={() => toggleSection('eixos')} color="blue">
+                                    <div className="space-y-10">
+                                        <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-slate-200/60 shadow-inner group/box">
+                                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                                                <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
+                                                3.1 Condições de Moradia e Saneamento
+                                            </h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <div className="col-span-full"><StyledInput label="Estrutura Física da Residência" value={socialData.formData.condicoesMoradia.estruturaFisica} onChange={e => handleInputChange('condicoesMoradia', 'estruturaFisica', e.target.value)} /></div>
+                                                <div className="col-span-1">
+                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Ventilação / Iluminação / Limpeza</label>
+                                                    <select
+                                                        className="w-full rounded-2xl border-slate-200 bg-white p-4 text-slate-700 font-black uppercase text-xs tracking-widest focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
+                                                        value={socialData.formData.condicoesMoradia.ventilacaoIluminacao}
+                                                        onChange={e => handleInputChange('condicoesMoradia', 'ventilacaoIluminacao', e.target.value)}
+                                                    >
+                                                        <option value="">Selecione...</option>
+                                                        <option>Adequada</option>
+                                                        <option>Parcialmente Adequada</option>
+                                                        <option>Inadequada</option>
+                                                    </select>
+                                                </div>
+                                                <div className="col-span-1">
+                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Saneamento Básico</label>
+                                                    <select
+                                                        className="w-full rounded-2xl border-slate-200 bg-white p-4 text-slate-700 font-black uppercase text-xs tracking-widest focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
+                                                        value={socialData.formData.condicoesMoradia.saneamento}
+                                                        onChange={e => handleInputChange('condicoesMoradia', 'saneamento', e.target.value)}
+                                                    >
+                                                        <option value="">Selecione...</option>
+                                                        <option>Sim</option>
+                                                        <option>Não</option>
+                                                        <option>Parcial</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-slate-200/60 shadow-inner group/box">
+                                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                                                <div className="w-1.5 h-6 bg-cyan-500 rounded-full" />
+                                                3.2 Higiene Pessoal e Cuidados
+                                            </h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <div className="col-span-full"><StyledInput label="Situação da Higiene (Crianças/Adolescentes)" value={socialData.formData.higieneCuidados.situacaoCriancas} onChange={e => handleInputChange('higieneCuidados', 'situacaoCriancas', e.target.value)} /></div>
+                                                <div className="col-span-1">
+                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Produtos de Higiene</label>
+                                                    <select
+                                                        className="w-full rounded-2xl border-slate-200 bg-white p-4 text-slate-700 font-black uppercase text-xs tracking-widest focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 outline-none transition-all shadow-sm"
+                                                        value={socialData.formData.higieneCuidados.produtosHigiene}
+                                                        onChange={e => handleInputChange('higieneCuidados', 'produtosHigiene', e.target.value)}
+                                                    >
+                                                        <option value="">Selecione...</option>
+                                                        <option>Sim</option>
+                                                        <option>Não</option>
+                                                        <option>Insuficiente</option>
+                                                    </select>
+                                                </div>
+                                                <div className="col-span-full"><StyledInput label="Rotina descrita pela família" value={socialData.formData.higieneCuidados.rotinaCuidados} onChange={e => handleInputChange('higieneCuidados', 'rotinaCuidados', e.target.value)} /></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-slate-200/60 shadow-inner group/box">
+                                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                                                <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
+                                                3.3 Acesso a Políticas Sociais
+                                            </h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <div className="col-span-full">
+                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Benefícios Sociais Recebidos</label>
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                                                        {['Bolsa Família', 'BPC', 'Tarifa Social', 'Cesta Básica', 'Nenhum'].map(opt => (
+                                                            <button key={opt} type="button"
+                                                                onClick={(e) => { e.preventDefault(); handleArrayToggle('acessoPolíticas', 'beneficios', opt); }}
+                                                                className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${socialData.formData.acessoPolíticas.beneficios.includes(opt) ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105' : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'}`}>
+                                                                {opt}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-1">
+                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Suficiência da Renda</label>
+                                                    <select
+                                                        className="w-full rounded-2xl border-slate-200 bg-white p-4 text-slate-700 font-black uppercase text-xs tracking-widest focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm"
+                                                        value={socialData.formData.acessoPolíticas.suficienciaRenda}
+                                                        onChange={e => handleInputChange('acessoPolíticas', 'suficienciaRenda', e.target.value)}
+                                                    >
+                                                        <option value="">Selecione...</option>
+                                                        <option>Suficiente</option>
+                                                        <option>Insuficiente</option>
+                                                    </select>
+                                                </div>
+                                                <div className="col-span-1"><StyledInput label="Destino Prioritário da Renda" value={socialData.formData.acessoPolíticas.destinoRenda} onChange={e => handleInputChange('acessoPolíticas', 'destinoRenda', e.target.value)} /></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </SocialSection>
+
+                                {/* SEÇÃO 4: ABORDAGEM ÉTICA */}
+                                <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-100 rounded-[2rem] p-8 flex items-start gap-6 shadow-xl shadow-cyan-100/30">
+                                    <div className="p-4 bg-white text-cyan-600 rounded-2xl shadow-header">
+                                        <AlertCircle size={28} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-black text-cyan-900 uppercase tracking-widest mb-2">Abordagem Ética e Técnica</h4>
+                                        <p className="text-cyan-800 text-sm font-medium leading-relaxed italic">
+                                            A visita deve ser acolhedora, baseada na escuta qualificada e livre de julgamentos, reconhecendo as vulnerabilidades estruturais e evitando um caráter policialesco ou invasivo.
+                                        </p>
                                     </div>
                                 </div>
-                            </SocialSection>
 
-                            {/* SEÇÃO 2: FUNDAMENTAÇÃO */}
-                            <SocialSection title="2. Fundamentação e Objetivo" icon={BookOpen} isOpen={openSections.includes('fundamentacao')} onToggle={() => toggleSection('fundamentacao')} color="indigo">
-                                <StyledInput label="Fundamentação da Visita (Editável)" rows={6} value={socialData.formData.fundamentacao.textoBase} onChange={e => handleInputChange('fundamentacao', 'textoBase', e.target.value)} />
-                            </SocialSection>
-
-                            {/* SEÇÃO 3: EIXOS */}
-                            <SocialSection title="3. Eixos de Observação" icon={Layout} isOpen={openSections.includes('eixos')} onToggle={() => toggleSection('eixos')} color="blue">
-                                <div className="space-y-6">
-                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">3.1 Condições de Moradia e Saneamento</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="col-span-full"><StyledInput label="Estrutura Física da Residência" value={socialData.formData.condicoesMoradia.estruturaFisica} onChange={e => handleInputChange('condicoesMoradia', 'estruturaFisica', e.target.value)} /></div>
-                                            <div className="col-span-1">
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Ventilação/Iluminação/Limpeza</label>
-                                                <select className="w-full rounded-lg border-slate-300 p-2.5" value={socialData.formData.condicoesMoradia.ventilacaoIluminacao} onChange={e => handleInputChange('condicoesMoradia', 'ventilacaoIluminacao', e.target.value)}>
-                                                    <option value="">Selecione...</option><option>Adequada</option><option>Parcialmente Adequada</option><option>Inadequada</option>
-                                                </select>
-                                            </div>
-                                            <div className="col-span-1">
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Saneamento Básico</label>
-                                                <select className="w-full rounded-lg border-slate-300 p-2.5" value={socialData.formData.condicoesMoradia.saneamento} onChange={e => handleInputChange('condicoesMoradia', 'saneamento', e.target.value)}>
-                                                    <option value="">Selecione...</option><option>Sim</option><option>Não</option><option>Parcial</option>
-                                                </select>
-                                            </div>
-                                        </div>
+                                {/* SEÇÃO 5: PERGUNTAS ORIENTADORAS */}
+                                <SocialSection title="5. Perguntas Orientadoras" icon={MessageCircle} isOpen={openSections.includes('perguntas')} onToggle={() => toggleSection('perguntas')} color="purple">
+                                    <div className="space-y-10">
+                                        <StyledInput label="Higiene e Cuidados (Organização da rotina, dificuldades, acesso a itens)" rows={4} value={socialData.formData.perguntasOrientadoras.higieneCuidados} onChange={e => handleInputChange('perguntasOrientadoras', 'higieneCuidados', e.target.value)} />
+                                        <StyledInput label="Alimentação e Renda (Suficiência alimentar, prioridades de consumo, dificuldades)" rows={4} value={socialData.formData.perguntasOrientadoras.alimentacaoRenda} onChange={e => handleInputChange('perguntasOrientadoras', 'alimentacaoRenda', e.target.value)} />
+                                        <StyledInput label="Desafios e Estratégias (Cotidiano, apoios da rede, demandas urgentes sentidas)" rows={4} value={socialData.formData.perguntasOrientadoras.desafiosEstrategias} onChange={e => handleInputChange('perguntasOrientadoras', 'desafiosEstrategias', e.target.value)} />
                                     </div>
+                                </SocialSection>
 
-                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">3.2 Higiene Pessoal e Cuidados</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="col-span-full"><StyledInput label="Situação da Higiene (Crianças/Adolescentes)" value={socialData.formData.higieneCuidados.situacaoCriancas} onChange={e => handleInputChange('higieneCuidados', 'situacaoCriancas', e.target.value)} /></div>
-                                            <div className="col-span-1">
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Produtos de Higiene</label>
-                                                <select className="w-full rounded-lg border-slate-300 p-2.5" value={socialData.formData.higieneCuidados.produtosHigiene} onChange={e => handleInputChange('higieneCuidados', 'produtosHigiene', e.target.value)}>
-                                                    <option value="">Selecione...</option><option>Sim</option><option>Não</option><option>Insuficiente</option>
-                                                </select>
+                                {/* SEÇÃO 6: ANÁLISE TÉCNICA (SIGILOSO) */}
+                                {currentUser.specialty === Specialty.SOCIAL_WORK || currentUser.role === 'ADMIN' ? (
+                                    <SocialSection title="6. Análise Técnica (Sigiloso)" icon={Lock} isOpen={openSections.includes('tecnica')} onToggle={() => toggleSection('tecnica')} color="purple">
+                                        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-8 text-red-800 text-xs font-black uppercase tracking-widest flex items-center gap-4 shadow-sm shadow-red-100 flex-col sm:flex-row">
+                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                <Lock size={20} className="text-red-600" />
                                             </div>
-                                            <div className="col-span-full"><StyledInput label="Rotina descrita pela família" value={socialData.formData.higieneCuidados.rotinaCuidados} onChange={e => handleInputChange('higieneCuidados', 'rotinaCuidados', e.target.value)} /></div>
+                                            <span>ÁREA RESTRITA: Este conteúdo é sigiloso e visível apenas para a equipe de Serviço Social.</span>
                                         </div>
-                                    </div>
+                                        <div className="space-y-10">
+                                            <StyledInput label="Expressões da Questão Social Identificadas" rows={6} value={socialData.formData.analiseTecnica.expressoesQuestaoSocial} onChange={e => handleInputChange('analiseTecnica', 'expressoesQuestaoSocial', e.target.value)} />
 
-                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">3.3 Acesso a Políticas Sociais</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="col-span-full">
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Benefícios Recebidos</label>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {['Bolsa Família', 'BPC', 'Tarifa Social', 'Cesta Básica (Eventual)', 'Nenhum'].map(opt => (
+                                            <div>
+                                                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Direitos Sociais Violados ou em Risco</label>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3">
+                                                    {['Alimentação', 'Moradia', 'Educação', 'Saúde', 'Convivência Familiar', 'Documentação', 'Trabalho Infantil', 'Violência'].map(opt => (
                                                         <button key={opt} type="button"
-                                                            onClick={(e) => { e.preventDefault(); handleArrayToggle('acessoPolíticas', 'beneficios', opt); }}
-                                                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${socialData.formData.acessoPolíticas.beneficios.includes(opt) ? 'bg-green-600 text-white shadow' : 'bg-white border border-slate-300 text-slate-600'}`}>
+                                                            className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${socialData.formData.analiseTecnica.direitosViolados.includes(opt) ? 'bg-red-600 text-white shadow-lg shadow-red-500/20 scale-105' : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'}`}>
                                                             {opt}
                                                         </button>
                                                     ))}
                                                 </div>
                                             </div>
-                                            <div className="col-span-1">
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Suficiência da Renda</label>
-                                                <select className="w-full rounded-lg border-slate-300 p-2.5" value={socialData.formData.acessoPolíticas.suficienciaRenda} onChange={e => handleInputChange('acessoPolíticas', 'suficienciaRenda', e.target.value)}>
-                                                    <option value="">Selecione...</option><option>Suficiente</option><option>Insuficiente</option>
-                                                </select>
-                                            </div>
-                                            <div className="col-span-1"><StyledInput label="Destino Prioritário da Renda" value={socialData.formData.acessoPolíticas.destinoRenda} onChange={e => handleInputChange('acessoPolíticas', 'destinoRenda', e.target.value)} /></div>
+
+                                            <StyledInput label="Estratégias de Sobrevivência Mobilizadas pela Família" value={socialData.formData.analiseTecnica.estrategiasSobrevivencia} onChange={e => handleInputChange('analiseTecnica', 'estrategiasSobrevivencia', e.target.value)} />
+                                            <StyledInput label="Necessidade de Articulação Intersetorial e Rede" value={socialData.formData.analiseTecnica.necessidadeArticulacao} onChange={e => handleInputChange('analiseTecnica', 'necessidadeArticulacao', e.target.value)} />
                                         </div>
-                                    </div>
-                                </div>
-                            </SocialSection>
-                            {/* SEÇÃO 4: ABORDAGEM ÉTICA */}
-                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex gap-4 text-slate-600">
-                                <div className="text-cyan-600"><AlertCircle size={24} /></div>
-                                <div className="text-sm italic">
-                                    <strong>Abordagem Ética (Diretrizes):</strong> A visita deve ser acolhedora, baseada na escuta qualificada e livre de julgamentos, reconhecendo as vulnerabilidades estruturais e evitando caráter policialesco.
-                                </div>
-                            </div>
+                                    </SocialSection>
+                                ) : null}
 
-                            {/* SEÇÃO 5: PERGUNTAS ORIENTADORAS */}
-                            <SocialSection title="5. Perguntas Orientadoras" icon={MessageCircle} isOpen={openSections.includes('perguntas')} onToggle={() => toggleSection('perguntas')} color="purple">
-                                <div className="space-y-4">
-                                    <StyledInput label="Higiene e Cuidados (Organização, dificuldades, acesso a itens)" rows={3} value={socialData.formData.perguntasOrientadoras.higieneCuidados} onChange={e => handleInputChange('perguntasOrientadoras', 'higieneCuidados', e.target.value)} />
-                                    <StyledInput label="Alimentação e Renda (Suficiência, prioridades, dificuldades)" rows={3} value={socialData.formData.perguntasOrientadoras.alimentacaoRenda} onChange={e => handleInputChange('perguntasOrientadoras', 'alimentacaoRenda', e.target.value)} />
-                                    <StyledInput label="Desafios e Estratégias (Cotidiano, apoios da rede, demandas urgentes)" rows={3} value={socialData.formData.perguntasOrientadoras.desafiosEstrategias} onChange={e => handleInputChange('perguntasOrientadoras', 'desafiosEstrategias', e.target.value)} />
-                                </div>
-                            </SocialSection>
+                                {/* SEÇÃO 7: ENCAMINHAMENTOS */}
+                                <SocialSection title="7. Encaminhamentos" icon={Send} isOpen={openSections.includes('encaminhamentos')} onToggle={() => toggleSection('encaminhamentos')} color="purple">
+                                    <div className="space-y-10">
+                                        <StyledInput label="Orientações Educativas e Atendimentos Realizados" rows={4} value={socialData.formData.encaminhamentos.orientacoesRealizadas} onChange={e => handleInputChange('encaminhamentos', 'orientacoesRealizadas', e.target.value)} />
 
-                            {/* SEÇÃO 6: ANÁLISE TÉCNICA (SIGILOSO) */}
-                            {currentUser.specialty === Specialty.SOCIAL_WORK || currentUser.role === 'ADMIN' ? (
-                                <SocialSection title="6. Análise Técnica (Sigiloso)" icon={Lock} isOpen={openSections.includes('tecnica')} onToggle={() => toggleSection('tecnica')} color="red">
-                                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-red-800 text-xs font-bold flex items-center gap-2">
-                                        <Lock size={14} /> ÁREA RESTRITA: Visível apenas para Assistentes Sociais.
-                                    </div>
-                                    <div className="space-y-4">
-                                        <StyledInput label="Expressões da Questão Social Identificadas" rows={4} value={socialData.formData.analiseTecnica.expressoesQuestaoSocial} onChange={e => handleInputChange('analiseTecnica', 'expressoesQuestaoSocial', e.target.value)} />
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Direitos Sociais Violados</label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {['Alimentação', 'Moradia', 'Educação', 'Saúde', 'Convivência Familiar', 'Documentação', 'Trabalho Infantil', 'Violência'].map(opt => (
-                                                    <button key={opt} type="button"
-                                                        onClick={(e) => { e.preventDefault(); handleArrayToggle('analiseTecnica', 'direitosViolados', opt); }}
-                                                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${socialData.formData.analiseTecnica.direitosViolados.includes(opt) ? 'bg-red-600 text-white shadow' : 'bg-white border border-slate-300 text-slate-600'}`}>
-                                                        {opt}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            {[
+                                                { id: 'encaminhamentoCrasCreas', label: 'Encaminhar CRAS/CREAS', icon: Home },
+                                                { id: 'articulacaoSaude', label: 'Articulação Saúde', icon: Heart },
+                                                { id: 'acionamentoRede', label: 'Acionar Rede Proteção', icon: Lock }
+                                            ].map(check => (
+                                                <label key={check.id} className={`p-6 rounded-[2rem] border transition-all cursor-pointer flex items-center gap-4 ${socialData.formData.encaminhamentos[check.id] ? 'bg-indigo-50 border-indigo-200 shadow-lg shadow-indigo-100/50' : 'bg-white border-slate-100 hover:bg-slate-50'}`}>
+                                                    <div className="relative flex items-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="w-8 h-8 rounded-xl border-2 border-slate-200 text-indigo-600 focus:ring-4 focus:ring-indigo-500/10 transition-all checked:bg-indigo-600 appearance-none cursor-pointer"
+                                                            checked={socialData.formData.encaminhamentos[check.id]}
+                                                            onChange={e => setSocialData({ ...socialData, formData: { ...socialData.formData, encaminhamentos: { ...socialData.formData.encaminhamentos, [check.id]: e.target.checked } } })}
+                                                        />
+                                                        {socialData.formData.encaminhamentos[check.id] && <div className="absolute inset-0 flex items-center justify-center text-white pointer-events-none font-black text-xl">✓</div>}
+                                                    </div>
+                                                    <span className={`font-black uppercase text-[10px] tracking-widest ${socialData.formData.encaminhamentos[check.id] ? 'text-indigo-900' : 'text-slate-400'}`}>{check.label}</span>
+                                                </label>
+                                            ))}
                                         </div>
 
-                                        <StyledInput label="Estratégias de Sobrevivência da Família" value={socialData.formData.analiseTecnica.estrategiasSobrevivencia} onChange={e => handleInputChange('analiseTecnica', 'estrategiasSobrevivencia', e.target.value)} />
-                                        <StyledInput label="Necessidade de Articulação Intersetorial" value={socialData.formData.analiseTecnica.necessidadeArticulacao} onChange={e => handleInputChange('analiseTecnica', 'necessidadeArticulacao', e.target.value)} />
+                                        <StyledInput label="Observações Finais e Desfecho" rows={4} value={socialData.formData.encaminhamentos.observacoesFinais} onChange={e => handleInputChange('encaminhamentos', 'observacoesFinais', e.target.value)} />
+
+                                        <div className="bg-slate-100 shadow-inner rounded-[2.5rem] p-10 flex flex-col items-center">
+                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6">Status Final do Acompanhamento</label>
+                                            <select
+                                                className="w-full max-w-md rounded-2xl border-2 border-slate-200 bg-white p-5 text-slate-900 font-black uppercase text-sm tracking-widest focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-600 outline-none transition-all shadow-xl"
+                                                value={socialData.formData.encaminhamentos.statusCaso}
+                                                onChange={e => handleInputChange('encaminhamentos', 'statusCaso', e.target.value)}
+                                            >
+                                                <option>Em Acompanhamento</option>
+                                                <option>Aguardando Visita</option>
+                                                <option>Encaminhado para Rede</option>
+                                                <option>Concluído / Arquivado</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </SocialSection>
-                            ) : null}
 
-                            {/* SEÇÃO 7: ENCAMINHAMENTOS */}
-                            <SocialSection title="7. Encaminhamentos" icon={Send} isOpen={openSections.includes('encaminhamentos')} onToggle={() => toggleSection('encaminhamentos')} color="green">
-                                <div className="space-y-4">
-                                    <StyledInput label="Orientações Educativas Realizadas" rows={3} value={socialData.formData.encaminhamentos.orientacoesRealizadas} onChange={e => handleInputChange('encaminhamentos', 'orientacoesRealizadas', e.target.value)} />
-
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="p-3 border rounded-xl bg-slate-50">
-                                            <label className="flex items-center gap-3 cursor-pointer">
-                                                <input type="checkbox" className="w-5 h-5 rounded text-cyan-600" checked={socialData.formData.encaminhamentos.encaminhamentoCrasCreas} onChange={e => setSocialData({ ...socialData, formData: { ...socialData.formData, encaminhamentos: { ...socialData.formData.encaminhamentos, encaminhamentoCrasCreas: e.target.checked } } })} />
-                                                <span className="font-bold text-slate-700">Encaminhar CRAS/CREAS</span>
-                                            </label>
-                                        </div>
-                                        <div className="p-3 border rounded-xl bg-slate-50">
-                                            <label className="flex items-center gap-3 cursor-pointer">
-                                                <input type="checkbox" className="w-5 h-5 rounded text-cyan-600" checked={socialData.formData.encaminhamentos.articulacaoSaude} onChange={e => setSocialData({ ...socialData, formData: { ...socialData.formData, encaminhamentos: { ...socialData.formData.encaminhamentos, articulacaoSaude: e.target.checked } } })} />
-                                                <span className="font-bold text-slate-700">Articulação Saúde</span>
-                                            </label>
-                                        </div>
-                                        <div className="p-3 border rounded-xl bg-slate-50">
-                                            <label className="flex items-center gap-3 cursor-pointer">
-                                                <input type="checkbox" className="w-5 h-5 rounded text-cyan-600" checked={socialData.formData.encaminhamentos.acionamentoRede} onChange={e => setSocialData({ ...socialData, formData: { ...socialData.formData, encaminhamentos: { ...socialData.formData.encaminhamentos, acionamentoRede: e.target.checked } } })} />
-                                                <span className="font-bold text-slate-700">Acionar Rede Proteção</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <StyledInput label="Observações Finais" rows={3} value={socialData.formData.encaminhamentos.observacoesFinais} onChange={e => handleInputChange('encaminhamentos', 'observacoesFinais', e.target.value)} />
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status do Caso</label>
-                                        <select className="w-full rounded-xl border-slate-300 p-3 bg-slate-50 font-bold text-cyan-900" value={socialData.formData.encaminhamentos.statusCaso} onChange={e => handleInputChange('encaminhamentos', 'statusCaso', e.target.value)}>
-                                            <option>Em Acompanhamento</option>
-                                            <option>Aguardando Visita</option>
-                                            <option>Encaminhado para Rede</option>
-                                            <option>Concluído / Arquivado</option>
-                                        </select>
-                                    </div>
+                                <div className="flex justify-center pt-10 pb-20">
+                                    <button
+                                        onClick={handleSaveSocial}
+                                        className="bg-slate-900 text-white px-16 py-6 rounded-3xl font-black uppercase tracking-widest text-lg flex items-center gap-4 hover:bg-slate-800 shadow-2xl shadow-slate-900/40 transition-all hover:-translate-y-2 active:scale-95 group"
+                                    >
+                                        <Save size={28} className="group-hover:scale-110 transition-transform" />
+                                        Salvar Relatórios
+                                    </button>
                                 </div>
-                            </SocialSection>
-
-                            <div className="flex justify-end pt-8 pb-12">
-                                <button onClick={handleSaveSocial} className="bg-cyan-700 text-white px-8 py-4 rounded-xl font-bold flex items-center gap-2 hover:bg-cyan-800 shadow-xl transition-all hover:scale-105"><Save size={24} /> Salvar Relatório de Busca Ativa</button>
                             </div>
-
                         </div>
                     </div>
                 </div>
             )}
-        </div >
+        </div>
     );
 };
 
@@ -5715,20 +5841,20 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
             const session = targetSession || (privateData.sessions.length > 0 ? privateData.sessions[0] : null);
 
             const contentHTML = `
-                                                                                            <h2 class="section-title">I. IDENTIFICAÇÃO E ENCAMINHAMENTO</h2>
-                                                                                            <div class="box">
-                                                                                                <div class="data-row"><span class="label">ENCAMINHADO POR</span><span class="value">${publicData.identificacao.encaminhadoPor || '-'}</span></div>
-                                                                                                <div class="data-row"><span class="label">DATA TRIAGEM</span><span class="value">${publicData.identificacao.dataTriagem ? new Date(publicData.identificacao.dataTriagem).toLocaleDateString() : '-'}</span></div>
-                                                                                                <div class="data-row"><span class="label">QUEIXA PRINCIPAL / MOTIVO</span><div class="value">${publicData.motivoEncaminhamento.queixa || 'Não informado'}</div></div>
-                                                                                            </div>
+                                                    <h2 class="section-title">I. IDENTIFICAÇÃO E ENCAMINHAMENTO</h2>
+                                                    <div class="box">
+                                                        <div class="data-row"><span class="label">ENCAMINHADO POR</span><span class="value">${publicData.identificacao.encaminhadoPor || '-'}</span></div>
+                                                        <div class="data-row"><span class="label">DATA TRIAGEM</span><span class="value">${publicData.identificacao.dataTriagem ? new Date(publicData.identificacao.dataTriagem).toLocaleDateString() : '-'}</span></div>
+                                                        <div class="data-row"><span class="label">QUEIXA PRINCIPAL / MOTIVO</span><div class="value">${publicData.motivoEncaminhamento.queixa || 'Não informado'}</div></div>
+                                                    </div>
 
-                                                                                            <h2 class="section-title">II. DADOS CLÍNICOS (CONFIDENCIAL)</h2>
-                                                                                            <div class="box">
-                                                                                                <div class="data-row"><span class="label">HIPÓTESES INICIAIS</span><div class="value">${privateData.formData.triagemPsicologica.hipotesesIniciais || '-'}</div></div>
-                                                                                                <div class="data-row"><span class="label">PLANO TERAPÊUTICO</span><div class="value">${privateData.formData.planoTerapeutico.objetivoPrincipal || '-'}</div></div>
-                                                                                            </div>
+                                                    <h2 class="section-title">II. DADOS CLÍNICOS (CONFIDENCIAL)</h2>
+                                                    <div class="box">
+                                                        <div class="data-row"><span class="label">HIPÓTESES INICIAIS</span><div class="value">${privateData.formData.triagemPsicologica.hipotesesIniciais || '-'}</div></div>
+                                                        <div class="data-row"><span class="label">PLANO TERAPÊUTICO</span><div class="value">${privateData.formData.planoTerapeutico.objetivoPrincipal || '-'}</div></div>
+                                                    </div>
 
-                                                                                            ${session ? `
+                                                    ${session ? `
                 <h2 class="section-title">III. REGISTRO DE SESSÃO / EVOLUÇÃO</h2>
                 <div class="box" style="border-left: 4px solid #9333ea; background: #faf5ff;">
                     <div class="data-row">
@@ -5740,7 +5866,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                     ${session.indicativoAlta ? `<div style="margin-top: 10px; padding: 8px; background: #ecfdf5; border-radius: 4px; color: #065f46; font-size: 10pt;"><strong>REGISTRO DE ALTA:</strong> ${session.motivoAlta}</div>` : ''}
                 </div>
                 ` : ''}
-                                                                                            `;
+                                                    `;
 
             const html = generateClinicalPrintHTML(
                 selectedStudent,
@@ -6390,20 +6516,20 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
             const session = targetSession || (nutritionData.sessions.length > 0 ? nutritionData.sessions[0] : null);
 
             const contentHTML = `
-                <h2 class="section-title">I. DADOS ANTROPOMÉTRICOS</h2>
-                <div class="box">
-                    <div class="data-row"><span class="label">PESO:</span> <span class="value">${session?.weight || nutritionData.lastAssessment.weight || '-'} kg</span></div>
-                    <div class="data-row"><span class="label">ALTURA:</span> <span class="value">${session?.height || nutritionData.lastAssessment.height || '-'} m</span></div>
-                    <div class="data-row"><span class="label">IMC:</span> <span class="value">${session?.bmi || nutritionData.lastAssessment.bmi || '-'} (${session?.bmi ? calculateBMI(session.weight, session.height).classification : nutritionData.lastAssessment.classification})</span></div>
-                </div>
+                                                            <h2 class="section-title">I. DADOS ANTROPOMÉTRICOS</h2>
+                                                            <div class="box">
+                                                                <div class="data-row"><span class="label">PESO:</span> <span class="value">${session?.weight || nutritionData.lastAssessment.weight || '-'} kg</span></div>
+                                                                <div class="data-row"><span class="label">ALTURA:</span> <span class="value">${session?.height || nutritionData.lastAssessment.height || '-'} m</span></div>
+                                                                <div class="data-row"><span class="label">IMC:</span> <span class="value">${session?.bmi || nutritionData.lastAssessment.bmi || '-'} (${session?.bmi ? calculateBMI(session.weight, session.height).classification : nutritionData.lastAssessment.classification})</span></div>
+                                                            </div>
 
-                <h2 class="section-title">II. ANAMNESE E HÁBITOS</h2>
-                <div class="box">
-                    <div class="data-row"><span class="label">HÁBITOS:</span> <div class="value">${nutritionData.anamnesis.eatingHabits || '-'}</div></div>
-                    <div class="data-row"><span class="label">ALERGIAS/AVERSÕES:</span> <div class="value">${nutritionData.anamnesis.allergies || '-'} / ${nutritionData.anamnesis.rejectedFoods || '-'}</div></div>
-                </div>
+                                                            <h2 class="section-title">II. ANAMNESE E HÁBITOS</h2>
+                                                            <div class="box">
+                                                                <div class="data-row"><span class="label">HÁBITOS:</span> <div class="value">${nutritionData.anamnesis.eatingHabits || '-'}</div></div>
+                                                                <div class="data-row"><span class="label">ALERGIAS/AVERSÕES:</span> <div class="value">${nutritionData.anamnesis.allergies || '-'} / ${nutritionData.anamnesis.rejectedFoods || '-'}</div></div>
+                                                            </div>
 
-                ${session ? `
+                                                            ${session ? `
                 <h2 class="section-title">III. EVOLUÇÃO E RECOMENDAÇÕES</h2>
                 <div class="box" style="border-left: 4px solid #10b981; background: #f0fdf4;">
                     <div class="data-row"><span class="label">DATA:</span> <span class="value">${new Date(session.date).toLocaleDateString()}</span></div>
@@ -6412,7 +6538,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                     <div class="data-row"><span class="label">RECOMENDAÇÕES:</span> <div class="value">${session.recommendations || '-'}</div></div>
                 </div>
                 ` : ''}
-            `;
+                                                            `;
 
             const html = generateClinicalPrintHTML(selectedStudent, config, 'Relatório Nutricional', contentHTML, {
                 name: currentUser.name, jobTitle: currentUser.jobTitle || 'Nutricionista', specialty: currentUser.specialty, signatureUrl: currentUser.signatureUrl
