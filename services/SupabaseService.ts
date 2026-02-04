@@ -867,30 +867,21 @@ export class SupabaseService {
     static async getNotifications(userId: string): Promise<any[]> {
         // --- LIMPEZA AUTOMÁTICA (Lazy Delete) ---
         // Remove APENAS mensagens privadas ('MESSAGE') que foram lidas há mais de 5 minutos
-        // 'ALERT's (Avisos Gerais) não são excluídos automaticamente
+        // Limpeza de mensagens lidas (Auto-delete após 5 minutos)
         try {
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-            // 1. Deleta mensagens lidas com mais de 5 minutos DO TIPO MESSAGE
-            await supabase
-                .from('system_messages')
-                .delete()
-                .eq('type', 'MESSAGE') // SÓ MENSAGENS, NÃO ALERTAS
-                .not('read_at', 'is', null)
-                .lt('read_at', fiveMinutesAgo);
-
-            // 2. Limpeza de órfãs (também restrito a mensagens para evitar deletar alertas importantes)
-            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+            // Deleta mensagens lidas com mais de 5 minutos (Apenas tipo MESSAGE)
+            // Os Alerts são persistentes a menos que deletados manualmente pelo usuário
             await supabase
                 .from('system_messages')
                 .delete()
                 .eq('type', 'MESSAGE')
                 .eq('is_read', true)
-                .is('read_at', null)
-                .lt('created_at', tenMinutesAgo);
+                .lt('read_at', fiveMinutesAgo);
 
         } catch (cleanError) {
-            console.error('[NotificationCleanup] Erro ao limpar mensagens antigas:', cleanError);
+            console.error('[NotificationCleanup] Erro ao limpar mensagens:', cleanError);
         }
 
         // Busca mensagens onde o usuário é o destinatário
