@@ -275,6 +275,7 @@ export interface SystemMessage {
   recipient_id: string | null;
   title: string;
   content: string;
+  type: 'ALERT' | 'MESSAGE';
   priority: 'normal' | 'urgent';
   is_read: boolean;
   read_at?: string;

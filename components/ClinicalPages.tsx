@@ -1,4 +1,6 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+﻿import { useToast } from '../contexts/ToastContext';
+import React, { useState, useEffect, useMemo } from 'react';
+
 import type { Student, Session, User, PapelTimbradoConfig, School, Appointment } from '../types';
 import { Specialty } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
@@ -184,12 +186,15 @@ const extractPsychData = (student: Student): PsychPrivateData => {
 };
 
 // --- REUSABLE COMPONENTS ---
-const StyledInput = ({ label, value, onChange, type = "text", rows, placeholder }: any) => (
+const StyledInput = ({ label, value, onChange, type = "text", rows, placeholder, icon: Icon }: any) => (
     <div className="mb-6 group">
-        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 group-focus-within:text-cyan-600 transition-colors">{label}</label>
+        <label className="flex items-center gap-2 text-[12px] font-bold text-[#333333] uppercase tracking-wider mb-2.5 px-1 group-focus-within:text-[#1E7F85] transition-colors">
+            {Icon && <Icon size={14} className="text-[#1E7F85]" />}
+            {label}
+        </label>
         {rows ? (
             <textarea
-                className="w-full rounded-2xl border-slate-200 bg-slate-50/50 p-4 text-slate-700 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 outline-none transition-all min-h-[120px] shadow-sm hover:border-slate-300"
+                className="w-full rounded-[20px] border-[1.5px] border-[#1E7F85] bg-white p-4 text-[#333333] placeholder:text-slate-300 focus:ring-4 focus:ring-[#1E7F85]/5 focus:border-[#1E7F85] outline-none transition-all min-h-[120px] shadow-sm hover:bg-slate-50/30"
                 rows={rows}
                 value={value}
                 onChange={onChange}
@@ -198,12 +203,41 @@ const StyledInput = ({ label, value, onChange, type = "text", rows, placeholder 
         ) : (
             <input
                 type={type}
-                className="w-full rounded-2xl border-slate-200 bg-slate-50/50 p-4 text-slate-700 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 outline-none transition-all shadow-sm hover:border-slate-300"
+                className="w-full h-[52px] rounded-full border-[1.5px] border-[#1E7F85] bg-white px-6 text-[#333333] placeholder:text-slate-300 focus:ring-4 focus:ring-[#1E7F85]/5 focus:border-[#1E7F85] outline-none transition-all shadow-sm hover:bg-slate-50/30"
                 value={value}
                 onChange={onChange}
                 placeholder={placeholder}
             />
         )}
+    </div>
+);
+
+const TriStateField: React.FC<{ label: string, value: boolean | null, onChange: (val: boolean | null) => void }> = ({ label, value, onChange }) => (
+    <div className="flex flex-col gap-3 p-6 bg-white rounded-[20px] border-[1.5px] border-[#1E7F85] hover:shadow-md transition-all duration-300 h-full group">
+        <span className="text-[12px] font-bold text-[#333333] uppercase tracking-wider w-full text-left ml-1 group-focus-within:text-[#1E7F85]">{label}</span>
+        <div className="flex w-full bg-[#F7F5F0] p-1.5 rounded-full border border-[#1E7F85]/20 gap-1.5 mt-auto">
+            <button
+                type="button"
+                onClick={() => onChange(true)}
+                className={`flex-1 px-3 py-2.5 text-[10px] font-bold rounded-full transition-all uppercase tracking-widest ${value === true ? 'bg-[#1E7F85] text-white shadow-md scale-[1.02]' : 'bg-transparent text-[#1E7F85] hover:bg-white/80'}`}
+            >
+                SIM
+            </button>
+            <button
+                type="button"
+                onClick={() => onChange(false)}
+                className={`flex-1 px-3 py-2.5 text-[10px] font-bold rounded-full transition-all uppercase tracking-widest ${value === false ? 'bg-[#1E7F85] text-white shadow-md scale-[1.02]' : 'bg-transparent text-[#1E7F85] hover:bg-white/80'}`}
+            >
+                NÃO
+            </button>
+            <button
+                type="button"
+                onClick={() => onChange(null)}
+                className={`flex-1 px-3 py-2.5 text-[10px] font-bold rounded-full transition-all uppercase tracking-widest ${value === null ? 'bg-[#333333] text-white shadow-sm' : 'bg-transparent text-slate-400 hover:bg-white/80'}`}
+            >
+                -
+            </button>
+        </div>
     </div>
 );
 
@@ -225,129 +259,8 @@ const FormSection = ({ title, icon: Icon, children, color = "text-slate-800" }: 
 );
 
 
-const TriStateField = ({ label, value, onChange }: any) => (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all gap-4">
-        <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${value === true ? 'bg-emerald-500' : value === false ? 'bg-rose-500' : 'bg-slate-300'} animate-pulse`} />
-            <span className="text-sm font-black text-slate-700 uppercase tracking-wider">{label}</span>
-        </div>
-        <div className="flex bg-slate-100/80 backdrop-blur-md rounded-2xl p-1.5 border border-slate-200/50 w-full sm:w-auto">
-            <button
-                type="button"
-                onClick={() => onChange(true)}
-                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${value === true ? 'bg-white text-emerald-600 shadow-lg shadow-emerald-500/10 scale-105' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-                SIM
-            </button>
-            <button
-                type="button"
-                onClick={() => onChange(false)}
-                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${value === false ? 'bg-white text-rose-600 shadow-lg shadow-rose-500/10 scale-105' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-                NÃO
-            </button>
-        </div>
-    </div>
-);
 
-// --- PRIVACY & STORAGE HELPERS FOR SOCIAL SERVICE ---
-const SOCIAL_STORAGE_KEY = 'brotar_socialService_private';
 
-interface SocialServiceForm {
-    // SEÇÃO 1: IDENTIFICAÇÃO (Dados complementares à identificação do aluno)
-    identificacao: {
-        responsavelFamiliar: string;
-        composicaoFamiliar: string[]; // Lista de strings ou poderia ser objeto estruturado. Usaremos string multi-linha por simplicidade inicial ou JSON string.
-        enderecoCompleto: string; // Pode vir do aluno, mas permitimos editar para correção na visita
-    };
-
-    // SEÇÃO 2: FUNDAMENTAÇÃO
-    fundamentacao: {
-        textoBase: string;
-    };
-
-    // SEÇÃO 3: EIXOS DE OBSERVAÇÃO
-    condicoesMoradia: {
-        estruturaFisica: string;
-        ventilacaoIluminacao: 'Adequada' | 'Parcialmente Adequada' | 'Inadequada' | '';
-        saneamento: 'Sim' | 'Não' | 'Parcial' | '';
-    };
-    higieneCuidados: {
-        situacaoCriancas: string;
-        produtosHigiene: 'Sim' | 'Não' | 'Insuficiente' | '';
-        rotinaCuidados: string;
-    };
-    acessoPolíticas: {
-        beneficios: string[]; // Bolsa Família, BPC, etc.
-        suficienciaRenda: 'Suficiente' | 'Insuficiente' | '';
-        destinoRenda: string;
-    };
-    relacoesFamiliares: {
-        vinculos: 'Preservados' | 'Fragilizados' | 'Rompantes' | '';
-        redeApoio: 'Sim' | 'Não' | 'Frágil' | '';
-        conflitosFragilidades: string;
-    };
-
-    // SEÇÃO 5: PERGUNTAS ORIENTADORAS (Seção 4 é texto estático)
-    perguntasOrientadoras: {
-        higieneCuidados: string; // Organização da rotina...
-        alimentacaoRenda: string; // Suficiência, prioridades...
-        desafiosEstrategias: string; // Desafios cotidiano...
-    };
-
-    // SEÇÃO 6: ANÁLISE TÉCNICA (Sigilosa)
-    analiseTecnica: {
-        expressoesQuestaoSocial: string;
-        direitosViolados: string[];
-        estrategiasSobrevivencia: string;
-        necessidadeArticulacao: string;
-    };
-
-    // SEÇÃO 7: ENCAMINHAMENTOS
-    encaminhamentos: {
-        orientacoesRealizadas: string; // Educativas
-        encaminhamentoCrasCreas: boolean;
-        articulacaoSaude: boolean;
-        acionamentoRede: boolean;
-        observacoesFinais: string;
-        statusCaso?: string;
-    };
-}
-
-interface SocialServicePrivateData {
-    formData: SocialServiceForm;
-    lastUpdate: string;
-    professionalName: string;
-}
-
-const DEFAULT_FUNDAMENTACAO = `A presente visita domiciliar insere-se no âmbito da proteção social básica e especial, com o objetivo de realizar busca ativa escolar e compreender a realidade social do estudante. Fundamenta-se na garantia de direitos, no fortalecimento de vínculos familiares e comunitários, e na articulação com a rede de proteção, conforme diretrizes da Política Nacional de Assistência Social (PNAS). A abordagem pauta-se no respeito, na escuta qualificada e no caráter não punitivo, visando superar vulnerabilidades e promover a permanência escolar.`;
-
-const initialSocialForm: SocialServiceForm = {
-    identificacao: { responsavelFamiliar: '', composicaoFamiliar: [], enderecoCompleto: '' },
-    fundamentacao: { textoBase: DEFAULT_FUNDAMENTACAO },
-    condicoesMoradia: { estruturaFisica: '', ventilacaoIluminacao: '', saneamento: '' },
-    higieneCuidados: { situacaoCriancas: '', produtosHigiene: '', rotinaCuidados: '' },
-    acessoPolíticas: { beneficios: [], suficienciaRenda: '', destinoRenda: '' },
-    relacoesFamiliares: { vinculos: '', redeApoio: '', conflitosFragilidades: '' },
-    perguntasOrientadoras: { higieneCuidados: '', alimentacaoRenda: '', desafiosEstrategias: '' },
-    analiseTecnica: { expressoesQuestaoSocial: '', direitosViolados: [], estrategiasSobrevivencia: '', necessidadeArticulacao: '' },
-    encaminhamentos: { orientacoesRealizadas: '', encaminhamentoCrasCreas: false, articulacaoSaude: false, acionamentoRede: false, observacoesFinais: '', statusCaso: 'Em Acompanhamento' }
-};
-
-const extractSocialData = (student: Student): SocialServicePrivateData => {
-    // PROTECTED ACCESS: clinical might be null/undefined
-    const rawNew = student.clinical?.social_data;
-    const rawOld = student.socialInfo;
-
-    // Unified Source Check
-    const raw = rawNew || rawOld || {};
-
-    return {
-        formData: raw.formData || initialSocialForm,
-        lastUpdate: raw.lastUpdate || student.createdAt || new Date().toISOString(),
-        professionalName: raw.professionalName || ''
-    };
-};
 
 // --- FONOAUDIOLOGIA - TYPES & HELPERS ---
 interface SpeechSession {
@@ -603,93 +516,167 @@ const generateClinicalPrintHTML = (
 
     return `
         <html>
-        <head>
-            <title>${title} - ${student.fullName}</title>
-            <style>
-                @page { size: A4; margin: 20mm 15mm; }
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; line-height: 1.5; font-size: 11pt; }
-                .header-container { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
-                .header-logo { max-height: 80px; margin-bottom: 10px; }
-                .header-titles h1 { font-size: 14pt; margin: 0; color: #334155; text-transform: uppercase; }
-                .header-titles h2 { font-size: 12pt; margin: 2px 0; color: #475569; }
-                .header-titles h3 { font-size: 10pt; margin: 2px 0; color: #64748b; }
-                .contact-info { font-size: 8pt; color: #94a3b8; margin-top: 5px; }
-                
-                h1.doc-title { font-size: 18pt; color: #1e293b; text-align: center; margin-top: 20px; text-transform: uppercase; letter-spacing: 1px; }
-                h2.section-title { font-size: 13pt; color: #475569; margin-top: 25px; margin-bottom: 10px; background-color: #f8fafc; padding: 5px 10px; border-left: 4px solid #cbd5e1; }
-                
-                .student-info-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #fff; }
-                .info-item { margin-bottom: 5px; }
-                .label { font-weight: bold; color: #64748b; font-size: 9pt; text-transform: uppercase; display: block; }
-                .value { color: #1e293b; font-size: 11pt; }
-                
-                .content-box { margin-bottom: 20px; }
-                .data-row { margin-bottom: 10px; }
-                .box { border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; margin-bottom: 10px; background: #fff; }
-                
-                .footer-container { margin-top: 50px; text-align: center; }
-                .signature-container { display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 40px; }
-                .signature-image { max-height: 80px; margin-bottom: -15px; z-index: 10; position: relative; }
-                .signature-line { width: 300px; border-top: 1px solid #94a3b8; margin: 0 auto 10px; position: relative; }
-                .professional-name { font-weight: bold; font-size: 11pt; color: #1e293b; }
-                .professional-info { font-size: 9pt; color: #64748b; }
-                
-                .system-footer { margin-top: 30px; text-align: center; border-top: 1px dashed #e2e8f0; padding-top: 10px; }
-                .footer-text { font-size: 8pt; color: #cbd5e1; }
-                .footer-image { max-height: 40px; margin-top: 10px; opacity: 0.7; }
-                
-                .emission-tag { text-align: right; font-size: 8pt; color: #94a3b8; margin-bottom: 10px; }
-            </style>
-        </head>
-        <body>
-            <div class="emission-tag">Emissão em: ${emissionDate}</div>
-            
-            <div class="header-container">
-                ${config.showLogo && config.logoUrl ? `<img src="${config.logoUrl}" class="header-logo" alt="Logo">` : ''}
-                <div class="header-titles">
-                    ${config.showTitulos ? `
-                        <h1>${config.tituloLinha1}</h1>
-                        <h2>${config.tituloLinha2}</h2>
-                        <h3>${config.tituloLinha3}</h3>
-                    ` : ''}
-                </div>
-                ${config.showContato ? `
-                    <div class="contact-info">
-                        ${config.cnpj ? `CNPJ: ${config.cnpj} | ` : ''}
-                        ${config.endereco ? `${config.endereco} | ` : ''}
-                        ${config.telefone ? `Tel/Whats: ${config.telefone}` : ''}
-                    </div>
-                ` : ''}
-            </div>
+            <head>
+                <title>${title} - ${student.fullName}</title>
+                <style>
+                    @page {
+                        size: A4;
+                        margin: 10mm 15mm;
+                    }
+                    body {
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        color: #1e293b;
+                        line-height: 1.5;
+                        font-size: 11pt;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    
+                    /* Table Structure for Repetition */
+                    table { width: 100%; border-collapse: collapse; }
+                    thead { display: table-header-group; }
+                    tfoot { display: table-footer-group; }
+                    tbody { display: table-row-group; }
+                    
+                    /* Header Styling */
+                    .print-header {
+                        text-align: center;
+                        border-bottom: 2px solid #e2e8f0;
+                        padding-bottom: 10px;
+                        margin-bottom: 20px;
+                    }
+                    .header-logo {
+                        max-width: 100%;
+                        height: auto;
+                        max-height: 160px; /* Increased to allow banners */
+                        object-fit: contain;
+                    }
+                    .header-titles h1 { font-size: 14pt; margin: 0; color: #334155; text-transform: uppercase; font-weight: 800; }
+                    .header-titles h2 { font-size: 12pt; margin: 2px 0; color: #475569; }
+                    .header-titles h3 { font-size: 10pt; margin: 2px 0; color: #64748b; }
+                    .contact-info { font-size: 8pt; color: #94a3b8; margin-top: 5px; }
 
-            <h1 class="doc-title">${title}</h1>
+                    /* Footer Styling */
+                    .print-footer {
+                        text-align: center;
+                        border-top: 1px dashed #e2e8f0;
+                        padding-top: 10px;
+                        margin-top: 20px;
+                    }
+                    .footer-image {
+                        max-width: 100%;
+                        max-height: 60px;
+                        object-fit: contain;
+                        opacity: 0.8;
+                    }
+                    .footer-text { font-size: 8pt; color: #cbd5e1; }
+                    .emission-tag { font-size: 8pt; color: #cbd5e1; text-align: right; margin-bottom: 5px; }
 
-            <div class="student-info-box">
-                <div class="info-item"><span class="label">Paciente</span><span class="value">${student.fullName}</span></div>
-                <div class="info-item"><span class="label">Nascimento / Idade</span><span class="value">${new Date(student.birthDate).toLocaleDateString()} (${studentAge} anos)</span></div>
-                <div class="info-item"><span class="label">Responsável</span><span class="value">${student.guardians[0]?.name || 'Não informado'}</span></div>
-                <div class="info-item"><span class="label">Escola</span><span class="value">${student.school.schoolName || 'Não vinculada'}</span></div>
-            </div>
+                    /* Content Styling */
+                    h1.doc-title { font-size: 16pt; color: #1e293b; text-align: center; margin-top: 0; text-transform: uppercase; letter-spacing: 1px; width: 100%; }
+                    h2.section-title { font-size: 13pt; color: #475569; margin-top: 20px; margin-bottom: 10px; background-color: #f8fafc; padding: 5px 10px; border-left: 4px solid #cbd5e1; page-break-after: avoid; }
+                    
+                    .student-info-box {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 10px;
+                        margin-bottom: 20px;
+                        padding: 15px;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 8px;
+                        background-color: #fff;
+                        page-break-inside: avoid;
+                    }
+                    .info-item { margin-bottom: 5px; }
+                    .label { font-weight: bold; color: #64748b; font-size: 9pt; text-transform: uppercase; display: block; }
+                    .value { color: #1e293b; font-size: 11pt; }
 
-            <div class="content-box">
-                ${contentHTML}
-            </div>
+                    .box {
+                        border: 1px solid #e2e8f0;
+                        padding: 12px;
+                        border-radius: 6px;
+                        margin-bottom: 10px;
+                        background: #fff;
+                        page-break-inside: avoid;
+                    }
+                    .data-row { margin-bottom: 8px; border-bottom: 1px dotted #f1f5f9; padding-bottom: 4px; }
+                    .data-row:last-child { border-bottom: none; }
+                    
+                    .signature-section {
+                        margin-top: 40px;
+                        text-align: center;
+                        page-break-inside: avoid;
+                    }
+                    .signature-image { max-height: 80px; margin-bottom: -15px; z-index: 10; position: relative; }
+                    .signature-line { width: 300px; border-top: 1px solid #94a3b8; margin: 0 auto 10px; }
+                    .professional-name { font-weight: bold; font-size: 11pt; color: #1e293b; }
+                    .professional-info { font-size: 9pt; color: #64748b; }
+                </style>
+            </head>
+            <body>
+                <table>
+                    <thead>
+                        <tr>
+                            <td>
+                                <div class="print-header">
+                                    ${config.showLogo && config.logoUrl ? `<img src="${config.logoUrl}" class="header-logo" alt="Logo">` : ''}
+                                    <div class="header-titles">
+                                        ${config.showTitulos ? `
+                                        <h1>${config.tituloLinha1}</h1>
+                                        <h2>${config.tituloLinha2}</h2>
+                                        <h3>${config.tituloLinha3}</h3>
+                                        ` : ''}
+                                    </div>
+                                    ${config.showContato ? `
+                                    <div class="contact-info">
+                                        ${config.cnpj ? `CNPJ: ${config.cnpj} | ` : ''}
+                                        ${config.endereco ? `${config.endereco} | ` : ''}
+                                        ${config.telefone ? `Tel/Whats: ${config.telefone}` : ''}
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="main-content">
+                                    <div class="emission-tag">Emissão em: ${emissionDate}</div>
+                                    <h1 class="doc-title">${title}</h1>
 
-            <div class="footer-container">
-                <div class="signature-container">
-                    ${professional.signatureUrl ? `<img src="${professional.signatureUrl}" class="signature-image" alt="Assinatura">` : ''}
-                    <div class="signature-line"></div>
-                </div>
-                <div class="professional-name">${professional.name}</div>
-                <div class="professional-info">${professional.jobTitle || professional.specialty}</div>
-                ${professional.specialty && professional.jobTitle !== professional.specialty ? `<div class="professional-info">${professional.specialty}</div>` : ''}
-            </div>
+                                    <div class="student-info-box">
+                                        <div class="info-item"><span class="label">Paciente</span><span class="value">${student.fullName}</span></div>
+                                        <div class="info-item"><span class="label">Nascimento / Idade</span><span class="value">${new Date(student.birthDate).toLocaleDateString()} (${studentAge} anos)</span></div>
+                                        <div class="info-item"><span class="label">Responsável</span><span class="value">${student.guardians[0]?.name || 'Não informado'}</span></div>
+                                        <div class="info-item"><span class="label">Escola</span><span class="value">${student.school.schoolName || 'Não vinculada'}</span></div>
+                                    </div>
 
-            <div class="system-footer">
-                ${config.rodapeTexto ? `<div class="footer-text">${config.rodapeTexto}</div>` : ''}
-                ${config.rodapeImg ? `<img src="${config.rodapeImg}" class="footer-image" alt="Rodapé">` : ''}
-            </div>
-        </body>
+                                    ${contentHTML}
+
+                                    <div class="signature-section">
+                                        ${professional.signatureUrl ? `<img src="${professional.signatureUrl}" class="signature-image" alt="Assinatura">` : ''}
+                                        <div class="signature-line"></div>
+                                        <div class="professional-name">${professional.name}</div>
+                                        <div class="professional-info">${professional.jobTitle || professional.specialty}</div>
+                                        ${professional.specialty && professional.jobTitle !== professional.specialty ? `<div class="professional-info">${professional.specialty}</div>` : ''}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td>
+                                <div class="print-footer">
+                                    ${config.rodapeTexto ? `<div class="footer-text">${config.rodapeTexto}</div>` : ''}
+                                    ${config.rodapeImg ? `<img src="${config.rodapeImg}" class="footer-image" alt="Rodapé">` : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </body>
         </html>
     `;
 };
@@ -1618,19 +1605,16 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
     const [isEditingSession, setIsEditingSession] = useState(false);
     const [currentSession, setCurrentSession] = useState<Partial<PPSession>>({});
     const [loading, setLoading] = useState(false);
+    const { success: showToast, error: toastError } = useToast();
+    const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
+    const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
     const [recentActivity, setRecentActivity] = useState<{ session: PPSession, studentName: string, studentId: string }[]>([]);
     const [upcomingAgenda, setUpcomingAgenda] = useState<{ session: PPSession, studentName: string, studentId: string }[]>([]);
     const [stats, setStats] = useState({ totalPatients: 0, totalSessions: 0, activeCases: 0, diagnosisData: [] as any[] });
     const [searchTerm, setSearchTerm] = useState('');
 
     // Notification and Modal States
-    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
-    const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
-
-    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-        setNotification({ message, type });
-        setTimeout(() => setNotification(null), 4000);
-    };
+    // Notification state removed in favor of global ToastContext
 
     // IPO States
     const [ipoEditMode, setIpoEditMode] = useState(false);
@@ -1849,10 +1833,10 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
             setIsEditingSession(false);
             setCurrentSession({});
-            alert('Sessão salva!');
+            showToast('Sessão salva!', 'success');
         } catch (e) {
             console.error(e);
-            alert('Erro ao salvar sessão.');
+            toastError('Erro ao salvar sessão.');
         }
     };
 
@@ -1982,7 +1966,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                     <div class="data-row"><span class="label">OBSERVAÇÕES:</span> <div class="value" style="white-space: pre-wrap;">${session.observacoes || '-'}</div></div>
                 </div>
                 ` : ''}
-            `;
+                `;
 
             const html = generateClinicalPrintHTML(
                 selectedStudent,
@@ -2004,14 +1988,17 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
             }
         } catch (e) {
             console.error(e);
-            alert('Erro ao gerar impressão.');
+            toastError('Erro ao gerar impressão.');
         }
     };
 
     const handleDischarge = async () => {
         if (!selectedStudent) return;
-        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar os dados atuais e gerar o relatório final.");
-        if (!confirmAlta) return;
+        setShowConfirmDischarge(true);
+    };
+
+    const confirmDischargeAction = async () => {
+        setShowConfirmDischarge(false);
 
         try {
             // Atualizar status para Alta antes de salvar
@@ -2435,13 +2422,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
             )}
 
             {/* Premium UI Overlay Systems */}
-            {notification && (
-                <PremiumNotification
-                    message={notification.message}
-                    type={notification.type}
-                    onClose={() => setNotification(null)}
-                />
-            )}
+
 
             {confirmModal && (
                 <PremiumConfirmModal
@@ -2464,6 +2445,9 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
     const [isEditingSession, setIsEditingSession] = useState(false);
     const [currentSession, setCurrentSession] = useState<Partial<SpeechSession>>({});
     const [loading, setLoading] = useState(false);
+    const { success: showToast, error: toastError } = useToast();
+    const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
+    const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
 
     useEffect(() => {
         if (preSelectedStudent) setSelectedStudent(preSelectedStudent);
@@ -2509,10 +2493,10 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
             await SupabaseService.saveStudent(updatedStudent);
             setStudents(prev => prev.map(s => s.id === selectedStudent.id ? updatedStudent : s));
             setSelectedStudent(updatedStudent);
-            alert('Dados salvos com sucesso!');
+            showToast('Dados salvos com sucesso!');
         } catch (error) {
             console.error(error);
-            alert('Erro ao salvar dados.');
+            toastError('Erro ao salvar dados.');
         }
     };
 
@@ -2548,17 +2532,20 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
             setSpeechData({ ...speechData, sessions: updatedSessions });
             setIsEditingSession(false);
             setCurrentSession({});
-            alert('Sessão salva!');
+            showToast('Sessão salva!', 'success');
         } catch (e) {
             console.error(e);
-            alert('Erro ao salvar sessão.');
+            toastError('Erro ao salvar sessão.');
         }
     };
 
     const handleDischarge = async () => {
         if (!selectedStudent) return;
-        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar os dados atuais e gerar o relatório final.");
-        if (!confirmAlta) return;
+        setShowConfirmDischarge(true);
+    };
+
+    const confirmDischargeAction = async () => {
+        setShowConfirmDischarge(false);
 
         try {
             await handleSaveGeneral();
@@ -2567,7 +2554,7 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
             }, 500);
         } catch (err) {
             console.error('Erro ao processar alta:', err);
-            alert('Falha ao processar alta.');
+            toastError('Falha ao processar alta.');
         }
     };
 
@@ -2579,24 +2566,24 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
             const session = targetSession || (speechData.sessions.length > 0 ? speechData.sessions[0] : null);
 
             const contentHTML = `
-                    <h2 class="section-title">I. ANAMNESE E QUEIXA</h2>
-                    <div class="box">
-                        <div class="data-row"><span class="label">QUEIXA PRINCIPAL:</span> <div class="value">${speechData.anamnese.queixaPrincipal || '-'}</div></div>
-                        <div class="data-row"><span class="label">HISTÓRICO DE LINGUAGEM:</span> <div class="value">${speechData.anamnese.historicoDesenvolvimentoLinguagem || '-'}</div></div>
-                        <div class="data-row"><span class="label">ALIMENTAÇÃO / MASTIGAÇÃO:</span> <div class="value">${speechData.anamnese.alimentacaoMastigacao || '-'}</div></div>
-                        <div class="data-row"><span class="label">SONO / RESPIRAÇÃO:</span> <div class="value">${speechData.anamnese.sonoRespiracao || '-'}</div></div>
-                    </div>
+                        <h2 class="section-title">I. ANAMNESE E QUEIXA</h2>
+                        <div class="box">
+                            <div class="data-row"><span class="label">QUEIXA PRINCIPAL:</span> <div class="value">${speechData.anamnese.queixaPrincipal || '-'}</div></div>
+                            <div class="data-row"><span class="label">HISTÓRICO DE LINGUAGEM:</span> <div class="value">${speechData.anamnese.historicoDesenvolvimentoLinguagem || '-'}</div></div>
+                            <div class="data-row"><span class="label">ALIMENTAÇÃO / MASTIGAÇÃO:</span> <div class="value">${speechData.anamnese.alimentacaoMastigacao || '-'}</div></div>
+                            <div class="data-row"><span class="label">SONO / RESPIRAÇÃO:</span> <div class="value">${speechData.anamnese.sonoRespiracao || '-'}</div></div>
+                        </div>
 
-                    <h2 class="section-title">II. AVALIAÇÃO CLÍNICA</h2>
-                    <div class="box">
-                        <div class="data-row"><span class="label">MOTRICIDADE OROFACIAL:</span> <div class="value">${speechData.avaliacao.motricidadeOrofacial || '-'}</div></div>
-                        <div class="data-row"><span class="label">LINGUAGEM ORAL:</span> <div class="value">${speechData.avaliacao.linguagemOral || '-'}</div></div>
-                        <div class="data-row"><span class="label">LINGUAGEM ESCRITA:</span> <div class="value">${speechData.avaliacao.linguagemEscrita || '-'}</div></div>
-                        <div class="data-row"><span class="label">VOZ:</span> <div class="value">${speechData.avaliacao.voz || '-'}</div></div>
-                        <div class="data-row"><span class="label">AUDIÇÃO:</span> <div class="value">${speechData.avaliacao.audicao || '-'}</div></div>
-                    </div>
+                        <h2 class="section-title">II. AVALIAÇÃO CLÍNICA</h2>
+                        <div class="box">
+                            <div class="data-row"><span class="label">MOTRICIDADE OROFACIAL:</span> <div class="value">${speechData.avaliacao.motricidadeOrofacial || '-'}</div></div>
+                            <div class="data-row"><span class="label">LINGUAGEM ORAL:</span> <div class="value">${speechData.avaliacao.linguagemOral || '-'}</div></div>
+                            <div class="data-row"><span class="label">LINGUAGEM ESCRITA:</span> <div class="value">${speechData.avaliacao.linguagemEscrita || '-'}</div></div>
+                            <div class="data-row"><span class="label">VOZ:</span> <div class="value">${speechData.avaliacao.voz || '-'}</div></div>
+                            <div class="data-row"><span class="label">AUDIÇÃO:</span> <div class="value">${speechData.avaliacao.audicao || '-'}</div></div>
+                        </div>
 
-                    ${session ? `
+                        ${session ? `
                 <h2 class="section-title">III. REGISTRO DE ATENDIMENTO / EVOLUÇÃO</h2>
                 <div class="box" style="border-left: 4px solid #0891b2; background: #f0fdfa;">
                     <div class="data-row">
@@ -2609,7 +2596,7 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                     <div class="data-row"><span class="label">OBSERVAÇÕES:</span> <div class="value" style="white-space: pre-wrap;">${session.observacoes || '-'}</div></div>
                 </div>
                 ` : ''}
-                    `;
+                        `;
 
             const html = generateClinicalPrintHTML(
                 selectedStudent,
@@ -2631,7 +2618,7 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
             }
         } catch (e) {
             console.error(e);
-            alert('Erro ao gerar impressão.');
+            toastError('Erro ao gerar impressão.');
         }
     };
 
@@ -2866,6 +2853,9 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
     const [isEditingSession, setIsEditingSession] = useState(false);
     const [currentSession, setCurrentSession] = useState<Partial<OTSession>>({});
     const [loading, setLoading] = useState(false);
+    const { success: showToast, error: toastError } = useToast();
+    const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
+    const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
 
     const isOT = currentUser.specialty === Specialty.OCCUPATIONAL_THERAPY || currentUser.role === 'ADMIN';
 
@@ -2907,10 +2897,10 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
             await SupabaseService.saveStudent(updatedStudent);
             setStudents(prev => prev.map(s => s.id === selectedStudent.id ? updatedStudent : s));
             setSelectedStudent(updatedStudent);
-            alert('Dados salvos com sucesso!');
+            showToast('Dados salvos com sucesso!');
         } catch (error) {
             console.error(error);
-            alert('Erro ao salvar dados.');
+            toastError('Erro ao salvar dados.');
         }
     };
 
@@ -2951,14 +2941,17 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
             alert('Sessão salva!');
         } catch (e) {
             console.error(e);
-            alert('Erro ao salvar sessão.');
+            toastError('Erro ao salvar sessão.');
         }
     };
 
     const handleDischarge = async () => {
         if (!selectedStudent) return;
-        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar os dados atuais e gerar o relatório final.");
-        if (!confirmAlta) return;
+        setShowConfirmDischarge(true);
+    };
+
+    const confirmDischargeAction = async () => {
+        setShowConfirmDischarge(false);
 
         try {
             // Atualizar status para Alta antes de salvar
@@ -2971,7 +2964,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
             }, 500);
         } catch (err) {
             console.error('Erro ao processar alta:', err);
-            alert('Falha ao processar alta.');
+            toastError('Falha ao processar alta.');
         }
     };
 
@@ -2983,25 +2976,25 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
             const session = targetSession || (otData.sessions.length > 0 ? otData.sessions[0] : null);
 
             const contentHTML = `
-                                <h2 class="section-title">I. ANAMNESE E HISTÓRICO</h2>
-                                <div class="box">
-                                    <div class="data-row"><span class="label">HISTÓRICO OCUPACIONAL:</span> <div class="value">${otData.anamnese.historicoOcupacional || '-'}</div></div>
-                                    <div class="data-row"><span class="label">ROTINA E AVDs:</span> <div class="value">${otData.anamnese.rotinaAVDs || '-'}</div></div>
-                                    <div class="data-row"><span class="label">PERFIL SENSORIAL (PRÉVIA):</span> <div class="value">${otData.anamnese.perfilSensorialPrevia || '-'}</div></div>
-                                    <div class="data-row"><span class="label">BRINCAR E DESENVOLVIMENTO:</span> <div class="value">${otData.anamnese.brincarDesenvolvimento || '-'}</div></div>
-                                    <div class="data-row"><span class="label">COMPORTAMENTO SOCIAL:</span> <div class="value">${otData.anamnese.comportamentoSocial || '-'}</div></div>
-                                </div>
+                                    <h2 class="section-title">I. ANAMNESE E HISTÓRICO</h2>
+                                    <div class="box">
+                                        <div class="data-row"><span class="label">HISTÓRICO OCUPACIONAL:</span> <div class="value">${otData.anamnese.historicoOcupacional || '-'}</div></div>
+                                        <div class="data-row"><span class="label">ROTINA E AVDs:</span> <div class="value">${otData.anamnese.rotinaAVDs || '-'}</div></div>
+                                        <div class="data-row"><span class="label">PERFIL SENSORIAL (PRÉVIA):</span> <div class="value">${otData.anamnese.perfilSensorialPrevia || '-'}</div></div>
+                                        <div class="data-row"><span class="label">BRINCAR E DESENVOLVIMENTO:</span> <div class="value">${otData.anamnese.brincarDesenvolvimento || '-'}</div></div>
+                                        <div class="data-row"><span class="label">COMPORTAMENTO SOCIAL:</span> <div class="value">${otData.anamnese.comportamentoSocial || '-'}</div></div>
+                                    </div>
 
-                                <h2 class="section-title">II. AVALIAÇÃO TERAPÊUTICA OCUPACIONAL</h2>
-                                <div class="box">
-                                    <div class="data-row"><span class="label">MOTRICIDADE FINA:</span> <div class="value">${otData.avaliacao.motricidadeFina || '-'}</div></div>
-                                    <div class="data-row"><span class="label">MOTRICIDADE GROSSA:</span> <div class="value">${otData.avaliacao.motricidadeGrossa || '-'}</div></div>
-                                    <div class="data-row"><span class="label">PROCESSAMENTO SENSORIAL:</span> <div class="value">${otData.avaliacao.processamentoSensorial || '-'}</div></div>
-                                    <div class="data-row"><span class="label">INTEGRAÇÃO VISOMOTORA:</span> <div class="value">${otData.avaliacao.integracaoVisomotora || '-'}</div></div>
-                                    <div class="data-row"><span class="label">AUTOCUIDADOS:</span> <div class="value">${otData.avaliacao.autocuidados || '-'}</div></div>
-                                </div>
+                                    <h2 class="section-title">II. AVALIAÇÃO TERAPÊUTICA OCUPACIONAL</h2>
+                                    <div class="box">
+                                        <div class="data-row"><span class="label">MOTRICIDADE FINA:</span> <div class="value">${otData.avaliacao.motricidadeFina || '-'}</div></div>
+                                        <div class="data-row"><span class="label">MOTRICIDADE GROSSA:</span> <div class="value">${otData.avaliacao.motricidadeGrossa || '-'}</div></div>
+                                        <div class="data-row"><span class="label">PROCESSAMENTO SENSORIAL:</span> <div class="value">${otData.avaliacao.processamentoSensorial || '-'}</div></div>
+                                        <div class="data-row"><span class="label">INTEGRAÇÃO VISOMOTORA:</span> <div class="value">${otData.avaliacao.integracaoVisomotora || '-'}</div></div>
+                                        <div class="data-row"><span class="label">AUTOCUIDADOS:</span> <div class="value">${otData.avaliacao.autocuidados || '-'}</div></div>
+                                    </div>
 
-                                ${session ? `
+                                    ${session ? `
                 <h2 class="section-title">III. REGISTRO DE ATENDIMENTO / EVOLUÇÃO</h2>
                 <div class="box" style="border-left: 4px solid #ea580c; background: #fff7ed;">
                     <div class="data-row">
@@ -3016,7 +3009,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                     <div class="data-row"><span class="label">OBSERVAÇÕES:</span> <div class="value" style="white-space: pre-wrap;">${session.observacoes || '-'}</div></div>
                 </div>
                 ` : ''}
-                                `;
+                                    `;
 
             const html = generateClinicalPrintHTML(
                 selectedStudent,
@@ -3361,6 +3354,9 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
     const [isEditingSession, setIsEditingSession] = useState(false);
     const [currentSession, setCurrentSession] = useState<Partial<PhysioSession>>({});
     const [loading, setLoading] = useState(false);
+    const { success: showToast, error: toastError } = useToast();
+    const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
+    const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
 
     const isPT = currentUser.specialty === Specialty.PHYSIOTHERAPY || currentUser.role === 'ADMIN';
 
@@ -3402,10 +3398,10 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
             await SupabaseService.saveStudent(updatedStudent);
             setStudents(prev => prev.map(s => s.id === selectedStudent.id ? updatedStudent : s));
             setSelectedStudent(updatedStudent);
-            alert('Dados salvos com sucesso!');
+            showToast('Dados salvos com sucesso!');
         } catch (error) {
             console.error(error);
-            alert('Erro ao salvar dados.');
+            toastError('Erro ao salvar dados.');
         }
     };
 
@@ -3441,17 +3437,20 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
             setPtData({ ...ptData, sessions: updatedSessions });
             setIsEditingSession(false);
             setCurrentSession({});
-            alert('Sessão salva!');
+            showToast('Sessão salva!', 'success');
         } catch (e) {
             console.error(e);
-            alert('Erro ao salvar sessão.');
+            toastError('Erro ao salvar sessão.');
         }
     };
 
     const handleDischarge = async () => {
         if (!selectedStudent) return;
-        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar os dados atuais e gerar o relatório final.");
-        if (!confirmAlta) return;
+        setShowConfirmDischarge(true);
+    };
+
+    const confirmDischargeAction = async () => {
+        setShowConfirmDischarge(false);
 
         try {
             // Atualizar status para Alta antes de salvar
@@ -3464,7 +3463,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
             }, 500);
         } catch (err) {
             console.error('Erro ao processar alta:', err);
-            alert('Falha ao processar alta.');
+            toastError('Falha ao processar alta.');
         }
     };
 
@@ -3476,32 +3475,32 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
             const session = targetSession || (ptData.sessions.length > 0 ? ptData.sessions[0] : null);
 
             const contentHTML = `
-                                            <h2 class="section-title">I. ANAMNESE E QUEIXA FUNCIONAL</h2>
-                                            <div class="box">
-                                                <div class="data-row"><span class="label">QUEIXA PRINCIPAL:</span> <div class="value">${ptData.anamnese.queixaPrincipal || '-'}</div></div>
-                                                <div class="data-row"><span class="label">DIAGNÓSTICO INFORMADO:</span> <div class="value">${ptData.anamnese.diagnosticoInformado || '-'}</div></div>
-                                                <div class="data-row"><span class="label">HISTÓRICO FUNCIONAL:</span> <div class="value">${ptData.anamnese.historicoFuncional || '-'}</div></div>
-                                                <div class="data-row"><span class="label">DISPOSITIVOS DE APOIO:</span> <div class="value">${ptData.anamnese.dispositivosApoio || '-'}</div></div>
-                                            </div>
+                                                <h2 class="section-title">I. ANAMNESE E QUEIXA FUNCIONAL</h2>
+                                                <div class="box">
+                                                    <div class="data-row"><span class="label">QUEIXA PRINCIPAL:</span> <div class="value">${ptData.anamnese.queixaPrincipal || '-'}</div></div>
+                                                    <div class="data-row"><span class="label">DIAGNÓSTICO INFORMADO:</span> <div class="value">${ptData.anamnese.diagnosticoInformado || '-'}</div></div>
+                                                    <div class="data-row"><span class="label">HISTÓRICO FUNCIONAL:</span> <div class="value">${ptData.anamnese.historicoFuncional || '-'}</div></div>
+                                                    <div class="data-row"><span class="label">DISPOSITIVOS DE APOIO:</span> <div class="value">${ptData.anamnese.dispositivosApoio || '-'}</div></div>
+                                                </div>
 
-                                            <h2 class="section-title">II. AVALIAÇÃO MOTORA E POSTURAL</h2>
-                                            <div class="box">
-                                                <div class="data-row"><span class="label">CLASSIFICAÇÃO GMFCS:</span> <div class="value"><strong>NÍVEL ${ptData.avaliacao.gmfcs || 'NÃO INFORMADO'}</strong></div></div>
-                                                <div class="data-row"><span class="label">POSTURA (Pé/Sentado):</span> <div class="value">${ptData.avaliacao.postura.emPe} / ${ptData.avaliacao.postura.sentada}</div></div>
-                                                <div class="data-row"><span class="label">MOBILIDADE (ADM):</span> <div class="value">${ptData.avaliacao.mobilidade.adm}</div></div>
-                                                <div class="data-row"><span class="label">EQUILÍBRIO:</span> <div class="value">${ptData.avaliacao.equilibrio.estatico} (Est.) / ${ptData.avaliacao.equilibrio.dinamico} (Din.)</div></div>
-                                                <div class="data-row"><span class="label">MARCHA:</span> <div class="value">${ptData.avaliacao.marcha.observacoes || '-'}</div></div>
-                                            </div>
+                                                <h2 class="section-title">II. AVALIAÇÃO MOTORA E POSTURAL</h2>
+                                                <div class="box">
+                                                    <div class="data-row"><span class="label">CLASSIFICAÇÃO GMFCS:</span> <div class="value"><strong>NÍVEL ${ptData.avaliacao.gmfcs || 'NÃO INFORMADO'}</strong></div></div>
+                                                    <div class="data-row"><span class="label">POSTURA (Pé/Sentado):</span> <div class="value">${ptData.avaliacao.postura.emPe} / ${ptData.avaliacao.postura.sentada}</div></div>
+                                                    <div class="data-row"><span class="label">MOBILIDADE (ADM):</span> <div class="value">${ptData.avaliacao.mobilidade.adm}</div></div>
+                                                    <div class="data-row"><span class="label">EQUILÍBRIO:</span> <div class="value">${ptData.avaliacao.equilibrio.estatico} (Est.) / ${ptData.avaliacao.equilibrio.dinamico} (Din.)</div></div>
+                                                    <div class="data-row"><span class="label">MARCHA:</span> <div class="value">${ptData.avaliacao.marcha.observacoes || '-'}</div></div>
+                                                </div>
 
-                                            <h2 class="section-title">III. CONCLUSÃO E RECOMENDAÇÕES ESCOLARES</h2>
-                                            <div class="box">
-                                                <div class="data-row"><span class="label">LIMITAÇÕES:</span> <div class="value">${ptData.conclusao.limitacoes || '-'}</div></div>
-                                                <div class="data-row"><span class="label">POTENCIALIDADES:</span> <div class="value">${ptData.conclusao.potencialidades || '-'}</div></div>
-                                                <div class="data-row"><span class="label">APOIO ESCOLAR:</span> <div class="value">${ptData.conclusao.necessidadeApoioEscolar || '-'}</div></div>
-                                                <div class="data-row"><span class="label">RECOMENDAÇÕES:</span> <div class="value">${ptData.conclusao.recomendacoes || '-'}</div></div>
-                                            </div>
+                                                <h2 class="section-title">III. CONCLUSÃO E RECOMENDAÇÕES ESCOLARES</h2>
+                                                <div class="box">
+                                                    <div class="data-row"><span class="label">LIMITAÇÕES:</span> <div class="value">${ptData.conclusao.limitacoes || '-'}</div></div>
+                                                    <div class="data-row"><span class="label">POTENCIALIDADES:</span> <div class="value">${ptData.conclusao.potencialidades || '-'}</div></div>
+                                                    <div class="data-row"><span class="label">APOIO ESCOLAR:</span> <div class="value">${ptData.conclusao.necessidadeApoioEscolar || '-'}</div></div>
+                                                    <div class="data-row"><span class="label">RECOMENDAÇÕES:</span> <div class="value">${ptData.conclusao.recomendacoes || '-'}</div></div>
+                                                </div>
 
-                                            ${session ? `
+                                                ${session ? `
                 <h2 class="section-title">IV. REGISTRO DE ATENDIMENTO / EVOLUÇÃO</h2>
                 <div class="box" style="border-left: 4px solid #1d4ed8; background: #eff6ff;">
                     <div class="data-row">
@@ -3514,7 +3513,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                     <div class="data-row"><span class="label">OBSERVAÇÕES:</span> <div class="value" style="white-space: pre-wrap;">${session.observacoesClinicas || '-'}</div></div>
                 </div>
                 ` : ''}
-                                            `;
+                                                `;
 
             const html = generateClinicalPrintHTML(
                 selectedStudent,
@@ -3536,7 +3535,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
             }
         } catch (e) {
             console.error(e);
-            alert('Erro ao gerar impressão.');
+            toastError('Erro ao gerar impressão.');
         }
     };
 
@@ -3951,6 +3950,9 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
     const [stats, setStats] = useState({ totalPatients: 0, totalSessions: 0, activeCases: 0, diagnosisData: [] as any[] });
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
+    const { success: showToast, error: toastError } = useToast();
+    const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
+    const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
 
     useEffect(() => {
         if (preSelectedStudent) setSelectedStudent(preSelectedStudent);
@@ -4121,10 +4123,11 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
             setPrivateData({ ...privateData, sessions: updatedSessions });
             setIsEditingSession(false);
             setCurrentSession({});
-            alert('Atendimento salvo!');
+            setCurrentSession({});
+            showToast('Atendimento salvo!', 'success');
             loadData(); // Refresh list if needed
         } catch (e) {
-            alert('Erro ao salvar sessão.');
+            toastError('Erro ao salvar sessão.');
         }
     };
 
@@ -4135,19 +4138,19 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
             const session = targetSession || (privateData.sessions.length > 0 ? privateData.sessions[0] : null);
 
             const contentHTML = `
-                                                                <h2 class="section-title">I. IDENTIFICAÇÃO E ENCAMINHAMENTO</h2>
-                                                                <div class="box">
-                                                                    <div class="data-row"><span class="label">ENCAMINHADO POR:</span> <span class="value">${publicData.identificacao.encaminhadoPor || '-'}</span></div>
-                                                                    <div class="data-row"><span class="label">DATA TRIAGEM:</span> <span class="value">${publicData.identificacao.dataTriagem ? new Date(publicData.identificacao.dataTriagem).toLocaleDateString() : '-'}</span></div>
-                                                                    <div class="data-row"><span class="label">QUEIXA PRINCIPAL / MOTIVO:</span> <div class="value">${publicData.motivoEncaminhamento.queixa || 'Não informado'}</div></div>
-                                                                </div>
-                                                                <h2 class="section-title">II. DADOS CLÍNICOS E PLANO TERAPÊUTICO</h2>
-                                                                <div class="box">
-                                                                    <div class="data-row"><span class="label">HIPÓTESES INICIAIS:</span> <div class="value">${privateData.formData.triagemPsicologica.hipotesesIniciais || '-'}</div></div>
-                                                                    <div class="data-row"><span class="label">OBJETIVO PRINCIPAL:</span> <div class="value">${privateData.formData.planoTerapeutico.objetivoPrincipal || '-'}</div></div>
-                                                                    <div class="data-row"><span class="label">METAS ESPECÍFICAS:</span> <div class="value">${privateData.formData.planoTerapeutico.metasEspecificas || '-'}</div></div>
-                                                                </div>
-                                                                ${session ? `
+                                                                    <h2 class="section-title">I. IDENTIFICAÇÃO E ENCAMINHAMENTO</h2>
+                                                                    <div class="box">
+                                                                        <div class="data-row"><span class="label">ENCAMINHADO POR:</span> <span class="value">${publicData.identificacao.encaminhadoPor || '-'}</span></div>
+                                                                        <div class="data-row"><span class="label">DATA TRIAGEM:</span> <span class="value">${publicData.identificacao.dataTriagem ? new Date(publicData.identificacao.dataTriagem).toLocaleDateString() : '-'}</span></div>
+                                                                        <div class="data-row"><span class="label">QUEIXA PRINCIPAL / MOTIVO:</span> <div class="value">${publicData.motivoEncaminhamento.queixa || 'Não informado'}</div></div>
+                                                                    </div>
+                                                                    <h2 class="section-title">II. DADOS CLÍNICOS E PLANO TERAPÊUTICO</h2>
+                                                                    <div class="box">
+                                                                        <div class="data-row"><span class="label">HIPÓTESES INICIAIS:</span> <div class="value">${privateData.formData.triagemPsicologica.hipotesesIniciais || '-'}</div></div>
+                                                                        <div class="data-row"><span class="label">OBJETIVO PRINCIPAL:</span> <div class="value">${privateData.formData.planoTerapeutico.objetivoPrincipal || '-'}</div></div>
+                                                                        <div class="data-row"><span class="label">METAS ESPECÍFICAS:</span> <div class="value">${privateData.formData.planoTerapeutico.metasEspecificas || '-'}</div></div>
+                                                                    </div>
+                                                                    ${session ? `
                 <h2 class="section-title">III. REGISTRO DE EVOLUÇÃO</h2>
                 <div class="box" style="border-left: 4px solid #9333ea; background: #faf5ff;">
                     <div class="data-row"><span class="label">DATA:</span> <span class="value">${new Date(session.dataHoraISO).toLocaleDateString()}</span></div>
@@ -4155,7 +4158,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     <div class="data-row"><span class="label">EVOLUÇÃO:</span> <div class="value" style="white-space: pre-wrap;">${session.anotacoes || session.resumo || 'Sem anotações.'}</div></div>
                 </div>
                 ` : ''}
-                                                                `;
+                                                                    `;
 
             const html = generateClinicalPrintHTML(selectedStudent, config, 'Prontuário Psicológico', contentHTML, {
                 name: currentUser.name, jobTitle: currentUser.jobTitle || 'Psicólogo(a)', specialty: currentUser.specialty, signatureUrl: currentUser.signatureUrl
@@ -4163,7 +4166,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 
             const win = window.open('', '_blank');
             if (win) { win.document.write(html); win.document.close(); setTimeout(() => { win.focus(); win.print(); win.close(); }, 500); }
-        } catch (e) { alert('Erro na impressão.'); }
+        } catch (e) { toastError('Erro na impressão.'); }
     };
 
     const filteredActivity = recentActivity.filter(item =>
@@ -4487,899 +4490,1280 @@ const SocialSection = ({ title, isOpen, onToggle, children, icon: Icon, color = 
     );
 };
 
+
 // --- DASHBOARD ESPECÍFICO DE SERVIÇO SOCIAL ---
-// --- DASHBOARD ESPECÍFICO DE SERVIÇO SOCIAL ---
-const SocialServiceSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStudent?: Student; allStudents?: Student[] }> = ({ title, onNavigateNew, currentUser, preSelectedStudent, allStudents }) => {
-    console.log('🔥🔥🔥 [CRITICAL DEBUG] SocialServiceSpecificDashboard MOUNTING 🔥🔥🔥');
-    console.log('[DEBUG] Props:', {
-        hasUser: !!currentUser,
-        userId: currentUser?.id,
-        studentCount: allStudents?.length,
-        preSelected: preSelectedStudent?.fullName
-    });
-    // [DEBUG] Logs inserted successfully.
+// --- TIPOS E HELPER DE SERVIÇO SOCIAL (RESTAURADO) ---
 
-
-    const [students, setStudents] = useState<Student[]>(allStudents || []);
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(preSelectedStudent || null);
-    console.log('[DEBUG] State initialized. selectedStudent:', selectedStudent?.id);
-
-    const [activeTab, setActiveTab] = useState<'id' | 'social' | 'health' | 'status' | 'reports'>('id');
-    const [recentUpdates, setRecentUpdates] = useState<{ studentName: string, lastUpdate: string, professional: string, studentId: string, schoolId?: string }[]>([]);
-    const [stats, setStats] = useState({ totalVisits: 0, activeSearch: 0 });
-    const [searchTerm, setSearchTerm] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [openSections, setOpenSections] = useState<string[]>(['identificacao', 'fundamentacao']);
-
-    const toggleSection = (id: string) => {
-        console.log('[DEBUG] Toggling section:', id);
-        setOpenSections(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+interface SocialServiceForm {
+    identificacao: {
+        genero: string;
+        nomeResponsavel: string;
+        grauParentesco: string;
+        numeroPessoasResidencia: string;
+        telefonesContato: string;
+        documento: string;
+        nis: string;
+        matriculado: string;
+        nomeEscola: string;
     };
-
-    // Dados do Aluno Selecionado
-    const [socialData, setSocialData] = useState<SocialServicePrivateData>({
-        formData: initialSocialForm,
-        lastUpdate: '',
-        professionalName: ''
-    });
-
-    console.log('[DEBUG] socialData initialized:', socialData ? 'OK' : 'NULL');
-
-    const [schools, setSchools] = useState<School[]>([]);
-    const [selectedSchoolFilter, setSelectedSchoolFilter] = useState('');
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [viewMode, setViewMode] = useState<'overview' | 'agenda'>('overview');
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (preSelectedStudent) setSelectedStudent(preSelectedStudent);
-    }, [preSelectedStudent]);
-
-    const loadData = async () => {
-        if (!currentUser?.id) return;
-        setLoading(true);
-        setError(null);
-        try {
-            let data = allStudents || [];
-            let schoolsData: School[] = [];
-            let appsData: Appointment[] = [];
-
-            if (!allStudents || allStudents.length === 0) {
-                [data, schoolsData, appsData] = await Promise.all([
-                    SupabaseService.getStudents(),
-                    SupabaseService.getSchools(),
-                    SupabaseService.getAppointments({ professionalId: currentUser.id })
-                ]);
-            } else {
-                [schoolsData, appsData] = await Promise.all([
-                    SupabaseService.getSchools(),
-                    SupabaseService.getAppointments({ professionalId: currentUser.id })
-                ]);
-            }
-
-            setStudents(data || []);
-            setSchools(schoolsData || []);
-            setAppointments(appsData || []);
-
-            console.log('[SocialDashboard] Students loaded:', data?.length);
-            console.log('[SocialDashboard] Schools loaded:', schoolsData?.length);
-
-            const updates: any[] = [];
-            let count = 0;
-
-            (data || []).forEach(student => {
-                const sData = extractSocialData(student);
-
-                if (sData) {
-                    count++;
-                    updates.push({
-                        studentId: student.id,
-                        studentName: student.fullName,
-                        lastUpdate: sData.lastUpdate,
-                        professional: sData.professionalName,
-                        schoolId: student.school?.schoolId // Captura ID da escola para filtro
-                    });
-                }
-            });
-
-            updates.sort((a, b) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime());
-            setRecentUpdates(updates);
-            setStats({ totalVisits: count, activeSearch: count });
-        } catch (error: any) {
-            console.error('Erro ao carregar dados do Serviço Social:', error);
-            setError(error.message || 'Erro desconhecido ao carregar dados.');
-            // Fallback silencioso para não quebrar a UI
-            setStudents([]);
-            setSchools([]);
-            setAppointments([]);
-        } finally {
-            setLoading(false);
-        }
+    historicoEscolar: {
+        frequentouAnteriormente: string;
+        ultimaEscola: string;
+        ultimoAnoSerie: string;
+        anoParou: string;
+        idadeSaiu: string;
+        motivosSaida: string[];
+        motivosSaidaOutros: string;
     };
-
-    useEffect(() => { loadData(); }, [currentUser]);
-
-    // Função Helper para normalizar dados antigos vs novos e garantir integridade estrutural
-    const normalizeSocialData = (rawData: any): SocialServicePrivateData => {
-        // 1. Se não houver dados, retorna estrutura inicial limpa
-        if (!rawData || !rawData.formData) {
-            return {
-                formData: initialSocialForm,
-                lastUpdate: '',
-                professionalName: ''
-            };
-        }
-
-        const incomingForm = rawData.formData;
-
-        // Helper para garantir que arrays sejam arrays (e não null/undefined)
-        const ensureArray = (arr: any) => Array.isArray(arr) ? arr : [];
-
-        // 2. Construção segura do objeto
-        // Para cada seção, fazemos o merge E garantimos que campos críticos (arrays) não sejam null/undefined
-        // Se incomingForm.secao for undefined, o spread usa o default.
-        // Se incomingForm.secao for null, precisamos proteger.
-        // Se incomingForm.secao.campoArray for null, precisamos proteger.
-
-        const safeMerge = (defaultSection: any, incomingSection: any) => {
-            if (!incomingSection) return defaultSection;
-            return { ...defaultSection, ...incomingSection };
-        };
-
-        const mergedFormData: SocialServiceForm = {
-            identificacao: {
-                ...initialSocialForm.identificacao,
-                ...(incomingForm.identificacao || {}),
-                composicaoFamiliar: ensureArray(incomingForm.identificacao?.composicaoFamiliar || initialSocialForm.identificacao.composicaoFamiliar)
-            },
-            fundamentacao: { ...initialSocialForm.fundamentacao, ...(incomingForm.fundamentacao || {}) },
-            condicoesMoradia: { ...initialSocialForm.condicoesMoradia, ...(incomingForm.condicoesMoradia || {}) },
-            higieneCuidados: { ...initialSocialForm.higieneCuidados, ...(incomingForm.higieneCuidados || {}) },
-            acessoPolíticas: {
-                ...initialSocialForm.acessoPolíticas,
-                ...(incomingForm.acessoPolíticas || {}),
-                beneficios: ensureArray(incomingForm.acessoPolíticas?.beneficios || initialSocialForm.acessoPolíticas.beneficios)
-            },
-            relacoesFamiliares: { ...initialSocialForm.relacoesFamiliares, ...(incomingForm.relacoesFamiliares || {}) },
-            perguntasOrientadoras: { ...initialSocialForm.perguntasOrientadoras, ...(incomingForm.perguntasOrientadoras || {}) },
-            analiseTecnica: {
-                ...initialSocialForm.analiseTecnica,
-                ...(incomingForm.analiseTecnica || {}),
-                direitosViolados: ensureArray(incomingForm.analiseTecnica?.direitosViolados || initialSocialForm.analiseTecnica.direitosViolados)
-            },
-            encaminhamentos: { ...initialSocialForm.encaminhamentos, ...(incomingForm.encaminhamentos || {}) }
-        };
-
-        return {
-            ...rawData,
-            formData: mergedFormData
-        };
+    condicoesFamiliares: {
+        responsaveisLegais: string;
+        fonteRenda: string;
+        programasSociais: string[];
+        deficienciaResidencia: string;
+        quemDeficiencia: string;
+        alunoDeficiencia: string;
+        qualDeficiencia: string;
+        situacoesEnfrentadas: string[];
+        adultosAlfabetizados: string;
+        educacaoPrioridade: string;
     };
-
-    useEffect(() => {
-        if (selectedStudent) {
-            // Use normalizeSocialData to ensure structure validity
-            // UNIFIED DATA LOAD: Check both locations (new and legacy)
-            const savedData = selectedStudent.clinical?.social_data || selectedStudent.socialInfo;
-            setSocialData(normalizeSocialData(savedData));
-            setActiveTab('id');
-        }
-    }, [selectedStudent]);
-
-
-    const handleSaveSocial = async () => {
-        if (!selectedStudent) return;
-        try {
-            const updatedStudent: Student = {
-                ...selectedStudent,
-                clinical: {
-                    ...selectedStudent.clinical,
-                    social_data: {
-                        ...socialData, // This is already SocialServicePrivateData
-                        lastUpdate: new Date().toISOString(),
-                        professionalName: currentUser.name
-                    }
-                }
-            };
-            await SupabaseService.saveStudent(updatedStudent);
-            setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
-            setSelectedStudent(updatedStudent);
-            alert('Busca Ativa atualizada com sucesso!');
-            loadData();
-        } catch (e) {
-            alert('Erro ao salvar dados sociais.');
-        }
+    saudeAcompanhamentos: {
+        acompanhamentoMedico: string;
+        medicacaoContinua: string;
+        qualMedicacao: string;
+        acompanhamentoPsi: string;
+        conselhoTutelar: string;
+        servicosAtendimento: string[];
+        outrosServicos: string;
     };
-
-    const handlePrintSocialReport = async () => {
-        if (!selectedStudent) return;
-        try {
-            const config = await SupabaseService.getPapelTimbradoConfig();
-
-            const renderList = (items: string[]) => items && items.length > 0
-                ? `<ul style="margin: 0; padding-left: 20px;">${items.map(i => `<li>${i}</li>`).join('')}</ul>`
-                : 'Não informado';
-
-            const f = socialData.formData;
-
-            const contentHTML = `
-                <style>
-                    .section-title { font-size: 14px; font-weight: bold; background-color: #f1f5f9; padding: 5px 10px; border-left: 4px solid #0891b2; margin-top: 15px; margin-bottom: 10px; }
-                    .box { border: 1px solid #e2e8f0; padding: 10px; border-radius: 5px; margin-bottom: 5px; }
-                    .box-title { font-size: 12px; font-weight: bold; color: #475569; margin-bottom: 5px; border-bottom: 1px solid #f1f5f9; padding-bottom: 3px; }
-                    .data-row { display: flex; margin-bottom: 4px; border-bottom: 1px dashed #f1f5f9; padding-bottom: 2px; }
-                    .label { font-weight: bold; width: 180px; font-size: 11px; color: #64748b; }
-                    .value { flex: 1; font-size: 12px; color: #0f172a; }
-                    .full-text { font-size: 12px; color: #334155; white-space: pre-wrap; line-height: 1.4; text-align: justify; }
-                    .alert-box { border: 1px solid #ef4444; background-color: #fef2f2; padding: 8px; border-radius: 4px; margin-top: 10px; }
-                </style>
-
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase;">RELATÓRIO TÉCNICO DE BUSCA ATIVA / VISITA DOMICILIAR</h1>
-                    <p style="font-size: 12px; color: #64748b;">Instrumental sigiloso de Serviço Social</p>
-                </div>
-
-                <h2 class="section-title">1. IDENTIFICAÇÃO DA VISITA</h2>
-                <div class="box">
-                    <div class="data-row"><span class="label">DATA DA VISITA:</span><span class="value">${new Date(socialData.lastUpdate || new Date()).toLocaleDateString()}</span></div>
-                    <div class="data-row"><span class="label">RESPONSÁVEL FAMILIAR:</span><span class="value">${f.identificacao.responsavelFamiliar || '-'}</span></div>
-                    <div class="data-row"><span class="label">ENDEREÇO CONFIRMADO:</span><span class="value">${f.identificacao.enderecoCompleto || '-'}</span></div>
-                    <div class="data-row"><span class="label">COMPOSIÇÃO FAMILIAR:</span><span class="value">${f.identificacao.composicaoFamiliar[0] || 'Não informado'}</span></div>
-                </div>
-
-                <h2 class="section-title">2. FUNDAMENTAÇÃO E OBJETIVO</h2>
-                <div class="box">
-                    <div class="full-text">${f.fundamentacao.textoBase || '-'}</div>
-                </div>
-
-                <h2 class="section-title">3. EIXOS DE OBSERVAÇÃO</h2>
-                <div class="box">
-                    <div class="box-title">3.1 CONDIÇÕES DE MORADIA</div>
-                    <div class="data-row"><span class="label">ESTRUTURA FÍSICA:</span><span class="value">${f.condicoesMoradia.estruturaFisica || '-'}</span></div>
-                    <div class="data-row"><span class="label">VENTILAÇÃO/LIMPEZA:</span><span class="value">${f.condicoesMoradia.ventilacaoIluminacao || '-'}</span></div>
-                    <div class="data-row"><span class="label">SANEAMENTO:</span><span class="value">${f.condicoesMoradia.saneamento || '-'}</span></div>
-                </div>
-                <div class="box">
-                    <div class="box-title">3.2 HIGIENE E CUIDADOS</div>
-                    <div class="data-row"><span class="label">SITUAÇÃO CRIANÇAS:</span><span class="value">${f.higieneCuidados.situacaoCriancas || '-'}</span></div>
-                    <div class="data-row"><span class="label">PRODUTOS HIGIENE:</span><span class="value">${f.higieneCuidados.produtosHigiene || '-'}</span></div>
-                    <div class="data-row"><span class="label">ROTINA OBSERVADA:</span><span class="value">${f.higieneCuidados.rotinaCuidados || '-'}</span></div>
-                </div>
-                <div class="box">
-                    <div class="box-title">3.3 POLÍTICAS SOCIAIS E RENDA</div>
-                    <div class="data-row"><span class="label">BENEFÍCIOS:</span><span class="value">${renderList(f.acessoPolíticas.beneficios)}</span></div>
-                    <div class="data-row"><span class="label">SUFICIÊNCIA DA RENDA:</span><span class="value">${f.acessoPolíticas.suficienciaRenda || '-'} (Destino: ${f.acessoPolíticas.destinoRenda || '-'})</span></div>
-                </div>
-
-                <h2 class="section-title">4. PERGUNTAS ORIENTADORAS</h2>
-                <div class="box">
-                    <div class="data-row"><span class="label">HIGIENE/CUIDADOS:</span><span class="value">${f.perguntasOrientadoras.higieneCuidados || '-'}</span></div>
-                    <div class="data-row"><span class="label">ALIMENTAÇÃO/RENDA:</span><span class="value">${f.perguntasOrientadoras.alimentacaoRenda || '-'}</span></div>
-                    <div class="data-row"><span class="label">DESAFIOS/ESTRATÉGIAS:</span><span class="value">${f.perguntasOrientadoras.desafiosEstrategias || '-'}</span></div>
-                </div>
-
-                <h2 class="section-title">5. ANÁLISE TÉCNICA (ÁREA RESTRITA)</h2>
-                <div class="box" style="background-color: #fefce8;">
-                    <div class="data-row"><span class="label">EXPRESSÕES QUESTÃO SOCIAL:</span><div class="value full-text">${f.analiseTecnica.expressoesQuestaoSocial || '-'}</div></div>
-                    <div class="data-row"><span class="label">DIREITOS VIOLADOS:</span><span class="value">${renderList(f.analiseTecnica.direitosViolados)}</span></div>
-                    <div class="data-row"><span class="label">ESTRATÉGIAS SOBREVIVÊNCIA:</span><span class="value">${f.analiseTecnica.estrategiasSobrevivencia || '-'}</span></div>
-                    <div class="data-row"><span class="label">NECESSIDADE ARTICULAÇÃO:</span><span class="value">${f.analiseTecnica.necessidadeArticulacao || '-'}</span></div>
-                </div>
-
-                <h2 class="section-title">6. ENCAMINHAMENTOS E DESFECHO</h2>
-                <div class="box">
-                    <div class="data-row"><span class="label">ORIENTAÇÕES REALIZADAS:</span><div class="value full-text">${f.encaminhamentos.orientacoesRealizadas || '-'}</div></div>
-                    <div class="data-row"><span class="label">ENCAMINHAMENTOS:</span><span class="value">
-                        ${f.encaminhamentos.encaminhamentoCrasCreas ? '[x] CRAS/CREAS ' : ''}
-                        ${f.encaminhamentos.articulacaoSaude ? '[x] SAÚDE ' : ''}
-                        ${f.encaminhamentos.acionamentoRede ? '[x] REDE PROTEÇÃO' : ''}
-                    </span></div>
-                    <div class="data-row"><span class="label">OBSERVAÇÕES FINAIS:</span><div class="value full-text">${f.encaminhamentos.observacoesFinais || '-'}</div></div>
-                    <div class="data-row" style="margin-top: 5px; font-weight: bold; font-size: 13px;"><span class="label">STATUS DO CASO:</span><span class="value">${f.encaminhamentos.statusCaso}</span></div>
-                </div>
-            `;
-
-            const html = generateClinicalPrintHTML(selectedStudent, config, 'Relatório de Visita Domiciliar', contentHTML, {
-                name: socialData.professionalName || currentUser.name,
-                jobTitle: currentUser.jobTitle || 'Assistente Social',
-                specialty: currentUser.specialty,
-                signatureUrl: currentUser.signatureUrl
-            });
-
-            const win = window.open('', '_blank');
-            if (win) { win.document.write(html); win.document.close(); setTimeout(() => { win.focus(); win.print(); win.close(); }, 500); }
-        } catch (e) { alert('Erro na impressão.'); }
+    situacaoAtual: {
+        desejoRetornar: string;
+        apoioFamilia: string;
+        fatoresDificultam: string[];
+        fatoresDificultamOutros: string;
+        apoiosNecessarios: string[];
+        apoiosNecessariosOutros: string;
     };
-
-    const handleDischarge = async () => {
-        if (!selectedStudent) return;
-        const confirmAlta = confirm("Tem certeza que deseja dar alta a este aluno no Serviço Social? Isso irá salvar os dados e gerar o relatório final.");
-        if (!confirmAlta) return;
-
-        try {
-            await handleSaveSocial();
-            setTimeout(() => {
-                handlePrintSocialReport();
-            }, 500);
-        } catch (err) {
-            console.error(err);
-            alert('Erro ao processar alta.');
-        }
+    observacoesEncaminhamentos: {
+        observacoesAgente: string;
+        acoesRecomendadas: string[];
+        acoesRecomendadasOutros: string;
+        statusRegistro: 'PENDENTE' | 'CONCLUÍDO';
     };
+    // NOVOS CAMPOS - ALINHAMENTO INSTITUCIONAL
+    statusCaso: 'Em Acompanhamento' | 'Encaminhado Educação Especial' | 'Encaminhado Conselho Tutelar' | 'Concluído/Reinserido' | '';
+    indicadoresEducacionais: {
+        barreirasAcesso: boolean | null;
+        dificuldadesAprendizagem: boolean | null;
+        apoioEspecializado: boolean | null;
+    };
+    encaminhamentoInstitucional: {
+        sugestao: 'Conselho Tutelar' | 'Educação Especial' | 'CRAS' | 'Saúde' | 'Não há encaminhamento' | '';
+        motivo: string;
+        prioridade: 'Baixa' | 'Média' | 'Alta' | '';
+        dataEncaminhamento: string;
+        profissionalResponsavel: string;
+    };
+}
 
-    const filteredUpdates = recentUpdates.filter(u => {
-        const matchesSearch = (u.studentName || '').toLowerCase().includes((searchTerm || '').toLowerCase());
-        const matchesSchool = selectedSchoolFilter ? u.schoolId === selectedSchoolFilter : true;
-        return matchesSearch && matchesSchool;
-    });
+interface SocialServicePrivateData {
+    formData: SocialServiceForm;
+    lastUpdate: string;
+    professionalName: string;
+}
 
-    const handleArrayToggle = (section: keyof SocialServiceForm, field: string, value: string) => {
-        const current = (socialData.formData as any)[section][field] as string[];
-        const updated = current.includes(value) ? current.filter(i => i !== value) : [...current, value];
-        setSocialData({
-            ...socialData,
-            formData: {
-                ...socialData.formData,
-                [section]: { ...(socialData.formData as any)[section], [field]: updated }
+const initialSocialForm: SocialServiceForm = {
+    identificacao: { genero: '', nomeResponsavel: '', grauParentesco: '', numeroPessoasResidencia: '', telefonesContato: '', documento: '', nis: '', matriculado: '', nomeEscola: '' },
+    historicoEscolar: { frequentouAnteriormente: '', ultimaEscola: '', ultimoAnoSerie: '', anoParou: '', idadeSaiu: '', motivosSaida: [], motivosSaidaOutros: '' },
+    condicoesFamiliares: { responsaveisLegais: '', fonteRenda: '', programasSociais: [], deficienciaResidencia: '', quemDeficiencia: '', alunoDeficiencia: '', qualDeficiencia: '', situacoesEnfrentadas: [], adultosAlfabetizados: '', educacaoPrioridade: '' },
+    saudeAcompanhamentos: { acompanhamentoMedico: '', medicacaoContinua: '', qualMedicacao: '', acompanhamentoPsi: '', conselhoTutelar: '', servicosAtendimento: [], outrosServicos: '' },
+    situacaoAtual: { desejoRetornar: '', apoioFamilia: '', fatoresDificultam: [], fatoresDificultamOutros: '', apoiosNecessarios: [], apoiosNecessariosOutros: '' },
+    observacoesEncaminhamentos: { observacoesAgente: '', acoesRecomendadas: [], acoesRecomendadasOutros: '', statusRegistro: 'PENDENTE' },
+    // NOVOS
+    statusCaso: '',
+    indicadoresEducacionais: { barreirasAcesso: null, dificuldadesAprendizagem: null, apoioEspecializado: null },
+    encaminhamentoInstitucional: { sugestao: '', motivo: '', prioridade: '', dataEncaminhamento: '', profissionalResponsavel: '' }
+};
+
+const extractSocialData = (student: Student): SocialServicePrivateData => {
+    const raw = student.clinical.social_data || {};
+    // Fallback and deep merge would be better, but initialSocialForm provides a safe default template
+    const mergedData = { ...initialSocialForm };
+    if (raw.formData) {
+        // Simple merge for existing sections
+        Object.keys(raw.formData).forEach(key => {
+            if ((mergedData as any)[key] && typeof (mergedData as any)[key] === 'object') {
+                (mergedData as any)[key] = { ...(mergedData as any)[key], ...raw.formData[key] };
             }
         });
-    };
+    }
 
-    const handleInputChange = (section: keyof SocialServiceForm, field: string, value: string) => {
-        setSocialData({
-            ...socialData,
-            formData: {
-                ...socialData.formData,
-                [section]: {
-                    ...(socialData.formData as any)[section],
-                    [field]: value
+    return {
+        formData: mergedData,
+        lastUpdate: raw.lastUpdate || student.createdAt,
+        professionalName: raw.professionalName || ''
+    };
+};
+
+// --- DASHBOARD GERENCIAL (VISÃO GERAL) ---
+const SocialOverviewDashboard: React.FC<{
+    students: Student[];
+    onNavigateToCase: (studentId: string) => void;
+    currentUser: User;
+}> = ({ students, onNavigateToCase, currentUser }) => {
+
+    // 1. CÁLCULO DE INDICADORES (KPIs)
+    const stats = useMemo(() => {
+        let activeSearch = 0;
+        let pending = 0;
+        let council = 0;
+        let specialEd = 0;
+        let resolved = 0;
+
+        students.forEach(s => {
+            const social = s.clinical?.social_data?.formData;
+            if (social) {
+                // Busca Ativa: Total de registros de busca ativa
+                if (social.statusCaso) activeSearch++;
+
+                // Pendentes: Status Pendente ou Em Acompanhamento
+                if (social.observacoesEncaminhamentos?.statusRegistro === 'PENDENTE' ||
+                    social.statusCaso === 'Em Acompanhamento') {
+                    pending++;
+                }
+
+                // Encaminhamentos Específicos
+                if (social.statusCaso?.includes('Conselho Tutelar') || social.encaminhamentoInstitucional?.sugestao === 'Conselho Tutelar') council++;
+                if (social.statusCaso?.includes('Educação Especial') || social.encaminhamentoInstitucional?.sugestao === 'Educação Especial') specialEd++;
+
+                // Resolvidos
+                if (social.statusCaso === 'Concluído/Reinserido') resolved++;
+            }
+        });
+
+        return { activeSearch, pending, council, specialEd, resolved };
+    }, [students]);
+
+    // 2. LISTA DE PRIORIDADES (Casos abertos/recentes)
+    const priorities = useMemo(() => {
+        return students
+            .filter(s => {
+                const social = s.clinical?.social_data?.formData;
+                if (!social) return false;
+                // Critérios de prioridade: Status Pendente, Em Acompanhamento, ou Prioridade Alta marcada
+                return social.observacoesEncaminhamentos?.statusRegistro === 'PENDENTE' ||
+                    social.statusCaso === 'Em Acompanhamento' ||
+                    social.encaminhamentoInstitucional?.prioridade === 'Alta';
+            })
+            .sort((a, b) => {
+                // Ordenar por Prioridade Alta > Data de Atualização Recente
+                const pA = a.clinical?.social_data?.formData.encaminhamentoInstitucional?.prioridade === 'Alta' ? 2 : 1;
+                const pB = b.clinical?.social_data?.formData.encaminhamentoInstitucional?.prioridade === 'Alta' ? 2 : 1;
+                if (pA !== pB) return pB - pA;
+
+                const dateA = new Date(a.clinical?.social_data?.lastUpdate || 0).getTime();
+                const dateB = new Date(b.clinical?.social_data?.lastUpdate || 0).getTime();
+                return dateB - dateA;
+            })
+            .slice(0, 5); // Top 5
+    }, [students]);
+
+    // 3. DADOS PARA GRÁFICOS
+    const chartData = useMemo(() => {
+        // Motivos de Saída
+        const reasons: Record<string, number> = {};
+        // Escolas
+        const schools: Record<string, number> = {};
+        // Faixa Etária
+        const ages: Record<string, number> = {};
+
+        students.forEach(s => {
+            const social = s.clinical?.social_data?.formData;
+            if (social) {
+                // Motivos
+                const list = social.historicoEscolar?.motivosSaida || [];
+                list.forEach((r: string) => {
+                    reasons[r] = (reasons[r] || 0) + 1;
+                });
+
+                // Escolas
+                if (s.school?.schoolName) {
+                    schools[s.school.schoolName] = (schools[s.school.schoolName] || 0) + 1;
+                }
+
+                // Idade
+                const age = calculateAge(s.birthDate);
+                if (typeof age === 'number') {
+                    let group = '';
+                    if (age <= 5) group = '0-5 anos';
+                    else if (age <= 10) group = '6-10 anos';
+                    else if (age <= 14) group = '11-14 anos';
+                    else if (age <= 18) group = '15-18 anos';
+                    else group = '19+ anos';
+
+                    ages[group] = (ages[group] || 0) + 1;
                 }
             }
         });
-    };
+
+        const reasonsData = Object.entries(reasons)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 5);
+
+        const schoolsData = Object.entries(schools)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 5);
+
+        const ageData = Object.entries(ages)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => a.name.localeCompare(b.name)); // Ordem de faixa etária
+
+        return { reasonsData, schoolsData, ageData };
+    }, [students]);
 
     return (
-        <div className="max-w-6xl mx-auto animate-fadeIn pb-12">
-
-            {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <strong className="font-bold">Erro de Carregamento: </strong>
-                    <span className="block sm:inline">{error}</span>
+        <div className="space-y-10 animate-fadeIn pb-20">
+            {/* HEADER */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div>
+                    <h2 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Visão Geral da Rede</h2>
+                    <p className="text-slate-500 font-medium mt-2">Painel de Monitoramento de Busca Ativa e Proteção Social</p>
                 </div>
-            )}
-            {!selectedStudent ? (
-                <div className="space-y-10">
-                    {/* Premium Header */}
-                    <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-10 text-white shadow-2xl border border-white/5 group">
-                        <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] group-hover:bg-cyan-500/20 transition-all duration-700" />
-                        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] group-hover:bg-indigo-500/20 transition-all duration-700" />
+                <div className="px-6 py-2 bg-purple-50 text-purple-700 rounded-full font-bold text-xs uppercase tracking-widest border border-purple-100 flex items-center gap-2">
+                    <Activity size={14} />
+                    Dados em Tempo Real
+                </div>
+            </div>
 
-                        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-                            <div className="animate-slideRight">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg">
-                                        <Heart className="text-cyan-400 group-hover:scale-110 transition-transform" size={28} />
-                                    </div>
-                                    <h2 className="text-3xl font-black tracking-tight uppercase">{title}</h2>
-                                </div>
-                                <p className="text-slate-300 font-medium text-lg leading-relaxed max-w-md">Busca Ativa Escolar e Proteção Social com excelência e cuidado.</p>
+            {/* KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <StatCard title="Em Busca Ativa" value={stats.activeSearch} icon={Search} gradient="from-blue-400 to-blue-600" />
+                <StatCard title="Casos Pendentes" value={stats.pending} icon={Clock} gradient="from-amber-400 to-amber-600" />
+                <StatCard title="Conselho Tutelar" value={stats.council} icon={ShieldAlert} gradient="from-rose-400 to-rose-600" />
+                <StatCard title="Ed. Especial" value={stats.specialEd} icon={Brain} gradient="from-indigo-400 to-indigo-600" />
+                <StatCard title="Resolvidos" value={stats.resolved} icon={CheckCircle} gradient="from-emerald-400 to-emerald-600" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* LISTA DE PRIORIDADES */}
+                <div className="lg:col-span-2 bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-bold text-slate-700 uppercase tracking-widest text-sm flex items-center gap-3">
+                            <Flag className="text-rose-500" size={18} /> Minhas Prioridades de Ação
+                        </h3>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b border-slate-100 text-slate-400 text-[10px] uppercase font-bold tracking-widest">
+                                    <th className="pb-4 pl-2">Aluno / Escola</th>
+                                    <th className="pb-4">Status</th>
+                                    <th className="pb-4">Prioridade</th>
+                                    <th className="pb-4">Última Atualização</th>
+                                    <th className="pb-4 text-right pr-2">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {priorities.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="text-center py-8 text-slate-400 text-sm font-medium">
+                                            Nenhum caso prioritário pendente.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    priorities.map(student => {
+                                        const social = student.clinical?.social_data?.formData;
+                                        const priority = social?.encaminhamentoInstitucional?.prioridade || 'Normal';
+                                        const lastUpdateDate = student.clinical?.social_data?.lastUpdate
+                                            ? new Date(student.clinical.social_data.lastUpdate).toLocaleDateString()
+                                            : 'N/A';
+
+                                        return (
+                                            <tr key={student.id} className="group hover:bg-slate-50 transition-colors">
+                                                <td className="py-4 pl-2">
+                                                    <div className="font-bold text-slate-700 text-sm">{student.fullName}</div>
+                                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{student.school?.schoolName || 'Sem escola'}</div>
+                                                </td>
+                                                <td className="py-4">
+                                                    <span className={`inline-block px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${social?.statusCaso?.includes('Concluído') ? 'bg-emerald-100 text-emerald-600' :
+                                                        social?.statusCaso?.includes('Conselho') ? 'bg-rose-100 text-rose-600' :
+                                                            'bg-amber-100 text-amber-600'
+                                                        }`}>
+                                                        {social?.statusCaso || 'Pendente'}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wide ${priority === 'Alta' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                                        }`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${priority === 'Alta' ? 'bg-rose-500 animate-pulse' : 'bg-slate-400'}`} />
+                                                        {priority}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 text-xs font-medium text-slate-500">
+                                                    {lastUpdateDate}
+                                                </td>
+                                                <td className="py-4 text-right pr-2">
+                                                    <button
+                                                        onClick={() => onNavigateToCase(student.id)}
+                                                        className="px-4 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#1E7F85] hover:text-white hover:border-[#1E7F85] transition-all shadow-sm"
+                                                    >
+                                                        Ver Caso
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* AGENDA SOCIAL */}
+                <div className="bg-gradient-to-br from-[#1E7F85] to-[#145f63] rounded-[2rem] p-8 text-white relative overflow-hidden flex flex-col">
+                    <div className="absolute top-0 right-0 p-8 opacity-10"><Calendar size={120} /></div>
+                    <h3 className="font-bold text-white/90 uppercase tracking-widest text-sm mb-8 flex items-center gap-3 relative z-10">
+                        <Calendar size={18} /> Agenda Social
+                    </h3>
+                    <div className="space-y-6 relative z-10 flex-1">
+                        <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:bg-white/20 transition-colors cursor-pointer group">
+                            <span className="text-[10px] font-bold text-[#F5C474] uppercase tracking-widest block mb-1 group-hover:text-white transition-colors">Próxima Visita</span>
+                            <p className="font-bold text-lg">Visita Domiciliar - Família Silva</p>
+                            <div className="flex items-center gap-2 text-white/60 mt-2 text-xs font-medium group-hover:text-white/80">
+                                <Clock size={12} /> Amanhã, 09:00hs
                             </div>
-
-                            <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto animate-slideLeft">
-                                <div className="bg-white/5 backdrop-blur-xl rounded-[1.5rem] p-1.5 flex border border-white/10 shadow-inner w-full sm:w-auto">
-                                    <button
-                                        onClick={() => setViewMode('overview')}
-                                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-500 ${viewMode === 'overview' ? 'bg-white text-slate-900 shadow-xl scale-105' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}
-                                    >
-                                        Visão Geral
-                                    </button>
-                                    <button
-                                        onClick={() => setViewMode('agenda')}
-                                        className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-500 ${viewMode === 'agenda' ? 'bg-white text-slate-900 shadow-xl scale-105' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}
-                                    >
-                                        Minha Agenda
-                                    </button>
-                                </div>
-
-                                <div className="relative w-full sm:w-72 group/search">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 opacity-50 group-focus-within/search:opacity-100 transition-opacity" size={20} />
-                                    <select
-                                        className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 pl-12 text-white outline-none focus:ring-4 focus:ring-cyan-500/20 focus:border-white/20 text-sm font-black uppercase tracking-widest appearance-none cursor-pointer transition-all hover:bg-white/10"
-                                        onChange={(e) => {
-                                            const s = students.find(st => st.id === e.target.value);
-                                            if (s) setSelectedStudent(s);
-                                        }}
-                                        value=""
-                                    >
-                                        <option value="" className="text-slate-900">Buscar Aluno...</option>
-                                        {students.map(s => <option key={s.id} value={s.id} className="text-slate-900">{s.fullName}</option>)}
-                                    </select>
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
-                                        <ChevronDown size={18} />
-                                    </div>
-                                </div>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:bg-white/20 transition-colors cursor-pointer group">
+                            <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest block mb-1 group-hover:text-white transition-colors">Prazo Encaminhamento</span>
+                            <p className="font-bold text-lg">Relatório para Conselho Tutelar</p>
+                            <div className="flex items-center gap-2 text-white/60 mt-2 text-xs font-medium group-hover:text-white/80">
+                                <AlertCircle size={12} /> Vence em 2 dias
                             </div>
                         </div>
                     </div>
-
-                    {/* Main View Switch */}
-                    {viewMode === 'overview' && (
-                        <div className="space-y-10 animate-fadeIn">
-                            {/* Stats Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                {[
-                                    { label: 'Visitas Realizadas', val: stats.totalVisits, icon: Home, color: 'cyan', bg: 'bg-cyan-50', text: 'text-cyan-600' },
-                                    { label: 'Acompanhamentos Ativos', val: stats.activeSearch, icon: Search, color: 'blue', bg: 'bg-blue-50', text: 'text-blue-600' },
-                                    { label: 'Agendamentos Hoje', val: appointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length, icon: Calendar, color: 'indigo', bg: 'bg-indigo-50', text: 'text-indigo-600' }
-                                ].map((stat, i) => (
-                                    <div key={i} className={`p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 group relative overflow-hidden bg-white`}>
-                                        <div className={`p-5 rounded-2xl ${stat.bg} ${stat.text} shadow-inner group-hover:scale-110 transition-transform`}>
-                                            <stat.icon size={28} strokeWidth={2.5} />
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
-                                            <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stat.val}</h3>
-                                        </div>
-                                        <div className={`absolute -bottom-4 -right-4 w-24 h-24 ${stat.bg} opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity`} />
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* List with Filters */}
-                            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden group/list">
-                                <div className="p-8 border-b border-slate-100 bg-slate-50/30 flex flex-col lg:flex-row justify-between items-center gap-6">
-                                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-3 uppercase tracking-wider">
-                                        <div className="p-3 bg-white text-indigo-600 rounded-2xl shadow-header border border-slate-100/50">
-                                            <History size={22} strokeWidth={2.5} />
-                                        </div>
-                                        Histórico de Atuação Social
-                                    </h3>
-
-                                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
-                                        <div className="w-full sm:w-64 z-20">
-                                            <SearchableSelect
-                                                options={[
-                                                    { value: "", label: "Todas as Escolas" },
-                                                    ...schools.map(s => ({ value: s.id, label: s.name })).sort((a, b) => a.label.localeCompare(b.label))
-                                                ]}
-                                                value={selectedSchoolFilter}
-                                                onChange={setSelectedSchoolFilter}
-                                                placeholder="Filtrar por Escola..."
-                                            />
-                                        </div>
-
-                                        <div className="relative w-full sm:w-64">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                            <input
-                                                type="text"
-                                                placeholder="Filtrar aluno..."
-                                                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all shadow-sm"
-                                                value={searchTerm}
-                                                onChange={e => setSearchTerm(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="overflow-x-auto min-h-[400px]">
-                                    <table className="min-w-full divide-y divide-slate-100 border-separate border-spacing-0">
-                                        <thead className="bg-slate-50/50 backdrop-blur-md sticky top-0 z-10 font-black">
-                                            <tr>
-                                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">Aluno</th>
-                                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">Escola</th>
-                                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">Última Visita</th>
-                                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">Profissional</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-slate-50">
-                                            {filteredUpdates.length > 0 ? filteredUpdates.map((item, idx) => {
-                                                const studentSchool = students.find(s => s.id === item.studentId)?.school?.schoolName || 'Não vinculada';
-                                                return (
-                                                    <tr key={idx} className="hover:bg-slate-50/80 hover:scale-[1.002] transition-all cursor-pointer group" onClick={() => {
-                                                        const s = students.find(st => st.id === item.studentId);
-                                                        if (s) setSelectedStudent(s);
-                                                    }}>
-                                                        <td className="px-8 py-5 font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{item.studentName}</td>
-                                                        <td className="px-8 py-5 text-sm font-semibold text-slate-500">{studentSchool}</td>
-                                                        <td className="px-8 py-5">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                                                <span className="text-sm font-bold text-slate-700">{item.lastUpdate ? new Date(item.lastUpdate).toLocaleDateString() : '-'}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-8 py-5">
-                                                            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-100/50 px-3 py-1.5 rounded-lg w-fit">
-                                                                <UserIcon size={14} className="text-slate-400" />
-                                                                {item.professional}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            }) : (
-                                                <tr>
-                                                    <td colSpan={4} className="px-6 py-20 text-center">
-                                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                                                            <Search size={32} />
-                                                        </div>
-                                                        <p className="text-slate-400 font-bold">Nenhum registro encontrado.</p>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {viewMode === 'agenda' && (
-                        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden min-h-[600px] p-10 animate-fadeIn">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
-                                <div>
-                                    <h3 className="text-2xl font-black text-slate-900 flex items-center gap-3 uppercase tracking-wider">
-                                        <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl shadow-header">
-                                            <Calendar size={28} strokeWidth={2.5} />
-                                        </div>
-                                        Agenda de Atendimentos
-                                    </h3>
-                                    <p className="text-slate-500 mt-2 font-medium">Gerencie seus compromissos e visitas domiciliares.</p>
-                                </div>
-                                <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl border border-blue-100 flex flex-col items-center">
-                                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Total de Agendamentos</p>
-                                    <p className="text-4xl font-black text-blue-900 tracking-tighter">{appointments.length}</p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                {appointments.length > 0 ? appointments.map(app => {
-                                    const student = students.find(s => s.id === app.studentId);
-                                    const isToday = app.date === new Date().toISOString().split('T')[0];
-
-                                    return (
-                                        <div key={app.id} className={`p-8 rounded-[2rem] border transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl ${isToday ? 'bg-indigo-50/50 border-indigo-200 shadow-xl shadow-indigo-100/50' : 'bg-white border-slate-100 shadow-lg shadow-slate-100/30'}`}>
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isToday ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 animate-pulse' : 'bg-slate-100 text-slate-500'}`}>
-                                                    {isToday ? 'Hoje' : new Date(app.date).toLocaleDateString()}
-                                                </div>
-                                                <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${app.status === 'ATENDIDO' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                    {app.status}
-                                                </div>
-                                            </div>
-
-                                            <h4 className="font-black text-slate-900 text-xl mb-2 group-hover:text-blue-600 transition-colors">{app.studentName}</h4>
-                                            <div className="flex items-center gap-2 text-sm font-bold text-slate-400 mb-6">
-                                                <SchoolIcon size={16} />
-                                                <span className="truncate">{student?.school?.schoolName || 'Escola não informada'}</span>
-                                            </div>
-
-                                            <div className="flex items-center justify-between pt-6 border-t border-slate-200/50">
-                                                <div className="flex items-center gap-2 text-slate-700 text-sm font-black bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100">
-                                                    <Clock size={16} className="text-blue-500" /> {app.startTime}
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        if (student) setSelectedStudent(student);
-                                                    }}
-                                                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-blue-600 transition-all hover:scale-110 shadow-lg"
-                                                >
-                                                    <ChevronRight size={20} strokeWidth={3} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                }) : (
-                                    <div className="col-span-full py-20 text-center">
-                                        <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300 scale-125">
-                                            <Calendar size={40} />
-                                        </div>
-                                        <h4 className="text-2xl font-black text-slate-900 uppercase tracking-widest">Agenda Vazia</h4>
-                                        <p className="text-slate-400 mt-2 font-medium">Nenhum agendamento para este período.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                    <button className="w-full py-4 bg-white text-[#1E7F85] rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#F5C474] hover:text-[#1E7F85] transition-colors mt-6 shadow-lg">
+                        Ver Agenda Completa
+                    </button>
                 </div>
-            ) : (
-                <div className="bg-slate-50 min-h-screen pb-20">
-                    <div className="max-w-4xl mx-auto pt-6">
-                        <div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-300/30 border border-white/50 p-8 mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 sticky top-6 z-40">
-                            <div className="flex items-center gap-6">
-                                <button
-                                    onClick={() => setSelectedStudent(null)}
-                                    className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all shadow-sm group"
-                                >
-                                    <ChevronLeft size={24} strokeWidth={3} className="group-hover:-translate-x-0.5 transition-transform" />
-                                </button>
+            </div>
+
+            {/* GRÁFICOS VISÃO DE REDE */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <h3 className="font-bold text-slate-700 uppercase tracking-widest text-sm mb-6 flex items-center gap-3">
+                        <PieIcon className="text-indigo-500" size={18} /> Motivos de Evasão
+                    </h3>
+                    <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData.reasonsData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 9, fill: '#64748b' }} interval={0} />
+                                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={16} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <h3 className="font-bold text-slate-700 uppercase tracking-widest text-sm mb-6 flex items-center gap-3">
+                        <SchoolIcon className="text-emerald-500" size={18} /> Escolas + Incidência
+                    </h3>
+                    <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData.schoolsData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 9, fill: '#64748b' }} interval={0} />
+                                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={16} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <h3 className="font-bold text-slate-700 uppercase tracking-widest text-sm mb-6 flex items-center gap-3">
+                        <Users className="text-amber-500" size={18} /> Faixa Etária Afetada
+                    </h3>
+                    <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData.ageData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
+                                <YAxis hide />
+                                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                <Bar dataKey="value" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={30} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- DASHBOARD ESTRATÉGICO (VISÃO GERAL) ---
+const SocialServiceStrategicDashboard: React.FC<BaseDashboardProps> = ({ title, onNavigateNew, currentUser }) => {
+    const [students, setStudents] = useState<Student[]>([]);
+
+    useEffect(() => {
+        const load = async () => {
+            const data = await SupabaseService.getStudents();
+            setStudents(data);
+        };
+        load();
+    }, []);
+
+    return (
+        <div className="max-w-7xl mx-auto p-6 animate-fadeIn">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
+                    <div className="p-3 bg-purple-100 rounded-2xl text-purple-600"><Activity size={32} /></div>
+                    {title}
+                </h1>
+                <div className="flex gap-3">
+                    <button
+                        onClick={onNavigateNew} // Leva para a área de Atendimento via App.tsx
+                        className="px-6 py-3 bg-[#1E7F85] text-white rounded-xl font-bold uppercase tracking-widest shadow-lg hover:shadow-xl hover:bg-[#16666b] transition-all flex items-center gap-2"
+                    >
+                        <Briefcase size={20} /> Ir para Atendimento
+                    </button>
+                </div>
+            </div>
+
+            <SocialOverviewDashboard
+                students={students}
+                onNavigateToCase={() => onNavigateNew()}
+                currentUser={currentUser}
+            />
+        </div>
+    );
+};
+
+// --- HUB DE ATENDIMENTO (SERVIÇO SOCIAL - OPERACIONAL) ---
+const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStudent?: Student; allStudents?: Student[] }> = ({ title, onNavigateNew, currentUser, preSelectedStudent, allStudents }) => {
+    // SEM VIZUALIZAÇÃO DE DASHBOARD - APENAS ATTENDANCE
+
+    const [students, setStudents] = useState<Student[]>([]);
+    const [selectedStudent, setSelectedStudent] = useState<Student | null>(preSelectedStudent || null);
+
+    const [socialData, setSocialData] = useState<SocialServiceForm>(initialSocialForm);
+    const [lastUpdate, setLastUpdate] = useState('');
+    const [activeTab, setActiveTab] = useState(1);
+    const { success: showToast, error: toastError } = useToast();
+
+    // -- School Search Logic --
+    const [selectedSchool, setSelectedSchool] = useState<string>('');
+
+    const uniqueSchools = useMemo(() => {
+        const schools = students.map(s => s.school?.schoolName).filter(Boolean);
+        return Array.from(new Set(schools)).sort();
+    }, [students]);
+
+    const filteredStudents = useMemo(() => {
+        if (!selectedSchool) return students;
+        return students.filter(s => s.school?.schoolName === selectedSchool);
+    }, [students, selectedSchool]);
+    // -------------------------
+
+    // GATEKEEPER: Apenas Assistente Social (ADMIN visualiza tudo, outros veem limitado)
+    const isSocialWorker = currentUser.specialty === Specialty.SOCIAL_WORK || currentUser.role === 'ADMIN';
+
+    useEffect(() => {
+        const load = async () => {
+            const data = await SupabaseService.getStudents();
+            setStudents(data);
+        };
+        load();
+    }, []);
+
+    useEffect(() => {
+        if (preSelectedStudent) {
+            setSelectedStudent(preSelectedStudent);
+        }
+    }, [preSelectedStudent]);
+
+    useEffect(() => {
+        if (selectedStudent) {
+            const data = extractSocialData(selectedStudent);
+            setSocialData(data.formData);
+            setLastUpdate(data.lastUpdate);
+        } else {
+            setSocialData(initialSocialForm);
+            setLastUpdate('');
+        }
+    }, [selectedStudent]);
+
+    const handleStudentSelect = (id: string) => {
+        const student = students.find(s => s.id === id);
+        setSelectedStudent(student || null);
+        setActiveTab(1);
+    };
+
+    const handleNavigateToCase = (studentId: string) => {
+        handleStudentSelect(studentId);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleBackToDashboard = () => {
+        // Agora apenas limpa a seleção para voltar à busca
+        setSelectedStudent(null);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleChange = (section: keyof SocialServiceForm, field: string, value: any) => {
+        if (!isSocialWorker) return;
+        setSocialData(prev => {
+            // Handle top-level fields (like statusCaso) if field is empty or special identifier
+            if (field === '__ROOT__') {
+                return { ...prev, [section]: value };
+            }
+            // Add safety check for object spread
+            const sectionData = prev[section] as any;
+            if (typeof sectionData !== 'object' || sectionData === null) {
+                return { ...prev, [section]: value }; // Fallback for direct assignment
+            }
+            return {
+                ...prev,
+                [section]: { ...sectionData, [field]: value }
+            };
+        });
+    };
+
+    const toggleMultiSelect = (section: keyof SocialServiceForm, field: string, item: string) => {
+        if (!isSocialWorker) return;
+        setSocialData(prev => {
+            const list = (prev[section] as any)[field] as string[];
+            const newList = list.includes(item) ? list.filter(i => i !== item) : [...list, item];
+            return {
+                ...prev,
+                [section]: { ...(prev[section] as any), [field]: newList }
+            };
+        });
+    };
+
+
+    const handleSave = async (tab?: number) => {
+        if (!selectedStudent || !isSocialWorker) return;
+
+        console.log('[Busca Ativa] Iniciando processo de salvamento...', { studentId: selectedStudent.id, userId: currentUser.id });
+
+        try {
+            const now = new Date().toISOString();
+            const dataToSave: SocialServicePrivateData = {
+                formData: socialData,
+                lastUpdate: now,
+                professionalName: currentUser.name
+            };
+
+            const updatedStudent = {
+                ...selectedStudent,
+                clinical: {
+                    ...selectedStudent.clinical,
+                    social_data: dataToSave
+                }
+            };
+
+            // 1. Tenta salvar o estudante (Dados do Prontuário)
+            try {
+                await SupabaseService.saveStudent(updatedStudent);
+                console.log('[Busca Ativa] Dados do estudante salvos com sucesso.');
+                setLastUpdate(now);
+            } catch (studentError: any) {
+                console.error('[Busca Ativa] Erro ao salvar estudante:', studentError);
+                throw new Error(`Erro ao salvar prontuário: ${studentError.message}`);
+            }
+
+            // 2. Tenta salvar o histórico (Sessão)
+            try {
+                if (!currentUser.id) {
+                    console.warn('[Busca Ativa] ID do usuário não encontrado. Pulando registro de histórico.');
+                } else {
+                    const historyRecord: Session = {
+                        id: crypto.randomUUID(),
+                        date: now.split('T')[0],
+                        specialty: Specialty.SOCIAL_WORK,
+                        professionalName: currentUser.name,
+                        notes: `Atendimento de Busca Ativa Escolar - Seção ${tab || activeTab} atualizada.`,
+                        serviceType: 'Busca Ativa',
+                        content: { summary: 'Atualização de formulário por abas', activeTab: tab || activeTab }
+                    };
+                    await SupabaseService.saveSession(historyRecord, selectedStudent.id, currentUser.id);
+                    console.log('[Busca Ativa] Histórico registrado com sucesso.');
+                }
+            } catch (sessionError: any) {
+                console.error('[Busca Ativa] Erro ao salvar histórico:', sessionError);
+                // Não lança erro fatal, apenas notifica, pois o dado principal já foi salvo
+                showToast('Prontuário salvo, mas houve erro ao registrar no histórico.', 'info');
+                return;
+            }
+
+            showToast('Dados salvos com sucesso!');
+        } catch (err: any) {
+            console.error('[Busca Ativa] Erro Geral:', err);
+            toastError(err.message || 'Erro ao salvar dados.');
+        }
+    };
+
+    const handlePrintSocial = async () => {
+        if (!selectedStudent || !isSocialWorker) return;
+
+        try {
+            const config = await SupabaseService.getPapelTimbradoConfig();
+            const renderList = (list: string[]) => list && list.length > 0 ? list.join(', ') : 'Nenhum selecionado';
+
+            const contentHTML = `
+                <div style="text-align:center; margin-bottom:20px; font-weight:bold; color:#0e7490; background:#ecfeff; padding:10px; border-radius:8px; border:1px solid #0891b2; text-transform:uppercase;">
+                    STATUS DO REGISTRO: ${socialData.observacoesEncaminhamentos.statusRegistro || 'PENDENTE'}
+                </div>
+
+                <h2 class="section-title">1. IDENTIFICAÇÃO DO(A) ALUNO(A)</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">GÊNERO</span><span class="value">${socialData.identificacao.genero || '-'}</span></div>
+                    <div class="data-row"><span class="label">RESPONSÁVEL LEGAL</span><span class="value">${socialData.identificacao.nomeResponsavel || '-'} (${socialData.identificacao.grauParentesco || '-'})</span></div>
+                    <div class="data-row"><span class="label">PESSOAS NA RESIDÊNCIA</span><span class="value">${socialData.identificacao.numeroPessoasResidencia || '-'}</span></div>
+                    <div class="data-row"><span class="label">TELEFONES</span><span class="value">${socialData.identificacao.telefonesContato || '-'}</span></div>
+                    <div class="data-row"><span class="label">DOCUMENTOS</span><span class="value">RG/CPF: ${socialData.identificacao.documento || '-'} | NIS: ${socialData.identificacao.nis || '-'}</span></div>
+                    <div class="data-row"><span class="label">MATRICULADO?</span><span class="value">${socialData.identificacao.matriculado || '-'} ${socialData.identificacao.nomeEscola ? `(${socialData.identificacao.nomeEscola})` : ''}</span></div>
+                </div>
+
+                <h2 class="section-title">2. HISTÓRICO ESCOLAR</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">FREQUENTOU ANTERIORMENTE?</span><span class="value">${socialData.historicoEscolar.frequentouAnteriormente || '-'}</span></div>
+                    <div class="data-row"><span class="label">ÚLTIMA ESCOLA / SÉRIE</span><span class="value">${socialData.historicoEscolar.ultimaEscola || '-'} / ${socialData.historicoEscolar.ultimoAnoSerie || '-'}</span></div>
+                    <div class="data-row"><span class="label">ANO QUE PAROU / IDADE</span><span class="value">${socialData.historicoEscolar.anoParou || '-'} (${socialData.historicoEscolar.idadeSaiu || '-'} anos)</span></div>
+                    <div class="data-row"><span class="label">MOTIVOS DA SAÍDA</span><span class="value">${renderList(socialData.historicoEscolar.motivosSaida)} ${socialData.historicoEscolar.motivosSaidaOutros ? ` - ${socialData.historicoEscolar.motivosSaidaOutros}` : ''}</span></div>
+                </div>
+
+                <h2 class="section-title">3. CONDIÇÕES FAMILIARES E SOCIAIS</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">FONTE DE RENDA</span><span class="value">${socialData.condicoesFamiliares.fonteRenda || '-'}</span></div>
+                    <div class="data-row"><span class="label">PROGRAMAS SOCIAIS</span><span class="value">${renderList(socialData.condicoesFamiliares.programasSociais)}</span></div>
+                    <div class="data-row"><span class="label">DEFICIÊNCIA NA RESIDÊNCIA?</span><span class="value">${socialData.condicoesFamiliares.deficienciaResidencia || '-'} ${socialData.condicoesFamiliares.quemDeficiencia ? `(${socialData.condicoesFamiliares.quemDeficiencia})` : ''}</span></div>
+                    <div class="data-row"><span class="label">ALUNO COM DEFICIÊNCIA?</span><span class="value">${socialData.condicoesFamiliares.alunoDeficiencia || '-'} ${socialData.condicoesFamiliares.qualDeficiencia ? `(${socialData.condicoesFamiliares.qualDeficiencia})` : ''}</span></div>
+                    <div class="data-row"><span class="label">ALFABETIZAÇÃO / PRIORIDADE EDUCAÇÃO</span><span class="value">Adultos alfabetizados: ${socialData.condicoesFamiliares.adultosAlfabetizados || '-'} | Educação prioridade: ${socialData.condicoesFamiliares.educacaoPrioridade || '-'}</span></div>
+                    <div class="data-row" style="margin-top:5px; color:#b91c1c;"><span class="label">SITUAÇÕES ENFRENTADAS</span><span class="value">${renderList(socialData.condicoesFamiliares.situacoesEnfrentadas)}</span></div>
+                </div>
+
+                <h2 class="section-title">4. SAÚDE E ACOMPANHAMENTOS</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">ACOMP. MÉDICO / PSI</span><span class="value">${socialData.saudeAcompanhamentos.acompanhamentoMedico || '-'} / ${socialData.saudeAcompanhamentos.acompanhamentoPsi || '-'}</span></div>
+                    <div class="data-row"><span class="label">MEDICAÇÃO CONTÍNUA</span><span class="value">${socialData.saudeAcompanhamentos.medicacaoContinua || '-'} ${socialData.saudeAcompanhamentos.qualMedicacao ? `(${socialData.saudeAcompanhamentos.qualMedicacao})` : ''}</span></div>
+                    <div class="data-row"><span class="label">CONSELHO TUTELAR / SERVIÇOS</span><span class="value">${socialData.saudeAcompanhamentos.conselhoTutelar || '-'} | ${renderList(socialData.saudeAcompanhamentos.servicosAtendimento)} ${socialData.saudeAcompanhamentos.outrosServicos ? ` - ${socialData.saudeAcompanhamentos.outrosServicos}` : ''}</span></div>
+                </div>
+
+                <h2 class="section-title">5. SITUAÇÃO ATUAL E RETORNO</h2>
+                <div class="box">
+                    <div class="data-row"><span class="label">DESEJO DE RETORNO / APOIO FAMÍLIA</span><span class="value">${socialData.situacaoAtual.desejoRetornar || '-'} / ${socialData.situacaoAtual.apoioFamilia || '-'}</span></div>
+                    <div class="data-row"><span class="label">FATORES QUE DIFICULTAM</span><span class="value">${renderList(socialData.situacaoAtual.fatoresDificultam)} ${socialData.situacaoAtual.fatoresDificultamOutros ? ` - ${socialData.situacaoAtual.fatoresDificultamOutros}` : ''}</span></div>
+                    <div class="data-row"><span class="label">APOIOS NECESSÁRIOS</span><span class="value">${renderList(socialData.situacaoAtual.apoiosNecessarios)} ${socialData.situacaoAtual.apoiosNecessariosOutros ? ` - ${socialData.situacaoAtual.apoiosNecessariosOutros}` : ''}</span></div>
+                </div>
+
+                <h2 class="section-title">6. OBSERVAÇÕES E ENCAMINHAMENTOS</h2>
+                <div class="box">
+                    <div class="value" style="white-space: pre-wrap; min-height: 100px;">${socialData.observacoesEncaminhamentos.observacoesAgente || 'Sem observações registradas.'}</div>
+                    <div style="margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top:10px;">
+                        <span class="label">AÇÕES RECOMENDADAS</span><span class="value">${renderList(socialData.observacoesEncaminhamentos.acoesRecomendadas)} ${socialData.observacoesEncaminhamentos.acoesRecomendadasOutros ? ` - ${socialData.observacoesEncaminhamentos.acoesRecomendadasOutros}` : ''}</span>
+                    </div>
+                </div>
+            `;
+
+            const html = generateClinicalPrintHTML(
+                selectedStudent,
+                config,
+                'Busca Ativa Escolar - Instrumento de Acompanhamento',
+                contentHTML,
+                { name: currentUser.name, jobTitle: currentUser.jobTitle || 'Assistente Social', specialty: currentUser.specialty, signatureUrl: currentUser.signatureUrl }
+            );
+
+            const printWindow = window.open('', '_blank', 'width=900,height=600');
+            if (!printWindow) return;
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        } catch (e) {
+            console.error('Erro ao gerar impressão:', e);
+            toastError('Erro ao carregar configurações de papel timbrado.');
+        }
+    };
+
+    if (!isSocialWorker && selectedStudent) {
+        return (
+            <div className="max-w-4xl mx-auto p-12 text-center bg-white rounded-2xl shadow-xl border border-slate-100">
+                <div className="w-20 h-20 bg-cyan-50 rounded-full flex items-center justify-center mx-auto mb-6 text-cyan-600 shadow-inner"><Shield size={40} /></div>
+                <h3 className="text-2xl font-bold text-slate-800">Visualização de Status</h3>
+                <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-200 inline-block text-left min-w-[300px]">
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Informações do Aluno</p>
+                    <div className="space-y-3">
+                        <div className="flex justify-between border-b border-slate-200 pb-2"><span className="text-slate-500">Aluno:</span> <span className="font-bold text-slate-800">{selectedStudent.fullName}</span></div>
+                        <div className="flex justify-between border-b border-slate-200 pb-2"><span className="text-slate-500">Status Registro:</span> <span className={`font-bold ${socialData.observacoesEncaminhamentos.statusRegistro === 'CONCLUÍDO' ? 'text-emerald-600' : 'text-amber-500'}`}>{socialData.observacoesEncaminhamentos.statusRegistro || 'PENDENTE'}</span></div>
+                        {socialData.statusCaso && <div className="flex justify-between border-b border-slate-200 pb-2"><span className="text-slate-500">Situação:</span> <span className="font-bold text-blue-600">{socialData.statusCaso}</span></div>}
+                        {socialData.encaminhamentoInstitucional.sugestao && <div className="flex justify-between border-b border-slate-200 pb-2"><span className="text-slate-500">Encaminhado para:</span> <span className="font-bold text-purple-600">{socialData.encaminhamentoInstitucional.sugestao}</span></div>}
+                        <div className="flex justify-between pt-2"><span className="text-slate-500">Última Atualização:</span> <span className="font-medium text-slate-600">{lastUpdate ? new Date(lastUpdate).toLocaleDateString() : 'N/A'}</span></div>
+                    </div>
+                </div>
+                <p className="text-slate-400 max-w-md mt-8 mx-auto text-sm leading-relaxed">Conforme diretrizes da LGPD e sigilo profissional, o acesso aos detalhes deste formulário é restrito aos Assistentes Sociais.</p>
+            </div>
+        );
+    }
+
+    // MAIN RENDER CONTROLLER
+    // SEMPRE RENDERIZA A INTERFACE DE ATENDIMENTO (Dashboard removido)
+
+    const tabs = [
+        { id: 1, label: 'Identificação', icon: UserIcon },
+        { id: 2, label: 'Histórico Escolar', icon: BookOpen },
+        { id: 3, label: 'Social & Família', icon: Users },
+        { id: 4, label: 'Condições de Saúde e Bem-estar', icon: Heart },
+        { id: 5, label: 'Situação Atual', icon: Flag },
+        { id: 6, label: 'Encaminhamento Inst.', icon: ShieldAlert }
+    ];
+
+    const handleTabChange = async (tabId: number) => {
+        if (selectedStudent && isSocialWorker) {
+            await handleSave();
+        }
+        setActiveTab(tabId);
+    };
+
+    return (
+        <div className="min-h-screen bg-[#F7F5F0] py-12 px-4 animate-fadeIn">
+            <div className="max-w-5xl mx-auto">
+                {/* Back Link for Attendance Mode */}
+                {!preSelectedStudent && selectedStudent && (
+                    <button
+                        onClick={handleBackToDashboard}
+                        className="mb-6 flex items-center gap-2 text-slate-500 hover:text-[#1E7F85] font-bold text-xs uppercase tracking-widest transition-colors"
+                    >
+                        <ChevronLeft size={16} /> Voltar para Busca
+                    </button>
+                )}
+
+                <div className="bg-white rounded-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-[#1E7F85]/10 overflow-hidden">
+                    <div className="bg-[#1E7F85] text-white p-10">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-inner">
+                                    <Heart size={36} className="text-[#F5C474]" />
+                                </div>
                                 <div>
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <h3 className="text-3xl font-black text-slate-900 tracking-tighter">{selectedStudent.fullName}</h3>
-                                        <div className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest rounded-lg">Ativo</div>
-                                    </div>
-                                    <p className="text-slate-400 text-sm font-semibold flex items-center gap-2"><MapPin size={16} className="text-cyan-500" /> {selectedStudent.address?.street || 'Endereço não cadastrado'}</p>
+                                    <h2 className="text-3xl font-bold uppercase tracking-widest text-white">Busca Ativa Escolar</h2>
+                                    <p className="text-[#F7F5F0]/80 text-sm mt-1 font-medium tracking-wide">Instrumento de Acompanhamento Social</p>
+
+                                    {/* STATUS VISUAL DO CASO */}
+                                    {isSocialWorker && selectedStudent && (
+                                        <div className="mt-4">
+                                            <select
+                                                value={socialData.statusCaso}
+                                                onChange={(e) => handleChange('statusCaso', '__ROOT__', e.target.value)}
+                                                className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest outline-none border-2 transition-all cursor-pointer ${socialData.statusCaso.includes('Educação Especial') ? 'bg-blue-600 border-blue-400 text-white' :
+                                                    socialData.statusCaso.includes('Conselho') ? 'bg-rose-600 border-rose-400 text-white' :
+                                                        socialData.statusCaso.includes('Concluído') ? 'bg-emerald-600 border-emerald-400 text-white' :
+                                                            socialData.statusCaso.includes('Acompanhamento') ? 'bg-amber-500 border-amber-300 text-white' :
+                                                                'bg-white/10 border-white/30 text-white hover:bg-white/20'
+                                                    }`}
+                                            >
+                                                <option className="text-slate-800" value="">Definir Status do Caso...</option>
+                                                <option className="text-slate-800" value="Em Acompanhamento">🟡 Em Acompanhamento Social</option>
+                                                <option className="text-slate-800" value="Encaminhado Educação Especial">🔵 Encaminhado à Educação Especial</option>
+                                                <option className="text-slate-800" value="Encaminhado Conselho Tutelar">🔴 Encaminhado ao Conselho Tutelar</option>
+                                                <option className="text-slate-800" value="Concluído/Reinserido">🟢 Caso Resolvido / Reinserido</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                    {!isSocialWorker && socialData.statusCaso && (
+                                        <div className={`mt-4 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest inline-block ${socialData.statusCaso.includes('Educação Especial') ? 'bg-blue-600 text-white shadow-lg' :
+                                            socialData.statusCaso.includes('Conselho') ? 'bg-rose-600 text-white shadow-lg' :
+                                                socialData.statusCaso.includes('Concluído') ? 'bg-emerald-600 text-white shadow-lg' :
+                                                    'bg-amber-500 text-white shadow-lg'
+                                            }`}>
+                                            {socialData.statusCaso}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 w-full md:w-auto">
+                            {selectedStudent && (
                                 <button
-                                    onClick={handlePrintSocialReport}
-                                    className="flex-1 md:flex-none bg-white text-slate-600 border-2 border-slate-100 px-8 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-slate-50 hover:border-slate-200 transition-all shadow-lg active:scale-95"
+                                    onClick={handlePrintSocial}
+                                    className="flex items-center gap-3 px-6 py-3 bg-white text-[#1E7F85] hover:bg-[#F7F5F0] rounded-full text-sm font-bold transition-all shadow-lg border-none"
                                 >
-                                    <Printer size={20} strokeWidth={2.5} /> Imprimir
+                                    <Printer size={18} /> Imprimir Relatório
                                 </button>
-                                <button
-                                    onClick={handleSaveSocial}
-                                    className="flex-1 md:flex-none bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-10 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:shadow-2xl hover:shadow-blue-500/30 transition-all active:scale-95 hover:-translate-y-1 shadow-xl shadow-blue-500/20"
-                                >
-                                    <Save size={20} strokeWidth={2.5} /> Salvar Alterações
-                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {!selectedStudent ? (
+                        <div className="p-12 text-center bg-white">
+                            <div className="w-24 h-24 bg-[#F7F5F0] rounded-full shadow-inner flex items-center justify-center mx-auto mb-8 border border-[#1E7F85]/10 group">
+                                <Search size={40} className="text-[#1E7F85] group-hover:scale-110 transition-transform" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-[#1E7F85] mb-2 uppercase tracking-widest">Localizar Aluno</h3>
+                            <p className="text-slate-400 max-w-sm mx-auto mb-8 font-medium">Selecione um aluno para acessar o prontuário.</p>
+
+                            <div className="max-w-md mx-auto space-y-6">
+                                {/* School Filter */}
+                                <div className="text-left">
+                                    <label className="text-xs font-bold text-[#1E7F85] uppercase tracking-widest mb-2 block pl-4">Filtrar por Escola</label>
+                                    <SearchableSelect
+                                        options={uniqueSchools.map(school => ({ value: school, label: school }))}
+                                        value={selectedSchool}
+                                        onChange={setSelectedSchool}
+                                        placeholder="Todas as escolas..."
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                {/* Student Select */}
+                                <div className="text-left relative">
+                                    <label className="text-xs font-bold text-[#1E7F85] uppercase tracking-widest mb-2 block pl-4">Selecione o Aluno</label>
+                                    <div className="relative">
+                                        <select
+                                            className="block w-full rounded-xl border-2 border-[#1E7F85]/20 p-4 pl-4 bg-[#F7F5F0]/50 shadow-sm focus:ring-4 focus:ring-[#1E7F85]/5 focus:border-[#1E7F85] outline-none transition-all appearance-none font-bold text-slate-700"
+                                            onChange={(e) => handleStudentSelect(e.target.value)}
+                                            value=""
+                                        >
+                                            <option value="">
+                                                {selectedSchool
+                                                    ? `Selecione um aluno de ${selectedSchool}...`
+                                                    : 'Buscar aluno por nome...'}
+                                            </option>
+                                            {filteredStudents.map(s => (
+                                                <option key={s.id} value={s.id}>{s.fullName}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-[#1E7F85]/50 pointer-events-none" size={20} />
+                                    </div>
+                                    <p className="text-right text-[10px] text-slate-400 font-bold mt-2 pr-2">
+                                        {filteredStudents.length} alunos encontrados
+                                    </p>
+                                </div>
                             </div>
                         </div>
+                    ) : (
+                        <div className="bg-white min-h-[600px]">
+                            {/* Tab Navigation */}
+                            <div className="flex overflow-x-auto bg-[#F7F5F0]/50 border-b border-[#1E7F85]/10 sticky top-0 z-20 no-scrollbar p-3 gap-3">
+                                {tabs.map((tab) => {
+                                    const Icon = tab.icon;
+                                    const isActive = activeTab === tab.id;
+                                    return (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => handleTabChange(tab.id)}
+                                            className={`flex items-center gap-3 px-6 py-4 rounded-full transition-all duration-300 whitespace-nowrap group ${isActive
+                                                ? 'bg-[#1E7F85] text-white shadow-lg scale-[1.02]'
+                                                : 'text-[#1E7F85]/60 hover:bg-[#1E7F85]/5 hover:text-[#1E7F85]'
+                                                }`}
+                                        >
+                                            <Icon size={18} className={isActive ? 'text-[#F5C474]' : 'text-[#1E7F85]/40 group-hover:text-[#1E7F85]'} />
+                                            <span className="text-xs font-bold uppercase tracking-widest">{tab.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
 
-                        <div className="space-y-4">
-                            <div className="space-y-10 animate-fadeInUp">
-                                {/* SEÇÃO 1: IDENTIFICAÇÃO */}
-                                <SocialSection title="1. Identificação da Visita" icon={UserIcon} isOpen={openSections.includes('identificacao')} onToggle={() => toggleSection('identificacao')} color="cyan">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4 group/item hover:bg-white hover:shadow-md transition-all">
-                                            <div className="p-3 bg-white text-cyan-600 rounded-2xl shadow-sm border border-slate-100 group-hover/item:scale-110 transition-transform">
-                                                <Calendar size={20} />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-black">Data da Visita</label>
-                                                <div className="font-black text-slate-800 text-lg">{new Date(socialData.lastUpdate || new Date()).toLocaleDateString()}</div>
-                                            </div>
-                                        </div>
-                                        <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4 group/item hover:bg-white hover:shadow-md transition-all">
-                                            <div className="p-3 bg-white text-indigo-600 rounded-2xl shadow-sm border border-slate-100 group-hover/item:scale-110 transition-transform">
-                                                <UserIcon size={20} />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 font-black">Profissional Responsável</label>
-                                                <div className="font-black text-slate-800 text-lg">{socialData.professionalName || currentUser.name}</div>
-                                            </div>
-                                        </div>
-                                        <div className="col-span-full">
-                                            <StyledInput label="Endereço da Família (Confirmado na Visita)" value={socialData.formData.identificacao.enderecoCompleto} onChange={e => handleInputChange('identificacao', 'enderecoCompleto', e.target.value)} />
-                                        </div>
-                                        <div className="col-span-full">
-                                            <StyledInput label="Responsável Familiar (Quem recebeu a equipe)" value={socialData.formData.identificacao.responsavelFamiliar} onChange={e => handleInputChange('identificacao', 'responsavelFamiliar', e.target.value)} />
-                                        </div>
-                                        <div className="col-span-full">
-                                            <StyledInput label="Composição Familiar (Nome, Idade, Vínculo, Escolaridade, Ocupação)" rows={4} placeholder="Ex: Maria (Mãe, 35 anos, Fundamental Incompleto, Do lar)..." value={socialData.formData.identificacao.composicaoFamiliar[0] || ''} onChange={e => {
-                                                const newVal = e.target.value;
-                                                setSocialData({
-                                                    ...socialData,
-                                                    formData: {
-                                                        ...socialData.formData,
-                                                        identificacao: {
-                                                            ...socialData.formData.identificacao,
-                                                            composicaoFamiliar: [newVal]
-                                                        }
-                                                    }
-                                                });
-                                            }} />
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 px-1">Liste cada membro da família em uma nova linha ou separado por vírgulas.</p>
+                            {/* Content Area */}
+                            <div className="p-10">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-2 h-10 bg-[#1E7F85] rounded-full" />
+                                        <div>
+                                            <h3 className="text-2xl font-bold text-[#1E7F85] uppercase tracking-wider">
+                                                {tabs.find(t => t.id === activeTab)?.label}
+                                            </h3>
+                                            <p className="text-[#333333]/40 text-[10px] font-bold uppercase tracking-widest mt-1">Estudante: {selectedStudent.fullName}</p>
                                         </div>
                                     </div>
-                                </SocialSection>
+                                    <div className="flex items-center gap-3">
+                                        <div className="hidden md:flex items-center gap-2 bg-rose-50 px-4 py-2 rounded-full border border-rose-100">
+                                            <Lock size={12} className="text-rose-600" />
+                                            <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">
+                                                Dados Protegidos - Sigilo Profissional
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-3 bg-[#F7F5F0] px-5 py-2.5 rounded-full border border-[#1E7F85]/10 shadow-sm">
+                                            <div className={`w-2 h-2 rounded-full ${socialData.observacoesEncaminhamentos.statusRegistro === 'CONCLUÍDO' ? 'bg-emerald-500 animate-pulse' : 'bg-[#F5C474] animate-pulse'}`} />
+                                            <span className="text-[10px] font-black text-[#1E7F85] uppercase tracking-widest">
+                                                Status: {socialData.observacoesEncaminhamentos.statusRegistro}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                {/* SEÇÃO 2: FUNDAMENTAÇÃO */}
-                                <SocialSection title="2. Fundamentação e Objetivo" icon={BookOpen} isOpen={openSections.includes('fundamentacao')} onToggle={() => toggleSection('fundamentacao')} color="indigo">
-                                    <StyledInput label="Fundamentação da Visita (Editável)" rows={8} value={socialData.formData.fundamentacao.textoBase} onChange={e => handleInputChange('fundamentacao', 'textoBase', e.target.value)} />
-                                </SocialSection>
-
-                                {/* SEÇÃO 3: EIXOS */}
-                                <SocialSection title="3. Eixos de Observação" icon={Layout} isOpen={openSections.includes('eixos')} onToggle={() => toggleSection('eixos')} color="blue">
-                                    <div className="space-y-10">
-                                        <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-slate-200/60 shadow-inner group/box">
-                                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
-                                                <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
-                                                3.1 Condições de Moradia e Saneamento
-                                            </h4>
+                                <div className="animate-fadeIn">
+                                    {activeTab === 1 && (
+                                        <div className="space-y-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                                <StyledInput icon={UserIcon} label="Gênero" value={socialData.identificacao.genero} onChange={(e: any) => handleChange('identificacao', 'genero', e.target.value)} placeholder="Masculino / Feminino / Outro" />
+                                                <StyledInput icon={Users} label="Responsável Legal" value={socialData.identificacao.nomeResponsavel} onChange={(e: any) => handleChange('identificacao', 'nomeResponsavel', e.target.value)} />
+                                                <StyledInput icon={Briefcase} label="Grau de Parentesco" value={socialData.identificacao.grauParentesco} onChange={(e: any) => handleChange('identificacao', 'grauParentesco', e.target.value)} />
+                                            </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                <div className="col-span-full"><StyledInput label="Estrutura Física da Residência" value={socialData.formData.condicoesMoradia.estruturaFisica} onChange={e => handleInputChange('condicoesMoradia', 'estruturaFisica', e.target.value)} /></div>
-                                                <div className="col-span-1">
-                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Ventilação / Iluminação / Limpeza</label>
-                                                    <select
-                                                        className="w-full rounded-2xl border-slate-200 bg-white p-4 text-slate-700 font-black uppercase text-xs tracking-widest focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
-                                                        value={socialData.formData.condicoesMoradia.ventilacaoIluminacao}
-                                                        onChange={e => handleInputChange('condicoesMoradia', 'ventilacaoIluminacao', e.target.value)}
-                                                    >
-                                                        <option value="">Selecione...</option>
-                                                        <option>Adequada</option>
-                                                        <option>Parcialmente Adequada</option>
-                                                        <option>Inadequada</option>
-                                                    </select>
-                                                </div>
-                                                <div className="col-span-1">
-                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Saneamento Básico</label>
-                                                    <select
-                                                        className="w-full rounded-2xl border-slate-200 bg-white p-4 text-slate-700 font-black uppercase text-xs tracking-widest focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
-                                                        value={socialData.formData.condicoesMoradia.saneamento}
-                                                        onChange={e => handleInputChange('condicoesMoradia', 'saneamento', e.target.value)}
-                                                    >
-                                                        <option value="">Selecione...</option>
-                                                        <option>Sim</option>
-                                                        <option>Não</option>
-                                                        <option>Parcial</option>
-                                                    </select>
-                                                </div>
+                                                <StyledInput icon={Home} label="Nº de Pessoas na Residência" value={socialData.identificacao.numeroPessoasResidencia} onChange={(e: any) => handleChange('identificacao', 'numeroPessoasResidencia', e.target.value)} type="number" />
+                                                <StyledInput icon={Smartphone} label="Telefones de Contato" value={socialData.identificacao.telefonesContato} onChange={(e: any) => handleChange('identificacao', 'telefonesContato', e.target.value)} />
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <StyledInput icon={FileText} label="Documento (RG ou CPF)" value={socialData.identificacao.documento} onChange={(e: any) => handleChange('identificacao', 'documento', e.target.value)} />
+                                                <StyledInput icon={Zap} label="Número do NIS (Opcional)" value={socialData.identificacao.nis} onChange={(e: any) => handleChange('identificacao', 'nis', e.target.value)} />
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-10 bg-[#F7F5F0] rounded-[30px] border border-[#1E7F85]/10 shadow-inner">
+                                                <StyledInput icon={GraduationCap} label="Está matriculado?" value={socialData.identificacao.matriculado} onChange={(e: any) => handleChange('identificacao', 'matriculado', e.target.value)} placeholder="Sim / Não" />
+                                                {socialData.identificacao.matriculado.toLowerCase() === 'sim' && (
+                                                    <StyledInput icon={SchoolIcon} label="Nome da Escola" value={socialData.identificacao.nomeEscola} onChange={(e: any) => handleChange('identificacao', 'nomeEscola', e.target.value)} />
+                                                )}
                                             </div>
                                         </div>
+                                    )}
 
-                                        <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-slate-200/60 shadow-inner group/box">
-                                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
-                                                <div className="w-1.5 h-6 bg-cyan-500 rounded-full" />
-                                                3.2 Higiene Pessoal e Cuidados
-                                            </h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                <div className="col-span-full"><StyledInput label="Situação da Higiene (Crianças/Adolescentes)" value={socialData.formData.higieneCuidados.situacaoCriancas} onChange={e => handleInputChange('higieneCuidados', 'situacaoCriancas', e.target.value)} /></div>
-                                                <div className="col-span-1">
-                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Produtos de Higiene</label>
-                                                    <select
-                                                        className="w-full rounded-2xl border-slate-200 bg-white p-4 text-slate-700 font-black uppercase text-xs tracking-widest focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 outline-none transition-all shadow-sm"
-                                                        value={socialData.formData.higieneCuidados.produtosHigiene}
-                                                        onChange={e => handleInputChange('higieneCuidados', 'produtosHigiene', e.target.value)}
-                                                    >
-                                                        <option value="">Selecione...</option>
-                                                        <option>Sim</option>
-                                                        <option>Não</option>
-                                                        <option>Insuficiente</option>
-                                                    </select>
+                                    {activeTab === 2 && (
+                                        <div className="space-y-8">
+                                            {/* INDICADORES EDUCACIONAIS (NÃO CLÍNICOS) */}
+                                            <div className="p-8 bg-indigo-50 rounded-[2.5rem] border border-indigo-100 relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 p-8 opacity-5"><Brain size={120} /></div>
+                                                <h3 className="text-indigo-800 font-bold uppercase tracking-widest mb-6 flex items-center gap-3 relative z-10">
+                                                    <Brain size={20} /> Indicadores Educacionais Observados
+                                                </h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                                                    <TriStateField
+                                                        label="Barreiras de acesso à escola observadas"
+                                                        value={socialData.indicadoresEducacionais.barreirasAcesso}
+                                                        onChange={(val) => handleChange('indicadoresEducacionais', 'barreirasAcesso', val)}
+                                                    />
+                                                    <TriStateField
+                                                        label="Dificuldades de aprendizagem percebidas"
+                                                        value={socialData.indicadoresEducacionais.dificuldadesAprendizagem}
+                                                        onChange={(val) => handleChange('indicadoresEducacionais', 'dificuldadesAprendizagem', val)}
+                                                    />
+                                                    <TriStateField
+                                                        label="Necessidade de apoio educacional especializado"
+                                                        value={socialData.indicadoresEducacionais.apoioEspecializado}
+                                                        onChange={(val) => handleChange('indicadoresEducacionais', 'apoioEspecializado', val)}
+                                                    />
                                                 </div>
-                                                <div className="col-span-full"><StyledInput label="Rotina descrita pela família" value={socialData.formData.higieneCuidados.rotinaCuidados} onChange={e => handleInputChange('higieneCuidados', 'rotinaCuidados', e.target.value)} /></div>
+                                                <p className="mt-4 text-[10px] text-indigo-400 font-bold uppercase tracking-wider text-center">* Sinalização estritamente educacional. Não constitui diagnóstico clínico.</p>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <StyledInput label="Já frequentou a escola anteriormente?" value={socialData.historicoEscolar.frequentouAnteriormente} onChange={(e: any) => handleChange('historicoEscolar', 'frequentouAnteriormente', e.target.value)} placeholder="Sim / Não" />
+                                                <StyledInput label="Nome da última escola frequentada" value={socialData.historicoEscolar.ultimaEscola} onChange={(e: any) => handleChange('historicoEscolar', 'ultimaEscola', e.target.value)} />
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                <StyledInput label="Último ano/série cursado" value={socialData.historicoEscolar.ultimoAnoSerie} onChange={(e: any) => handleChange('historicoEscolar', 'ultimoAnoSerie', e.target.value)} />
+                                                <StyledInput label="Ano em que parou de frequentar" value={socialData.historicoEscolar.anoParou} onChange={(e: any) => handleChange('historicoEscolar', 'anoParou', e.target.value)} />
+                                                <StyledInput label="Idade ao sair da escola" value={socialData.historicoEscolar.idadeSaiu} onChange={(e: any) => handleChange('historicoEscolar', 'idadeSaiu', e.target.value)} />
+                                            </div>
+                                            <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Motivos da Saída (Múltipla Escolha)</label>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                    {['Dificuldades de aprendizagem', 'Falta de transporte escolar', 'Trabalho infantil', 'Gravidez / maternidade / paternidade', 'Cuidado com familiares', 'Violência ou bullying escolar', 'Uso de álcool ou drogas', 'Mudança de endereço', 'Doença', 'Falta de documentos', 'Desinteresse', 'Reprovação consecutiva', 'Questões religiosas/culturais'].map(opt => (
+                                                        <label key={opt} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${socialData.historicoEscolar.motivosSaida.includes(opt) ? 'bg-[#1E7F85] border-[#1E7F85] text-white shadow-lg' : 'bg-white border-slate-200 hover:border-[#1E7F85]/20 text-slate-600'}`}>
+                                                            <input type="checkbox" checked={socialData.historicoEscolar.motivosSaida.includes(opt)} onChange={() => toggleMultiSelect('historicoEscolar', 'motivosSaida', opt)} className="hidden" />
+                                                            <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${socialData.historicoEscolar.motivosSaida.includes(opt) ? 'bg-white border-white' : 'border-slate-300 bg-slate-50'}`}>
+                                                                {socialData.historicoEscolar.motivosSaida.includes(opt) && <div className="w-2 h-2 bg-[#1E7F85] rounded-sm" />}
+                                                            </div>
+                                                            <span className="text-xs font-bold leading-tight">{opt}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <div className="mt-6"><StyledInput label="Outros Motivos" value={socialData.historicoEscolar.motivosSaidaOutros} onChange={(e: any) => handleChange('historicoEscolar', 'motivosSaidaOutros', e.target.value)} rows={2} /></div>
                                             </div>
                                         </div>
+                                    )}
 
-                                        <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-slate-200/60 shadow-inner group/box">
-                                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
-                                                <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
-                                                3.3 Acesso a Políticas Sociais
-                                            </h4>
+                                    {activeTab === 3 && (
+                                        <div className="space-y-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <StyledInput label="Responsáveis Legais" value={socialData.condicoesFamiliares.responsaveisLegais} onChange={(e: any) => handleChange('condicoesFamiliares', 'responsaveisLegais', e.target.value)} />
+                                                <StyledInput label="Principal fonte de renda da família" value={socialData.condicoesFamiliares.fonteRenda} onChange={(e: any) => handleChange('condicoesFamiliares', 'fonteRenda', e.target.value)} />
+                                            </div>
+                                            <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Participa de programa social?</label>
+                                                <div className="flex gap-4 flex-wrap">
+                                                    {['Bolsa Família', 'BPC', 'CRAS'].map(opt => (
+                                                        <label key={opt} className={`flex items-center gap-3 cursor-pointer px-6 py-4 rounded-2xl border transition-all ${socialData.condicoesFamiliares.programasSociais.includes(opt) ? 'bg-[#1E7F85] border-[#1E7F85] text-white shadow-lg' : 'bg-white border-slate-200 hover:border-[#1E7F85]/20 text-slate-600'}`}>
+                                                            <input type="checkbox" checked={socialData.condicoesFamiliares.programasSociais.includes(opt)} onChange={() => toggleMultiSelect('condicoesFamiliares', 'programasSociais', opt)} className="hidden" />
+                                                            <span className="text-xs font-black uppercase tracking-widest">{opt}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                <div className="col-span-full">
-                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Benefícios Sociais Recebidos</label>
-                                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                                                        {['Bolsa Família', 'BPC', 'Tarifa Social', 'Cesta Básica', 'Nenhum'].map(opt => (
-                                                            <button key={opt} type="button"
-                                                                onClick={(e) => { e.preventDefault(); handleArrayToggle('acessoPolíticas', 'beneficios', opt); }}
-                                                                className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${socialData.formData.acessoPolíticas.beneficios.includes(opt) ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105' : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'}`}>
-                                                                {opt}
+                                                <div className="space-y-4">
+                                                    <TriStateField
+                                                        label="Há pessoa com deficiência ou mobilidade reduzida no domicílio?"
+                                                        value={socialData.condicoesFamiliares.deficienciaResidencia === 'Sim' ? true : socialData.condicoesFamiliares.deficienciaResidencia === 'Não' ? false : null}
+                                                        onChange={(val) => handleChange('condicoesFamiliares', 'deficienciaResidencia', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                    />
+                                                    {socialData.condicoesFamiliares.deficienciaResidencia === 'Sim' && <StyledInput label="Quem?" value={socialData.condicoesFamiliares.quemDeficiencia} onChange={(e: any) => handleChange('condicoesFamiliares', 'quemDeficiencia', e.target.value)} />}
+                                                </div>
+                                                <div className="space-y-4">
+                                                    <TriStateField
+                                                        label="O aluno possui deficiência?"
+                                                        value={socialData.condicoesFamiliares.alunoDeficiencia === 'Sim' ? true : socialData.condicoesFamiliares.alunoDeficiencia === 'Não' ? false : null}
+                                                        onChange={(val) => handleChange('condicoesFamiliares', 'alunoDeficiencia', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                    />
+                                                    {socialData.condicoesFamiliares.alunoDeficiencia === 'Sim' && <StyledInput label="Qual?" value={socialData.condicoesFamiliares.qualDeficiencia} onChange={(e: any) => handleChange('condicoesFamiliares', 'qualDeficiencia', e.target.value)} />}
+                                                </div>
+                                            </div>
+                                            <div className="p-8 bg-rose-50 rounded-3xl border border-rose-100">
+                                                <label className="block text-[10px] font-black text-rose-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                                    <AlertTriangle size={14} strokeWidth={3} /> Situações enfrentadas pela família
+                                                </label>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                    {['Situação de rua', 'Violência doméstica', 'Trabalho infantil', 'Dependência química', 'Conflitos com a Justiça', 'Outros'].map(opt => (
+                                                        <label key={opt} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${socialData.condicoesFamiliares.situacoesEnfrentadas.includes(opt) ? 'bg-rose-600 border-rose-700 text-white shadow-lg' : 'bg-white border-slate-200 hover:border-rose-200 text-slate-600'}`}>
+                                                            <input type="checkbox" checked={socialData.condicoesFamiliares.situacoesEnfrentadas.includes(opt)} onChange={() => toggleMultiSelect('condicoesFamiliares', 'situacoesEnfrentadas', opt)} className="hidden" />
+                                                            <span className="text-xs font-bold leading-tight">{opt}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <TriStateField
+                                                    label="Há adultos alfabetizados na casa?"
+                                                    value={socialData.condicoesFamiliares.adultosAlfabetizados === 'Sim' ? true : socialData.condicoesFamiliares.adultosAlfabetizados === 'Não' ? false : null}
+                                                    onChange={(val) => handleChange('condicoesFamiliares', 'adultosAlfabetizados', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                />
+                                                <TriStateField
+                                                    label="A família considera a educação prioridade?"
+                                                    value={socialData.condicoesFamiliares.educacaoPrioridade === 'Sim' ? true : socialData.condicoesFamiliares.educacaoPrioridade === 'Não' ? false : null}
+                                                    onChange={(val) => handleChange('condicoesFamiliares', 'educacaoPrioridade', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 4 && (
+                                        <div className="space-y-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <TriStateField
+                                                    label="Acompanhamento médico regular?"
+                                                    value={socialData.saudeAcompanhamentos.acompanhamentoMedico === 'Sim' ? true : socialData.saudeAcompanhamentos.acompanhamentoMedico === 'Não' ? false : null}
+                                                    onChange={(val) => handleChange('saudeAcompanhamentos', 'acompanhamentoMedico', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                />
+                                                <div className="space-y-4">
+                                                    <TriStateField
+                                                        label="Uso de medicação contínua?"
+                                                        value={socialData.saudeAcompanhamentos.medicacaoContinua === 'Sim' ? true : socialData.saudeAcompanhamentos.medicacaoContinua === 'Não' ? false : null}
+                                                        onChange={(val) => handleChange('saudeAcompanhamentos', 'medicacaoContinua', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                    />
+                                                    {socialData.saudeAcompanhamentos.medicacaoContinua === 'Sim' && <StyledInput label="Observações sobre medicação (Impacto escolar/rotina)" value={socialData.saudeAcompanhamentos.qualMedicacao} onChange={(e: any) => handleChange('saudeAcompanhamentos', 'qualMedicacao', e.target.value)} />}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <TriStateField
+                                                    label="Acompanhamento em Saúde Mental (Psicologia/Psiquiatria)?"
+                                                    value={socialData.saudeAcompanhamentos.acompanhamentoPsi === 'Sim' ? true : socialData.saudeAcompanhamentos.acompanhamentoPsi === 'Não' ? false : null}
+                                                    onChange={(val) => handleChange('saudeAcompanhamentos', 'acompanhamentoPsi', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                />
+                                                <TriStateField
+                                                    label="Acompanhamento pelo Conselho Tutelar?"
+                                                    value={socialData.saudeAcompanhamentos.conselhoTutelar === 'Sim' ? true : socialData.saudeAcompanhamentos.conselhoTutelar === 'Não' ? false : null}
+                                                    onChange={(val) => handleChange('saudeAcompanhamentos', 'conselhoTutelar', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                />
+                                            </div>
+                                            <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Atendido por serviços?</label>
+                                                <div className="flex gap-4 flex-wrap">
+                                                    {['CAPS', 'CRAS'].map(opt => (
+                                                        <label key={opt} className={`flex items-center gap-3 cursor-pointer px-6 py-4 rounded-2xl border transition-all ${socialData.saudeAcompanhamentos.servicosAtendimento.includes(opt) ? 'bg-[#1E7F85] border-[#1E7F85] text-white shadow-lg' : 'bg-white border-slate-200 hover:border-[#1E7F85]/20 text-slate-600'}`}>
+                                                            <input type="checkbox" checked={socialData.saudeAcompanhamentos.servicosAtendimento.includes(opt)} onChange={() => toggleMultiSelect('saudeAcompanhamentos', 'servicosAtendimento', opt)} className="hidden" />
+                                                            <span className="text-xs font-black uppercase tracking-widest">{opt}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <div className="mt-6"><StyledInput label="Outros (texto)" value={socialData.saudeAcompanhamentos.outrosServicos} onChange={(e: any) => handleChange('saudeAcompanhamentos', 'outrosServicos', e.target.value)} /></div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 5 && (
+                                        <div className="space-y-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <TriStateField
+                                                    label="Desejo do aluno em retornar à escola?"
+                                                    value={socialData.situacaoAtual.desejoRetornar === 'Sim' ? true : socialData.situacaoAtual.desejoRetornar === 'Não' ? false : null}
+                                                    onChange={(val) => handleChange('situacaoAtual', 'desejoRetornar', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                />
+                                                <TriStateField
+                                                    label="Apoio da família ao retorno?"
+                                                    value={socialData.situacaoAtual.apoioFamilia === 'Sim' ? true : socialData.situacaoAtual.apoioFamilia === 'Não' ? false : null}
+                                                    onChange={(val) => handleChange('situacaoAtual', 'apoioFamilia', val === true ? 'Sim' : val === false ? 'Não' : '')}
+                                                />
+                                            </div>
+                                            <div className="p-8 bg-orange-50 rounded-3xl border border-orange-100">
+                                                <label className="block text-[10px] font-black text-orange-400 uppercase tracking-widest mb-6">Fatores que dificultam o retorno</label>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                    {['Falta de transporte', 'Falta de vaga', 'Medo de bullying ou violência', 'Necessidade de trabalhar', 'Desinteresse', 'Situação emocional/psicológica', 'Gravidez/maternidade'].map(opt => (
+                                                        <label key={opt} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${socialData.situacaoAtual.fatoresDificultam.includes(opt) ? 'bg-orange-500 border-orange-600 text-white shadow-lg' : 'bg-white border-slate-200 hover:border-orange-200 text-slate-600'}`}>
+                                                            <input type="checkbox" checked={socialData.situacaoAtual.fatoresDificultam.includes(opt)} onChange={() => toggleMultiSelect('situacaoAtual', 'fatoresDificultam', opt)} className="hidden" />
+                                                            <span className="text-xs font-bold leading-tight">{opt}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <div className="mt-6"><StyledInput label="Outros (texto)" value={socialData.situacaoAtual.fatoresDificultamOutros} onChange={(e: any) => handleChange('situacaoAtual', 'fatoresDificultamOutros', e.target.value)} /></div>
+                                            </div>
+                                            <div className="p-8 bg-cyan-50 rounded-3xl border border-cyan-100">
+                                                <label className="block text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-6">Apoios necessários para retorno e permanência</label>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                    {['Transporte escolar', 'Atendimento psicológico', 'Apoio pedagógico', 'Atendimento especializado', 'Apoio material', 'Visitas domiciliares'].map(opt => (
+                                                        <label key={opt} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${socialData.situacaoAtual.apoiosNecessarios.includes(opt) ? 'bg-[#1E7F85] border-[#1E7F85] text-white shadow-lg' : 'bg-white border-slate-200 hover:border-[#1E7F85]/20 text-slate-600'}`}>
+                                                            <input type="checkbox" checked={socialData.situacaoAtual.apoiosNecessarios.includes(opt)} onChange={() => toggleMultiSelect('situacaoAtual', 'apoiosNecessarios', opt)} className="hidden" />
+                                                            <span className="text-xs font-bold leading-tight">{opt}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <div className="mt-6"><StyledInput label="Outros (texto)" value={socialData.situacaoAtual.apoiosNecessariosOutros} onChange={(e: any) => handleChange('situacaoAtual', 'apoiosNecessariosOutros', e.target.value)} /></div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 6 && (
+                                        <div className="space-y-8">
+                                            {/* BLOCO FINAL DE ENCAMINHAMENTO INSTITUCIONAL */}
+                                            <div className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl relative overflow-hidden group">
+                                                <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-32 -mt-32 z-0 group-hover:scale-110 transition-transform duration-700" />
+
+                                                <div className="relative z-10">
+                                                    <h3 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight flex items-center gap-3">
+                                                        <ShieldAlert className="text-rose-600" size={32} /> Encaminhamento Institucional
+                                                    </h3>
+                                                    <p className="text-slate-500 mb-10 max-w-xl">Formalização de encaminhamento para órgãos da rede de proteção ou suporte educacional.</p>
+
+                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                                                        <div className="space-y-8">
+                                                            <div>
+                                                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Encaminhamento Sugerido</label>
+                                                                <div className="space-y-3">
+                                                                    {['Conselho Tutelar', 'Educação Especial', 'CRAS', 'Saúde', 'Não há encaminhamento no momento'].map(opt => (
+                                                                        <label key={opt} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${socialData.encaminhamentoInstitucional.sugestao === opt ? 'border-[#1E7F85] bg-[#1E7F85]/5 shadow-md' : 'border-slate-100 bg-slate-50 hover:border-slate-300'}`}>
+                                                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${socialData.encaminhamentoInstitucional.sugestao === opt ? 'border-[#1E7F85]' : 'border-slate-300'}`}>
+                                                                                {socialData.encaminhamentoInstitucional.sugestao === opt && <div className="w-2.5 h-2.5 bg-[#1E7F85] rounded-full" />}
+                                                                            </div>
+                                                                            <input
+                                                                                type="radio"
+                                                                                name="sugestao"
+                                                                                className="hidden"
+                                                                                checked={socialData.encaminhamentoInstitucional.sugestao === opt}
+                                                                                onChange={() => handleChange('encaminhamentoInstitucional', 'sugestao', opt)}
+                                                                            />
+                                                                            <span className={`font-bold ${socialData.encaminhamentoInstitucional.sugestao === opt ? 'text-[#1E7F85]' : 'text-slate-600'}`}>{opt}</span>
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Grau de Prioridade</label>
+                                                                <div className="flex gap-3">
+                                                                    {['Baixa', 'Média', 'Alta'].map(prio => (
+                                                                        <button
+                                                                            key={prio}
+                                                                            type="button"
+                                                                            onClick={() => handleChange('encaminhamentoInstitucional', 'prioridade', prio)}
+                                                                            className={`flex-1 py-3 rounded-xl font-bold uppercase text-xs tracking-widest border-2 transition-all ${socialData.encaminhamentoInstitucional.prioridade === prio
+                                                                                ? prio === 'Alta' ? 'bg-rose-600 border-rose-600 text-white shadow-lg'
+                                                                                    : prio === 'Média' ? 'bg-amber-500 border-amber-500 text-white shadow-lg'
+                                                                                        : 'bg-emerald-500 border-emerald-500 text-white shadow-lg'
+                                                                                : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                                                                                }`}
+                                                                        >
+                                                                            {prio}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-8">
+                                                            <StyledInput
+                                                                label="Motivo do Encaminhamento (Educacional/Social)"
+                                                                rows={6}
+                                                                placeholder="Descreva o motivo..."
+                                                                value={socialData.encaminhamentoInstitucional.motivo}
+                                                                onChange={(e: any) => handleChange('encaminhamentoInstitucional', 'motivo', e.target.value)}
+                                                            />
+
+                                                            <div className="grid grid-cols-2 gap-6">
+                                                                <StyledInput
+                                                                    label="Data de Encaminhamento"
+                                                                    type="date"
+                                                                    value={socialData.encaminhamentoInstitucional.dataEncaminhamento}
+                                                                    onChange={(e: any) => handleChange('encaminhamentoInstitucional', 'dataEncaminhamento', e.target.value)}
+                                                                />
+                                                                <div className="opacity-70 pointer-events-none">
+                                                                    <StyledInput
+                                                                        label="Profissional Responsável"
+                                                                        value={currentUser.name}
+                                                                        onChange={() => { }}
+                                                                        icon={UserIcon}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* SEÇÃO LEGADA / OBSERVAÇÕES ADICIONAIS */}
+                                            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between opacity-80 hover:opacity-100 transition-opacity">
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Controle Interno</label>
+                                                    <div className="flex bg-white rounded-2xl p-1 shadow-inner border border-slate-200">
+                                                        {(['PENDENTE', 'CONCLUÍDO'] as const).map(status => (
+                                                            <button
+                                                                key={status}
+                                                                type="button"
+                                                                onClick={() => handleChange('observacoesEncaminhamentos', 'statusRegistro', status)}
+                                                                className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${socialData.observacoesEncaminhamentos.statusRegistro === status ? 'bg-[#1E7F85] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                                                            >
+                                                                {status}
                                                             </button>
                                                         ))}
                                                     </div>
                                                 </div>
-                                                <div className="col-span-1">
-                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Suficiência da Renda</label>
-                                                    <select
-                                                        className="w-full rounded-2xl border-slate-200 bg-white p-4 text-slate-700 font-black uppercase text-xs tracking-widest focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm"
-                                                        value={socialData.formData.acessoPolíticas.suficienciaRenda}
-                                                        onChange={e => handleInputChange('acessoPolíticas', 'suficienciaRenda', e.target.value)}
-                                                    >
-                                                        <option value="">Selecione...</option>
-                                                        <option>Suficiente</option>
-                                                        <option>Insuficiente</option>
-                                                    </select>
+                                                <div className="text-right">
+                                                    <div className="flex items-center gap-2 justify-end text-[#1E7F85] font-black text-[10px] uppercase tracking-widest mb-1">
+                                                        <Shield size={12} /> Protegido LGPD
+                                                    </div>
+                                                    <p className="text-[10px] font-bold text-slate-400 max-w-[200px] leading-tight text-right">Acesso restrito: Serviço Social.</p>
                                                 </div>
-                                                <div className="col-span-1"><StyledInput label="Destino Prioritário da Renda" value={socialData.formData.acessoPolíticas.destinoRenda} onChange={e => handleInputChange('acessoPolíticas', 'destinoRenda', e.target.value)} /></div>
                                             </div>
                                         </div>
-                                    </div>
-                                </SocialSection>
-
-                                {/* SEÇÃO 4: ABORDAGEM ÉTICA */}
-                                <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-100 rounded-[2rem] p-8 flex items-start gap-6 shadow-xl shadow-cyan-100/30">
-                                    <div className="p-4 bg-white text-cyan-600 rounded-2xl shadow-header">
-                                        <AlertCircle size={28} strokeWidth={2.5} />
-                                    </div>
-                                    <div>
-                                        <h4 className="text-sm font-black text-cyan-900 uppercase tracking-widest mb-2">Abordagem Ética e Técnica</h4>
-                                        <p className="text-cyan-800 text-sm font-medium leading-relaxed italic">
-                                            A visita deve ser acolhedora, baseada na escuta qualificada e livre de julgamentos, reconhecendo as vulnerabilidades estruturais e evitando um caráter policialesco ou invasivo.
-                                        </p>
-                                    </div>
+                                    )}
                                 </div>
 
-                                {/* SEÇÃO 5: PERGUNTAS ORIENTADORAS */}
-                                <SocialSection title="5. Perguntas Orientadoras" icon={MessageCircle} isOpen={openSections.includes('perguntas')} onToggle={() => toggleSection('perguntas')} color="purple">
-                                    <div className="space-y-10">
-                                        <StyledInput label="Higiene e Cuidados (Organização da rotina, dificuldades, acesso a itens)" rows={4} value={socialData.formData.perguntasOrientadoras.higieneCuidados} onChange={e => handleInputChange('perguntasOrientadoras', 'higieneCuidados', e.target.value)} />
-                                        <StyledInput label="Alimentação e Renda (Suficiência alimentar, prioridades de consumo, dificuldades)" rows={4} value={socialData.formData.perguntasOrientadoras.alimentacaoRenda} onChange={e => handleInputChange('perguntasOrientadoras', 'alimentacaoRenda', e.target.value)} />
-                                        <StyledInput label="Desafios e Estratégias (Cotidiano, apoios da rede, demandas urgentes sentidas)" rows={4} value={socialData.formData.perguntasOrientadoras.desafiosEstrategias} onChange={e => handleInputChange('perguntasOrientadoras', 'desafiosEstrategias', e.target.value)} />
+                                <div className="mt-8 flex justify-between items-center bg-white p-6 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100">
+                                    <p className="text-xs font-bold text-slate-400 italic">O salvamento ocorre automaticamente ao trocar de aba ou clicando no botão ao lado.</p>
+                                    <div className="flex gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSave()}
+                                            className="px-8 py-4 bg-[#1E7F85] text-white rounded-2xl shadow-lg shadow-[#1E7F85]/20 hover:bg-[#166065] font-black uppercase tracking-widest text-xs flex items-center gap-3 transition-all hover:scale-105"
+                                        >
+                                            <Save size={18} /> Salvar Aba Atual
+                                        </button>
                                     </div>
-                                </SocialSection>
-
-                                {/* SEÇÃO 6: ANÁLISE TÉCNICA (SIGILOSO) */}
-                                {currentUser.specialty === Specialty.SOCIAL_WORK || currentUser.role === 'ADMIN' ? (
-                                    <SocialSection title="6. Análise Técnica (Sigiloso)" icon={Lock} isOpen={openSections.includes('tecnica')} onToggle={() => toggleSection('tecnica')} color="purple">
-                                        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-8 text-red-800 text-xs font-black uppercase tracking-widest flex items-center gap-4 shadow-sm shadow-red-100 flex-col sm:flex-row">
-                                            <div className="p-2 bg-white rounded-lg shadow-sm">
-                                                <Lock size={20} className="text-red-600" />
-                                            </div>
-                                            <span>ÁREA RESTRITA: Este conteúdo é sigiloso e visível apenas para a equipe de Serviço Social.</span>
-                                        </div>
-                                        <div className="space-y-10">
-                                            <StyledInput label="Expressões da Questão Social Identificadas" rows={6} value={socialData.formData.analiseTecnica.expressoesQuestaoSocial} onChange={e => handleInputChange('analiseTecnica', 'expressoesQuestaoSocial', e.target.value)} />
-
-                                            <div>
-                                                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Direitos Sociais Violados ou em Risco</label>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3">
-                                                    {['Alimentação', 'Moradia', 'Educação', 'Saúde', 'Convivência Familiar', 'Documentação', 'Trabalho Infantil', 'Violência'].map(opt => (
-                                                        <button key={opt} type="button"
-                                                            className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${socialData.formData.analiseTecnica.direitosViolados.includes(opt) ? 'bg-red-600 text-white shadow-lg shadow-red-500/20 scale-105' : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'}`}>
-                                                            {opt}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <StyledInput label="Estratégias de Sobrevivência Mobilizadas pela Família" value={socialData.formData.analiseTecnica.estrategiasSobrevivencia} onChange={e => handleInputChange('analiseTecnica', 'estrategiasSobrevivencia', e.target.value)} />
-                                            <StyledInput label="Necessidade de Articulação Intersetorial e Rede" value={socialData.formData.analiseTecnica.necessidadeArticulacao} onChange={e => handleInputChange('analiseTecnica', 'necessidadeArticulacao', e.target.value)} />
-                                        </div>
-                                    </SocialSection>
-                                ) : null}
-
-                                {/* SEÇÃO 7: ENCAMINHAMENTOS */}
-                                <SocialSection title="7. Encaminhamentos" icon={Send} isOpen={openSections.includes('encaminhamentos')} onToggle={() => toggleSection('encaminhamentos')} color="purple">
-                                    <div className="space-y-10">
-                                        <StyledInput label="Orientações Educativas e Atendimentos Realizados" rows={4} value={socialData.formData.encaminhamentos.orientacoesRealizadas} onChange={e => handleInputChange('encaminhamentos', 'orientacoesRealizadas', e.target.value)} />
-
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            {[
-                                                { id: 'encaminhamentoCrasCreas', label: 'Encaminhar CRAS/CREAS', icon: Home },
-                                                { id: 'articulacaoSaude', label: 'Articulação Saúde', icon: Heart },
-                                                { id: 'acionamentoRede', label: 'Acionar Rede Proteção', icon: Lock }
-                                            ].map(check => (
-                                                <label key={check.id} className={`p-6 rounded-[2rem] border transition-all cursor-pointer flex items-center gap-4 ${socialData.formData.encaminhamentos[check.id] ? 'bg-indigo-50 border-indigo-200 shadow-lg shadow-indigo-100/50' : 'bg-white border-slate-100 hover:bg-slate-50'}`}>
-                                                    <div className="relative flex items-center">
-                                                        <input
-                                                            type="checkbox"
-                                                            className="w-8 h-8 rounded-xl border-2 border-slate-200 text-indigo-600 focus:ring-4 focus:ring-indigo-500/10 transition-all checked:bg-indigo-600 appearance-none cursor-pointer"
-                                                            checked={socialData.formData.encaminhamentos[check.id]}
-                                                            onChange={e => setSocialData({ ...socialData, formData: { ...socialData.formData, encaminhamentos: { ...socialData.formData.encaminhamentos, [check.id]: e.target.checked } } })}
-                                                        />
-                                                        {socialData.formData.encaminhamentos[check.id] && <div className="absolute inset-0 flex items-center justify-center text-white pointer-events-none font-black text-xl">✓</div>}
-                                                    </div>
-                                                    <span className={`font-black uppercase text-[10px] tracking-widest ${socialData.formData.encaminhamentos[check.id] ? 'text-indigo-900' : 'text-slate-400'}`}>{check.label}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-
-                                        <StyledInput label="Observações Finais e Desfecho" rows={4} value={socialData.formData.encaminhamentos.observacoesFinais} onChange={e => handleInputChange('encaminhamentos', 'observacoesFinais', e.target.value)} />
-
-                                        <div className="bg-slate-100 shadow-inner rounded-[2.5rem] p-10 flex flex-col items-center">
-                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6">Status Final do Acompanhamento</label>
-                                            <select
-                                                className="w-full max-w-md rounded-2xl border-2 border-slate-200 bg-white p-5 text-slate-900 font-black uppercase text-sm tracking-widest focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-600 outline-none transition-all shadow-xl"
-                                                value={socialData.formData.encaminhamentos.statusCaso}
-                                                onChange={e => handleInputChange('encaminhamentos', 'statusCaso', e.target.value)}
-                                            >
-                                                <option>Em Acompanhamento</option>
-                                                <option>Aguardando Visita</option>
-                                                <option>Encaminhado para Rede</option>
-                                                <option>Concluído / Arquivado</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </SocialSection>
-
-                                <div className="flex justify-center pt-10 pb-20">
-                                    <button
-                                        onClick={handleSaveSocial}
-                                        className="bg-slate-900 text-white px-16 py-6 rounded-3xl font-black uppercase tracking-widest text-lg flex items-center gap-4 hover:bg-slate-800 shadow-2xl shadow-slate-900/40 transition-all hover:-translate-y-2 active:scale-95 group"
-                                    >
-                                        <Save size={28} className="group-hover:scale-110 transition-transform" />
-                                        Salvar Relatórios
-                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 };
+
 
 // --- BASE DASHBOARD (OUTRAS ESPECIALIDADES) ---
 const BaseDashboard: React.FC<BaseDashboardProps> = ({ title, specialty, onNavigateNew }) => {
@@ -5516,6 +5900,7 @@ const BaseSessionForm: React.FC<BaseSessionFormProps> = ({ title, specialty, onC
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [serviceType, setServiceType] = useState('Consulta Individual');
     const [notes, setNotes] = useState('');
+    const { success: showToast, error: toastError } = useToast();
 
     useEffect(() => { SupabaseService.getStudents().then(setStudents); }, []);
 
@@ -5536,8 +5921,8 @@ const BaseSessionForm: React.FC<BaseSessionFormProps> = ({ title, specialty, onC
 
                 // Save to Supabase
                 SupabaseService.saveSession(newSession, student.id, currentUser.id)
-                    .then(() => alert('Atendimento salvo com sucesso!'))
-                    .catch(err => alert('Erro ao salvar: ' + err.message));
+                    .then(() => showToast('Atendimento salvo com sucesso!'))
+                    .catch(err => toastError('Erro ao salvar: ' + err.message));
             }
         }
         onCancel();
@@ -5571,6 +5956,10 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
     const [activeTab, setActiveTab] = useState<'formulario' | 'sessoes'>('formulario');
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'form'>('list'); // Para sessões
+    const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
+    const { success: showToast, error: toastError } = useToast();
+    const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
+
 
     // Dados
     const [publicData, setPublicData] = useState<PsychFormPublic>(initialPublicForm);
@@ -5676,9 +6065,11 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
 
     const handleDischarge = async () => {
         if (!selectedStudent) return;
+        setShowConfirmDischarge(true);
+    };
 
-        const confirmAlta = confirm("Tem certeza que deseja dar alta a este paciente? Esta ação irá salvar o prontuário e gerar o relatório final.");
-        if (!confirmAlta) return;
+    const confirmDischargeAction = async () => {
+        setShowConfirmDischarge(false);
 
         try {
             // 1. Salvar o formulário completo (Simulando o evento para reuso da lógica)
@@ -5804,11 +6195,16 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
     };
 
     const deleteSession = (id: string) => {
-        if (confirm('Excluir esta sessão permanentemente?')) {
-            // TODO: Implement delete in SupabaseService
-            // await SupabaseService.deleteSession(id);
-            alert('Funcionalidade de exclusão em desenvolvimento no backend.');
-        }
+        setConfirmModal({
+            title: 'Excluir Sessão',
+            message: 'Tem certeza que deseja excluir esta sessão permanentemente?',
+            onConfirm: () => {
+                // TODO: Implement delete in SupabaseService
+                // await SupabaseService.deleteSession(id);
+                toastError('Funcionalidade de exclusão em desenvolvimento no backend.');
+                setConfirmModal(null);
+            }
+        });
     };
 
     const handlePublicChange = (section: keyof PsychFormPublic, field: string, value: string) => {
@@ -5841,20 +6237,20 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
             const session = targetSession || (privateData.sessions.length > 0 ? privateData.sessions[0] : null);
 
             const contentHTML = `
-                                                    <h2 class="section-title">I. IDENTIFICAÇÃO E ENCAMINHAMENTO</h2>
-                                                    <div class="box">
-                                                        <div class="data-row"><span class="label">ENCAMINHADO POR</span><span class="value">${publicData.identificacao.encaminhadoPor || '-'}</span></div>
-                                                        <div class="data-row"><span class="label">DATA TRIAGEM</span><span class="value">${publicData.identificacao.dataTriagem ? new Date(publicData.identificacao.dataTriagem).toLocaleDateString() : '-'}</span></div>
-                                                        <div class="data-row"><span class="label">QUEIXA PRINCIPAL / MOTIVO</span><div class="value">${publicData.motivoEncaminhamento.queixa || 'Não informado'}</div></div>
-                                                    </div>
+                                    <h2 class="section-title">I. IDENTIFICAÇÃO E ENCAMINHAMENTO</h2>
+                                    <div class="box">
+                                        <div class="data-row"><span class="label">ENCAMINHADO POR</span><span class="value">${publicData.identificacao.encaminhadoPor || '-'}</span></div>
+                                        <div class="data-row"><span class="label">DATA TRIAGEM</span><span class="value">${publicData.identificacao.dataTriagem ? new Date(publicData.identificacao.dataTriagem).toLocaleDateString() : '-'}</span></div>
+                                        <div class="data-row"><span class="label">QUEIXA PRINCIPAL / MOTIVO</span><div class="value">${publicData.motivoEncaminhamento.queixa || 'Não informado'}</div></div>
+                                    </div>
 
-                                                    <h2 class="section-title">II. DADOS CLÍNICOS (CONFIDENCIAL)</h2>
-                                                    <div class="box">
-                                                        <div class="data-row"><span class="label">HIPÓTESES INICIAIS</span><div class="value">${privateData.formData.triagemPsicologica.hipotesesIniciais || '-'}</div></div>
-                                                        <div class="data-row"><span class="label">PLANO TERAPÊUTICO</span><div class="value">${privateData.formData.planoTerapeutico.objetivoPrincipal || '-'}</div></div>
-                                                    </div>
+                                    <h2 class="section-title">II. DADOS CLÍNICOS (CONFIDENCIAL)</h2>
+                                    <div class="box">
+                                        <div class="data-row"><span class="label">HIPÓTESES INICIAIS</span><div class="value">${privateData.formData.triagemPsicologica.hipotesesIniciais || '-'}</div></div>
+                                        <div class="data-row"><span class="label">PLANO TERAPÊUTICO</span><div class="value">${privateData.formData.planoTerapeutico.objetivoPrincipal || '-'}</div></div>
+                                    </div>
 
-                                                    ${session ? `
+                                    ${session ? `
                 <h2 class="section-title">III. REGISTRO DE SESSÃO / EVOLUÇÃO</h2>
                 <div class="box" style="border-left: 4px solid #9333ea; background: #faf5ff;">
                     <div class="data-row">
@@ -5866,7 +6262,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                     ${session.indicativoAlta ? `<div style="margin-top: 10px; padding: 8px; background: #ecfdf5; border-radius: 4px; color: #065f46; font-size: 10pt;"><strong>REGISTRO DE ALTA:</strong> ${session.motivoAlta}</div>` : ''}
                 </div>
                 ` : ''}
-                                                    `;
+                                    `;
 
             const html = generateClinicalPrintHTML(
                 selectedStudent,
@@ -5887,7 +6283,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
             }, 500);
         } catch (e) {
             console.error('Erro ao gerar impressão:', e);
-            alert('Não foi possível gerar o documento. Verifique as configurações de papel timbrado.');
+            toastError('Não foi possível gerar o documento. Verifique as configurações de papel timbrado.');
         }
     };
 
@@ -6221,6 +6617,61 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                     </div>
                 )}
             </div>
+            {/* Modal de Confirmação de Alta Profissional */}
+            {showConfirmDischarge && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 flex flex-col items-center text-center animate-slideUp border border-slate-100">
+                        <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6 text-amber-600">
+                            <AlertTriangle size={48} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Confirmar Alta?</h3>
+                        <p className="text-slate-500 mb-8 leading-relaxed font-medium">
+                            VocÃª estÃ¡ prestes a dar alta para <br />
+                            <strong className="text-slate-900">{selectedStudent?.fullName}</strong>. <br />
+                            Isso irÃ¡ salvar os dados atuais e gerar o relatÃ³rio final.
+                        </p>
+
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={() => setShowConfirmDischarge(false)}
+                                className="flex-1 py-4 bg-slate-100 text-slate-500 font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
+                            >
+                                Sair
+                            </button>
+                            <button
+                                onClick={confirmDischargeAction}
+                                className="flex-1 py-4 bg-amber-600 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-600/20 active:scale-95"
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Confirmação Genérico */}
+            {confirmModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-slideUp border border-slate-100">
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">{confirmModal.title}</h3>
+                        <p className="text-slate-600 mb-6">{confirmModal.message}</p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setConfirmModal(null)}
+                                className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-50 rounded-lg transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmModal.onConfirm}
+                                className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 shadow-lg shadow-red-200 transition-all"
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -6240,9 +6691,7 @@ export const PsychologySessionFormPage: React.FC<{ onCancel: () => void; current
 
 // (Definição duplicada movida para o final do arquivo)
 
-export const SocialServiceSessionFormPage: React.FC<{ onCancel: () => void; currentUser: User; preSelectedStudent?: Student }> = (props) => (
-    <SocialServiceSpecificDashboard title="Serviço Social" specialty={Specialty.SOCIAL_WORK} onNavigateNew={() => { }} {...props} />
-);
+// (Definição anterior removida)
 
 export const SpeechTherapyDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; autoOpenSession?: boolean }> = (props) => (
     <SpeechTherapySpecificDashboard title="Fonoaudiologia" specialty={Specialty.SPEECH_THERAPY} {...props} />
@@ -6365,6 +6814,9 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(preSelectedStudent || null);
     const [nutritionData, setNutritionData] = useState<NutritionPrivateData>(initialNutritionData);
     const [loading, setLoading] = useState(false);
+    const { success: showToast, error: toastError } = useToast();
+    const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
+    const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
 
     // Session State
     const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
@@ -6434,10 +6886,10 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                 }
             };
             await SupabaseService.saveStudent(updatedStudent);
-            alert('Anamnese salva com sucesso!');
+            showToast('Anamnese salva com sucesso!', 'success');
         } catch (e) {
             console.error(e);
-            alert('Erro ao salvar.');
+            toastError('Erro ao salvar.');
         }
     };
 
@@ -6502,10 +6954,10 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
             }
 
             setViewMode('list');
-            alert('Atendimento salvo com sucesso!');
+            showToast('Atendimento salvo com sucesso!');
         } catch (err) {
             console.error(err);
-            alert('Erro ao salvar atendimento.');
+            toastError('Erro ao salvar atendimento.');
         }
     };
 
@@ -6516,20 +6968,20 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
             const session = targetSession || (nutritionData.sessions.length > 0 ? nutritionData.sessions[0] : null);
 
             const contentHTML = `
-                                                            <h2 class="section-title">I. DADOS ANTROPOMÉTRICOS</h2>
-                                                            <div class="box">
-                                                                <div class="data-row"><span class="label">PESO:</span> <span class="value">${session?.weight || nutritionData.lastAssessment.weight || '-'} kg</span></div>
-                                                                <div class="data-row"><span class="label">ALTURA:</span> <span class="value">${session?.height || nutritionData.lastAssessment.height || '-'} m</span></div>
-                                                                <div class="data-row"><span class="label">IMC:</span> <span class="value">${session?.bmi || nutritionData.lastAssessment.bmi || '-'} (${session?.bmi ? calculateBMI(session.weight, session.height).classification : nutritionData.lastAssessment.classification})</span></div>
-                                                            </div>
+                                            <h2 class="section-title">I. DADOS ANTROPOMÉTRICOS</h2>
+                                            <div class="box">
+                                                <div class="data-row"><span class="label">PESO:</span> <span class="value">${session?.weight || nutritionData.lastAssessment.weight || '-'} kg</span></div>
+                                                <div class="data-row"><span class="label">ALTURA:</span> <span class="value">${session?.height || nutritionData.lastAssessment.height || '-'} m</span></div>
+                                                <div class="data-row"><span class="label">IMC:</span> <span class="value">${session?.bmi || nutritionData.lastAssessment.bmi || '-'} (${session?.bmi ? calculateBMI(session.weight, session.height).classification : nutritionData.lastAssessment.classification})</span></div>
+                                            </div>
 
-                                                            <h2 class="section-title">II. ANAMNESE E HÁBITOS</h2>
-                                                            <div class="box">
-                                                                <div class="data-row"><span class="label">HÁBITOS:</span> <div class="value">${nutritionData.anamnesis.eatingHabits || '-'}</div></div>
-                                                                <div class="data-row"><span class="label">ALERGIAS/AVERSÕES:</span> <div class="value">${nutritionData.anamnesis.allergies || '-'} / ${nutritionData.anamnesis.rejectedFoods || '-'}</div></div>
-                                                            </div>
+                                            <h2 class="section-title">II. ANAMNESE E HÁBITOS</h2>
+                                            <div class="box">
+                                                <div class="data-row"><span class="label">HÁBITOS:</span> <div class="value">${nutritionData.anamnesis.eatingHabits || '-'}</div></div>
+                                                <div class="data-row"><span class="label">ALERGIAS/AVERSÕES:</span> <div class="value">${nutritionData.anamnesis.allergies || '-'} / ${nutritionData.anamnesis.rejectedFoods || '-'}</div></div>
+                                            </div>
 
-                                                            ${session ? `
+                                            ${session ? `
                 <h2 class="section-title">III. EVOLUÇÃO E RECOMENDAÇÕES</h2>
                 <div class="box" style="border-left: 4px solid #10b981; background: #f0fdf4;">
                     <div class="data-row"><span class="label">DATA:</span> <span class="value">${new Date(session.date).toLocaleDateString()}</span></div>
@@ -6538,7 +6990,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                     <div class="data-row"><span class="label">RECOMENDAÇÕES:</span> <div class="value">${session.recommendations || '-'}</div></div>
                 </div>
                 ` : ''}
-                                                            `;
+                                            `;
 
             const html = generateClinicalPrintHTML(selectedStudent, config, 'Relatório Nutricional', contentHTML, {
                 name: currentUser.name, jobTitle: currentUser.jobTitle || 'Nutricionista', specialty: currentUser.specialty, signatureUrl: currentUser.signatureUrl
@@ -6546,13 +6998,16 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
 
             const win = window.open('', '_blank');
             if (win) { win.document.write(html); win.document.close(); setTimeout(() => { win.focus(); win.print(); win.close(); }, 500); }
-        } catch (e) { alert('Erro na impressão.'); }
+        } catch (e) { toastError('Erro na impressão.'); }
     };
 
     const handleDischarge = async () => {
         if (!selectedStudent) return;
-        const confirmAlta = confirm("Deseja dar alta a este paciente? Isso irá salvar os dados e gerar o relatório final.");
-        if (!confirmAlta) return;
+        setShowConfirmDischarge(true);
+    };
+
+    const confirmDischargeAction = async () => {
+        setShowConfirmDischarge(false);
 
         try {
             await handleSaveAnamnesis();
@@ -6561,7 +7016,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
             }, 500);
         } catch (err) {
             console.error(err);
-            alert('Erro ao processar alta.');
+            toastError('Erro ao processar alta.');
         }
     };
 
@@ -6772,14 +7227,27 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
     );
 };
 
-export const SocialServiceDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; autoOpenSession?: boolean; allStudents?: Student[] }> = (props) => (
-    <SocialServiceSpecificDashboard title="Serviço Social" specialty={Specialty.SOCIAL_WORK} {...props} />
+export const SocialServiceDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; autoOpenSession?: boolean; allStudents?: Student[]; onNavigateToCase?: (id: string) => void }> = (props) => (
+    <SocialServiceStrategicDashboard title="Visão Estratégica" specialty={Specialty.SOCIAL_WORK} {...props} />
+);
+
+export const SocialServiceOperationalPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; allStudents?: Student[] }> = (props) => (
+    <SocialServiceAttendanceHub title="Serviço Social - Atendimento" specialty={Specialty.SOCIAL_WORK} {...props} />
+);
+
+export const SocialServiceSessionFormPage: React.FC<{ onCancel: () => void; currentUser: User; preSelectedStudent?: Student }> = (props) => (
+    <SocialServiceAttendanceHub title="Serviço Social" specialty={Specialty.SOCIAL_WORK} onNavigateNew={() => { }} {...props} />
 );
 
 export const NutritionSessionFormPage: React.FC<{ onCancel: () => void; currentUser: User; preSelectedStudent?: Student }> = (props) => (
     <NutritionSpecificDashboard title="Nutrição" specialty={Specialty.NUTRITION} onNavigateNew={() => { }} currentUser={props.currentUser} preSelectedStudent={props.preSelectedStudent} />
 );
 
-export const NutritionDashboardPage = NutritionSpecificDashboard;
+export const NutritionDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; allStudents?: Student[] }> = (props) => (
+    <NutritionSpecificDashboard title="Nutrição" specialty={Specialty.NUTRITION} {...props} />
+);
+
+
+
 
 

@@ -9,6 +9,7 @@ import { Student, User, Specialty, SystemSettings, hasPermission, Appointment } 
 import { Loader2 } from 'lucide-react';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { NotificationBell } from './components/NotificationBell';
+import { MessagingSystem } from './components/MessagingSystem';
 
 // --- Lazy Loaded Components ---
 const Dashboard = React.lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -35,6 +36,7 @@ const PsychologySessionFormPage = React.lazy(() => import('./components/Clinical
 const PsychopedagogyDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.PsychopedagogyDashboardPage })));
 const PsychopedagogySessionFormPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.PsychopedagogySessionFormPage })));
 const SocialServiceDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.SocialServiceDashboardPage })));
+const SocialServiceOperationalPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.SocialServiceOperationalPage })));
 const SocialServiceSessionFormPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.SocialServiceSessionFormPage })));
 const OccupationalTherapyDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.OccupationalTherapyDashboardPage })));
 const OccupationalTherapySessionFormPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.OccupationalTherapySessionFormPage })));
@@ -226,7 +228,7 @@ function App() {
 
     if (currentPage === 'psychology') return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
     if (currentPage === 'psychopedagogy') return <PsychopedagogyDashboardPage onNavigateNew={() => handleNavigate('psychopedagogy/new-session')} {...commonProps} />;
-    if (currentPage === 'social-service') return <SocialServiceDashboardPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} allStudents={students} />;
+    if (currentPage === 'social-service') return <SocialServiceOperationalPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} allStudents={students} />;
     if (currentPage === 'occupational-therapy') return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
     if (currentPage === 'speech-therapy') return <SpeechTherapyDashboardPage onNavigateNew={() => handleNavigate('speech-therapy/new-session')} {...commonProps} />;
     if (currentPage === 'physiotherapy') return <PhysiotherapyDashboardPage onNavigateNew={() => handleNavigate('physiotherapy/new-session')} {...commonProps} />;
@@ -252,7 +254,18 @@ function App() {
         if (user.role === 'SPECIALIST') {
           switch (user.specialty) {
             case Specialty.PSYCHOLOGY: return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
-            case Specialty.SOCIAL_WORK: return <SocialServiceDashboardPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} allStudents={students} />;
+            case Specialty.SOCIAL_WORK: return <SocialServiceDashboardPage
+              onNavigateNew={() => handleNavigate('social-service/new-session')}
+              onNavigateToCase={(id) => {
+                const student = students.find(s => s.id === id);
+                if (student) {
+                  setSelectedStudent(student);
+                  handleNavigate('social-service/new-session');
+                }
+              }}
+              {...commonProps}
+              allStudents={students}
+            />;
             case Specialty.PSYCHOPEDAGOGY: return <PsychopedagogyDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
             case Specialty.OCCUPATIONAL_THERAPY: return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
             case Specialty.SPEECH_THERAPY: return <SpeechTherapyDashboardPage onNavigateNew={() => handleNavigate('speech-therapy/new-session')} {...commonProps} />;
@@ -331,6 +344,8 @@ function App() {
         {user && (
           <div className="flex justify-end items-center gap-3 mb-6 px-4 md:px-0">
             <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-2 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
+              <MessagingSystem currentUser={user} />
+              <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
               <NotificationBell currentUser={user} />
             </div>
           </div>

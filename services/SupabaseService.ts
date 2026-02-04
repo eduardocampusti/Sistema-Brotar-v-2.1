@@ -479,13 +479,16 @@ export class SupabaseService {
                 .update(dbPayload)
                 .eq('id', targetId)
                 .select('id')
-                .single();
+                .maybeSingle();
 
             if (error) {
                 console.error('Erro ao atualizar aluno:', error);
                 throw error;
             }
-            if (data) savedId = data.id;
+            if (!data) {
+                throw new Error('Aluno não encontrado para atualização ou permissão negada.');
+            }
+            savedId = data.id;
         } else { // Insert
             console.log(`[SupabaseService] Criando novo aluno`);
             // Remove ID placeholder if empty
@@ -495,13 +498,16 @@ export class SupabaseService {
                 .from('students')
                 .insert(dbPayload)
                 .select('id')
-                .single();
+                .maybeSingle();
 
             if (error) {
                 console.error('Erro ao criar aluno:', error);
                 throw error;
             }
-            if (data) savedId = data.id;
+            if (!data) {
+                throw new Error('Erro ao criar aluno: Nenhum dado retornado.');
+            }
+            savedId = data.id;
         }
 
         return savedId;
@@ -840,31 +846,34 @@ export class SupabaseService {
     }
 
     // --- Notificações / Avisos ---
+    // --- Notificações / Avisos ---
     static async getNotifications(userId: string): Promise<any[]> {
         // --- LIMPEZA AUTOMÁTICA (Lazy Delete) ---
-        // Remove mensagens que foram lidas há mais de 5 minutos ou marcadas como lidas sem data (órfãs)
+        // Remove APENAS mensagens privadas ('MESSAGE') que foram lidas há mais de 5 minutos
+        // 'ALERT's (Avisos Gerais) não são excluídos automaticamente
         try {
             const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-            // 1. Deleta mensagens lidas com mais de 5 minutos
+            // 1. Deleta mensagens lidas com mais de 5 minutos DO TIPO MESSAGE
             await supabase
                 .from('system_messages')
                 .delete()
+                .eq('type', 'MESSAGE') // SÓ MENSAGENS, NÃO ALERTAS
                 .not('read_at', 'is', null)
                 .lt('read_at', fiveMinutesAgo);
 
-            // 2. Deleta mensagens marcadas como lidas que ficaram com read_at nulo por erro (segurança extra)
-            // Se foi lida mas não tem data, e foi criada há mais de 10 minutos, removemos
+            // 2. Limpeza de órfãs (também restrito a mensagens para evitar deletar alertas importantes)
             const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
             await supabase
                 .from('system_messages')
                 .delete()
+                .eq('type', 'MESSAGE')
                 .eq('is_read', true)
                 .is('read_at', null)
                 .lt('created_at', tenMinutesAgo);
 
         } catch (cleanError) {
-            console.error('[NotificationCleanup] Erro ao limpar avisos antigos (Verificar RLS DELETE):', cleanError);
+            console.error('[NotificationCleanup] Erro ao limpar mensagens antigas:', cleanError);
         }
 
         // Busca mensagens onde o usuário é o destinatário
@@ -916,7 +925,19 @@ export class SupabaseService {
         }
     }
 
-    static async sendSystemMessage(senderId: string, recipientId: string, title: string, content: string, priority: 'normal' | 'urgent' = 'normal'): Promise<void> {
+    static async deleteSystemMessage(messageId: string): Promise<void> {
+        const { error } = await supabase
+            .from('system_messages')
+            .delete()
+            .eq('id', messageId);
+
+        if (error) {
+            console.error('Erro ao excluir mensagem no Supabase:', error);
+            throw error;
+        }
+    }
+
+    static async sendSystemMessage(senderId: string, recipientId: string, title: string, content: string, priority: 'normal' | 'urgent' = 'normal', type: 'ALERT' | 'MESSAGE' = 'ALERT'): Promise<void> {
         const { error } = await supabase
             .from('system_messages')
             .insert({
@@ -924,7 +945,8 @@ export class SupabaseService {
                 recipient_id: recipientId,
                 title,
                 content,
-                priority
+                priority,
+                type
             });
 
         if (error) {

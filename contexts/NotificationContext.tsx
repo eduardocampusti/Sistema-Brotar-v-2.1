@@ -7,11 +7,18 @@ import { useToast } from './ToastContext';
 interface NotificationContextType {
     notifications: SystemMessage[];
     sentMessages: SystemMessage[];
+    alerts: SystemMessage[];
+    messages: SystemMessage[];
+    sentAlerts: SystemMessage[];
+    sentPrivateMessages: SystemMessage[];
     unreadCount: number;
+    unreadAlertsCount: number;
+    unreadMessagesCount: number;
     loading: boolean;
     refreshNotifications: () => Promise<void>;
     refreshSentMessages: () => Promise<void>;
     markAsRead: (id: string) => Promise<void>;
+    deleteMessage: (id: string) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType>({} as NotificationContextType);
@@ -82,17 +89,52 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode, current
         }
     };
 
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const deleteMessage = async (id: string) => {
+        // Guarda estado anterior para rollback
+        const previousNotifications = [...notifications];
+        const previousSent = [...sentMessages];
+
+        // Otimista
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        setSentMessages(prev => prev.filter(n => n.id !== id));
+
+        try {
+            await SupabaseService.deleteSystemMessage(id);
+        } catch (error) {
+            console.error('Erro ao excluir mensagem, revertendo:', error);
+            setNotifications(previousNotifications);
+            setSentMessages(previousSent);
+            toastError('Não foi possível excluir a mensagem.');
+        }
+    };
+
+    // Filtros Derivados
+    const alerts = notifications.filter(n => !n.type || n.type === 'ALERT');
+    const messages = notifications.filter(n => n.type === 'MESSAGE');
+
+    // Filtros de Enviados
+    const sentAlerts = sentMessages.filter(n => !n.type || n.type === 'ALERT');
+    const sentPrivateMessages = sentMessages.filter(n => n.type === 'MESSAGE');
+
+    const unreadAlertsCount = alerts.filter(n => !n.is_read).length;
+    const unreadMessagesCount = messages.filter(n => !n.is_read).length;
 
     return (
         <NotificationContext.Provider value={{
-            notifications,
-            sentMessages,
-            unreadCount,
+            notifications, // Legacy/Raw
+            sentMessages, // Legacy/Raw
+            alerts,
+            messages,
+            sentAlerts,
+            sentPrivateMessages,
+            unreadCount: unreadAlertsCount + unreadMessagesCount,
+            unreadAlertsCount,
+            unreadMessagesCount,
             loading,
             refreshNotifications: () => fetchNotifications(),
             refreshSentMessages: () => fetchSentMessages(),
-            markAsRead
+            markAsRead,
+            deleteMessage
         }}>
             {children}
         </NotificationContext.Provider>
