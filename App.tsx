@@ -29,6 +29,7 @@ const SchedulingCenter = React.lazy(() => import('./components/SchedulingCenter'
 const AppointmentForm = React.lazy(() => import('./components/AppointmentForm').then(m => ({ default: m.AppointmentForm })));
 const DocumentVault = React.lazy(() => import('./components/DocumentVault').then(m => ({ default: m.DocumentVault })));
 const MyAccess = React.lazy(() => import('./components/MyAccess').then(m => ({ default: m.MyAccess })));
+const ChangePassword = React.lazy(() => import('./components/ChangePassword').then(m => ({ default: m.ChangePassword })));
 
 // --- Lazy Clinical Pages (Named Exports) ---
 const PsychologyDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.PsychologyDashboardPage })));
@@ -208,6 +209,24 @@ function App() {
 
   if (!user) {
     return <Login onLogin={handleLogin} systemSettings={systemSettings} />;
+  }
+
+  // Bloqueio para troca obrigatória de senha
+  if (user.mustChangePassword) {
+    return (
+      <React.Suspense fallback={<PageLoading />}>
+        <ChangePassword
+          userId={user.id}
+          onSuccess={async () => {
+            // Recarrega o usuário do banco para atualizar o flag localmente
+            const updatedUser = await SupabaseService.authenticate(user.username, '');
+            // Nota: O authenticate sem senha deve funcionar se a sessão persistir no SupabaseService, 
+            // mas como acabamos de trocar a senha, o ideal é atualizar o estado local manualmente.
+            setUser({ ...user, mustChangePassword: false });
+          }}
+        />
+      </React.Suspense>
+    );
   }
 
   const renderContent = () => {

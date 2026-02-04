@@ -140,9 +140,10 @@ export class SupabaseService {
             role: profile.role,
             isActive: profile.is_active,
             specialty: frontendSpecialty,
-            email: finalEmail,
+            email: profile.email,
             photoUrl: profile.photo_url,
-            scope: profile.scope
+            scope: profile.scope,
+            mustChangePassword: profile.must_change_password
         };
     }
 
@@ -183,6 +184,21 @@ export class SupabaseService {
 
     static async logout() {
         await supabase.auth.signOut();
+    }
+
+    static async updatePassword(newPassword: string) {
+        return await supabase.auth.updateUser({ password: newPassword });
+    }
+
+    static async updateProfile(userId: string, data: any) {
+        return await supabase.from('profiles').update(data).eq('id', userId);
+    }
+
+    static async resetPassword(email: string) {
+        const finalEmail = email.includes('@') ? email : `${email}@brotar.com`;
+        return await supabase.auth.resetPasswordForEmail(finalEmail, {
+            redirectTo: `${window.location.origin}/reset-password`,
+        });
     }
 
     // --- Admin User Creation (Safe Mode) ---
@@ -637,6 +653,7 @@ export class SupabaseService {
             phone: p.phone,
             photoUrl: p.photo_url,
             address: p.address || {},
+            mustChangePassword: p.must_change_password,
             password: '' // Não retornamos senha hash
         }));
     }
