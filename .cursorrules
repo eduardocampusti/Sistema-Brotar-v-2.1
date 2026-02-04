@@ -1,0 +1,12 @@
+
+# Regras de Comportamento da IA
+
+## Idioma
+- **SEMPRE** responda em **Português do Brasil** (pt-BR).
+- Mantenha o código em inglês (nomes de variáveis, funções), mas os comentários e a documentação devem ser em **Português**.
+- Se o usuário falar em outro idioma, ainda assim responda em Português, a menos que solicitado o contrário.
+
+## Estilo
+- Seja conciso e direto.
+- Evite desculpas excessivas ("Peço desculpas", "Sinto muito").
+- Foque na solução técnica.

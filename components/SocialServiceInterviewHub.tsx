@@ -208,11 +208,13 @@ const SocialServiceInterviewHub: React.FC<Props> = ({ currentUser, preSelectedSt
     ];
 
     const StyledInput = ({ label, value, onChange, placeholder, rows }: any) => (
-        <div className="mb-6">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block ml-1">{label}</label>
+        <div className="mb-6 group">
+            <label className="flex items-center gap-2 text-[12px] font-bold text-[#333333] uppercase tracking-wider mb-2.5 px-1 group-focus-within:text-[#1E7F85] transition-colors">
+                {label}
+            </label>
             {rows ? (
                 <textarea
-                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-slate-800 placeholder:text-slate-300 focus:border-[#1E7F85] focus:ring-4 focus:ring-[#1E7F85]/5 transition-all outline-none"
+                    className="w-full rounded-[20px] border-[1.5px] border-[#1E7F85] bg-white p-4 text-[#333333] placeholder:text-slate-300 focus:ring-4 focus:ring-[#1E7F85]/5 focus:border-[#1E7F85] outline-none transition-all min-h-[120px] shadow-sm hover:bg-slate-50/30"
                     rows={rows}
                     value={value}
                     onChange={onChange}
@@ -221,7 +223,7 @@ const SocialServiceInterviewHub: React.FC<Props> = ({ currentUser, preSelectedSt
                 />
             ) : (
                 <input
-                    className="w-full h-14 bg-slate-50 border-2 border-slate-200 rounded-full px-6 text-slate-800 placeholder:text-slate-300 focus:border-[#1E7F85] focus:ring-4 focus:ring-[#1E7F85]/5 transition-all outline-none"
+                    className="w-full h-[52px] rounded-full border-[1.5px] border-[#1E7F85] bg-white px-6 text-[#333333] placeholder:text-slate-300 focus:ring-4 focus:ring-[#1E7F85]/5 focus:border-[#1E7F85] outline-none transition-all shadow-sm hover:bg-slate-50/30"
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
@@ -253,36 +255,36 @@ const SocialServiceInterviewHub: React.FC<Props> = ({ currentUser, preSelectedSt
         <div className="min-h-screen bg-[#F7F5F0] py-12 px-4 animate-fadeIn">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
-                <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden mb-8">
-                    <div className="bg-gradient-to-r from-[#1E7F85] to-[#145f63] p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="bg-white rounded-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-[#1E7F85]/10 overflow-hidden mb-8">
+                    <div className="bg-[#1E7F85] p-10 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                         <div className="flex items-center gap-6">
-                            <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
+                            <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-inner">
                                 <Heart size={36} className="text-[#F5C474]" />
                             </div>
                             <div>
-                                <h2 className="text-3xl font-black uppercase tracking-tighter">Entrevista Social</h2>
-                                <p className="text-white/70 font-medium tracking-wide">Contexto Escolar & Análise Técnica</p>
+                                <h2 className="text-3xl font-bold uppercase tracking-widest">Entrevista Social</h2>
+                                <p className="text-[#F7F5F0]/80 text-sm mt-1 font-medium tracking-wide">Contexto Escolar & Análise Técnica</p>
                             </div>
                         </div>
                         <div className="flex flex-col items-end">
-                            <span className="text-xs font-black uppercase tracking-widest text-[#F5C474] bg-white/10 px-3 py-1 rounded-full mb-2">Paciente</span>
-                            <span className="text-xl font-bold">{selectedStudent.fullName}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[#F5C474] bg-white/10 px-3 py-1 rounded-full mb-2 border border-white/10">Paciente</span>
+                            <span className="text-xl font-bold tracking-tight">{selectedStudent.fullName}</span>
                         </div>
                     </div>
 
                     {/* Tabs Navigation */}
-                    <div className="px-6 py-4 bg-white border-b border-slate-100 flex overflow-x-auto no-scrollbar gap-2">
+                    <div className="px-6 py-4 bg-[#F7F5F0]/50 border-b border-[#1E7F85]/10 flex overflow-x-auto no-scrollbar gap-3 sticky top-0 z-20 backdrop-blur-sm">
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-5 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab.id
-                                        ? 'bg-[#1E7F85] text-white shadow-lg shadow-[#1E7F85]/20 scale-105'
-                                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                                className={`flex items-center gap-3 px-6 py-4 rounded-full transition-all duration-300 whitespace-nowrap group ${activeTab === tab.id
+                                    ? 'bg-[#1E7F85] text-white shadow-lg scale-[1.02]'
+                                    : 'text-[#1E7F85]/60 hover:bg-[#1E7F85]/5 hover:text-[#1E7F85]'
                                     }`}
                             >
-                                <tab.icon size={14} />
-                                {tab.label}
+                                <tab.icon size={18} className={activeTab === tab.id ? 'text-[#F5C474]' : 'text-[#1E7F85]/40 group-hover:text-[#1E7F85]'} />
+                                <span className="text-xs font-bold uppercase tracking-widest">{tab.label}</span>
                             </button>
                         ))}
                     </div>
@@ -402,8 +404,8 @@ const SocialServiceInterviewHub: React.FC<Props> = ({ currentUser, preSelectedSt
                                                 key={p}
                                                 onClick={() => handleChange('analiseTecnica', 'prioridadeCaso', p)}
                                                 className={`px-8 py-3 rounded-full text-xs font-bold uppercase tracking-widest border-2 transition-all ${formData.analiseTecnica.prioridadeCaso === p
-                                                        ? 'bg-[#1E7F85] border-[#1E7F85] text-white'
-                                                        : 'bg-white border-slate-200 text-slate-400 hover:border-[#1E7F85]'
+                                                    ? 'bg-[#1E7F85] border-[#1E7F85] text-white'
+                                                    : 'bg-white border-slate-200 text-slate-400 hover:border-[#1E7F85]'
                                                     }`}
                                             >
                                                 {p}

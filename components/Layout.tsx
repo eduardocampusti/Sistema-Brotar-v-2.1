@@ -82,8 +82,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
   // 1. Definição dos Módulos Clínicos (Comum a Admin e Especialistas)
   const getAllClinicalItems = () => [
     { id: 'psychology', label: 'Psicologia', icon: <Brain size={20} />, specialty: Specialty.PSYCHOLOGY },
-    { id: 'social-service', label: 'Busca Ativa Escolar', icon: <Search size={20} />, specialty: Specialty.SOCIAL_WORK },
-    { id: 'social-interview', label: 'Entrevista Social', icon: <Heart size={20} />, specialty: Specialty.SOCIAL_WORK },
+    { id: 'social-service-hub', label: 'Serviço Social', icon: <Search size={20} />, specialty: Specialty.SOCIAL_WORK },
     { id: 'psychopedagogy', label: 'Psicopedagogia', icon: <Shapes size={20} />, specialty: Specialty.PSYCHOPEDAGOGY },
     { id: 'occupational-therapy', label: 'Terapia Ocupacional', icon: <Puzzle size={20} />, specialty: Specialty.OCCUPATIONAL_THERAPY },
     { id: 'speech-therapy', label: 'Fonoaudiologia', icon: <Mic size={20} />, specialty: Specialty.SPEECH_THERAPY },
@@ -126,9 +125,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
   // 3. Menu Linear para OUTROS PERFIS (Legacy logic preserved)
   const getStandardMenuItems = () => {
     const items = [
-      { id: 'dashboard', label: 'Visão Geral', icon: <LayoutDashboard size={20} /> },
-      { id: 'scheduling', label: 'Central de Agendamentos', icon: <Calendar size={20} /> },
-      { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
+      {
+        id: 'dashboard',
+        label: 'Visão Geral',
+        icon: <LayoutDashboard size={20} />
+      },
+      {
+        id: 'scheduling',
+        label: currentUser.specialty === Specialty.SOCIAL_WORK ? 'Meus Atendimentos' : 'Central de Agendamentos',
+        icon: <Calendar size={20} />
+      },
+      {
+        id: 'list',
+        label: 'Alunos / Prontuários',
+        icon: <Users size={20} />
+      },
     ];
 
     const isInternalRole = currentUser.role === 'EDUCATION_SECRETARY' ||

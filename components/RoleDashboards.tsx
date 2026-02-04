@@ -312,32 +312,100 @@ export const PsychologyDashboard: React.FC<DashboardProps> = ({ students, curren
 
 // --- 4. SERVIÇO SOCIAL ---
 export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+
+    // Cálculo de Indicadores Unificados
+    const stats = useMemo(() => {
+        let totalSessions = 0;
+        let vulnerableCount = 0;
+        let familiesCount = 0;
+        let referralsCount = 0;
+
+        const activeStudents = students.filter(s => {
+            const hasSocialData = s.clinical?.social_data || (s.history && s.history.some(h => h.specialty === Specialty.SOCIAL_WORK));
+            return hasSocialData;
+        });
+
+        familiesCount = activeStudents.length;
+
+        students.forEach(s => {
+            // Contagem de Sessões/Visitas (Histórico)
+            const sessions = s.history?.filter(h => h.specialty === Specialty.SOCIAL_WORK) || [];
+            totalSessions += sessions.length;
+
+            // Vulnerabilidade (Busca Ativa + Entrevista)
+            const isVulnerableBusca = s.clinical?.social_data?.formData?.parecer?.prioridade === 'Alta';
+            const isVulnerableEntrevista = s.clinical?.social_interview?.formData?.analiseTecnica?.prioridadeCaso === 'Alta';
+
+            if (isVulnerableBusca || isVulnerableEntrevista) {
+                vulnerableCount++;
+            }
+
+            // Encaminhamentos (Estimativa simples)
+            if (s.clinical?.social_data?.formData?.parecer?.encaminhamentos || s.clinical?.social_interview?.formData?.analiseTecnica?.encaminhamentos) {
+                referralsCount++;
+            }
+        });
+
+        return { totalSessions, vulnerableCount, familiesCount, referralsCount };
+    }, [students]);
+
     return (
         <div className="space-y-8 animate-slideUp">
             <WelcomeHeader name={currentUser.name.split(' ')[0]} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <ActionCard
-                    title="Busca Ativa"
-                    description="Realizar visita domiciliar e relatório social"
+                    title="Acessar Formulários"
+                    description="Hub central para Busca Ativa e Entrevista Social"
                     icon={Heart}
-                    onClick={() => onNavigate('social-service/new-session')}
+                    onClick={() => onNavigate('social-service-hub')}
                     colorClass="bg-cyan-50 text-cyan-600"
                 />
                 <ActionCard
-                    title="Visitas Agendadas"
-                    description="Verificar cronograma de visitas"
+                    title="Alunos Acompanhados"
+                    description="Lista geral e histórico de atendimentos"
+                    icon={Users}
+                    onClick={() => onNavigate('social-service-list')}
+                    colorClass="bg-sky-50 text-sky-600"
+                />
+                <ActionCard
+                    title="Minha Agenda"
+                    description="Verificar visitas e atendimentos futuros"
                     icon={Calendar}
                     onClick={() => onNavigate('agenda')}
-                    colorClass="bg-sky-50 text-sky-600"
+                    colorClass="bg-indigo-50 text-indigo-600"
                 />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Visitas Mês" value={12} icon={School} gradient="from-cyan-400 to-blue-500" />
-                <StatCard title="Vulneráveis" value={45} icon={AlertTriangle} gradient="from-red-400 to-rose-500" />
-                <StatCard title="Famílias" value={120} icon={Users} gradient="from-blue-400 to-indigo-500" />
-                <StatCard title="Encaminhamentos" value={8} icon={FileText} gradient="from-teal-400 to-emerald-500" />
+                <StatCard
+                    title="Atendimentos/Visitas"
+                    value={stats.totalSessions}
+                    icon={School}
+                    gradient="from-cyan-400 to-blue-500"
+                    subtext="Total Registrado"
+                />
+                <StatCard
+                    title="Casos Prioritários"
+                    value={stats.vulnerableCount}
+                    icon={AlertTriangle}
+                    gradient="from-red-400 to-rose-500"
+                    subtext="Alta Prioridade"
+                />
+                <StatCard
+                    title="Famílias Acomp."
+                    value={stats.familiesCount}
+                    icon={Users}
+                    gradient="from-blue-400 to-indigo-500"
+                    subtext="Em Acompanhamento"
+                />
+                <StatCard
+                    title="Encaminhamentos"
+                    value={stats.referralsCount}
+                    icon={FileText}
+                    gradient="from-teal-400 to-emerald-500"
+                    subtext="Rede de Proteção"
+                />
             </div>
         </div>
     );

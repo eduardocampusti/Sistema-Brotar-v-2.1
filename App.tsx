@@ -39,6 +39,9 @@ const PsychopedagogySessionFormPage = React.lazy(() => import('./components/Clin
 const SocialServiceDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.SocialServiceDashboardPage })));
 const SocialServiceOperationalPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.SocialServiceOperationalPage })));
 const SocialServiceInterviewHub = React.lazy(() => import('./components/SocialServiceInterviewHub'));
+const SocialServiceHubComp = React.lazy(() => import('./components/SocialServiceHub').then(m => ({ default: m.SocialServiceHub })));
+const SocialWorkerAgenda = React.lazy(() => import('./components/SocialWorkerAgenda').then(m => ({ default: m.SocialWorkerAgenda })));
+const SocialWorkerDashboard = React.lazy(() => import('./components/SocialWorkerDashboard').then(m => ({ default: m.SocialWorkerDashboard })));
 const SocialServiceSessionFormPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.SocialServiceSessionFormPage })));
 const OccupationalTherapyDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.OccupationalTherapyDashboardPage })));
 const OccupationalTherapySessionFormPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.OccupationalTherapySessionFormPage })));
@@ -248,7 +251,8 @@ function App() {
 
     if (currentPage === 'psychology') return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
     if (currentPage === 'psychopedagogy') return <PsychopedagogyDashboardPage onNavigateNew={() => handleNavigate('psychopedagogy/new-session')} {...commonProps} />;
-    if (currentPage === 'social-service') return <SocialServiceOperationalPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} allStudents={students} />;
+    if (currentPage === 'social-service-hub') return <SocialServiceHubComp {...commonProps} onNavigate={handleNavigate} />;
+    if (currentPage === 'social-service-list') return <SocialServiceOperationalPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} allStudents={students} />;
     if (currentPage === 'social-interview') return <SocialServiceInterviewHub {...commonProps} allStudents={students} onNavigate={handleNavigate} />;
     if (currentPage === 'occupational-therapy') return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
     if (currentPage === 'speech-therapy') return <SpeechTherapyDashboardPage onNavigateNew={() => handleNavigate('speech-therapy/new-session')} {...commonProps} />;
@@ -275,22 +279,25 @@ function App() {
         if (user.role === 'SPECIALIST') {
           switch (user.specialty) {
             case Specialty.PSYCHOLOGY: return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
-            case Specialty.SOCIAL_WORK: return <SocialServiceDashboardPage
-              onNavigateNew={() => handleNavigate('social-service/new-session')}
+            case Specialty.SOCIAL_WORK: return <SocialWorkerDashboard
+              students={students}
+              currentUser={user}
+              onNavigate={handleNavigate}
+              onNavigateNew={() => handleNavigate('social-service-hub')}
               onNavigateToCase={(id) => {
                 const student = students.find(s => s.id === id);
                 if (student) {
                   setSelectedStudent(student);
-                  // Se houver entrevista mas não houver busca ativa, leva para entrevista
-                  if (student.clinical?.social_interview && (!student.clinical?.social_data || !student.clinical?.social_data.formData.statusCaso)) {
+                  // Lógica inteligente de redirecionamento baseada no estado do caso
+                  if (student.clinical?.social_interview?.status === 'Pendente' || student.clinical?.social_interview?.status === 'Em Análise') {
                     handleNavigate('social-interview', true);
+                  } else if (student.clinical?.social_data?.formData?.statusCaso) {
+                    handleNavigate('social-service-list', true); // Vai para ficha de acompanhamento
                   } else {
-                    handleNavigate('social-service/new-session', true);
+                    handleNavigate('profile');
                   }
                 }
               }}
-              {...commonProps}
-              allStudents={students}
             />;
             case Specialty.PSYCHOPEDAGOGY: return <PsychopedagogyDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
             case Specialty.OCCUPATIONAL_THERAPY: return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
@@ -302,17 +309,31 @@ function App() {
         }
         return <Dashboard students={students} />;
 
-      case 'scheduling': return (
-        <SchedulingCenter
-          students={students}
-          currentUser={user}
-          onNavigate={handleNavigate}
-          onReschedule={(apt) => {
-            setRescheduleData(apt);
-            setCurrentPage('new-appointment');
-          }}
-        />
-      );
+      case 'scheduling':
+        if (user.specialty === Specialty.SOCIAL_WORK) {
+          return (
+            <SocialWorkerAgenda
+              currentUser={user}
+              students={students}
+              onNavigate={handleNavigate}
+              onNavigateToCase={(id) => {
+                setSelectedStudent(students.find(s => s.id === id) || null);
+                handleNavigate('profile');
+              }}
+            />
+          );
+        }
+        return (
+          <SchedulingCenter
+            students={students}
+            currentUser={user}
+            onNavigate={handleNavigate}
+            onReschedule={(apt) => {
+              setRescheduleData(apt);
+              setCurrentPage('new-appointment');
+            }}
+          />
+        );
       case 'new-appointment': return (
         <AppointmentForm
           students={students}

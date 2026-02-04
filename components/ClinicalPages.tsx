@@ -4785,8 +4785,8 @@ const SocialOverviewDashboard: React.FC<{
                                                 </td>
                                                 <td className="py-4">
                                                     <span className={`inline-block px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${(social?.statusCaso?.includes('Concluído') || interview?.status === 'Completo') ? 'bg-emerald-100 text-emerald-600' :
-                                                            (social?.statusCaso?.includes('Conselho') || interview?.status === 'Em Análise') ? 'bg-rose-100 text-rose-600' :
-                                                                'bg-amber-100 text-amber-600'
+                                                        (social?.statusCaso?.includes('Conselho') || interview?.status === 'Em Análise') ? 'bg-rose-100 text-rose-600' :
+                                                            'bg-amber-100 text-amber-600'
                                                         }`}>
                                                         {social?.statusCaso || interview?.status || 'Pendente'}
                                                     </span>
@@ -4840,7 +4840,10 @@ const SocialOverviewDashboard: React.FC<{
                             </div>
                         </div>
                     </div>
-                    <button className="w-full py-4 bg-white text-[#1E7F85] rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#F5C474] hover:text-[#1E7F85] transition-colors mt-6 shadow-lg">
+                    <button
+                        onClick={() => onNavigateToCase ? onNavigateToCase('agenda') : null}
+                        className="w-full py-4 bg-white text-[#1E7F85] rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#F5C474] hover:text-[#1E7F85] transition-colors mt-6 shadow-lg"
+                    >
                         Ver Agenda Completa
                     </button>
                 </div>
@@ -4934,7 +4937,17 @@ const SocialServiceStrategicDashboard: React.FC<BaseDashboardProps> = ({ title, 
 
             <SocialOverviewDashboard
                 students={students}
-                onNavigateToCase={(id) => onNavigateToCase ? onNavigateToCase(id) : onNavigateNew()}
+                onNavigateToCase={(id) => {
+                    if (id === 'agenda') {
+                        // Hacky way to use existing prop or I need a new one. 
+                        // SocialServiceStrategicDashboard receives onNavigateNew. 
+                        // But onNavigateNew goes to 'social-service-hub'.
+                        // I should probably add onNavigate to SocialServiceStrategicDashboard props.
+                        if (onNavigateToCase) onNavigateToCase(id);
+                    } else {
+                        onNavigateToCase ? onNavigateToCase(id) : onNavigateNew();
+                    }
+                }}
                 currentUser={currentUser}
             />
         </div>
@@ -5384,7 +5397,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                         <div className="hidden md:flex items-center gap-2 bg-rose-50 px-4 py-2 rounded-full border border-rose-100">
                                             <Lock size={12} className="text-rose-600" />
                                             <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">
-                                                Dados Protegidos - Sigilo Profissional
+                                                Sigilo Profissional – Acesso restrito (LGPD)
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-3 bg-[#F7F5F0] px-5 py-2.5 rounded-full border border-[#1E7F85]/10 shadow-sm">
