@@ -124,7 +124,8 @@ export interface ClinicalInfo {
   // Dados Específicos por Especialidade (JSONB)
   pp_data?: any; // Psicopedagogia
   psych_data?: any; // Psicologia
-  social_data?: any; // Serviço Social
+  social_data?: any; // Serviço Social (Busca Ativa)
+  social_interview?: any; // Serviço Social (Entrevista Contexto Escolar)
   ot_data?: any; // Terapia Ocupacional
   st_data?: any; // Fonoaudiologia
   pt_data?: any; // Fisioterapia

@@ -38,6 +38,7 @@ const PsychopedagogyDashboardPage = React.lazy(() => import('./components/Clinic
 const PsychopedagogySessionFormPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.PsychopedagogySessionFormPage })));
 const SocialServiceDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.SocialServiceDashboardPage })));
 const SocialServiceOperationalPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.SocialServiceOperationalPage })));
+const SocialServiceInterviewHub = React.lazy(() => import('./components/SocialServiceInterviewHub'));
 const SocialServiceSessionFormPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.SocialServiceSessionFormPage })));
 const OccupationalTherapyDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.OccupationalTherapyDashboardPage })));
 const OccupationalTherapySessionFormPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.OccupationalTherapySessionFormPage })));
@@ -248,6 +249,7 @@ function App() {
     if (currentPage === 'psychology') return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
     if (currentPage === 'psychopedagogy') return <PsychopedagogyDashboardPage onNavigateNew={() => handleNavigate('psychopedagogy/new-session')} {...commonProps} />;
     if (currentPage === 'social-service') return <SocialServiceOperationalPage onNavigateNew={() => handleNavigate('social-service/new-session')} {...commonProps} allStudents={students} />;
+    if (currentPage === 'social-interview') return <SocialServiceInterviewHub {...commonProps} allStudents={students} onNavigate={handleNavigate} />;
     if (currentPage === 'occupational-therapy') return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
     if (currentPage === 'speech-therapy') return <SpeechTherapyDashboardPage onNavigateNew={() => handleNavigate('speech-therapy/new-session')} {...commonProps} />;
     if (currentPage === 'physiotherapy') return <PhysiotherapyDashboardPage onNavigateNew={() => handleNavigate('physiotherapy/new-session')} {...commonProps} />;
@@ -279,7 +281,12 @@ function App() {
                 const student = students.find(s => s.id === id);
                 if (student) {
                   setSelectedStudent(student);
-                  handleNavigate('social-service/new-session');
+                  // Se houver entrevista mas não houver busca ativa, leva para entrevista
+                  if (student.clinical?.social_interview && (!student.clinical?.social_data || !student.clinical?.social_data.formData.statusCaso)) {
+                    handleNavigate('social-interview', true);
+                  } else {
+                    handleNavigate('social-service/new-session', true);
+                  }
                 }
               }}
               {...commonProps}

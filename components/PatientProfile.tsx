@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Student, Specialty, Session, User } from '../types';
-import { ArrowLeft, Phone, MapPin, Activity, School, Clock, Calendar, FileText, Plus, Save, User as UserIcon, Lock, Paperclip, CreditCard, Download, Edit } from 'lucide-react';
+import { ArrowLeft, Phone, MapPin, Activity, School, Clock, Calendar, FileText, Plus, Save, User as UserIcon, Lock, Paperclip, CreditCard, Download, Edit, Heart } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 
 interface StudentProfileProps {
@@ -133,25 +133,37 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                             </div>
                         </div>
                         {currentUser.role === 'SPECIALIST' && currentUser.specialty && (
-                            <button
-                                onClick={() => {
-                                    const routes: Record<string, string> = {
-                                        [Specialty.PSYCHOLOGY]: 'psychology',
-                                        [Specialty.PSYCHOPEDAGOGY]: 'psychopedagogy',
-                                        [Specialty.SOCIAL_WORK]: 'social-service',
-                                        [Specialty.OCCUPATIONAL_THERAPY]: 'occupational-therapy',
-                                        [Specialty.SPEECH_THERAPY]: 'speech-therapy',
-                                        [Specialty.PHYSIOTHERAPY]: 'physiotherapy',
-                                        [Specialty.NUTRITION]: 'nutrition'
-                                    };
-                                    const route = routes[currentUser.specialty];
-                                    if (route) onNavigate(route, true);
-                                }}
-                                className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md transition-all font-bold animate-pulse hover:animate-none"
-                            >
-                                <Activity size={20} />
-                                Acessar Prontuário de {currentUser.specialty}
-                            </button>
+                            <div className="flex flex-col md:flex-row gap-2">
+                                <button
+                                    onClick={() => {
+                                        const routes: Record<string, string> = {
+                                            [Specialty.PSYCHOLOGY]: 'psychology',
+                                            [Specialty.PSYCHOPEDAGOGY]: 'psychopedagogy',
+                                            [Specialty.SOCIAL_WORK]: 'social-service',
+                                            [Specialty.OCCUPATIONAL_THERAPY]: 'occupational-therapy',
+                                            [Specialty.SPEECH_THERAPY]: 'speech-therapy',
+                                            [Specialty.PHYSIOTHERAPY]: 'physiotherapy',
+                                            [Specialty.NUTRITION]: 'nutrition'
+                                        };
+                                        const route = routes[currentUser.specialty];
+                                        if (route) onNavigate(route, true);
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md transition-all font-bold"
+                                >
+                                    <Activity size={20} />
+                                    {currentUser.specialty === Specialty.SOCIAL_WORK ? 'Acessar Busca Ativa' : `Acessar Prontuário de ${currentUser.specialty}`}
+                                </button>
+
+                                {currentUser.specialty === Specialty.SOCIAL_WORK && (
+                                    <button
+                                        onClick={() => onNavigate('social-interview', true)}
+                                        className="flex items-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 shadow-md transition-all font-bold animate-pulse hover:animate-none"
+                                    >
+                                        <Heart size={20} />
+                                        Entrevista Social
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Users,
+  Search,
   Calendar,
   Settings,
   FileText,
@@ -81,7 +82,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
   // 1. Definição dos Módulos Clínicos (Comum a Admin e Especialistas)
   const getAllClinicalItems = () => [
     { id: 'psychology', label: 'Psicologia', icon: <Brain size={20} />, specialty: Specialty.PSYCHOLOGY },
-    { id: 'social-service', label: 'Serviço Social', icon: <Heart size={20} />, specialty: Specialty.SOCIAL_WORK },
+    { id: 'social-service', label: 'Busca Ativa Escolar', icon: <Search size={20} />, specialty: Specialty.SOCIAL_WORK },
+    { id: 'social-interview', label: 'Entrevista Social', icon: <Heart size={20} />, specialty: Specialty.SOCIAL_WORK },
     { id: 'psychopedagogy', label: 'Psicopedagogia', icon: <Shapes size={20} />, specialty: Specialty.PSYCHOPEDAGOGY },
     { id: 'occupational-therapy', label: 'Terapia Ocupacional', icon: <Puzzle size={20} />, specialty: Specialty.OCCUPATIONAL_THERAPY },
     { id: 'speech-therapy', label: 'Fonoaudiologia', icon: <Mic size={20} />, specialty: Specialty.SPEECH_THERAPY },

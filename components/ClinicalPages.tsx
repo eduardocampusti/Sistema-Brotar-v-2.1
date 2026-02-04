@@ -1592,6 +1592,7 @@ interface BaseDashboardProps {
     title: string;
     specialty: Specialty;
     onNavigateNew: () => void;
+    onNavigateToCase?: (id: string) => void;
     currentUser: User;
     preSelectedStudent?: Student | null;
 }
@@ -4620,68 +4621,35 @@ const SocialOverviewDashboard: React.FC<{
         let specialEd = 0;
         let resolved = 0;
 
-        students.forEach(s => {
-            const social = s.clinical?.social_data?.formData;
-            if (social) {
-                // Busca Ativa: Total de registros de busca ativa
-                if (social.statusCaso) activeSearch++;
-
-                // Pendentes: Status Pendente ou Em Acompanhamento
-                if (social.observacoesEncaminhamentos?.statusRegistro === 'PENDENTE' ||
-                    social.statusCaso === 'Em Acompanhamento') {
-                    pending++;
-                }
-
-                // Encaminhamentos Específicos
-                if (social.statusCaso?.includes('Conselho Tutelar') || social.encaminhamentoInstitucional?.sugestao === 'Conselho Tutelar') council++;
-                if (social.statusCaso?.includes('Educação Especial') || social.encaminhamentoInstitucional?.sugestao === 'Educação Especial') specialEd++;
-
-                // Resolvidos
-                if (social.statusCaso === 'Concluído/Reinserido') resolved++;
-            }
-        });
-
-        return { activeSearch, pending, council, specialEd, resolved };
-    }, [students]);
-
-    // 2. LISTA DE PRIORIDADES (Casos abertos/recentes)
-    const priorities = useMemo(() => {
-        return students
-            .filter(s => {
-                const social = s.clinical?.social_data?.formData;
-                if (!social) return false;
-                // Critérios de prioridade: Status Pendente, Em Acompanhamento, ou Prioridade Alta marcada
-                return social.observacoesEncaminhamentos?.statusRegistro === 'PENDENTE' ||
-                    social.statusCaso === 'Em Acompanhamento' ||
-                    social.encaminhamentoInstitucional?.prioridade === 'Alta';
-            })
-            .sort((a, b) => {
-                // Ordenar por Prioridade Alta > Data de Atualização Recente
-                const pA = a.clinical?.social_data?.formData.encaminhamentoInstitucional?.prioridade === 'Alta' ? 2 : 1;
-                const pB = b.clinical?.social_data?.formData.encaminhamentoInstitucional?.prioridade === 'Alta' ? 2 : 1;
-                if (pA !== pB) return pB - pA;
-
-                const dateA = new Date(a.clinical?.social_data?.lastUpdate || 0).getTime();
-                const dateB = new Date(b.clinical?.social_data?.lastUpdate || 0).getTime();
-                return dateB - dateA;
-            })
-            .slice(0, 5); // Top 5
-    }, [students]);
-
-    // 3. DADOS PARA GRÁFICOS
-    const chartData = useMemo(() => {
-        // Motivos de Saída
         const reasons: Record<string, number> = {};
-        // Escolas
         const schools: Record<string, number> = {};
-        // Faixa Etária
         const ages: Record<string, number> = {};
 
         students.forEach(s => {
             const social = s.clinical?.social_data?.formData;
-            if (social) {
+            const interview = s.clinical?.social_interview;
+
+            if (social || interview) {
+                // Busca Ativa ou Entrevista
+                if (social?.statusCaso || interview) activeSearch++;
+
+                // Pendentes: Status Pendente ou Em Acompanhamento
+                if (social?.observacoesEncaminhamentos?.statusRegistro === 'PENDENTE' ||
+                    social?.statusCaso === 'Em Acompanhamento' ||
+                    interview?.status === 'Pendente') {
+                    pending++;
+                }
+
+                // Encaminhamentos Específicos
+                if (social?.statusCaso?.includes('Conselho Tutelar') || social?.encaminhamentoInstitucional?.sugestao === 'Conselho Tutelar') council++;
+                if (social?.statusCaso?.includes('Educação Especial') || social?.encaminhamentoInstitucional?.sugestao === 'Educação Especial') specialEd++;
+
+                // Resolvidos
+                if (social?.statusCaso === 'Concluído/Reinserido' || interview?.status === 'Completo') resolved++;
+
+                // --- Gráficos ---
                 // Motivos
-                const list = social.historicoEscolar?.motivosSaida || [];
+                const list = social?.historicoEscolar?.motivosSaida || [];
                 list.forEach((r: string) => {
                     reasons[r] = (reasons[r] || 0) + 1;
                 });
@@ -4720,7 +4688,34 @@ const SocialOverviewDashboard: React.FC<{
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => a.name.localeCompare(b.name)); // Ordem de faixa etária
 
-        return { reasonsData, schoolsData, ageData };
+        return { activeSearch, pending, council, specialEd, resolved, reasonsData, schoolsData, ageData };
+    }, [students]);
+
+    // 2. LISTA DE PRIORIDADES (Casos abertos/recentes)
+    const priorities = useMemo(() => {
+        return students
+            .filter(s => {
+                const social = s.clinical?.social_data?.formData;
+                const interview = s.clinical?.social_interview;
+                if (!social && !interview) return false;
+
+                // Critérios de prioridade: Status Pendente, Em Acompanhamento, ou Prioridade Alta marcada
+                return social?.observacoesEncaminhamentos?.statusRegistro === 'PENDENTE' ||
+                    social?.statusCaso === 'Em Acompanhamento' ||
+                    social?.encaminhamentoInstitucional?.prioridade === 'Alta' ||
+                    interview?.status === 'Pendente' ||
+                    interview?.status === 'Em Análise';
+            })
+            .sort((a, b) => {
+                const priorityA = a.clinical?.social_data?.formData.encaminhamentoInstitucional?.prioridade === 'Alta' || a.clinical?.social_interview?.status === 'Em Análise' ? 2 : 1;
+                const priorityB = b.clinical?.social_data?.formData.encaminhamentoInstitucional?.prioridade === 'Alta' || b.clinical?.social_interview?.status === 'Em Análise' ? 2 : 1;
+                if (priorityA !== priorityB) return priorityB - priorityA;
+
+                const dateA = new Date(a.clinical?.social_data?.lastUpdate || a.updatedAt || 0).getTime();
+                const dateB = new Date(b.clinical?.social_data?.lastUpdate || b.updatedAt || 0).getTime();
+                return dateB - dateA;
+            })
+            .slice(0, 5); // Top 5
     }, [students]);
 
     return (
@@ -4776,9 +4771,10 @@ const SocialOverviewDashboard: React.FC<{
                                 ) : (
                                     priorities.map(student => {
                                         const social = student.clinical?.social_data?.formData;
-                                        const priority = social?.encaminhamentoInstitucional?.prioridade || 'Normal';
-                                        const lastUpdateDate = student.clinical?.social_data?.lastUpdate
-                                            ? new Date(student.clinical.social_data.lastUpdate).toLocaleDateString()
+                                        const interview = student.clinical?.social_interview;
+                                        const priority = social?.encaminhamentoInstitucional?.prioridade || (interview?.status === 'Em Análise' ? 'Alta' : 'Normal');
+                                        const lastUpdateDate = (student.clinical?.social_data?.lastUpdate || student.updatedAt)
+                                            ? new Date(student.clinical?.social_data?.lastUpdate || student.updatedAt || 0).toLocaleDateString()
                                             : 'N/A';
 
                                         return (
@@ -4788,15 +4784,15 @@ const SocialOverviewDashboard: React.FC<{
                                                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{student.school?.schoolName || 'Sem escola'}</div>
                                                 </td>
                                                 <td className="py-4">
-                                                    <span className={`inline-block px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${social?.statusCaso?.includes('Concluído') ? 'bg-emerald-100 text-emerald-600' :
-                                                        social?.statusCaso?.includes('Conselho') ? 'bg-rose-100 text-rose-600' :
-                                                            'bg-amber-100 text-amber-600'
+                                                    <span className={`inline-block px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${(social?.statusCaso?.includes('Concluído') || interview?.status === 'Completo') ? 'bg-emerald-100 text-emerald-600' :
+                                                            (social?.statusCaso?.includes('Conselho') || interview?.status === 'Em Análise') ? 'bg-rose-100 text-rose-600' :
+                                                                'bg-amber-100 text-amber-600'
                                                         }`}>
-                                                        {social?.statusCaso || 'Pendente'}
+                                                        {social?.statusCaso || interview?.status || 'Pendente'}
                                                     </span>
                                                 </td>
                                                 <td className="py-4">
-                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wide ${priority === 'Alta' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wide ${(priority === 'Alta' || interview?.status === 'Em Análise') ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-500 border border-slate-200'
                                                         }`}>
                                                         <div className={`w-1.5 h-1.5 rounded-full ${priority === 'Alta' ? 'bg-rose-500 animate-pulse' : 'bg-slate-400'}`} />
                                                         {priority}
@@ -4858,7 +4854,7 @@ const SocialOverviewDashboard: React.FC<{
                     </h3>
                     <div className="h-[200px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData.reasonsData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                            <BarChart data={stats.reasonsData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 9, fill: '#64748b' }} interval={0} />
@@ -4875,7 +4871,7 @@ const SocialOverviewDashboard: React.FC<{
                     </h3>
                     <div className="h-[200px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData.schoolsData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                            <BarChart data={stats.schoolsData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 9, fill: '#64748b' }} interval={0} />
@@ -4892,7 +4888,7 @@ const SocialOverviewDashboard: React.FC<{
                     </h3>
                     <div className="h-[200px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData.ageData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                            <BarChart data={stats.ageData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
                                 <YAxis hide />
@@ -4908,7 +4904,7 @@ const SocialOverviewDashboard: React.FC<{
 };
 
 // --- DASHBOARD ESTRATÉGICO (VISÃO GERAL) ---
-const SocialServiceStrategicDashboard: React.FC<BaseDashboardProps> = ({ title, onNavigateNew, currentUser }) => {
+const SocialServiceStrategicDashboard: React.FC<BaseDashboardProps> = ({ title, onNavigateNew, onNavigateToCase, currentUser }) => {
     const [students, setStudents] = useState<Student[]>([]);
 
     useEffect(() => {
@@ -4938,7 +4934,7 @@ const SocialServiceStrategicDashboard: React.FC<BaseDashboardProps> = ({ title, 
 
             <SocialOverviewDashboard
                 students={students}
-                onNavigateToCase={() => onNavigateNew()}
+                onNavigateToCase={(id) => onNavigateToCase ? onNavigateToCase(id) : onNavigateNew()}
                 currentUser={currentUser}
             />
         </div>
