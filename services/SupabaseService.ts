@@ -737,6 +737,20 @@ export class SupabaseService {
         }
     }
 
+    static async setUserPassword(userId: string, newPassword: string): Promise<{ success: boolean, error?: string }> {
+        const { data, error } = await supabase.rpc('set_user_password', {
+            target_user_id: userId,
+            new_password: newPassword
+        });
+
+        if (error) {
+            console.error('Erro ao executar RPC set_user_password:', error);
+            return { success: false, error: error.message };
+        }
+
+        return data as { success: boolean, error?: string };
+    }
+
     // --- System Settings ---
     static async getSystemSettings(): Promise<SystemSettings> {
         const { data, error } = await supabase

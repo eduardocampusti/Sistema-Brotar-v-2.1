@@ -139,7 +139,7 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
 
             {/* 1. CARDS INFORMATIVOS (TOPO) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group hover:border-[#1E7F85]/30 transition-all">
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group hover:border-primary-300 transition-all">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <Users size={80} />
                     </div>
@@ -150,7 +150,7 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group hover:border-amber-200 transition-all">
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group hover:border-amber-300 transition-all">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <AlertCircle size={80} />
                     </div>
@@ -161,7 +161,7 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group hover:border-blue-200 transition-all">
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group hover:border-blue-300 transition-all">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                         <FileText size={80} />
                     </div>
@@ -297,7 +297,7 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                 </div>
 
                 {/* 3. ALERTA E PENDÊNCIAS (LATERAL) */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm h-fit">
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] h-fit">
                     <h3 className="font-bold text-slate-700 uppercase tracking-widest text-sm mb-6 flex items-center gap-2">
                         <Flag size={18} className="text-rose-500" /> Alertas de Pendências
                     </h3>

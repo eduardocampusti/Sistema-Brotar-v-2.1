@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole, Specialty, UserScope } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { useToast } from '../contexts/ToastContext';
-import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle } from 'lucide-react';
+import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 
 const JOB_TITLES = [
     'Administrador(a)',
@@ -27,6 +27,7 @@ export const UserManagement: React.FC = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [isLoading, setIsLoading] = useState(false); // [NEW] Bloqueio de envio
     const [userToDelete, setUserToDelete] = useState<User | null>(null); // [NEW] Modal de Exclusão
+    const [showPassword, setShowPassword] = useState(false); // [NEW] Toggle de senha
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ... (rest of the code)
@@ -107,8 +108,20 @@ export const UserManagement: React.FC = () => {
 
         try {
             if (isEditing) {
-                // Edição: Apenas atualiza o perfil (não muda senha aqui por segurança/complexidade)
+                // Edição: Atualiza o perfil no banco de dados (tabela profiles)
                 await SupabaseService.saveUser(newUser);
+
+                // Se uma senha foi informada no formulário de edição, atualizamos também o Auth
+                if (formData.password?.trim()) {
+                    const passwordResult = await SupabaseService.setUserPassword(formData.id!, formData.password.trim());
+                    if (!passwordResult.success) {
+                        console.error('Erro ao sincronizar senha no Auth:', passwordResult.error);
+                        showError(passwordResult.error || 'O perfil foi salvo, mas não foi possível atualizar a senha no sistema de login.', 'Alerta de Autenticação');
+                    } else {
+                        console.log('Senha sincronizada com sucesso no Auth para o usuário:', formData.id);
+                    }
+                }
+
                 success('Usuário atualizado com sucesso!', 'Perfil atualizado');
             } else {
                 // Criação: Usa o método seguro de Admin
@@ -241,7 +254,7 @@ export const UserManagement: React.FC = () => {
             </div>
 
             {isAdding && (
-                <div className="bg-white rounded-xl shadow-lg border border-primary-100 overflow-hidden animate-fadeIn">
+                <div className="bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 overflow-hidden animate-fadeIn">
                     <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
                         <h3 className="font-bold text-slate-700 text-lg flex items-center gap-2">
                             <UserIcon size={20} className="text-primary-600" />
@@ -404,10 +417,22 @@ export const UserManagement: React.FC = () => {
                                     <label className="block">
                                         <span className="text-sm font-medium text-slate-700">Senha de Acesso *</span>
                                         <div className="relative">
-                                            <input required={!formData.id} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2.5 border pl-9 bg-white"
-                                                value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                                placeholder={formData.id ? "Manter senha atual" : ""} />
+                                            <input
+                                                required={!formData.id}
+                                                type={showPassword ? "text" : "password"}
+                                                className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2.5 border pl-9 pr-10 bg-white"
+                                                value={formData.password}
+                                                onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                                placeholder={formData.id ? "Manter senha atual" : ""}
+                                            />
                                             <Lock className="absolute left-3 top-4 text-slate-400" size={16} />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-4 text-slate-400 hover:text-slate-600 transition-colors"
+                                            >
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
                                         </div>
                                     </label>
                                 </div>
@@ -468,7 +493,7 @@ export const UserManagement: React.FC = () => {
                 </div>
             )}
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 overflow-hidden">
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                         <tr>

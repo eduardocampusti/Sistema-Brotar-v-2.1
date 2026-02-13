@@ -229,7 +229,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
   );
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans selection:bg-primary-500 selection:text-white">
+    <div className="flex min-h-screen bg-[#F1F5F9] font-sans selection:bg-primary-500 selection:text-white">
       {/* Sidebar - Desktop */}
       <aside className={`hidden md:flex flex-col w-72 fixed h-full z-30 transition-all duration-300 shadow-2xl ${theme.sidebar}`}>
         <div className="p-8 flex items-center gap-3">

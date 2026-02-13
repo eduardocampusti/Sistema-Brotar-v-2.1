@@ -28,7 +28,7 @@ const WelcomeHeader = ({ name, subtitle, title }: { name: string, subtitle?: str
 const ActionCard = ({ title, description, icon: Icon, onClick, colorClass = "bg-primary-50 text-primary-600" }: any) => (
     <button
         onClick={onClick}
-        className="flex flex-row items-center gap-4 p-6 bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-primary-200 transition-all text-left group w-full h-full"
+        className="flex flex-row items-center gap-4 p-6 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 hover:shadow-lg hover:border-primary-300 transition-all text-left group w-full h-full"
     >
         <div className={`p-4 rounded-2xl ${colorClass} group-hover:scale-110 transition-transform`}>
             <Icon size={32} />
@@ -41,7 +41,7 @@ const ActionCard = ({ title, description, icon: Icon, onClick, colorClass = "bg-
 );
 
 const StatCard = ({ title, value, icon: Icon, gradient, subtext, trend }: any) => (
-    <div className={`relative overflow-hidden p-6 rounded-2xl shadow-card border border-white/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group bg-white`}>
+    <div className={`relative overflow-hidden p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group bg-white`}>
         <div className="relative z-10 flex justify-between items-start">
             <div>
                 <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{title}</p>
@@ -117,7 +117,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
                 </div>
 
                 {/* Main Chart */}
-                <div className="lg:col-span-3 bg-white p-8 rounded-3xl shadow-card border border-slate-100 flex flex-col">
+                <div className="lg:col-span-3 bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 flex flex-col">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold text-xl text-slate-800">Distribuição por Escola</h3>
                         <button onClick={() => onNavigate('schools')} className="text-sm text-primary-600 font-bold hover:underline">Gerenciar Escolas</button>
@@ -208,7 +208,7 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                     <StatCard title="Fila de Espera" value={stats.waiting} icon={Clock} gradient="from-amber-400 to-yellow-500" />
                 </div>
 
-                <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-card border border-slate-100">
+                <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
                     <h3 className="font-bold text-xl text-slate-800 mb-6">Demanda por Especialidade</h3>
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
@@ -268,7 +268,7 @@ export const PsychologyDashboard: React.FC<DashboardProps> = ({ students, curren
                     </div>
 
                     {/* Chart Area */}
-                    <div className="bg-white p-8 rounded-3xl shadow-card border border-slate-100">
+                    <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
                         <h3 className="font-bold text-xl text-slate-800 mb-6">Diagnósticos Recorrentes</h3>
                         <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
@@ -500,7 +500,7 @@ export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, cu
                 {/* Left Column: Actions & Charts */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Welcome Banner Personalized */}
-                    <div className="bg-gradient-to-r from-pink-600 to-rose-600 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden flex items-center justify-between">
+                    <div className="bg-gradient-to-r from-pink-600 to-rose-600 rounded-3xl p-8 text-white shadow-[0_8px_30px_rgba(236,72,153,0.3)] relative overflow-hidden flex items-center justify-between">
                         <div className="relative z-10">
                             <h1 className="text-3xl font-extrabold mb-2">Olá, {currentUser.name.split(' ')[0]}</h1>
                             <p className="text-pink-100 font-medium text-lg">Bem-vinda de volta ao seu painel de Psicopedagogia.</p>
@@ -533,7 +533,7 @@ export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, cu
                     {/* Charts Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Chart 1: Diagnosis */}
-                        <div className="bg-white p-6 rounded-3xl shadow-card border border-slate-100">
+                        <div className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
                             <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
                                 <Activity size={18} className="text-pink-500" /> Diagnósticos
                             </h3>
@@ -559,7 +559,7 @@ export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, cu
                         </div>
 
                         {/* Chart 2: Evolution (New) */}
-                        <div className="bg-white p-6 rounded-3xl shadow-card border border-slate-100">
+                        <div className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
                             <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
                                 <TrendingUp size={18} className="text-pink-500" /> Evolução Mensal
                             </h3>
@@ -607,7 +607,7 @@ export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, cu
                     </div>
 
                     {/* Agenda Quick View */}
-                    <div className="bg-white p-6 rounded-3xl shadow-card border border-slate-100">
+                    <div className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
                         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center justify-between">
                             <span className="flex items-center gap-2"><Calendar size={16} className="text-pink-600" /> Agenda (Hoje)</span>
                         </h4>
