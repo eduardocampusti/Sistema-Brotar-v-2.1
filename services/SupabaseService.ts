@@ -70,8 +70,9 @@ export class SupabaseService {
 
     // --- Auth ---
     static async authenticate(email: string, password: string): Promise<User | null> {
-        // Normaliza para email se for apenas username
-        const finalEmail = email.includes('@') ? email : `${email}@brotar.com`;
+        // Normaliza para email se for apenas username e remove espaços
+        const cleanEmail = email.trim();
+        const finalEmail = cleanEmail.includes('@') ? cleanEmail : `${cleanEmail}@brotar.com`;
 
         const { data, error } = await supabase.auth.signInWithPassword({
             email: finalEmail,

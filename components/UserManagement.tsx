@@ -112,7 +112,8 @@ export const UserManagement: React.FC = () => {
                 success('Usuário atualizado com sucesso!', 'Perfil atualizado');
             } else {
                 // Criação: Usa o método seguro de Admin
-                const result = await SupabaseService.createAccountAsAdmin(newUser, formData.password!);
+                const cleanPassword = formData.password!.trim();
+                const result = await SupabaseService.createAccountAsAdmin(newUser, cleanPassword);
                 if (!result.success) {
                     showError(result.error || 'Erro ao criar usuário', 'Falha no cadastro');
                     setIsLoading(false);

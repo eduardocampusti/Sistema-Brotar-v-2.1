@@ -30,8 +30,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin, systemSettings }) => {
         setIsLoading(true);
 
         try {
-            console.log('Tentando autenticar:', username);
-            const user = await SupabaseService.authenticate(username, password);
+            const cleanUsername = username.trim();
+            const cleanPassword = password.trim();
+            console.log('Tentando autenticar:', cleanUsername);
+            const user = await SupabaseService.authenticate(cleanUsername, cleanPassword);
             if (user) {
                 onLogin(user);
             } else {
