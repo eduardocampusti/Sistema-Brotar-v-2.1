@@ -47,8 +47,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
   // Defaults if not provided
   const systemName = systemSettings?.systemName || 'Brotar';
   const LogoComponent = systemSettings?.logoUrl ?
-    () => <img src={systemSettings.logoUrl} alt="Logo" className="w-7 h-7 object-contain" /> :
-    () => <HeartPulse size={28} className="text-white" />;
+    () => <img src={systemSettings.logoUrl} alt="Logo" className="w-10 h-10 object-contain" /> :
+    () => <img src="/logo-oficial.png" alt="Logo Brotar" className="w-12 h-12 object-contain brightness-0 invert" />;
 
   // --- Theme Logic Based on Role/Specialty ---
   const getThemeClasses = () => {

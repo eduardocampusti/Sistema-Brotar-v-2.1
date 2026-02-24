@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Login } from './components/Login';
+import { LandingPage } from './components/LandingPage';
 import { SupabaseService } from './services/SupabaseService';
 import { useToast } from './contexts/ToastContext';
 import { Student, User, Specialty, SystemSettings, hasPermission, Appointment } from './types';
@@ -102,6 +103,9 @@ function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [rescheduleData, setRescheduleData] = useState<Appointment | null>(null);
+  const [showLogin, setShowLogin] = useState(() => {
+    return new URLSearchParams(window.location.search).get('login') === 'true';
+  });
   const { error: showError } = useToast();
 
   // Initialize settings directly from storage
@@ -212,7 +216,10 @@ function App() {
   };
 
   if (!user) {
-    return <Login onLogin={handleLogin} systemSettings={systemSettings} />;
+    if (showLogin) {
+      return <Login onLogin={handleLogin} onBack={() => setShowLogin(false)} systemSettings={systemSettings} />;
+    }
+    return <LandingPage onAccessSystem={() => window.open('?login=true', '_blank')} systemSettings={systemSettings} />;
   }
 
   // Bloqueio para troca obrigatória de senha

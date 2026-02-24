@@ -5,10 +5,11 @@ import { HeartPulse, Lock, User as UserIcon, ArrowRight, Eye, EyeOff, Activity, 
 
 interface LoginProps {
     onLogin: (user: User) => void;
+    onBack?: () => void;
     systemSettings?: SystemSettings;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin, systemSettings }) => {
+export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -21,8 +22,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, systemSettings }) => {
     // Default values
     const systemName = systemSettings?.systemName || 'Brotar';
     const LogoComponent = systemSettings?.logoUrl ?
-        () => <img src={systemSettings.logoUrl} alt={`Logo do sistema ${systemName}`} className="w-8 h-8 object-contain" /> :
-        () => <HeartPulse size={32} className="text-white" />;
+        () => <img src={systemSettings.logoUrl} alt={`Logo do sistema ${systemName}`} className="w-12 h-12 object-contain" /> :
+        () => <img src="/logo-oficial.png" alt={`Logo do sistema ${systemName}`} className="h-20 w-auto object-contain" />;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -182,7 +183,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, systemSettings }) => {
                     {systemSettings?.loginBackgroundImage ? (
                         <img
                             src={systemSettings.loginBackgroundImage}
-                            alt="Background"
+                            alt="Interface do Sistema Brotar - Gestão Multidisciplinar Inteligente"
                             className="w-full h-full object-cover"
                         />
                     ) : (
@@ -226,7 +227,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin, systemSettings }) => {
                                 <h2 className="text-4xl font-medium text-slate-800 tracking-tight">
                                     Entre em sua conta
                                 </h2>
-
+                                {onBack && (
+                                    <button
+                                        onClick={onBack}
+                                        className="text-slate-400 hover:text-slate-600 text-sm font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                                    >
+                                        <ArrowRight className="rotate-180" size={14} />
+                                        Voltar para o início
+                                    </button>
+                                )}
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-6">
