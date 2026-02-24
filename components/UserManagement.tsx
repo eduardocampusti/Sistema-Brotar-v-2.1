@@ -97,7 +97,7 @@ export const UserManagement: React.FC = () => {
             password: formData.password,
             role: formData.role as UserRole,
             isActive: formData.isActive ?? true,
-            scope: formData.role === 'EDUCATION_SECRETARY' ? formData.scope : 'GLOBAL',
+            scope: (formData.role === 'ASSISTANT' || formData.role === 'SECRETARIA_COCAL') ? formData.scope : 'GLOBAL',
             specialty: formData.role === 'SPECIALIST' ? formData.specialty : undefined,
             email: formData.email,
             phone: formData.phone,
@@ -449,7 +449,7 @@ export const UserManagement: React.FC = () => {
                                     </label>
                                 </div>
 
-                                {formData.role === 'EDUCATION_SECRETARY' && (
+                                {(formData.role === 'ASSISTANT' || formData.role === 'SECRETARIA_COCAL') && (
                                     <div className="md:col-span-3 animate-fadeIn bg-white p-3 rounded border border-blue-200">
                                         <label className="block">
                                             <span className="text-sm font-medium text-blue-800 flex items-center gap-2">
@@ -544,7 +544,7 @@ export const UserManagement: React.FC = () => {
                                                         'Assistente'}
                                         </span>
                                         <span className="text-xs text-slate-400">Login: {user.username}</span>
-                                        {user.role === 'EDUCATION_SECRETARY' && (
+                                        {(user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_COCAL') && (
                                             <span className={`text-[10px] uppercase font-bold ${user.scope === 'COCAL' ? 'text-orange-600' : 'text-blue-600'}`}>
                                                 {user.scope === 'COCAL' ? '• Apenas Cocal' : '• Acesso Sede'}
                                             </span>
