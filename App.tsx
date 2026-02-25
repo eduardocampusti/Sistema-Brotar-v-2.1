@@ -115,6 +115,11 @@ function App() {
       new URLSearchParams(window.location.search).get('recovery') === 'true' ||
       window.location.hash.includes('type=recovery');
   });
+
+  // Trava de idempotência para evitar loop de processamento da mesma sessão
+  const processedSessionId = React.useRef<string | null>(null);
+  const authListenerBusy = React.useRef(false);
+
   const { error: showError } = useToast();
 
   // Initialize settings directly from storage
@@ -171,15 +176,17 @@ function App() {
 
     async function loadInitialData() {
       try {
-        console.log('[App] Carregando configurações...');
+        console.log('[App] 1. Carregando configurações...');
         const settings = await SupabaseService.getSystemSettings();
         setSystemSettings(settings);
 
+        console.log('[App] 2. Verificando sessão inicial...');
         const { data: { session } } = await supabase.auth.getSession();
 
         // O perfil agora é carregado EXCLUSIVAMENTE pelo listener onAuthStateChange abaixo
         // para evitar condições de corrida e loops de renderização. 
         if (session?.user && isRecoveryMode) {
+          console.log('[App] 2a. Modo Recuperação Detectado.');
           const userData = await SupabaseService.getUserProfile(session.user.id);
           if (userData) {
             setUser({ ...userData, mustChangePassword: true });
@@ -188,7 +195,7 @@ function App() {
           }
         }
       } catch (err) {
-        console.error('[App] Erro no boot:', err);
+        console.error('[App] Erro crítico no boot:', err);
       } finally {
         setIsAuthLoading(false);
       }
@@ -198,47 +205,63 @@ function App() {
 
     // Listener prioritário de Auth
     const { data: { subscription } } = SupabaseService.onAuthStateChange(async (event, session) => {
-      console.log('[App] Auth Event:', event);
+      const sessionId = session?.access_token || session?.user?.id || 'no-session';
 
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsRecoveryMode(true);
-        if (session?.user) {
-          const userData = await SupabaseService.getUserProfile(session.user.id);
-          const finalUser = userData || {
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.full_name || 'Usuário',
-            username: session.user.email?.split('@')[0] || 'user',
-            role: (session.user.user_metadata?.role as any) || 'SPECIALIST',
-            isActive: true
-          };
-          setUser({ ...finalUser, mustChangePassword: true });
-          setShowLogin(false);
-          setIsAuthLoading(false);
-          setCurrentPage('my-access');
-        }
-      } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        if (session?.user && !isRecoveryMode) {
-          try {
+      // Bloqueio de redundância: se for a mesma sessão e o mesmo evento de login/update, ignora.
+      if (processedSessionId.current === sessionId && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+        console.log('[App-Auth] Ignorando evento duplicado:', event);
+        return;
+      }
+
+      if (authListenerBusy.current) {
+        console.log('[App-Auth] Listener ocupado, ignorando:', event);
+        return;
+      }
+
+      console.log(`[App-Auth] Evento: ${event} | SessionID: ${sessionId.substring(0, 10)}...`);
+      authListenerBusy.current = true;
+
+      try {
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsRecoveryMode(true);
+          if (session?.user) {
+            const userData = await SupabaseService.getUserProfile(session.user.id);
+            const finalUser = userData || {
+              id: session.user.id,
+              email: session.user.email || '',
+              name: session.user.user_metadata?.full_name || 'Usuário',
+              username: session.user.email?.split('@')[0] || 'user',
+              role: (session.user.user_metadata?.role as any) || 'SPECIALIST',
+              isActive: true
+            };
+            setUser({ ...finalUser, mustChangePassword: true });
+            setShowLogin(false);
+            setIsAuthLoading(false);
+            setCurrentPage('my-access');
+          }
+        } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          if (session?.user && !isRecoveryMode) {
             const userData = await SupabaseService.getUserProfile(session.user.id);
             if (userData) {
+              processedSessionId.current = sessionId;
               setUser(prev => {
                 if (prev?.id === userData.id && prev?.role === userData.role) return prev;
                 return userData;
               });
             }
-          } catch (err) {
-            console.error('[App] Erro ao carregar perfil:', err);
-          } finally {
-            setIsAuthLoading(false);
           }
-        } else {
+          setIsAuthLoading(false);
+        } else if (event === 'SIGNED_OUT') {
+          processedSessionId.current = null;
+          setUser(null);
+          setCurrentPage('dashboard');
+          setIsRecoveryMode(false);
           setIsAuthLoading(false);
         }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setCurrentPage('dashboard');
-        setIsRecoveryMode(false);
+      } catch (err) {
+        console.error('[App-Auth] Erro no listener:', err);
+      } finally {
+        authListenerBusy.current = false;
         setIsAuthLoading(false);
       }
     });
