@@ -9,6 +9,132 @@ interface LoginProps {
     systemSettings?: SystemSettings;
 }
 
+interface TermsOfUseProps {
+    systemName: string;
+    onBack: () => void;
+}
+
+const TermsOfUse: React.FC<TermsOfUseProps> = ({ systemName, onBack }) => (
+    <div className="animate-fadeIn space-y-6 overflow-y-auto max-h-[70vh] pr-2 custom-scrollbar">
+        <h2 className="text-3xl font-bold text-slate-900">Termos de Uso</h2>
+        <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
+            <p>Última atualização: {new Date().toLocaleDateString()}</p>
+            <p>Bem-vindo ao <strong>{systemName}</strong>. Ao acessar este sistema, você concorda com os seguintes termos:</p>
+            <h3 className="text-lg font-bold text-slate-800 mt-4">1. Acesso e Segurança</h3>
+            <p>O acesso é restrito a profissionais autorizados. Suas credenciais são pessoais e intransferíveis. Qualquer atividade realizada sob seu login é de sua exclusiva responsabilidade.</p>
+            <h3 className="text-lg font-bold text-slate-800 mt-4">2. Proteção de Dados</h3>
+            <p>Este sistema manipula dados sensíveis de pacientes e alunos. É estritamente proibido compartilhar, exportar ou divulgar informações sem autorização expressa, em conformidade com a LGPD (Lei Geral de Proteção de Dados).</p>
+            <h3 className="text-lg font-bold text-slate-800 mt-4">3. Uso Apropriado</h3>
+            <p>O sistema deve ser utilizado exclusivamente para fins profissionais relacionados à gestão multidisciplinar. O uso para fins pessoais ou ilícitos resultará em suspensão imediata e medidas legais cabíveis.</p>
+        </div>
+        <button onClick={onBack} className="text-primary-600 font-bold hover:underline flex items-center gap-2 cursor-pointer">
+            <ArrowRight className="rotate-180" size={16} /> Voltar para Login
+        </button>
+    </div>
+);
+
+interface PrivacyPolicyProps {
+    systemName: string;
+    onBack: () => void;
+}
+
+const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ systemName, onBack }) => (
+    <div className="animate-fadeIn space-y-6 overflow-y-auto max-h-[70vh] pr-2 custom-scrollbar">
+        <h2 className="text-3xl font-bold text-slate-900">Política de Privacidade</h2>
+        <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
+            <h3 className="text-lg font-bold text-slate-800">Compromisso com sua Privacidade</h3>
+            <p>O <strong>{systemName}</strong> leva a sério a privacidade dos dados. Esta política descreve como coletamos e protegemos suas informações.</p>
+            <h3 className="text-lg font-bold text-slate-800 mt-4">Coleta de Dados</h3>
+            <p>Coletamos apenas os dados estritamente necessários para o funcionamento do serviço, incluindo logs de acesso, registros de atendimentos e dados cadastrais de usuários autorizados.</p>
+            <h3 className="text-lg font-bold text-slate-800 mt-4">Segurança da Informação</h3>
+            <p>Utilizamos criptografia de ponta a ponta e protocolos de segurança avançados para proteger os dados armazenados contra acesso não autorizado, alteração ou destruição.</p>
+            <h3 className="text-lg font-bold text-slate-800 mt-4">Seus Direitos</h3>
+            <p>Conforme a LGPD, você tem direito a solicitar acesso, correção ou exclusão de seus dados pessoais, salvo quando a retenção for exigida por lei.</p>
+        </div>
+        <button onClick={onBack} className="text-primary-600 font-bold hover:underline flex items-center gap-2 cursor-pointer">
+            <ArrowRight className="rotate-180" size={16} /> Voltar para Login
+        </button>
+    </div>
+);
+
+interface ForgotPasswordProps {
+    resetStatus: 'idle' | 'success' | 'error';
+    resetEmail: string;
+    setResetEmail: (email: string) => void;
+    onSubmit: (e: React.FormEvent) => void;
+    onBack: () => void;
+    isLoading: boolean;
+    error: string;
+}
+
+const ForgotPassword: React.FC<ForgotPasswordProps> = ({
+    resetStatus, resetEmail, setResetEmail, onSubmit, onBack, isLoading, error
+}) => (
+    <div className="animate-fadeIn space-y-6">
+        <div className="text-left space-y-2">
+            <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Recuperar Senha</h2>
+            <p className="text-slate-500 font-medium text-sm">
+                Digite seu email para receber um link de redefinição de senha.
+            </p>
+        </div>
+
+        {resetStatus === 'success' ? (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center space-y-4 animate-fadeIn">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
+                    <ShieldCheck size={24} />
+                </div>
+                <div>
+                    <h3 className="text-green-800 font-bold text-lg">Email Enviado!</h3>
+                    <p className="text-green-700 text-sm mt-1">Verifique sua caixa de entrada (e spam) para redefinir sua senha.</p>
+                </div>
+                <button
+                    onClick={onBack}
+                    className="text-green-700 font-bold hover:underline text-sm cursor-pointer"
+                >
+                    Voltar para o Login
+                </button>
+            </div>
+        ) : (
+            <form onSubmit={onSubmit} className="space-y-6">
+                <div>
+                    <label className="text-xs font-bold text-slate-600 uppercase ml-1 mb-1 block">Email Cadastrado</label>
+                    <input
+                        type="email"
+                        required
+                        className="block w-full px-5 py-4 bg-gray-100 border-none rounded-xl focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all text-slate-800 placeholder-slate-400 font-medium"
+                        placeholder="seu@email.com"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        autoFocus
+                    />
+                </div>
+
+                {error && (
+                    <div className="p-4 rounded-xl bg-red-50 text-red-600 text-sm font-bold flex items-center gap-2">
+                        <ShieldCheck size={16} /> {error}
+                    </div>
+                )}
+
+                <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-slate-800 hover:bg-slate-900 text-white py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-slate-500/20 disabled:opacity-50 cursor-pointer"
+                >
+                    {isLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={onBack}
+                    className="w-full text-center text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                >
+                    Voltar
+                </button>
+            </form>
+        )}
+    </div>
+);
+
 export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -78,109 +204,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
             setIsLoading(false);
         }
     };
-
-    const TermsOfUse = () => (
-        <div className="animate-fadeIn space-y-6 overflow-y-auto max-h-[70vh] pr-2 custom-scrollbar">
-            <h2 className="text-3xl font-bold text-slate-900">Termos de Uso</h2>
-            <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
-                <p>Última atualização: {new Date().toLocaleDateString()}</p>
-                <p>Bem-vindo ao <strong>{systemName}</strong>. Ao acessar este sistema, você concorda com os seguintes termos:</p>
-                <h3 className="text-lg font-bold text-slate-800 mt-4">1. Acesso e Segurança</h3>
-                <p>O acesso é restrito a profissionais autorizados. Suas credenciais são pessoais e intransferíveis. Qualquer atividade realizada sob seu login é de sua exclusiva responsabilidade.</p>
-                <h3 className="text-lg font-bold text-slate-800 mt-4">2. Proteção de Dados</h3>
-                <p>Este sistema manipula dados sensíveis de pacientes e alunos. É estritamente proibido compartilhar, exportar ou divulgar informações sem autorização expressa, em conformidade com a LGPD (Lei Geral de Proteção de Dados).</p>
-                <h3 className="text-lg font-bold text-slate-800 mt-4">3. Uso Apropriado</h3>
-                <p>O sistema deve ser utilizado exclusivamente para fins profissionais relacionados à gestão multidisciplinar. O uso para fins pessoais ou ilícitos resultará em suspensão imediata e medidas legais cabíveis.</p>
-            </div>
-            <button onClick={() => setView('login')} className="text-primary-600 font-bold hover:underline flex items-center gap-2">
-                <ArrowRight className="rotate-180" size={16} /> Voltar para Login
-            </button>
-        </div>
-    );
-
-    const PrivacyPolicy = () => (
-        <div className="animate-fadeIn space-y-6 overflow-y-auto max-h-[70vh] pr-2 custom-scrollbar">
-            <h2 className="text-3xl font-bold text-slate-900">Política de Privacidade</h2>
-            <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
-                <h3 className="text-lg font-bold text-slate-800">Compromisso com sua Privacidade</h3>
-                <p>O <strong>{systemName}</strong> leva a sério a privacidade dos dados. Esta política descreve como coletamos e protegemos suas informações.</p>
-                <h3 className="text-lg font-bold text-slate-800 mt-4">Coleta de Dados</h3>
-                <p>Coletamos apenas os dados estritamente necessários para o funcionamento do serviço, incluindo logs de acesso, registros de atendimentos e dados cadastrais de usuários autorizados.</p>
-                <h3 className="text-lg font-bold text-slate-800 mt-4">Segurança da Informação</h3>
-                <p>Utilizamos criptografia de ponta a ponta e protocolos de segurança avançados para proteger os dados armazenados contra acesso não autorizado, alteração ou destruição.</p>
-                <h3 className="text-lg font-bold text-slate-800 mt-4">Seus Direitos</h3>
-                <p>Conforme a LGPD, você tem direito a solicitar acesso, correção ou exclusão de seus dados pessoais, salvo quando a retenção for exigida por lei.</p>
-            </div>
-            <button onClick={() => setView('login')} className="text-primary-600 font-bold hover:underline flex items-center gap-2">
-                <ArrowRight className="rotate-180" size={16} /> Voltar para Login
-            </button>
-        </div>
-    );
-
-    const ForgotPassword = () => (
-        <div className="animate-fadeIn space-y-6">
-            <div className="text-left space-y-2">
-                <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Recuperar Senha</h2>
-                <p className="text-slate-500 font-medium text-sm">
-                    Digite seu email para receber um link de redefinição de senha.
-                </p>
-            </div>
-
-            {resetStatus === 'success' ? (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center space-y-4 animate-fadeIn">
-                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
-                        <ShieldCheck size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-green-800 font-bold text-lg">Email Enviado!</h3>
-                        <p className="text-green-700 text-sm mt-1">Verifique sua caixa de entrada (e spam) para redefinir sua senha.</p>
-                    </div>
-                    <button
-                        onClick={() => setView('login')}
-                        className="text-green-700 font-bold hover:underline text-sm"
-                    >
-                        Voltar para o Login
-                    </button>
-                </div>
-            ) : (
-                <form onSubmit={handlePasswordReset} className="space-y-6">
-                    <div>
-                        <label className="text-xs font-bold text-slate-600 uppercase ml-1 mb-1 block">Email Cadastrado</label>
-                        <input
-                            type="email"
-                            required
-                            className="block w-full px-5 py-4 bg-gray-100 border-none rounded-xl focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all text-slate-800 placeholder-slate-400 font-medium"
-                            placeholder="seu@email.com"
-                            value={resetEmail}
-                            onChange={(e) => setResetEmail(e.target.value)}
-                        />
-                    </div>
-
-                    {error && (
-                        <div className="p-4 rounded-xl bg-red-50 text-red-600 text-sm font-bold flex items-center gap-2">
-                            <ShieldCheck size={16} /> {error}
-                        </div>
-                    )}
-
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-slate-800 hover:bg-slate-900 text-white py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-slate-500/20 disabled:opacity-50"
-                    >
-                        {isLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => setView('login')}
-                        className="w-full text-center text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
-                    >
-                        Voltar
-                    </button>
-                </form>
-            )}
-        </div>
-    );
 
     return (
         <div className="min-h-screen w-full flex bg-white font-sans text-slate-900">
@@ -319,11 +342,19 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
                             </div>
                         </>
                     ) : view === 'terms' ? (
-                        <TermsOfUse />
+                        <TermsOfUse systemName={systemName} onBack={() => setView('login')} />
                     ) : view === 'forgot-password' ? (
-                        <ForgotPassword />
+                        <ForgotPassword
+                            resetStatus={resetStatus}
+                            resetEmail={resetEmail}
+                            setResetEmail={setResetEmail}
+                            onSubmit={handlePasswordReset}
+                            onBack={() => setView('login')}
+                            isLoading={isLoading}
+                            error={error}
+                        />
                     ) : (
-                        <PrivacyPolicy />
+                        <PrivacyPolicy systemName={systemName} onBack={() => setView('login')} />
                     )}
 
                 </div>
