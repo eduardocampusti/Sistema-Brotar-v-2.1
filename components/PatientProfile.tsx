@@ -28,9 +28,18 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
     const canViewClinicalList = canViewClinicalContent || currentUser.role === 'SECRETARIA_SEDE' || currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'EDUCATION_SECRETARY';
     const isAdmin = currentUser.role === 'ADMIN';
 
-    // Ensure history array exists
+    // Ensure history array exists and load if empty (on-demand loading)
     useEffect(() => {
         setStudent(initialStudent);
+
+        // Se o estudante não tiver histórico carregado, busca no Supabase
+        if ((!initialStudent.history || initialStudent.history.length === 0) && initialStudent.id) {
+            const loadSessions = async () => {
+                const sessions = await SupabaseService.getStudentSessions(initialStudent.id);
+                setStudent(prev => ({ ...prev, history: sessions }));
+            };
+            loadSessions();
+        }
     }, [initialStudent]);
 
     const handleSaveSession = async (e: React.FormEvent) => {

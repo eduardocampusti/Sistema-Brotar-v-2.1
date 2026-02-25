@@ -376,19 +376,14 @@ export class SupabaseService {
 
     // --- Students ---
     static async getStudents(unit?: Unit): Promise<Student[]> {
-        // Busca alunos E sessões (respeitando RLS das sessões automaticamente!)
-        // A query clinical_sessions(*) vai retornar APENAS o que o usuário pode ver.
         let query = supabase
             .from('students')
             .select(`
                 *,
-                clinical_sessions (*),
                 schools (id, name, district)
             `);
 
         if (unit) {
-            // Filtra alunos que pertencem a escolas da unidade especificada
-            // Nota: Isso assume que a tabela schools tem a coluna 'district' preenchida com 'SEDE' ou 'COCAL'
             query = query.filter('schools.district', 'eq', unit);
         }
 
@@ -399,12 +394,33 @@ export class SupabaseService {
             return [];
         }
 
-        // Filtro manual adicional caso o join filter do supabase não seja suficiente (dependendo da versão)
         const finalStudents = unit
             ? students.filter((s: any) => (Array.isArray(s.schools) ? s.schools[0]?.district : s.schools?.district) === unit)
             : students;
 
-        return finalStudents.map((s: any) => mapStudentFromDB(s, s.clinical_sessions));
+        return finalStudents.map((s: any) => mapStudentFromDB(s, []));
+    }
+
+    static async getStudentSessions(studentId: string): Promise<Session[]> {
+        const { data, error } = await supabase
+            .from('clinical_sessions')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('date', { ascending: false });
+
+        if (error) {
+            console.error('[SupabaseService] Erro ao buscar sessões:', error);
+            return [];
+        }
+
+        return data.map((s: any) => ({
+            id: s.id,
+            date: s.date,
+            specialty: s.specialty,
+            professionalName: 'Profissional',
+            notes: s.content?.summary || s.content?.objetivo || s.content?.resumo || 'Atendimento realizado',
+            content: s.content,
+        }));
     }
 
     static async saveStudent(student: Student, photoFile?: File, documentFiles?: { file: File, type: string }[]): Promise<string> {
@@ -934,24 +950,8 @@ export class SupabaseService {
     // --- Notificações / Avisos ---
     // --- Notificações / Avisos ---
     static async getNotifications(userId: string): Promise<any[]> {
-        // --- LIMPEZA AUTOMÁTICA (Lazy Delete) ---
-        // Remove APENAS mensagens privadas ('MESSAGE') que foram lidas há mais de 5 minutos
-        // Limpeza de mensagens lidas (Auto-delete após 5 minutos)
-        try {
-            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
-            // Deleta mensagens lidas com mais de 5 minutos (Apenas tipo MESSAGE)
-            // Os Alerts são persistentes a menos que deletados manualmente pelo usuário
-            await supabase
-                .from('system_messages')
-                .delete()
-                .eq('type', 'MESSAGE')
-                .eq('is_read', true)
-                .lt('read_at', fiveMinutesAgo);
-
-        } catch (cleanError) {
-            console.error('[NotificationCleanup] Erro ao limpar mensagens:', cleanError);
-        }
+        // --- LIMPEZA AUTOMÁTICA REMOVIDA DA QUERY SÍNCRONA (Aumentava latência do login) ---
+        // A limpeza deve ocorrer via Cron Job ou Worker em background, não no fetch do usuário.
 
         // Busca mensagens onde o usuário é o destinatário
         const { data, error } = await supabase
