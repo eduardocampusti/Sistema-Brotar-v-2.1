@@ -23,10 +23,10 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     },
     school: {
         schoolId: dbStudent.school_id, // Captura o UUID da tabela schools
-        schoolName: (Array.isArray(dbStudent.school) ? dbStudent.school[0]?.name : dbStudent.school?.name) || 'Não vinculada',
+        schoolName: (Array.isArray(dbStudent.schools) ? dbStudent.schools[0]?.name : dbStudent.schools?.name) || 'Não vinculada',
         grade: dbStudent.grade,
         shift: dbStudent.shift as any,
-        district: (Array.isArray(dbStudent.school) ? dbStudent.school[0]?.district : dbStudent.school?.district) || 'Sede',
+        district: (Array.isArray(dbStudent.schools) ? dbStudent.schools[0]?.district : dbStudent.schools?.district) || 'Sede',
         hasSpecialAide: false,
         difficulties: ''
     },
@@ -380,7 +380,7 @@ export class SupabaseService {
             .from('students')
             .select(`
                 *,
-                school:schools!fk_school (id, name, district)
+                schools (id, name, district)
             `);
 
         if (unit) {
@@ -395,7 +395,7 @@ export class SupabaseService {
         }
 
         const finalStudents = unit
-            ? students.filter((s: any) => (Array.isArray(s.school) ? s.school[0]?.district : s.school?.district) === unit)
+            ? students.filter((s: any) => (Array.isArray(s.schools) ? s.schools[0]?.district : s.schools?.district) === unit)
             : students;
 
         return finalStudents.map((s: any) => mapStudentFromDB(s, []));

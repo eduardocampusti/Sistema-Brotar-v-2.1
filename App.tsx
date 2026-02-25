@@ -177,16 +177,14 @@ function App() {
 
         const { data: { session } } = await supabase.auth.getSession();
 
-        if (session?.user) {
+        // O perfil agora é carregado EXCLUSIVAMENTE pelo listener onAuthStateChange abaixo
+        // para evitar condições de corrida e loops de renderização. 
+        if (session?.user && isRecoveryMode) {
           const userData = await SupabaseService.getUserProfile(session.user.id);
           if (userData) {
-            if (isRecoveryMode) {
-              setUser({ ...userData, mustChangePassword: true });
-              setCurrentPage('my-access');
-              setShowLogin(false);
-            } else {
-              setUser(userData);
-            }
+            setUser({ ...userData, mustChangePassword: true });
+            setCurrentPage('my-access');
+            setShowLogin(false);
           }
         }
       } catch (err) {
@@ -220,17 +218,22 @@ function App() {
           setCurrentPage('my-access');
         }
       } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        setIsAuthLoading(false);
         if (session?.user && !isRecoveryMode) {
-          // Busca perfil apenas se necessário
-          const userData = await SupabaseService.getUserProfile(session.user.id);
-          if (userData) {
-            setUser(prevUser => {
-              // Se já for o mesmo usuário, não atualiza para evitar re-renders/loops
-              if (prevUser && prevUser.id === userData.id) return prevUser;
-              return userData;
-            });
+          try {
+            const userData = await SupabaseService.getUserProfile(session.user.id);
+            if (userData) {
+              setUser(prev => {
+                if (prev?.id === userData.id && prev?.role === userData.role) return prev;
+                return userData;
+              });
+            }
+          } catch (err) {
+            console.error('[App] Erro ao carregar perfil:', err);
+          } finally {
+            setIsAuthLoading(false);
           }
+        } else {
+          setIsAuthLoading(false);
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);

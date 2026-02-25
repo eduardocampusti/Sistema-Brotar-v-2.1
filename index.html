@@ -1,29 +1,33 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="https://vitejs.dev/logo.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Brotar - Gestão Multidisciplinar Premium</title>
-    <meta name="description" content="Sistema Brotar: A plataforma definitiva para gestão multidisciplinar em saúde e educação. Otimize prontuários, agendas e relatórios com segurança e conformidade LGPD." />
-    <link rel="canonical" href="https://brotar.app/" />
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://brotar.app/" />
-    <meta property="og:title" content="Brotar - Gestão Multidisciplinar Inteligente" />
-    <meta property="og:description" content="Transforme a gestão da educação especial e clínica com prontuários unificados e indicadores em tempo real." />
-    <meta property="og:image" content="https://brotar.app/og-image.jpg" />
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://brotar.app/" />
-    <meta property="twitter:title" content="Brotar - Gestão Multidisciplinar Inteligente" />
-    <meta property="twitter:description" content="A plataforma definitiva para gestão multidisciplinar em saúde e educação." />
-    <meta property="twitter:image" content="https://brotar.app/og-image.jpg" />
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="https://vitejs.dev/logo.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brotar - Gestão Multidisciplinar Premium</title>
+  <meta name="description"
+    content="Sistema Brotar: A plataforma definitiva para gestão multidisciplinar em saúde e educação. Otimize prontuários, agendas e relatórios com segurança e conformidade LGPD." />
+  <link rel="canonical" href="https://brotar.app/" />
 
-    <!-- Schema Markup (GEO Optimization) -->
-    <script type="application/ld+json">
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://brotar.app/" />
+  <meta property="og:title" content="Brotar - Gestão Multidisciplinar Inteligente" />
+  <meta property="og:description"
+    content="Transforme a gestão da educação especial e clínica com prontuários unificados e indicadores em tempo real." />
+  <meta property="og:image" content="https://brotar.app/og-image.jpg" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://brotar.app/" />
+  <meta property="twitter:title" content="Brotar - Gestão Multidisciplinar Inteligente" />
+  <meta property="twitter:description"
+    content="A plataforma definitiva para gestão multidisciplinar em saúde e educação." />
+  <meta property="twitter:image" content="https://brotar.app/og-image.jpg" />
+
+  <!-- Schema Markup (GEO Optimization) -->
+  <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
@@ -45,122 +49,123 @@
       "featureList": "Prontuário Multidisciplinar, Agenda Inteligente, Relatórios Automáticos, Conformidade LGPD"
     }
     </script>
-    
-    <!-- Fontes Modernas -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+  <!-- Fontes Modernas -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        fontFamily: {
+          sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+        },
+        extend: {
+          colors: {
+            // Base Brand Colors (Dynamic via CSS Variables)
+            primary: {
+              50: 'var(--color-primary-50)',
+              100: 'var(--color-primary-100)',
+              200: 'var(--color-primary-200)',
+              300: 'var(--color-primary-300)',
+              400: 'var(--color-primary-400)',
+              500: 'var(--color-primary-500)',
+              600: 'var(--color-primary-600)',
+              700: 'var(--color-primary-700)',
+              800: 'var(--color-primary-800)',
+              900: 'var(--color-primary-900)',
+              950: 'var(--color-primary-950)',
+            },
+            secondary: {
+              500: '#f97316',
+              600: '#ea580c',
+            },
+            // Specialty Colors
+            psy: {
+              light: '#f3e8ff',
+              main: '#9333ea',
+              dark: '#581c87',
+              gradient: 'from-purple-500 to-indigo-600'
+            },
+            fono: {
+              light: '#ecfeff',
+              main: '#06b6d4',
+              dark: '#155e75',
+              gradient: 'from-cyan-400 to-blue-500'
+            },
+            to: {
+              light: '#e0e7ff',
+              main: '#4f46e5',
+              dark: '#312e81',
+              gradient: 'from-indigo-400 to-violet-600'
+            },
+            social: {
+              light: '#f0f9ff',
+              main: '#0ea5e9',
+              dark: '#075985',
+              gradient: 'from-sky-400 to-blue-600'
+            },
+            pp: {
+              light: '#fce7f3',
+              main: '#db2777',
+              dark: '#831843',
+              gradient: 'from-pink-400 to-rose-600'
+            },
+            admin: {
+              light: '#f8fafc',
+              main: '#334155',
+              dark: '#0f172a',
+              gradient: 'from-slate-700 to-slate-900'
+            }
           },
-          extend: {
-            colors: {
-              // Base Brand Colors (Dynamic via CSS Variables)
-              primary: {
-                50: 'var(--color-primary-50)',
-                100: 'var(--color-primary-100)',
-                200: 'var(--color-primary-200)',
-                300: 'var(--color-primary-300)',
-                400: 'var(--color-primary-400)',
-                500: 'var(--color-primary-500)',
-                600: 'var(--color-primary-600)',
-                700: 'var(--color-primary-700)',
-                800: 'var(--color-primary-800)',
-                900: 'var(--color-primary-900)',
-                950: 'var(--color-primary-950)',
-              },
-              secondary: {
-                500: '#f97316',
-                600: '#ea580c',
-              },
-              // Specialty Colors
-              psy: {
-                light: '#f3e8ff',
-                main: '#9333ea',
-                dark: '#581c87',
-                gradient: 'from-purple-500 to-indigo-600'
-              },
-              fono: {
-                light: '#ecfeff',
-                main: '#06b6d4',
-                dark: '#155e75',
-                gradient: 'from-cyan-400 to-blue-500'
-              },
-              to: {
-                light: '#e0e7ff',
-                main: '#4f46e5',
-                dark: '#312e81',
-                gradient: 'from-indigo-400 to-violet-600'
-              },
-              social: {
-                light: '#f0f9ff',
-                main: '#0ea5e9',
-                dark: '#075985',
-                gradient: 'from-sky-400 to-blue-600'
-              },
-              pp: {
-                light: '#fce7f3',
-                main: '#db2777',
-                dark: '#831843',
-                gradient: 'from-pink-400 to-rose-600'
-              },
-              admin: {
-                light: '#f8fafc',
-                main: '#334155',
-                dark: '#0f172a',
-                gradient: 'from-slate-700 to-slate-900'
-              }
+          boxShadow: {
+            'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+            'glow': '0 0 15px rgba(var(--color-primary-500-rgb), 0.3)',
+            'card': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+          },
+          animation: {
+            'float': 'float 6s ease-in-out infinite',
+            'fadeIn': 'fadeIn 0.5s ease-out forwards',
+            'slideUp': 'slideUp 0.5s ease-out forwards',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
             },
-            boxShadow: {
-              'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
-              'glow': '0 0 15px rgba(var(--color-primary-500-rgb), 0.3)',
-              'card': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
             },
-            animation: {
-              'float': 'float 6s ease-in-out infinite',
-              'fadeIn': 'fadeIn 0.5s ease-out forwards',
-              'slideUp': 'slideUp 0.5s ease-out forwards',
-            },
-            keyframes: {
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-10px)' },
-              },
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              slideUp: {
-                '0%': { transform: 'translateY(20px)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' },
-              }
+            slideUp: {
+              '0%': { transform: 'translateY(20px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' },
             }
           }
         }
       }
-    </script>
-    <style>
-      :root {
-        /* Default Teal Theme (Fallback) */
-        --color-primary-50: #f0fdfa;
-        --color-primary-100: #ccfbf1;
-        --color-primary-200: #99f6e4;
-        --color-primary-300: #5eead4;
-        --color-primary-400: #2dd4bf;
-        --color-primary-500: #14b8a6;
-        --color-primary-600: #0d9488;
-        --color-primary-700: #0f766e;
-        --color-primary-800: #115e59;
-        --color-primary-900: #134e4a;
-        --color-primary-950: #042f2e;
-        --color-primary-500-rgb: 20, 184, 166;
-      }
-    </style>
+    }
+  </script>
+  <style>
+    :root {
+      /* Default Teal Theme (Fallback) */
+      --color-primary-50: #f0fdfa;
+      --color-primary-100: #ccfbf1;
+      --color-primary-200: #99f6e4;
+      --color-primary-300: #5eead4;
+      --color-primary-400: #2dd4bf;
+      --color-primary-500: #14b8a6;
+      --color-primary-600: #0d9488;
+      --color-primary-700: #0f766e;
+      --color-primary-800: #115e59;
+      --color-primary-900: #134e4a;
+      --color-primary-950: #042f2e;
+      --color-primary-500-rgb: 20, 184, 166;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -175,10 +180,12 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-slate-50 text-slate-800 antialiased selection:bg-primary-200 selection:text-primary-900">
-    <div id="root"></div>
+
+<body class="bg-[#EEF2F8] text-slate-800 antialiased selection:bg-primary-200 selection:text-primary-900">
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>
