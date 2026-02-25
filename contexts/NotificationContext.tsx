@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { SupabaseService } from '../services/SupabaseService';
+import { supabase } from '../services/supabaseClient';
 import { User, SystemMessage } from '../types';
 import { useToast } from './ToastContext';
 
@@ -59,13 +60,40 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode, current
             fetchNotifications();
             fetchSentMessages();
 
-            // Polling a cada 30 segundos
-            const interval = setInterval(() => {
-                fetchNotifications();
-                fetchSentMessages();
-            }, 30000);
+            // Ativa o Realtime para mensagens instantâneas
+            const channel = supabase
+                .channel(`system_messages:${currentUser.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'system_messages',
+                        filter: `recipient_id=eq.${currentUser.id}`
+                    },
+                    (payload) => {
+                        console.log('[DEBUG] Realtime Payload (Entrada):', payload);
+                        fetchNotifications();
+                    }
+                )
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'system_messages',
+                        filter: `sender_id=eq.${currentUser.id}`
+                    },
+                    (payload) => {
+                        console.log('[DEBUG] Realtime Payload (Saída):', payload);
+                        fetchSentMessages();
+                    }
+                )
+                .subscribe();
 
-            return () => clearInterval(interval);
+            return () => {
+                supabase.removeChannel(channel);
+            };
         } else {
             setNotifications([]);
             setSentMessages([]);

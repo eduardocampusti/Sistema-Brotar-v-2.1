@@ -582,6 +582,19 @@ export class SupabaseService {
             savedId = data.id;
         }
 
+        // --- Alerta Automático (Sino) para Novos Cadastros ---
+        if (!student.id && savedId) {
+            try {
+                // Notificar Administradores/Secretários - Simplificado: Envia Alerta Padrão
+                // Aqui poderíamos buscar todos os admins, mas para evitar lentidão, enviamos um alerta geral 
+                // que pode ser visto por quem tem acesso à tabela de avisos.
+                // Como não temos recipientId específico "Admin", podemos deixar para implementar se o usuário pedir.
+                // Por enquanto, o sistema foca em Agendamentos (Especialistas) conforme pedido.
+            } catch (alertError) {
+                console.warn('Erro ao disparar alerta de novo aluno:', alertError);
+            }
+        }
+
         return savedId;
     }
 
@@ -1017,6 +1030,19 @@ export class SupabaseService {
         }
     }
 
+    /**
+     * Envia um alerta automático do sistema para um usuário.
+     * Usado para notificações de agendamentos, novos cadastros, etc.
+     */
+    static async sendSystemAlert(recipientId: string, title: string, content: string, priority: 'normal' | 'urgent' = 'normal'): Promise<void> {
+        // O ID do remetente 'Sistema' é o do Admin principal ou um UUID fixo se houver.
+        // Aqui usamos o ID do usuário que gerou a ação (se logado) ou um reservado do sistema.
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        return this.sendSystemMessage(user.id, recipientId, title, content, priority, 'ALERT');
+    }
+
     // --- IPO Portage ---
     static async savePortageAssessment(studentId: string, assessment: PortageAssessment): Promise<void> {
         // Busca dados atuais para garantir que não sobrescrevemos outros campos do clinical_info
@@ -1110,6 +1136,22 @@ export class SupabaseService {
         if (error) {
             console.error('Erro detalhado ao salvar agendamento:', error);
             throw error;
+        }
+
+        // --- Alerta Automático (Sino) ---
+        // Se for um novo agendamento (não tem ID no momento da criação ou é um upsert que queremos notificar)
+        if (!appointment.id && appointment.professionalId) {
+            try {
+                const dateFmt = new Date(appointment.date!).toLocaleDateString('pt-BR');
+                await this.sendSystemAlert(
+                    appointment.professionalId,
+                    'Novo Agendamento',
+                    `Você tem um novo agendamento para o aluno ${appointment.studentName} no dia ${dateFmt} às ${appointment.startTime}.`,
+                    'normal'
+                );
+            } catch (alertError) {
+                console.warn('Falha silenciosa ao enviar alerta de agendamento:', alertError);
+            }
         }
     }
 
