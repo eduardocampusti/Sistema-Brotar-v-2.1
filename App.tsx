@@ -170,8 +170,8 @@ function App() {
       // Monitora a sessão atual (necessário para detectar recuperação de senha por link)
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        // Se já existe sessão, autentica o perfil
-        const userData = await SupabaseService.authenticate(session.user.email || '', '');
+        // Se já existe sessão, busca o perfil sem precisar de senha
+        const userData = await SupabaseService.getUserProfile(session.user.id);
         if (userData) setUser(userData);
       }
     }
@@ -184,7 +184,7 @@ function App() {
 
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         if (session?.user) {
-          const userData = await SupabaseService.authenticate(session.user.email || '', '');
+          const userData = await SupabaseService.getUserProfile(session.user.id);
           if (userData) setUser(userData);
         }
       } else if (event === 'SIGNED_OUT') {
@@ -194,10 +194,11 @@ function App() {
         // Usuário clicou no link de email e o Supabase validou a sessão de recuperação
         console.log('[App] Detectada Recuperação de Senha');
         if (session?.user) {
-          const userData = await SupabaseService.authenticate(session.user.email || '', '');
+          const userData = await SupabaseService.getUserProfile(session.user.id);
           if (userData) {
             setUser({ ...userData, mustChangePassword: true });
-            setCurrentPage('my-access'); // Direciona para onde a troca de senha possa estar acessível ou forçada
+            setShowLogin(false); // Garante que o componente Login saia da frente
+            setCurrentPage('my-access');
           }
         }
       }

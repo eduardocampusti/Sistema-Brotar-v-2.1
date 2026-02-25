@@ -148,6 +148,48 @@ export class SupabaseService {
         };
     }
 
+    /**
+     * Busca o perfil do usuário pelo ID sem precisar autenticar (útil para sessões já ativas como Recovery)
+     */
+    static async getUserProfile(userId: string): Promise<User | null> {
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (profileError || !profile) {
+            console.error('Perfil não encontrado:', profileError);
+            return null;
+        }
+
+        const specialtyReverseMap: Record<string, Specialty> = {
+            'PSICOLOGIA': Specialty.PSYCHOLOGY,
+            'FONOAUDIOLOGIA': Specialty.SPEECH_THERAPY,
+            'PSICOPEDAGOGIA': Specialty.PSYCHOPEDAGOGY,
+            'TERAPIA_OCUPACIONAL': Specialty.OCCUPATIONAL_THERAPY,
+            'SERVICO_SOCIAL': Specialty.SOCIAL_WORK,
+            'FISIOTERAPIA': Specialty.PHYSIOTHERAPY,
+            'ENFERMAGEM': 'Enfermagem' as any,
+            'NUTRICAO': Specialty.NUTRITION
+        };
+
+        const frontendSpecialty = profile.specialty ? (specialtyReverseMap[profile.specialty] || profile.specialty) : undefined;
+
+        return {
+            id: profile.id,
+            name: profile.full_name,
+            username: profile.username || (profile.email ? profile.email.split('@')[0] : 'user'),
+            role: profile.role,
+            isActive: profile.is_active,
+            specialty: frontendSpecialty,
+            email: profile.email,
+            photoUrl: profile.photo_url,
+            scope: profile.scope,
+            mustChangePassword: profile.must_change_password
+        };
+    }
+
     static async signUp(email: string, password: string, fullName: string, role: UserRole = 'ADMIN'): Promise<{ user: any, error: any }> {
         const finalEmail = email.includes('@') ? email : `${email}@brotar.com`;
 

@@ -143,7 +143,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
     const [view, setView] = useState<'login' | 'terms' | 'privacy' | 'forgot-password'>(() => {
         const hash = window.location.hash;
         const search = window.location.search;
-        if (hash.includes('error_code=otp_expired') || hash.includes('error=') || search.includes('error=') || search.includes('recovery=true')) {
+        // Só muda para forgot-password se houver erro real de OTP/tempo
+        if (hash.includes('error_code=otp_expired') || hash.includes('error=') || search.includes('error=')) {
             return 'forgot-password';
         }
         return 'login';
