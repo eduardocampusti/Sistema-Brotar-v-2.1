@@ -161,8 +161,17 @@ function App() {
 
   // Load students and handle auth session
   useEffect(() => {
+    // Timeout de segurança GLOBAL: se após 5 segundos ainda estiver carregando, libera a tela
+    const safetyTimeout = setTimeout(() => {
+      setIsAuthLoading(prev => {
+        if (prev) console.warn('[App] Destravando loading via Timeout de Segurança.');
+        return false;
+      });
+    }, 5000);
+
     async function loadInitialData() {
       try {
+        console.log('[App] Carregando configurações...');
         const settings = await SupabaseService.getSystemSettings();
         setSystemSettings(settings);
 
@@ -186,9 +195,6 @@ function App() {
       } finally {
         setIsAuthLoading(false);
       }
-
-      // Timeout de segurança: se após 4 segundos ainda estiver carregando, libera a tela
-      setTimeout(() => setIsAuthLoading(false), 4000);
     }
 
     loadInitialData();
@@ -215,6 +221,7 @@ function App() {
           setCurrentPage('my-access');
         }
       } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        setIsAuthLoading(false);
         if (session?.user && !isRecoveryMode) {
           const userData = await SupabaseService.getUserProfile(session.user.id);
           if (userData) setUser(userData);
@@ -223,10 +230,14 @@ function App() {
         setUser(null);
         setCurrentPage('dashboard');
         setIsRecoveryMode(false);
+        setIsAuthLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
+    };
   }, []);
 
   // Carrega dados pesados apenas após o login
