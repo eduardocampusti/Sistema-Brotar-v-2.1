@@ -222,8 +222,15 @@ function App() {
       } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         setIsAuthLoading(false);
         if (session?.user && !isRecoveryMode) {
+          // Busca perfil apenas se necessário
           const userData = await SupabaseService.getUserProfile(session.user.id);
-          if (userData) setUser(userData);
+          if (userData) {
+            setUser(prevUser => {
+              // Se já for o mesmo usuário, não atualiza para evitar re-renders/loops
+              if (prevUser && prevUser.id === userData.id) return prevUser;
+              return userData;
+            });
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);

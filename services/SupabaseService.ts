@@ -23,10 +23,10 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     },
     school: {
         schoolId: dbStudent.school_id, // Captura o UUID da tabela schools
-        schoolName: (Array.isArray(dbStudent.schools) ? dbStudent.schools[0]?.name : dbStudent.schools?.name) || 'Não vinculada',
+        schoolName: (Array.isArray(dbStudent.school) ? dbStudent.school[0]?.name : dbStudent.school?.name) || 'Não vinculada',
         grade: dbStudent.grade,
         shift: dbStudent.shift as any,
-        district: (Array.isArray(dbStudent.schools) ? dbStudent.schools[0]?.district : dbStudent.schools?.district) || 'Sede',
+        district: (Array.isArray(dbStudent.school) ? dbStudent.school[0]?.district : dbStudent.school?.district) || 'Sede',
         hasSpecialAide: false,
         difficulties: ''
     },
