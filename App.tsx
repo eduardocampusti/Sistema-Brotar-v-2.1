@@ -105,7 +105,12 @@ function App() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [rescheduleData, setRescheduleData] = useState<Appointment | null>(null);
   const [showLogin, setShowLogin] = useState(() => {
-    return new URLSearchParams(window.location.search).get('login') === 'true';
+    // Checa explicitly por login=true, recovery=true, ou a presença do fragmento do Supabase
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = window.location.hash;
+    return searchParams.get('login') === 'true' ||
+      searchParams.get('recovery') === 'true' ||
+      hashParams.includes('type=recovery');
   });
   const { error: showError } = useToast();
 
