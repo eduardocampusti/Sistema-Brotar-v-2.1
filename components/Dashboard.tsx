@@ -1,35 +1,37 @@
 import React, { useMemo } from 'react';
-import { Student, Specialty } from '../types';
+import { Student, Specialty, User } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Users, AlertCircle, CheckCircle } from 'lucide-react';
+import { WelcomeHeader } from './WelcomeHeader';
 
 interface DashboardProps {
   students: Student[];
+  currentUser?: User;
 }
 
 const COLORS = ['#0ea5e9', '#6366f1', '#10b981', '#f59e0b'];
 
-export const Dashboard: React.FC<DashboardProps> = ({ students }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser }) => {
   const stats = useMemo(() => {
     const total = students.length;
     const active = students.filter(p => p.status === 'Active').length;
-    
+
     // Simulate distribution for demo purposes based on random logic or real data
     const diagnosisCounts: Record<string, number> = {};
     students.forEach(p => {
-        const key = p.clinical.diagnosis.split(' ')[0] || 'Outros';
-        diagnosisCounts[key] = (diagnosisCounts[key] || 0) + 1;
+      const key = p.clinical.diagnosis.split(' ')[0] || 'Outros';
+      diagnosisCounts[key] = (diagnosisCounts[key] || 0) + 1;
     });
 
     const diagnosisData = Object.keys(diagnosisCounts).map(name => ({
-        name, value: diagnosisCounts[name]
+      name, value: diagnosisCounts[name]
     }));
 
     // Mock demand for professionals
     const demandData = [
-        { name: Specialty.PSYCHOLOGY, demand: Math.floor(total * 0.8) },
-        { name: Specialty.PSYCHOPEDAGOGY, demand: Math.floor(total * 0.6) },
-        { name: Specialty.SOCIAL_WORK, demand: Math.floor(total * 0.4) },
+      { name: Specialty.PSYCHOLOGY, demand: Math.floor(total * 0.8) },
+      { name: Specialty.PSYCHOPEDAGOGY, demand: Math.floor(total * 0.6) },
+      { name: Specialty.SOCIAL_WORK, demand: Math.floor(total * 0.4) },
     ];
 
     return { total, active, diagnosisData, demandData };
@@ -37,10 +39,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ students }) => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Painel de Controle</h2>
-        <p className="text-slate-500">Visão geral do centro de especialidades</p>
-      </div>
+      {currentUser ? (
+        <WelcomeHeader
+          name={currentUser.name.split(' ')[0]}
+          subtitle="Acompanhe a visão geral do sistema hoje."
+        />
+      ) : (
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-slate-800">Painel de Controle</h2>
+          <p className="text-slate-500">Visão geral do centro de especialidades</p>
+        </div>
+      )}
 
       {/* Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -112,7 +121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ students }) => {
               <BarChart data={stats.demandData}>
                 <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis hide />
-                <Tooltip cursor={{fill: '#f1f5f9'}} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} />
                 <Bar dataKey="demand" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
               </BarChart>
             </ResponsiveContainer>

@@ -3,6 +3,7 @@ import { Student, User, Specialty, Session } from '../types';
 import { StorageService } from '../services/storageService';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer } from 'lucide-react';
+import { WelcomeHeader } from './WelcomeHeader';
 
 const COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#6366f1'];
 
@@ -14,16 +15,6 @@ interface DashboardProps {
 
 // --- COMPONENTES VISUAIS (ESTILO DA IMAGEM) ---
 
-const WelcomeHeader = ({ name, subtitle, title }: { name: string, subtitle?: string, title?: string }) => (
-    <div className="mb-8 animate-fadeIn">
-        <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">
-            {title ? title : <>Olá, <span className="text-primary-600">{name}</span></>}
-        </h1>
-        <p className="text-xl text-slate-500 mt-2 font-medium">
-            {subtitle || "O que você quer fazer hoje?"}
-        </p>
-    </div>
-);
 
 const ActionCard = ({ title, description, icon: Icon, onClick, colorClass = "bg-primary-50 text-primary-600" }: any) => (
     <button

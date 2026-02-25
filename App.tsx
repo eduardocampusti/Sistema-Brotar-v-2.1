@@ -406,10 +406,10 @@ function App() {
             case Specialty.SPEECH_THERAPY: return <SpeechTherapyDashboardPage onNavigateNew={() => handleNavigate('speech-therapy/new-session')} {...commonProps} />;
             case Specialty.PHYSIOTHERAPY: return <PhysiotherapyDashboardPage onNavigateNew={() => handleNavigate('physiotherapy/new-session')} {...commonProps} />;
             case Specialty.NUTRITION: return <NutritionDashboardPage onNavigateNew={() => handleNavigate('nutrition/new-session')} {...commonProps} />;
-            default: return <Dashboard students={students} />;
+            default: return <Dashboard students={students} currentUser={user} />;
           }
         }
-        return <Dashboard students={students} />;
+        return <Dashboard students={students} currentUser={user} />;
 
       case 'scheduling':
         if (user.specialty === Specialty.SOCIAL_WORK) {
@@ -460,7 +460,7 @@ function App() {
       case 'backup':
         return hasPermission(user, 'can_access_security_data')
           ? <BackupSystem currentUser={user} />
-          : <Dashboard students={students} />; // Redireciona para dashboard se não tiver permissão
+          : <Dashboard students={students} currentUser={user} />; // Redireciona para dashboard se não tiver permissão
 
       case 'settings': return user.role === 'ADMIN' ? <SystemSettingsPanel /> : <Dashboard students={students} />;
       case 'letterhead-config': return user.role === 'ADMIN' ? <PapelTimbradoConfigPanel /> : <Dashboard students={students} />;
@@ -476,7 +476,7 @@ function App() {
         }}
       />;
       case 'my-access': return <MyAccess currentUser={user} />;
-      default: return <Dashboard students={students} />;
+      default: return <Dashboard students={students} currentUser={user} />;
     }
   };
 
