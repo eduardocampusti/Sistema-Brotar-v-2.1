@@ -104,6 +104,7 @@ function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [rescheduleData, setRescheduleData] = useState<Appointment | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(() => {
     // Checa explicitly por login=true, recovery=true, ou a presença do fragmento do Supabase
     const searchParams = new URLSearchParams(window.location.search);
@@ -159,20 +160,34 @@ function App() {
   // Load students and handle auth session
   useEffect(() => {
     async function loadInitialData() {
-      // Carrega configurações primeiro para evitar flash de conteúdo
-      const settings = await SupabaseService.getSystemSettings();
-      setSystemSettings(settings);
+      try {
+        // Carrega configurações primeiro para evitar flash de conteúdo
+        const settings = await SupabaseService.getSystemSettings();
+        setSystemSettings(settings);
 
-      // Carrega alunos
-      const data = await SupabaseService.getStudents();
-      setStudents(data);
+        // Carrega alunos
+        const data = await SupabaseService.getStudents();
+        setStudents(data);
 
-      // Monitora a sessão atual (necessário para detectar recuperação de senha por link)
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Se já existe sessão, busca o perfil sem precisar de senha
-        const userData = await SupabaseService.getUserProfile(session.user.id);
-        if (userData) setUser(userData);
+        // Verifica se é um link de recuperação antes de processar a sessão padrão
+        const hash = window.location.hash;
+        const search = window.location.search;
+        const isRecoveryFlow = hash.includes('type=recovery') || search.includes('recovery=true');
+
+        // Monitora a sessão atual
+        const { data: { session } } = await supabase.auth.getSession();
+
+        // Só define o usuário aqui se NÃO for um fluxo de recuperação,
+        // para evitar que o getSession sobrescreva o evento PASSWORD_RECOVERY
+        if (session?.user && !isRecoveryFlow) {
+          const userData = await SupabaseService.getUserProfile(session.user.id);
+          if (userData) setUser(userData);
+        }
+      } catch (err) {
+        console.error('[App] Erro na inicialização:', err);
+      } finally {
+        // Dá um pequeno tempo para o listener onAuthStateChange também processar (caso venha do link)
+        setTimeout(() => setIsAuthLoading(false), 500);
       }
     }
 
@@ -191,15 +206,23 @@ function App() {
         setUser(null);
         setCurrentPage('dashboard');
       } else if (event === 'PASSWORD_RECOVERY') {
-        // Usuário clicou no link de email e o Supabase validou a sessão de recuperação
         console.log('[App] Detectada Recuperação de Senha');
         if (session?.user) {
           const userData = await SupabaseService.getUserProfile(session.user.id);
-          if (userData) {
-            setUser({ ...userData, mustChangePassword: true });
-            setShowLogin(false); // Garante que o componente Login saia da frente
-            setCurrentPage('my-access');
-          }
+          // Fallback seguro se o perfil demore a responder
+          const finalUser = userData || {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || 'Usuário',
+            username: session.user.email?.split('@')[0] || 'user',
+            role: (session.user.user_metadata?.role as any) || 'SPECIALIST',
+            isActive: true
+          };
+
+          setUser({ ...finalUser, mustChangePassword: true });
+          setShowLogin(false);
+          setIsAuthLoading(false); // Garante que a tela de loading saia se vier do link
+          setCurrentPage('my-access');
         }
       }
     });
@@ -261,11 +284,20 @@ function App() {
     setCurrentPage('dashboard');
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white space-y-4">
+        <Loader2 size={48} className="animate-spin text-primary-600" />
+        <p className="text-slate-500 font-medium">Validando acesso...</p>
+      </div>
+    );
+  }
+
   if (!user) {
     if (showLogin) {
       return <Login onLogin={handleLogin} onBack={() => setShowLogin(false)} systemSettings={systemSettings} />;
     }
-    return <LandingPage onAccessSystem={() => window.open('?login=true', '_blank')} systemSettings={systemSettings} />;
+    return <LandingPage onAccessSystem={() => setShowLogin(true)} systemSettings={systemSettings} />;
   }
 
   // Bloqueio para troca obrigatória de senha
