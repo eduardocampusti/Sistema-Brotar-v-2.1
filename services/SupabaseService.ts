@@ -380,7 +380,7 @@ export class SupabaseService {
             .from('students')
             .select(`
                 *,
-                schools (id, name, district)
+                school:schools!fk_school (id, name, district)
             `);
 
         if (unit) {
@@ -389,13 +389,13 @@ export class SupabaseService {
 
         const { data: students, error } = await query;
 
-        if (error) {
+        if (error || !students) {
             console.error('Erro ao buscar alunos:', error);
             return [];
         }
 
         const finalStudents = unit
-            ? students.filter((s: any) => (Array.isArray(s.schools) ? s.schools[0]?.district : s.schools?.district) === unit)
+            ? students.filter((s: any) => (Array.isArray(s.school) ? s.school[0]?.district : s.school?.district) === unit)
             : students;
 
         return finalStudents.map((s: any) => mapStudentFromDB(s, []));

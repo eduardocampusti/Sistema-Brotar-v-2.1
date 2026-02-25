@@ -177,14 +177,16 @@ function App() {
 
         const { data: { session } } = await supabase.auth.getSession();
 
-        // Se já temos uma sessão, o listener onAuthStateChange(SIGNED_IN) será disparado.
-        // O loadInitialData foca agora apenas em SystemSettings e preparar o estado.
-        if (session?.user && isRecoveryMode) {
+        if (session?.user) {
           const userData = await SupabaseService.getUserProfile(session.user.id);
           if (userData) {
-            setUser({ ...userData, mustChangePassword: true });
-            setCurrentPage('my-access');
-            setShowLogin(false);
+            if (isRecoveryMode) {
+              setUser({ ...userData, mustChangePassword: true });
+              setCurrentPage('my-access');
+              setShowLogin(false);
+            } else {
+              setUser(userData);
+            }
           }
         }
       } catch (err) {
@@ -220,11 +222,8 @@ function App() {
       } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         setIsAuthLoading(false);
         if (session?.user && !isRecoveryMode) {
-          // Só busca se o perfil ainda não estiver carregado ou for alteração
-          if (!user || user.id !== session.user.id || event === 'USER_UPDATED') {
-            const userData = await SupabaseService.getUserProfile(session.user.id);
-            if (userData) setUser(userData);
-          }
+          const userData = await SupabaseService.getUserProfile(session.user.id);
+          if (userData) setUser(userData);
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
