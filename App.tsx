@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import { Login } from './components/Login';
 import { LandingPage } from './components/LandingPage';
 import { SupabaseService } from './services/SupabaseService';
+import { supabase } from './services/supabaseClient';
 import { useToast } from './contexts/ToastContext';
 import { Student, User, Specialty, SystemSettings, hasPermission, Appointment } from './types';
 import { Loader2 } from 'lucide-react';
@@ -150,17 +151,56 @@ function App() {
     }
   }, [systemSettings]);
 
-  // Load students on mount
+  // Load students and handle auth session
   useEffect(() => {
-    async function loadData() {
+    async function loadInitialData() {
       // Carrega configurações primeiro para evitar flash de conteúdo
       const settings = await SupabaseService.getSystemSettings();
       setSystemSettings(settings);
 
+      // Carrega alunos
       const data = await SupabaseService.getStudents();
       setStudents(data);
+
+      // Monitora a sessão atual (necessário para detectar recuperação de senha por link)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // Se já existe sessão, autentica o perfil
+        const userData = await SupabaseService.authenticate(session.user.email || '', '');
+        if (userData) setUser(userData);
+      }
     }
-    loadData();
+
+    loadInitialData();
+
+    // Listener para mudanças de Auth (Login, Logout, Recuperação)
+    const { data: { subscription } } = SupabaseService.onAuthStateChange(async (event, session) => {
+      console.log('[App] Auth Event:', event);
+
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        if (session?.user) {
+          const userData = await SupabaseService.authenticate(session.user.email || '', '');
+          if (userData) setUser(userData);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setCurrentPage('dashboard');
+      } else if (event === 'PASSWORD_RECOVERY') {
+        // Usuário clicou no link de email e o Supabase validou a sessão de recuperação
+        console.log('[App] Detectada Recuperação de Senha');
+        if (session?.user) {
+          const userData = await SupabaseService.authenticate(session.user.email || '', '');
+          if (userData) {
+            setUser({ ...userData, mustChangePassword: true });
+            setCurrentPage('my-access'); // Direciona para onde a troca de senha possa estar acessível ou forçada
+          }
+        }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const refreshData = async () => {

@@ -19,6 +19,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
     const [resetEmail, setResetEmail] = useState('');
     const [resetStatus, setResetStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
+    // Detectar erro de recuperação na URL (ex: otp_expired)
+    React.useEffect(() => {
+        const hash = window.location.hash;
+        if (hash.includes('error_code=otp_expired')) {
+            setError('O link de recuperação expirou ou já foi utilizado. Por favor, solicite um novo.');
+            setView('forgot-password');
+        } else if (hash.includes('error=')) {
+            setError('Ocorreu um erro com o seu link de acesso. Tente novamente.');
+            setView('forgot-password');
+        }
+    }, []);
+
     // Default values
     const systemName = systemSettings?.systemName || 'Brotar';
     const LogoComponent = systemSettings?.logoUrl ?

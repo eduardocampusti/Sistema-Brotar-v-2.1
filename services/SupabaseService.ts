@@ -187,6 +187,10 @@ export class SupabaseService {
         await supabase.auth.signOut();
     }
 
+    static onAuthStateChange(callback: (event: any, session: any) => void) {
+        return supabase.auth.onAuthStateChange(callback);
+    }
+
     static async updatePassword(newPassword: string) {
         return await supabase.auth.updateUser({ password: newPassword });
     }
@@ -197,8 +201,16 @@ export class SupabaseService {
 
     static async resetPassword(email: string) {
         const finalEmail = email.includes('@') ? email : `${email}@brotar.com`;
+
+        // Em produção, queremos que o link redirecione para a URL do site atual
+        // O Supabase usa o window.location.origin se for passado, 
+        // mas ele DEVE estar configurado no dashboard como Redirect URL ou Site URL.
+        const redirectTo = `${window.location.origin}${window.location.pathname.startsWith('/') ? '' : '/'}?recovery=true`;
+
+        console.log('[SupabaseService] Enviando reset para:', finalEmail, 'com redirectTo:', redirectTo);
+
         return await supabase.auth.resetPasswordForEmail(finalEmail, {
-            redirectTo: `${window.location.origin}/reset-password`,
+            redirectTo: redirectTo,
         });
     }
 
