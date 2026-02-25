@@ -131,7 +131,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             </div>
 
             {/* 2. FILTROS OPERACIONAIS */}
-            <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_15px_50px_-12px_rgba(0,0,0,0.08)] space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Unidade */}
                     <div className="space-y-1.5">
@@ -200,7 +200,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             </div>
 
             {/* 3. LISTA OPERACIONAL */}
-            <div className="flex-1 overflow-hidden bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col">
+            <div className="flex-1 overflow-hidden bg-white rounded-3xl border border-slate-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] flex flex-col">
                 <div className="p-4 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Lista de Atendimentos do Dia</span>
                     <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight">

@@ -198,7 +198,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Coluna Principal: Formulário */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-8 space-y-8">
+                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] p-8 space-y-8">
 
                         {/* Seção 1: Onde e Quando */}
                         <div className="space-y-4">

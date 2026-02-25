@@ -278,7 +278,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
     return (
         <>
-            <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-140px)] md:h-auto">
+            <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-140px)] md:h-auto">
 
                 {saveError && (
                     <div className="bg-red-50 border-l-4 border-red-500 p-4 m-6 mb-0">
