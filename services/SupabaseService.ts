@@ -91,33 +91,18 @@ export class SupabaseService {
             .eq('id', data.user.id)
             .single();
 
-        // Se o perfil não existir, tentamos criar um básico ou usamos dados do Auth
+        // Se o perfil não existir, usamos um fallback seguro baseado no metadata do Auth
         if (profileError || !profile) {
-            console.warn('Perfil não encontrado ou inacessível. Usando dados básicos do Usuário.', profileError);
+            console.warn('Perfil não encontrado ou inacessível no banco:', profileError?.message);
 
-            const userData: User = {
+            return {
                 id: data.user.id,
                 name: data.user.user_metadata?.full_name || finalEmail.split('@')[0],
-                username: email, // Mantém o input original como username visual
+                username: email,
                 role: (data.user.user_metadata?.role as UserRole) || 'SPECIALIST',
                 isActive: true,
                 email: finalEmail
             };
-
-            // Tenta criar o perfil no banco silenciosamente
-            try {
-                await supabase.from('profiles').upsert({
-                    id: userData.id,
-                    full_name: userData.name,
-                    role: userData.role,
-                    is_active: true,
-                    username: email // Salva o username simples se possível
-                });
-            } catch (e) {
-                console.warn('Não foi possível auto-criar o perfil no banco (provavelmente RLS):', e);
-            }
-
-            return userData;
         }
 
         // Reverse Mapping: DB Enum (PSICOPEDAGOGIA) -> Frontend Value (Psicopedagogia)

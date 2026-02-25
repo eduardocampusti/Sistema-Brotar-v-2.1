@@ -177,10 +177,21 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
         setIsLoading(true);
 
         try {
+            // Timeout de segurança: se o login não responder em 15s, libera o botão
+            const loginTimeout = setTimeout(() => {
+                if (isLoading) {
+                    setIsLoading(false);
+                    setError('A conexão com o servidor está lenta. Tente novamente ou verifique sua internet.');
+                }
+            }, 15000);
+
             const cleanUsername = username.trim();
             const cleanPassword = password.trim();
             console.log('Tentando autenticar:', cleanUsername);
             const user = await SupabaseService.authenticate(cleanUsername, cleanPassword);
+
+            clearTimeout(loginTimeout);
+
             if (user) {
                 onLogin(user);
             } else {
