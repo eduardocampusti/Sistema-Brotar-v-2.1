@@ -118,7 +118,6 @@ function App() {
 
   // Trava de idempotência para evitar loop de processamento da mesma sessão
   const processedSessionId = React.useRef<string | null>(null);
-  const authListenerBusy = React.useRef(false);
 
   const { error: showError } = useToast();
 
@@ -207,19 +206,14 @@ function App() {
     const { data: { subscription } } = SupabaseService.onAuthStateChange(async (event, session) => {
       const sessionId = session?.access_token || session?.user?.id || 'no-session';
 
+      console.log(`[App-Auth] Evento: ${event} | SessionID: ${sessionId.substring(0, 10)}...`);
+
       // Bloqueio de redundância: se for a mesma sessão e o mesmo evento de login/update, ignora.
       if (processedSessionId.current === sessionId && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
         console.log('[App-Auth] Ignorando evento duplicado:', event);
+        setIsAuthLoading(false);
         return;
       }
-
-      if (authListenerBusy.current) {
-        console.log('[App-Auth] Listener ocupado, ignorando:', event);
-        return;
-      }
-
-      console.log(`[App-Auth] Evento: ${event} | SessionID: ${sessionId.substring(0, 10)}...`);
-      authListenerBusy.current = true;
 
       try {
         if (event === 'PASSWORD_RECOVERY') {
@@ -244,10 +238,7 @@ function App() {
             const userData = await SupabaseService.getUserProfile(session.user.id);
             if (userData) {
               processedSessionId.current = sessionId;
-              setUser(prev => {
-                if (prev?.id === userData.id && prev?.role === userData.role) return prev;
-                return userData;
-              });
+              setUser(userData);
             }
           }
           setIsAuthLoading(false);
@@ -261,7 +252,6 @@ function App() {
       } catch (err) {
         console.error('[App-Auth] Erro no listener:', err);
       } finally {
-        authListenerBusy.current = false;
         setIsAuthLoading(false);
       }
     });
