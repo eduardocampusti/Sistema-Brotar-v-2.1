@@ -140,7 +140,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
-    const [view, setView] = useState<'login' | 'terms' | 'privacy' | 'forgot-password'>('login');
+    const [view, setView] = useState<'login' | 'terms' | 'privacy' | 'forgot-password'>(() => {
+        const hash = window.location.hash;
+        const search = window.location.search;
+        if (hash.includes('error_code=otp_expired') || hash.includes('error=') || search.includes('error=') || search.includes('recovery=true')) {
+            return 'forgot-password';
+        }
+        return 'login';
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
     const [resetStatus, setResetStatus] = useState<'idle' | 'success' | 'error'>('idle');
