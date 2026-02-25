@@ -166,18 +166,29 @@ function App() {
         const settings = await SupabaseService.getSystemSettings();
         setSystemSettings(settings);
 
-        // Verifica a sessão inicial sem carregar nada pesado ainda
         const { data: { session } } = await supabase.auth.getSession();
 
-        if (session?.user && !isRecoveryMode) {
+        if (session?.user) {
           const userData = await SupabaseService.getUserProfile(session.user.id);
-          if (userData) setUser(userData);
+          if (userData) {
+            // Se for recuperação, já força o estado aqui para evitar depender só do evento
+            if (isRecoveryMode) {
+              setUser({ ...userData, mustChangePassword: true });
+              setCurrentPage('my-access');
+              setShowLogin(false);
+            } else {
+              setUser(userData);
+            }
+          }
         }
       } catch (err) {
         console.error('[App] Erro no boot:', err);
       } finally {
         setIsAuthLoading(false);
       }
+
+      // Timeout de segurança: se após 4 segundos ainda estiver carregando, libera a tela
+      setTimeout(() => setIsAuthLoading(false), 4000);
     }
 
     loadInitialData();
@@ -216,7 +227,7 @@ function App() {
     });
 
     return () => subscription.unsubscribe();
-  }, [isRecoveryMode]);
+  }, []);
 
   // Carrega dados pesados apenas após o login
   useEffect(() => {
@@ -277,7 +288,7 @@ function App() {
     setCurrentPage('dashboard');
   };
 
-  if (isAuthLoading || (isRecoveryMode && !user)) {
+  if (isAuthLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white space-y-4">
         <Loader2 size={48} className="animate-spin text-primary-600" />
