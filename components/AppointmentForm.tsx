@@ -17,6 +17,7 @@ import {
 import { SupabaseService } from '../services/SupabaseService';
 import { Appointment, Specialty, Student, User, Unit, School } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import SearchableSelect from './SearchableSelect';
 
 interface AppointmentFormProps {
     currentUser: User;
@@ -292,16 +293,20 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                 {/* Filtro por Escola */}
                                 <div className="space-y-1.5 text-left">
                                     <label className="text-xs font-bold text-slate-600 px-1">Filtrar por Escola</label>
-                                    <div className="relative">
-                                        <SchoolIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                        <select
+                                    <div className="relative z-20">
+                                        <SearchableSelect
+                                            options={[
+                                                { value: 'ALL', label: 'Todas as Escolas' },
+                                                ...schools.map(sch => ({
+                                                    value: sch.id,
+                                                    label: sch.name
+                                                }))
+                                            ]}
                                             value={selectedSchoolId}
-                                            onChange={(e) => setSelectedSchoolId(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:border-primary-500 focus:bg-white transition-all outline-none appearance-none"
-                                        >
-                                            <option value="ALL">Todas as Escolas</option>
-                                            {schools.map(sch => <option key={sch.id} value={sch.id}>{sch.name}</option>)}
-                                        </select>
+                                            onChange={setSelectedSchoolId}
+                                            placeholder="Buscar escola..."
+                                            className="w-full text-sm font-bold text-slate-700"
+                                        />
                                     </div>
                                 </div>
                             </div>
