@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { SupportProfessional, School, Student } from '../types';
+import { SupportProfessional, School, Student, User as UserType } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -26,7 +26,11 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
     );
 };
 
-export const SupportProfessionalManagement: React.FC = () => {
+interface SupportProfessionalManagementProps {
+    currentUser?: UserType;
+}
+
+export const SupportProfessionalManagement: React.FC<SupportProfessionalManagementProps> = ({ currentUser }) => {
     const [professionals, setProfessionals] = useState<SupportProfessional[]>([]);
     const [schools, setSchools] = useState<School[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
@@ -250,12 +254,14 @@ export const SupportProfessionalManagement: React.FC = () => {
                     <h2 className="text-2xl font-bold text-slate-800">Profissionais de Apoio Escolar</h2>
                     <p className="text-slate-500">Gestão de acompanhantes terapêuticos e monitores</p>
                 </div>
-                <button
-                    onClick={() => { setIsAdding(true); resetForm(); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-                >
-                    <UserCog size={18} /> Novo Profissional
-                </button>
+                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
+                    <button
+                        onClick={() => { setIsAdding(true); resetForm(); }}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                    >
+                        <UserCog size={18} /> Novo Profissional
+                    </button>
+                )}
             </div>
 
             {isAdding && (
@@ -585,12 +591,16 @@ export const SupportProfessionalManagement: React.FC = () => {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        <button onClick={() => handleEdit(prof)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Editar">
-                                            <Edit size={16} />
-                                        </button>
-                                        <button onClick={() => handleDelete(prof.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors" title="Excluir">
-                                            <Trash2 size={16} />
-                                        </button>
+                                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
+                                            <>
+                                                <button onClick={() => handleEdit(prof)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Editar">
+                                                    <Edit size={16} />
+                                                </button>
+                                                <button onClick={() => handleDelete(prof.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors" title="Excluir">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </td>
                             </tr>

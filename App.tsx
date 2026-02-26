@@ -487,7 +487,7 @@ function App() {
       case 'settings': return user.role === 'ADMIN' ? <SystemSettingsPanel /> : <Dashboard students={students} />;
       case 'letterhead-config': return user.role === 'ADMIN' ? <PapelTimbradoConfigPanel /> : <Dashboard students={students} />;
       case 'schools': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') ? <SchoolManagement /> : <Dashboard students={students} />;
-      case 'support-professionals': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') ? <SupportProfessionalManagement /> : <Dashboard students={students} />;
+      case 'support-professionals': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') ? <SupportProfessionalManagement currentUser={user} /> : <Dashboard students={students} />;
       case 'about': return <AboutSystem />;
       case 'documents': return <DocumentGenerator currentUser={user} />;
       case 'vault': return <DocumentVault

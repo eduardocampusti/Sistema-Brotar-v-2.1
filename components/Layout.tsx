@@ -152,10 +152,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
     if (isInternalRole) {
       items.push({ id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> });
 
-      // Apenas secretárias e admin veem profissionais de apoio
-      if (currentUser.role !== 'ASSISTANT') {
-        items.push({ id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> });
-      }
+      // Administradores, Secretárias e Assistentes (Recepção) veem profissionais de apoio
+      items.push({ id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> });
     }
 
     // Seção do Cofre e Documentos (Novo fluxo)

@@ -313,7 +313,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
                                     <Edit size={14} /> Editar Cadastro
                                   </button>
 
-                                  {(canRegister || currentUser?.role === 'ADMIN') && (
+                                  {currentUser?.role === 'ADMIN' && (
                                     <>
                                       <div className="h-px bg-slate-100 my-1" />
                                       <button
