@@ -3,6 +3,7 @@ import { Student, Gender, DocumentType, StudentDocument, School } from '../types
 import { Save, X, Activity, User, BookOpen, Users as UsersIcon, Upload, Trash2, FileText, Check, Paperclip, AlertCircle, Download } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
+import SearchableSelect from './SearchableSelect';
 
 interface RegistrationFormProps {
     onSuccess: () => void;
@@ -119,6 +120,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
             .replace(/(\d{3})(\d)/, '$1.$2')
             .replace(/(\d{3})(\d{1,2})/, '$1-$2')
             .replace(/(-\d{2})\d+?$/, '$1');
+    };
+
+    // Função auxiliar para formatar CEP
+    const formatCEP = (value: string) => {
+        return value
+            .replace(/\D/g, '')
+            .replace(/(\d{5})(\d)/, '$1-$2')
+            .replace(/(-\d{3})\d+?$/, '$1');
     };
 
     // Função auxiliar para formatar Telefone / WhatsApp
@@ -538,8 +547,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         </div>
                                         <div>
                                             <label className="block text-xs font-medium text-slate-500 mb-1">CEP</label>
-                                            <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.address?.zipCode} onChange={e => handleInputChange('address', 'zipCode', e.target.value)} />
+                                            <input
+                                                type="text"
+                                                className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                                value={formData.address?.zipCode || ''}
+                                                onChange={e => handleInputChange('address', 'zipCode', formatCEP(e.target.value))}
+                                                placeholder="00000-000"
+                                                maxLength={9}
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -720,30 +735,48 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Escola</label>
-                                        <select
-                                            className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                            value={formData.school?.schoolId || formData.school?.schoolName || ''}
-                                            onChange={e => {
-                                                const selectedId = e.target.value;
-                                                const school = schools.find(s => s.id === selectedId);
-                                                if (school) {
-                                                    handleInputChange('school', 'schoolId', school.id);
-                                                    handleInputChange('school', 'schoolName', school.name);
-                                                } else {
-                                                    // Caso for "Outra" ou vazio
+                                        <SearchableSelect
+                                            options={[
+                                                ...schools.map(school => ({
+                                                    value: school.id,
+                                                    label: `${school.name} ${school.inep ? `(INEP: ${school.inep})` : ''}`
+                                                })),
+                                                { value: 'OUTRA', label: 'Outra (Não Listada / Digitar Nome)' }
+                                            ]}
+                                            value={formData.school?.schoolId || (formData.school?.schoolName?.trim() ? 'OUTRA' : '')}
+                                            onChange={(selectedId) => {
+                                                if (selectedId === 'OUTRA') {
                                                     handleInputChange('school', 'schoolId', '');
-                                                    handleInputChange('school', 'schoolName', selectedId);
+                                                    if (!formData.school?.schoolName || schools.some(s => s.name === formData.school?.schoolName)) {
+                                                        handleInputChange('school', 'schoolName', ' ' /* Espaço para forçar a exibição do input manual */);
+                                                    }
+                                                } else {
+                                                    const school = schools.find(s => s.id === selectedId);
+                                                    if (school) {
+                                                        handleInputChange('school', 'schoolId', school.id);
+                                                        handleInputChange('school', 'schoolName', school.name);
+                                                    } else {
+                                                        handleInputChange('school', 'schoolId', '');
+                                                        handleInputChange('school', 'schoolName', '');
+                                                    }
                                                 }
                                             }}
-                                        >
-                                            <option value="">Selecione a Escola...</option>
-                                            {schools.map(school => (
-                                                <option key={school.id} value={school.id}>
-                                                    {school.name} {school.inep ? `(INEP: ${school.inep})` : ''}
-                                                </option>
-                                            ))}
-                                            <option value="Outra (Não Listada)">Outra (Não Listada)</option>
-                                        </select>
+                                            placeholder="Selecione clicando ou digite para buscar..."
+                                        />
+
+                                        {(!formData.school?.schoolId && formData.school?.schoolName) && (
+                                            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg mt-3 animate-fadeIn">
+                                                <label className="block text-xs font-medium text-slate-700 mb-1">Digite o Nome da Escola Manualmente *</label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
+                                                    value={formData.school?.schoolName.trim() === '' ? '' : formData.school?.schoolName}
+                                                    onChange={e => handleInputChange('school', 'schoolName', e.target.value)}
+                                                    placeholder="Ex: Escola Municipal Nova Vida"
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Série/Ano Escolar</label>
