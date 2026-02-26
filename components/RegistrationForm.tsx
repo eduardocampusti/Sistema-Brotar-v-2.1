@@ -28,6 +28,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
     const [documentFiles, setDocumentFiles] = useState<{ file: File, type: string }[]>([]);
 
+    // Novos estados locais para separar Naturalidade e Estado
+    const [birthCity, setBirthCity] = useState('');
+    const [birthState, setBirthState] = useState('');
+
     const handleCloseSuccess = () => {
         setShowSuccessModal(false);
         onSuccess();
@@ -66,7 +70,26 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                 clinical: initialData.clinical || { diagnosis: '', medications: '', allergies: '', specialNeeds: [], therapiesHistory: '' },
                 school: initialData.school || { schoolId: '', schoolName: '', grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' }
             };
+
+            // Separação de Naturalidade / Estado para exibição
+            if (safeData.birthPlace) {
+                const parts = safeData.birthPlace.split('/').map(p => p.trim());
+                if (parts.length >= 2) {
+                    setBirthCity(parts[0]);
+                    setBirthState(parts[1]);
+                } else {
+                    setBirthCity(safeData.birthPlace);
+                    setBirthState('');
+                }
+            } else {
+                setBirthCity('');
+                setBirthState('');
+            }
+
             setFormData(safeData);
+        } else {
+            setBirthCity('');
+            setBirthState('');
         }
     }, [initialData]);
 
@@ -96,6 +119,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
             .replace(/(\d{3})(\d)/, '$1.$2')
             .replace(/(\d{3})(\d{1,2})/, '$1-$2')
             .replace(/(-\d{2})\d+?$/, '$1');
+    };
+
+    // Função auxiliar para formatar Telefone / WhatsApp
+    const formatPhone = (value: string) => {
+        const v = value.replace(/\D/g, '');
+        if (v.length <= 10) {
+            return v.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
+        }
+        return v.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
     };
 
     const handleInputChange = (section: keyof Student | null, field: string, value: any) => {
@@ -218,9 +250,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
         try {
             setSaveError(null);
-            console.log('[RegistrationForm] Enviando para saveStudent - ID:', formData.id, 'CPF:', formData.cpf);
+
+            // Unir Naturalidade e Estado antes de salvar
+            const combinedBirthPlace = birthCity && birthState ? `${birthCity} / ${birthState}` : birthCity || birthState || '';
+            const submissionData = { ...formData, birthPlace: combinedBirthPlace } as Student;
+
+            console.log('[RegistrationForm] Enviando para saveStudent - ID:', submissionData.id, 'CPF:', submissionData.cpf);
             const savedId = await SupabaseService.saveStudent(
-                formData as Student,
+                submissionData,
                 selectedPhotoFile || undefined,
                 documentFiles
             );
@@ -415,23 +452,28 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Nacionalidade</label>
                                                 <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
                                                     value={formData.nationality || ''} onChange={e => handleInputChange(null, 'nationality', e.target.value)} />
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-1">Naturalidade / Estado</label>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Naturalidade (Cidade)</label>
                                                 <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                    value={formData.birthPlace || ''} onChange={e => handleInputChange(null, 'birthPlace', e.target.value)} placeholder="Ex: São Paulo / SP" />
+                                                    value={birthCity} onChange={e => setBirthCity(e.target.value)} placeholder="Ex: São Paulo" />
                                             </div>
                                             <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Estado (UF)</label>
+                                                <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                                    value={birthState} onChange={e => setBirthState(e.target.value.toUpperCase())} maxLength={2} placeholder="Ex: SP" />
+                                            </div>
+                                            <div className="md:col-span-1">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Mãe</label>
                                                 <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
                                                     value={formData.motherName || ''} onChange={e => handleInputChange(null, 'motherName', e.target.value)} />
                                             </div>
-                                            <div>
+                                            <div className="md:col-span-2">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Pai</label>
                                                 <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
                                                     value={formData.fatherName || ''} onChange={e => handleInputChange(null, 'fatherName', e.target.value)} />
@@ -624,8 +666,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Telefone / WhatsApp</label>
-                                            <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.guardians?.[0]?.phone || ''} onChange={e => handleInputChange('guardians', 'phone', e.target.value)} />
+                                            <input
+                                                type="text"
+                                                className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                                value={formData.guardians?.[0]?.phone || ''}
+                                                onChange={e => handleInputChange('guardians', 'phone', formatPhone(e.target.value))}
+                                                placeholder="(00) 00000-0000"
+                                                maxLength={15}
+                                            />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Ocupação</label>
