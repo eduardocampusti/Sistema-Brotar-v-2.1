@@ -165,6 +165,13 @@ function App() {
 
   // Load students and handle auth session
   useEffect(() => {
+    // Limpeza de parâmetros de URL para evitar loops de renderização
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('login') === 'true') {
+      const newUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+
     // Timeout de segurança GLOBAL: se após 5 segundos ainda estiver carregando, libera a tela
     const safetyTimeout = setTimeout(() => {
       setIsAuthLoading(prev => {

@@ -139,13 +139,13 @@ export function LandingPage({ onAccessSystem, systemSettings }: LandingPageProps
                                         alt={systemSettings.systemName || "Sistema Brotar"}
                                         className="h-12 w-auto object-contain"
                                     />
-                                ) : (
-                                    <img
-                                        src="/logo-oficial.png"
-                                        alt="Sistema Brotar"
-                                        className={`h-16 w-auto object-contain transition-all duration-300 ${!scrolled ? 'brightness-0 invert' : ''}`}
-                                    />
-                                )}
+                                ) : <button
+                                    onClick={() => window.open(window.location.origin + '?login=true', '_blank')}
+                                    className="bg-slate-900 text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-slate-800 transition-colors cursor-pointer"
+                                >
+                                    Saiba mais
+                                </button>
+                                }
                             </div>
                         </div>
 
@@ -161,8 +161,8 @@ export function LandingPage({ onAccessSystem, systemSettings }: LandingPageProps
                                 </button>
                             ))}
                             <button
-                                onClick={onAccessSystem}
-                                className="ml-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-5 py-2 rounded-full transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
+                                onClick={() => window.open(window.location.origin + '?login=true', '_blank')}
+                                className="ml-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-5 py-2 rounded-full transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer inline-block"
                             >
                                 Acessar Sistema
                             </button>
@@ -192,8 +192,8 @@ export function LandingPage({ onAccessSystem, systemSettings }: LandingPageProps
                                 </button>
                             ))}
                             <button
-                                onClick={onAccessSystem}
-                                className="w-full bg-green-500 text-white font-semibold py-3 rounded-xl text-sm cursor-pointer"
+                                onClick={() => window.open(window.location.origin + '?login=true', '_blank')}
+                                className="w-full bg-green-500 text-white font-semibold py-3 rounded-xl text-sm cursor-pointer text-center block"
                             >
                                 Acessar Sistema
                             </button>
@@ -240,11 +240,10 @@ export function LandingPage({ onAccessSystem, systemSettings }: LandingPageProps
                             {/* Botões */}
                             <div className="flex flex-col sm:flex-row gap-4 mb-10">
                                 <button
-                                    onClick={onAccessSystem}
-                                    className="group flex items-center justify-center gap-2 bg-green-500 hover:bg-green-400 text-white font-bold px-8 py-4 rounded-2xl transition-all duration-200 shadow-xl hover:shadow-green-500/30 cursor-pointer text-base"
+                                    onClick={() => window.open(window.location.origin + '?login=true', '_blank')}
+                                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-full font-bold text-lg transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 cursor-pointer flex items-center justify-center gap-2"
                                 >
-                                    Acessar Sistema
-                                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                    ACESSAR O SISTEMA <ArrowRight size={20} />
                                 </button>
                                 <button
                                     onClick={() => scrollTo('como-funciona')}
@@ -357,12 +356,14 @@ export function LandingPage({ onAccessSystem, systemSettings }: LandingPageProps
                             <p className="text-slate-600 text-lg leading-relaxed mb-8">
                                 O Brotar elimina planilhas, papéis e controles paralelos. A informação nasce na escola, passa pelos especialistas e retorna para a gestão em forma de indicadores, histórico e decisões mais rápidas.
                             </p>
-                            <button
-                                onClick={onAccessSystem}
+                            <a
+                                href="?login=true"
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 bg-blue-800 hover:bg-blue-900 text-white font-semibold px-6 py-3 rounded-xl transition-colors cursor-pointer"
                             >
                                 Conhecer a plataforma <ChevronRight size={16} />
-                            </button>
+                            </a>
                         </AnimatedSection>
 
                         <AnimatedSection>
@@ -498,7 +499,7 @@ export function LandingPage({ onAccessSystem, systemSettings }: LandingPageProps
                         ].map(esp => (
                             <AnimatedSection key={esp.name}>
                                 <div className="flex flex-col items-center text-center p-5 bg-slate-50 hover:bg-white rounded-2xl border border-slate-100 hover:border-slate-200 hover:shadow-lg transition-all duration-300 group cursor-default">
-                                    <div className={`w-14 h-14 rounded-2xl ${esp.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                                    <div className="w-14 h-14 rounded-2xl ${esp.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                                         <esp.icon size={24} />
                                     </div>
                                     <span className="text-sm font-semibold text-slate-700">{esp.name}</span>
@@ -666,11 +667,10 @@ export function LandingPage({ onAccessSystem, systemSettings }: LandingPageProps
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <button
-                                onClick={onAccessSystem}
-                                className="group flex items-center justify-center gap-2 bg-white text-green-700 hover:bg-green-50 font-bold px-8 py-4 rounded-2xl transition-all duration-200 shadow-xl cursor-pointer text-base"
+                                onClick={() => window.open(window.location.origin + '?login=true', '_blank')}
+                                className="bg-white text-green-600 px-8 py-4 rounded-full font-bold text-xl hover:bg-green-50 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 cursor-pointer inline-block"
                             >
-                                Acessar Sistema
-                                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                ACESSAR O SISTEMA AGORA
                             </button>
                             <button
                                 className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-white font-semibold px-8 py-4 rounded-2xl transition-all duration-200 backdrop-blur-sm cursor-pointer text-base"
