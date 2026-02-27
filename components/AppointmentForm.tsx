@@ -37,8 +37,14 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
     // State for selected duration (default 40min)
     const [duration, setDuration] = useState(40);
 
+    const resolveUnit = (): Unit => {
+        const scope = currentUser.scope as string;
+        if (scope && scope !== 'GLOBAL') return scope as Unit;
+        return 'SEDE';
+    };
+
     const [newApt, setNewApt] = useState<Partial<Appointment>>({
-        unit: initialData?.unit || (currentUser.scope === 'GLOBAL' ? 'SEDE' : (currentUser.scope as Unit || 'SEDE')),
+        unit: initialData?.unit || resolveUnit(),
         status: 'AGENDADO',
         date: new Date().toISOString().split('T')[0],
         specialty: initialData?.specialty,
@@ -47,6 +53,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
         studentId: initialData?.studentId,
         studentName: initialData?.studentName
     });
+
 
     const [createdAppointment, setCreatedAppointment] = useState<{ student: string, professional: string, date: string, time: string, phone: string, guardian: string } | null>(null);
 

@@ -36,9 +36,14 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
     const { success, error: showError } = useToast();
 
     // Filtros
-    const [filterUnit, setFilterUnit] = useState<Unit | 'ALL'>(
-        currentUser.role === 'ADMIN' ? 'ALL' : (currentUser.scope as Unit || 'SEDE')
-    );
+    // CORREÇÃO: scope=GLOBAL não é uma unidade válida — tratamos como 'ALL'
+    const resolveInitialUnit = (): Unit | 'ALL' => {
+        if (currentUser.role === 'ADMIN') return 'ALL';
+        const scope = currentUser.scope as string;
+        if (!scope || scope === 'GLOBAL') return 'ALL';
+        return scope as Unit;
+    };
+    const [filterUnit, setFilterUnit] = useState<Unit | 'ALL'>(resolveInitialUnit());
     const [filterSpecialty, setFilterSpecialty] = useState<Specialty | 'ALL'>('ALL');
     const [filterStatus, setFilterStatus] = useState<AppointmentStatus | 'ALL'>('ALL');
 
