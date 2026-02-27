@@ -21,6 +21,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
 
+    // Define se deve usar template ou texto simples
+    const USE_TEMPLATE = false; // Mudar para true quando o template 'confirmar_agendamento' for aprovado
+
+    const messageBody = USE_TEMPLATE ? {
+        messaging_product: "whatsapp",
+        to: telefone,
+        type: "template",
+        template: {
+            name: "confirmar_agendamento",
+            language: { code: "pt_BR" },
+            components: [
+                {
+                    type: "body",
+                    parameters: [
+                        { type: "text", text: nome },
+                        { type: "text", text: data },
+                        { type: "text", text: hora }
+                    ]
+                },
+                {
+                    type: "button",
+                    sub_type: "quick_reply",
+                    index: "0",
+                    parameters: [{ type: "payload", payload: appointmentId }]
+                },
+                {
+                    type: "button",
+                    sub_type: "quick_reply",
+                    index: "1",
+                    parameters: [{ type: "payload", payload: appointmentId }]
+                }
+            ]
+        }
+    } : {
+        messaging_product: "whatsapp",
+        to: telefone,
+        type: "text",
+        text: {
+            body: `Olá, confirmamos o agendamento de *${nome}*.\n\n📅 *Data:* ${data}\n⏰ *Horário:* ${hora}\n\nEste é um envio automático do Sistema Brotar.`
+        }
+    };
+
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -28,44 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                messaging_product: "whatsapp",
-                to: telefone,
-                type: "template",
-                template: {
-                    name: "confirmar_agendamento",
-                    language: {
-                        code: "pt_BR"
-                    },
-                    components: [
-                        {
-                            type: "body",
-                            parameters: [
-                                { type: "text", text: nome },
-                                { type: "text", text: data },
-                                { type: "text", text: hora }
-                            ]
-                        },
-                        // Enviando o ID do agendamento nos botões (PROMPT 4)
-                        {
-                            type: "button",
-                            sub_type: "quick_reply",
-                            index: "0",
-                            parameters: [
-                                { type: "payload", payload: appointmentId }
-                            ]
-                        },
-                        {
-                            type: "button",
-                            sub_type: "quick_reply",
-                            index: "1",
-                            parameters: [
-                                { type: "payload", payload: appointmentId }
-                            ]
-                        }
-                    ]
-                }
-            }),
+            body: JSON.stringify(messageBody),
         });
 
         const dataResponse = await response.json();

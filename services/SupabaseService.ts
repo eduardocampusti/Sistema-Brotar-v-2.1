@@ -361,29 +361,48 @@ export class SupabaseService {
 
     // --- Students ---
     static async getStudents(unit?: Unit): Promise<Student[]> {
-        let query = supabase
-            .from('students')
-            .select(`
-                *,
-                schools (id, name, district)
-            `);
+        try {
+            // Consulta simplificada para evitar erros de join complexos
+            const { data, error } = await supabase
+                .from('students')
+                .select('*, schools(*)');
 
-        if (unit) {
-            query = query.filter('schools.district', 'eq', unit);
-        }
+            if (error) {
+                console.error('[SupabaseService] Erro ao buscar alunos (com join):', error);
+                // Fallback imediato sem join
+                const { data: simpleData, error: simpleError } = await supabase.from('students').select('*');
+                if (simpleError) throw simpleError;
+                return (simpleData || []).map((s: any) => mapStudentFromDB(s, []));
+            }
 
-        const { data: students, error } = await query;
+            let finalStudents = data || [];
 
-        if (error || !students) {
-            console.error('Erro ao buscar alunos:', error);
+            if (unit) {
+                console.log(`[SupabaseService] Filtrando alunos para unidade: ${unit}`);
+                finalStudents = finalStudents.filter((s: any) => {
+                    const schoolData = Array.isArray(s.schools) ? s.schools[0] : s.schools;
+
+                    // Se não tiver dados de escola, exibe para todos (resiliência)
+                    if (!schoolData || !schoolData.district) return true;
+
+                    const district = schoolData.district.toUpperCase();
+                    const targetUnit = unit.toUpperCase();
+
+                    // Se a unidade for SEDE, exibe tudo que não for COCAL (SUMIDOURO, ZONA RURAL, etc, pertencem à Sede administrativa)
+                    if (targetUnit === 'SEDE') {
+                        return district !== 'COCAL';
+                    }
+
+                    // Se for COCAL, exibe apenas COCAL
+                    return district === targetUnit;
+                });
+            }
+
+            return finalStudents.map((s: any) => mapStudentFromDB(s, []));
+        } catch (err) {
+            console.error('[SupabaseService] Erro fatal em getStudents:', err);
             return [];
         }
-
-        const finalStudents = unit
-            ? students.filter((s: any) => (Array.isArray(s.schools) ? s.schools[0]?.district : s.schools?.district) === unit)
-            : students;
-
-        return finalStudents.map((s: any) => mapStudentFromDB(s, []));
     }
 
     static async getStudentSessions(studentId: string): Promise<Session[]> {
@@ -689,7 +708,8 @@ export class SupabaseService {
         let query = supabase.from('profiles').select('*');
 
         if (unit) {
-            query = query.eq('scope', unit);
+            // Inclui usuários do escopo específico E usuários GLOBAIS (essencial para especialistas)
+            query = query.or(`scope.eq.${unit},scope.eq.GLOBAL`);
         }
 
         const { data, error } = await query;
@@ -1182,24 +1202,60 @@ export class SupabaseService {
     static async getProfessionalsBySpecialty(specialty: Specialty): Promise<User[]> {
         const dbSpecialty = this.SPECIALTY_MAP[specialty] || specialty;
 
-        // O sistema deve buscar na tabela 'profiles', pois 'users' não existe ou é inacessível diretamente
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('specialty', dbSpecialty);
+        console.log('[SupabaseService] Buscando profissionais:', { specialty, dbSpecialty });
 
-        if (error) {
-            console.error('Erro ao buscar profissionais por especialidade:', error);
+        try {
+            // Busca simplificada: pega todos os especialistas e filtra no código para evitar erros de sintaxe .or()
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('role', 'SPECIALIST');
+
+            if (error) throw error;
+
+            const allProfessionals = data || [];
+
+            const filtered = allProfessionals.filter((p: any) => {
+                const pSpec = (p.specialty || '').toUpperCase();
+                const targetStandard = dbSpecialty.toString().toUpperCase();
+                const targetOriginal = specialty.toString().toUpperCase();
+                const pJob = (p.job_title || '').toUpperCase();
+                const pName = (p.full_name || '').toUpperCase();
+
+                const isMatch = pSpec === targetStandard ||
+                    pSpec === targetOriginal ||
+                    pJob.includes(targetStandard) ||
+                    pJob.includes(targetOriginal);
+
+                console.log(`[SupabaseService] Avaliando profissional ${p.full_name}:`, {
+                    specialty: pSpec,
+                    job: pJob,
+                    matches: isMatch
+                });
+
+                return isMatch;
+            });
+
+            console.log(`[SupabaseService] Total filtrado para ${specialty}:`, filtered.length);
+
+            console.log(`[SupabaseService] Encontrados ${filtered.length} profissionais.`);
+            return filtered.map((p: any) => this.mapProfileToUser(p));
+
+        } catch (error) {
+            console.error('[SupabaseService] Erro em getProfessionalsBySpecialty:', error);
             return [];
         }
+    }
 
-        return (data || []).map((p: any) => ({
+    // Método auxiliar para evitar duplicação de lógica de mapeamento
+    private static mapProfileToUser(p: any): User {
+        return {
             id: p.id,
             name: p.full_name,
             username: p.username || p.email,
             email: p.email,
             role: p.role,
-            specialty: p.specialty ? (this.REVERSE_SPECIALTY_MAP[p.specialty] || p.specialty) : undefined,
+            specialty: p.specialty ? (this.REVERSE_SPECIALTY_MAP[p.specialty] || this.REVERSE_SPECIALTY_MAP[p.specialty.toUpperCase()] || p.specialty) : undefined,
             isActive: p.is_active,
             scope: p.scope || 'GLOBAL',
             jobTitle: p.job_title,
@@ -1207,7 +1263,7 @@ export class SupabaseService {
             photoUrl: p.photo_url,
             address: p.address || {},
             password: ''
-        }));
+        };
     }
 
     static async getStudentsByUnit(unit: Unit): Promise<Student[]> {
