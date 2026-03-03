@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import { Student, User, School, SupportProfessional, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit } from '../types';
-import { createClient } from '@supabase/supabase-js'; // Import para conexão auxiliar
 
 // Mapeamento de campos snake_case do banco para camelCase do frontend
 const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
@@ -144,7 +144,24 @@ export class SupabaseService {
             .single();
 
         if (profileError || !profile) {
-            console.error('Perfil não encontrado:', profileError);
+            console.warn(`[SupabaseService] Perfil não encontrado no banco (ID: ${userId}). Motivo: ${profileError?.message || 'Dados vazios'}. Tentando recuperação via Metadados JWT...`);
+
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (session?.user && session.user.id === userId) {
+                console.log('[SupabaseService] Fallback de perfil bem-sucedido via JWT.');
+                return {
+                    id: session.user.id,
+                    name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuário',
+                    username: session.user.email?.split('@')[0] || 'user',
+                    role: (session.user.user_metadata?.role as UserRole) || 'ASSISTANT',
+                    scope: session.user.user_metadata?.scope as any || 'GLOBAL',
+                    isActive: true,
+                    mustChangePassword: false,
+                    email: session.user.email || undefined
+                };
+            }
+            console.error('[SupabaseService] Falha crítica: Perfil ausente no banco e sem sessão JWT ativa.');
             return null;
         }
 
@@ -249,9 +266,18 @@ export class SupabaseService {
     static async createAccountAsAdmin(newUser: User, passwordRaw: string): Promise<{ success: boolean, error?: string, warning?: string }> {
         try {
             // 1. Cria um cliente temporário que NÃO persiste sessão (não afeta o Admin logado)
+            // Extrai as chaves do cliente global para evitar usar import.meta.env que dá erro de lint
+            const supabaseUrl = (supabase as any).supabaseUrl;
+            const supabaseAnonKey = (supabase as any).supabaseKey;
+
+            if (!supabaseUrl || !supabaseAnonKey) {
+                console.error('[SupabaseService] URL ou Key ausentes no cliente global!');
+                return { success: false, error: 'Erro de configuração do Supabase (URL/Key ausentes).' };
+            }
+
             const tempClient = createClient(
-                (import.meta as any).env.VITE_SUPABASE_URL,
-                (import.meta as any).env.VITE_SUPABASE_ANON_KEY,
+                supabaseUrl,
+                supabaseAnonKey,
                 {
                     auth: {
                         autoRefreshToken: false,
@@ -359,48 +385,82 @@ export class SupabaseService {
         }
     }
 
-    // --- Students ---
     static async getStudents(unit?: Unit): Promise<Student[]> {
+        console.log('[SupabaseService] Iniciando busca de alunos...', { unit });
         try {
-            // Consulta simplificada para evitar erros de join complexos
+            // Tentativa com JOIN para pegar dados da escola
             const { data, error } = await supabase
                 .from('students')
-                .select('*, schools(*)');
+                .select(`
+                    *,
+                    schools ( 
+                        id, 
+                        name, 
+                        district 
+                    )
+                `);
+
+            let dataToProcess = data;
 
             if (error) {
-                console.error('[SupabaseService] Erro ao buscar alunos (com join):', error);
-                // Fallback imediato sem join
+                console.warn('[SupabaseService] Erro no select com join. Detalhes:', {
+                    message: error.message,
+                    code: error.code,
+                    hint: error.hint
+                });
+                console.log('[SupabaseService] Tentando fallback simples para students...');
                 const { data: simpleData, error: simpleError } = await supabase.from('students').select('*');
-                if (simpleError) throw simpleError;
-                return (simpleData || []).map((s: any) => mapStudentFromDB(s, []));
+                if (simpleError) {
+                    console.error('[SupabaseService] Erro fatal no fallback de alunos:', simpleError);
+                    throw simpleError;
+                }
+                dataToProcess = simpleData;
             }
 
-            let finalStudents = data || [];
+            if (!dataToProcess || dataToProcess.length === 0) {
+                console.warn('[SupabaseService] Aviso: A consulta retornou um array vazio.', {
+                    hasData: !!dataToProcess,
+                    length: dataToProcess?.length
+                });
+                return [];
+            }
+
+            // Filtro de Unidade (Scope)
+            let finalStudents = dataToProcess;
 
             if (unit) {
-                console.log(`[SupabaseService] Filtrando alunos para unidade: ${unit}`);
-                finalStudents = finalStudents.filter((s: any) => {
+                console.log(`[SupabaseService] Aplicando filtro de unidade: ${unit}`);
+                finalStudents = dataToProcess.filter((s: any) => {
                     const schoolData = Array.isArray(s.schools) ? s.schools[0] : s.schools;
+                    if (!schoolData) {
+                        console.warn(`[SupabaseService] Aluno ${s.full_name} sem escola vinculada. Mantendo na lista por segurança.`);
+                        return true;
+                    }
 
-                    // Se não tiver dados de escola, exibe para todos (resiliência)
-                    if (!schoolData || !schoolData.district) return true;
-
-                    const district = schoolData.district.toUpperCase();
+                    const district = (schoolData.district || '').toUpperCase();
                     const targetUnit = unit.toUpperCase();
 
-                    // Se a unidade for SEDE, exibe tudo que não for COCAL (SUMIDOURO, ZONA RURAL, etc, pertencem à Sede administrativa)
                     if (targetUnit === 'SEDE') {
                         return district !== 'COCAL';
                     }
-
-                    // Se for COCAL, exibe apenas COCAL
                     return district === targetUnit;
                 });
             }
 
-            return finalStudents.map((s: any) => mapStudentFromDB(s, []));
+            console.log(`[SupabaseService] Mapeando ${finalStudents.length} alunos...`);
+            const mapped = finalStudents.map((s: any) => {
+                try {
+                    return mapStudentFromDB(s, []);
+                } catch (err) {
+                    console.error(`[SupabaseService] Erro ao mapear aluno ID ${s.id}:`, err);
+                    return null;
+                }
+            }).filter(s => s !== null) as Student[];
+
+            console.log(`[SupabaseService] Busca de alunos concluída: ${mapped.length} registros.`);
+            return mapped;
         } catch (err) {
-            console.error('[SupabaseService] Erro fatal em getStudents:', err);
+            console.error('[SupabaseService] Erro inesperado em getStudents:', err);
             return [];
         }
     }
@@ -646,35 +706,43 @@ export class SupabaseService {
     // Mantendo compatibilidade básica
     // --- Schools ---
     static async getSchools(): Promise<School[]> {
-        const { data, error } = await supabase.from('schools').select('*');
-        if (error) {
-            console.error('Erro ao buscar escolas:', error);
+        console.log('[SupabaseService] Iniciando busca de escolas...');
+        try {
+            const { data, error } = await supabase.from('schools').select('*');
+            if (error) {
+                console.error('[SupabaseService] Erro ao buscar escolas:', error);
+                throw error;
+            }
+
+            console.log(`[SupabaseService] Escolas encontradas: ${data?.length || 0}`);
+            return (data || []).map((s: any) => ({
+                id: s.id,
+                name: s.name,
+                inep: s.inep,
+                director: s.director || '',
+                phone: s.phone || '',
+                district: s.district,
+                isActive: s.is_active,
+                // Mapeia endereço do JSONB ou colunas, dependendo do schema. Assumindo JSONB address ou colunas planas.
+                // Para simplificar, vou assumir que 'address' é um jsonb. Se não for, precisaria ajustar.
+                address: s.address || { street: '', number: '', district: s.district, city: 'Brotas', state: 'BA', zipCode: '' },
+                hasInternet: s.has_internet,
+                internetType: s.internet_type,
+                internetProviderContact: s.internet_provider_contact,
+                internetProviders: (() => {
+                    try {
+                        // Tenta parsear o JSON armazenado na coluna de contato
+                        const parsed = JSON.parse(s.internet_provider_contact || '{}');
+                        return typeof parsed === 'object' ? parsed : {};
+                    } catch {
+                        return {};
+                    }
+                })()
+            }));
+        } catch (err) {
+            console.error('[SupabaseService] Erro fatal em getSchools:', err);
             return [];
         }
-        return (data || []).map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            inep: s.inep,
-            director: s.director || '',
-            phone: s.phone || '',
-            district: s.district,
-            isActive: s.is_active,
-            // Mapeia endereço do JSONB ou colunas, dependendo do schema. Assumindo JSONB address ou colunas planas.
-            // Para simplificar, vou assumir que 'address' é um jsonb. Se não for, precisaria ajustar.
-            address: s.address || { street: '', number: '', district: s.district, city: 'Brotas', state: 'BA', zipCode: '' },
-            hasInternet: s.has_internet,
-            internetType: s.internet_type,
-            internetProviderContact: s.internet_provider_contact,
-            internetProviders: (() => {
-                try {
-                    // Tenta parsear o JSON armazenado na coluna de contato
-                    const parsed = JSON.parse(s.internet_provider_contact || '{}');
-                    return typeof parsed === 'object' ? parsed : {};
-                } catch {
-                    return {};
-                }
-            })()
-        }));
     }
 
     static async saveSchool(school: School): Promise<void> {
@@ -1098,10 +1166,14 @@ export class SupabaseService {
     }
 
     // --- Scheduling Center (Agendamentos) ---
-    static async getAppointments(filters: { date?: string, unit?: Unit, specialty?: Specialty, status?: AppointmentStatus, studentId?: string, professionalId?: string }): Promise<Appointment[]> {
+    static async getAppointments(filters: { date?: string, fromDate?: string, unit?: Unit, specialty?: Specialty, status?: AppointmentStatus, studentId?: string, professionalId?: string }): Promise<Appointment[]> {
         let query = supabase.from('appointments').select('*');
 
-        if (filters.date) query = query.eq('date', filters.date);
+        if (filters.date) {
+            query = query.eq('date', filters.date);
+        } else if (filters.fromDate) {
+            query = query.gte('date', filters.fromDate);
+        }
         if (filters.unit) query = query.eq('unit', filters.unit);
         if (filters.studentId) query = query.eq('student_id', filters.studentId);
         if (filters.professionalId) query = query.eq('professional_id', filters.professionalId);
@@ -1130,12 +1202,14 @@ export class SupabaseService {
             startTime: a.start_time,
             endTime: a.end_time,
             status: a.status,
+            statusConfirmacao: a.status_confirmacao,
+            telefoneResponsavel: a.telefone_responsavel,
             notes: a.notes,
             createdAt: a.created_at
         }));
     }
 
-    static async saveAppointment(appointment: Partial<Appointment>): Promise<void> {
+    static async saveAppointment(appointment: Partial<Appointment>): Promise<string> {
         const payload: any = {
             student_id: appointment.studentId,
             student_name: appointment.studentName,
@@ -1147,16 +1221,28 @@ export class SupabaseService {
             start_time: appointment.startTime,
             end_time: appointment.endTime,
             status: appointment.status || 'AGENDADO',
+            telefone_responsavel: appointment.telefoneResponsavel,
             notes: appointment.notes
         };
 
         if (appointment.id) payload.id = appointment.id;
 
-        const { error } = await supabase.from('appointments').upsert(payload);
+        const { data, error } = await supabase
+            .from('appointments')
+            .upsert(payload)
+            .select('id')
+            .single();
+
         if (error) {
             console.error('Erro detalhado ao salvar agendamento:', error);
             throw error;
         }
+
+        if (!data) {
+            throw new Error("Erro ao salvar agendamento: Nenhum ID retornado.");
+        }
+
+        const savedId = data.id;
 
         // --- Alerta Automático (Sino) ---
         // Se for um novo agendamento (não tem ID no momento da criação ou é um upsert que queremos notificar)
@@ -1173,6 +1259,8 @@ export class SupabaseService {
                 console.warn('Falha silenciosa ao enviar alerta de agendamento:', alertError);
             }
         }
+
+        return savedId;
     }
 
     static async deleteAppointment(id: string): Promise<void> {
@@ -1201,8 +1289,7 @@ export class SupabaseService {
 
     static async getProfessionalsBySpecialty(specialty: Specialty): Promise<User[]> {
         const dbSpecialty = this.SPECIALTY_MAP[specialty] || specialty;
-
-        console.log('[SupabaseService] Buscando profissionais:', { specialty, dbSpecialty });
+        console.log('[SupabaseService] Buscando profissionais para especialidade:', { specialty, dbSpecialty });
 
         try {
             // Busca simplificada: pega todos os especialistas e filtra no código para evitar erros de sintaxe .or()
@@ -1211,38 +1298,44 @@ export class SupabaseService {
                 .select('*')
                 .eq('role', 'SPECIALIST');
 
-            if (error) throw error;
+            if (error) {
+                console.error('[SupabaseService] Erro ao buscar perfis de especialistas:', error);
+                throw error;
+            }
 
             const allProfessionals = data || [];
+            console.log(`[SupabaseService] Total de especialistas (role=SPECIALIST) encontrados: ${allProfessionals.length}`);
 
-            const filtered = allProfessionals.filter((p: any) => {
+            let filtered = allProfessionals.filter((p: any) => {
                 const pSpec = (p.specialty || '').toUpperCase();
                 const targetStandard = dbSpecialty.toString().toUpperCase();
                 const targetOriginal = specialty.toString().toUpperCase();
                 const pJob = (p.job_title || '').toUpperCase();
-                const pName = (p.full_name || '').toUpperCase();
 
                 const isMatch = pSpec === targetStandard ||
                     pSpec === targetOriginal ||
                     pJob.includes(targetStandard) ||
                     pJob.includes(targetOriginal);
 
-                console.log(`[SupabaseService] Avaliando profissional ${p.full_name}:`, {
-                    specialty: pSpec,
-                    job: pJob,
-                    matches: isMatch
-                });
+                if (isMatch) {
+                    console.log(`[SupabaseService] Match confirmado para: ${p.full_name} (${pSpec} / ${pJob})`);
+                }
 
                 return isMatch;
             });
 
-            console.log(`[SupabaseService] Total filtrado para ${specialty}:`, filtered.length);
+            // Se o filtro específico falhou mas existem especialistas, retorna avisando ou retorna todos como fallback?
+            // Melhor retornar todos como fallback se o filtro por especialidade estiver vindo vazio mas houver especialistas.
+            if (filtered.length === 0 && allProfessionals.length > 0) {
+                console.warn(`[SupabaseService] Nenhum especialista encontrado para "${specialty}". Retornando todos os especialistas como fallback.`);
+                filtered = allProfessionals;
+            }
 
-            console.log(`[SupabaseService] Encontrados ${filtered.length} profissionais.`);
+            console.log(`[App-Auth] Filtro concluído. Profissionais retornados: ${filtered.length}`);
             return filtered.map((p: any) => this.mapProfileToUser(p));
 
         } catch (error) {
-            console.error('[SupabaseService] Erro em getProfessionalsBySpecialty:', error);
+            console.error('[SupabaseService] Erro fatal em getProfessionalsBySpecialty:', error);
             return [];
         }
     }
@@ -1444,5 +1537,43 @@ export class SupabaseService {
 
         // Se não encontrar, retorna o primeiro (Teal)
         return found || PRESET_THEMES_LOCAL[0];
+    }
+    // --- WhatsApp Notifications ---
+    /**
+     * Envia notificação de WhatsApp via Supabase Edge Function
+     */
+    static async sendWhatsAppNotification(details: {
+        student: string,
+        professional: string,
+        date: string,
+        time: string,
+        phone: string,
+        appointmentId: string
+    }) {
+        console.log('[SupabaseService] Enviando WhatsApp...', details);
+        try {
+            const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+                body: {
+                    telefone: details.phone.replace(/\D/g, ''),
+                    nome: details.student,
+                    data: details.date,
+                    hora: details.time,
+                    professional: details.professional,
+                    appointmentId: details.appointmentId
+                }
+            });
+
+            if (error) {
+                console.error('[SupabaseService] Erro retornado pela função:', error);
+                throw error;
+            }
+
+            return data;
+        } catch (err: any) {
+            console.error('[SupabaseService] Erro ao invocar função de WhatsApp:', err);
+            // Se for um erro de rede/CORS, o err.message pode ser genérico.
+            // Tentamos extrair o máximo de informação possível.
+            throw err;
+        }
     }
 }

@@ -12,6 +12,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing required fields: telefone, nome, data, hora, appointmentId' });
     }
 
+    let formattedPhone = telefone.replace(/\D/g, '');
+    if (formattedPhone.length === 10 || formattedPhone.length === 11) {
+        // Assume Brazil country code
+        formattedPhone = `55${formattedPhone}`;
+    }
+
     const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
     const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
@@ -26,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const messageBody = USE_TEMPLATE ? {
         messaging_product: "whatsapp",
-        to: telefone,
+        to: formattedPhone,
         type: "template",
         template: {
             name: "confirmar_agendamento",
@@ -56,10 +62,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     } : {
         messaging_product: "whatsapp",
-        to: telefone,
-        type: "text",
-        text: {
-            body: `Olá, confirmamos o agendamento de *${nome}*.\n\n📅 *Data:* ${data}\n⏰ *Horário:* ${hora}\n\nEste é um envio automático do Sistema Brotar.`
+        to: formattedPhone,
+        type: "interactive",
+        interactive: {
+            type: "button",
+            body: {
+                text: `Olá ${nome}! Seu agendamento foi confirmado:\n\n📅 *Data:* ${data}\n⏰ *Horário:* ${hora}\n\nPor favor, confirme seu comparecimento.`
+            },
+            footer: {
+                text: "Sistema Brotar"
+            },
+            action: {
+                buttons: [
+                    {
+                        type: "reply",
+                        reply: {
+                            id: `CONFIRM_${appointmentId}`,
+                            title: "Confirmar"
+                        }
+                    },
+                    {
+                        type: "reply",
+                        reply: {
+                            id: `CANCEL_${appointmentId}`,
+                            title: "Cancelar"
+                        }
+                    }
+                ]
+            }
         }
     };
 

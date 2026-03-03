@@ -7,7 +7,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
+    const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'BROTAR_VERIFY_2026';
 
     // --- VERIFICAÇÃO GET (Webhook Meta) ---
     if (req.method === 'GET') {
@@ -40,33 +40,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (message) {
                     console.log('Mensagem recebida:', message);
 
-                    // Lógica para mensagens de BOTÃO (PROMPT 4 - Usando ID de agendamento)
-                    if (message.type === 'button') {
-                        const from = message.from;
-                        const buttonText = message.button?.text;
-                        const appointmentId = message.button?.payload; // ID capturado do payload enviado no /api/whatsapp/send.ts
+                    let newStatus = '';
+                    let appointmentId = '';
 
-                        let newStatus = '';
+                    // Lógica para BOTÕES INTERATIVOS (button_reply)
+                    if (message.type === 'interactive' && message.interactive?.button_reply) {
+                        const replyId = message.interactive.button_reply.id;
+                        console.log('Botão clicado:', replyId);
+
+                        if (replyId.startsWith('CONFIRM_')) {
+                            newStatus = 'CONFIRMADO';
+                            appointmentId = replyId.replace('CONFIRM_', '');
+                        } else if (replyId.startsWith('CANCEL_')) {
+                            newStatus = 'CANCELADO';
+                            appointmentId = replyId.replace('CANCEL_', '');
+                        }
+                    }
+                    // Lógica para mensagens de BOTÃO (quick_reply de templates)
+                    else if (message.type === 'button') {
+                        const buttonText = message.button?.text;
+                        appointmentId = message.button?.payload; // ID capturado do payload enviado no /api/whatsapp/send.ts
+
                         if (buttonText === 'Confirmar') newStatus = 'CONFIRMADO';
                         else if (buttonText === 'Cancelar') newStatus = 'CANCELADO';
+                    }
+                    // Lógica para TEXTO
+                    else if (message.type === 'text') {
+                        const from = message.from;
+                        const textBody = (message.text?.body || "").toUpperCase();
+                        if (textBody.includes('CONFIRMAR')) newStatus = 'CONFIRMADO';
+                        else if (textBody.includes('CANCELAR')) newStatus = 'CANCELADO';
+                    }
 
-                        if (newStatus && appointmentId) {
+                    if (newStatus) {
+                        if (appointmentId) {
                             console.log(`Atualizando agendamento ID ${appointmentId}: ${newStatus}`);
 
-                            // Atualiza o agendamento específico via ID (Evita conflitos de múltiplos agendamentos para o mesmo telefone)
+                            // Atualiza o agendamento específico via ID
                             const { error } = await supabase
                                 .from('appointments')
                                 .update({ status_confirmacao: newStatus })
-                                .eq('id', appointmentId)
-                                .eq('status_confirmacao', 'PENDENTE');
+                                .eq('id', appointmentId);
 
                             if (error) {
                                 console.error('Supabase Update Error:', error);
                             } else {
                                 console.log('Status atualizado com sucesso via ID.');
                             }
-                        } else if (newStatus && !appointmentId) {
-                            // Fallback para o telefone se o payload não estiver presente (Retrocompatibilidade)
+                        } else {
+                            // Fallback para o telefone se o payload não estiver presente
+                            const from = message.from;
                             console.log(`Fallback: Atualizando por telefone ${from}: ${newStatus}`);
                             await supabase
                                 .from('appointments')

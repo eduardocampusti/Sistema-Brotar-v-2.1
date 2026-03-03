@@ -57,7 +57,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }, [isOpen]);
 
     const filteredOptions = options.filter(option =>
-        option.label.toLowerCase().includes(searchTerm.toLowerCase())
+        (option.label || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const selectedOption = options.find(opt => opt.value === value);

@@ -13,10 +13,11 @@ interface RegistrationFormProps {
 }
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, onCancel, initialData, currentUser }) => {
-    // Se for secretária, remove "Clínico". Se for Admin/Especialista, mantém tudo.
-    // userRole pode ser 'ADMIN', 'SPECIALIST', 'EDUCATION_SECRETARY', 'ASSISTANT'
-    // ASSISTANT = Recepção (Secretária Sede/Cocal) -> BLOQUEAR CLÍNICO
-    const isClinicalBlocked = currentUser?.role === 'ASSISTANT' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.role === 'SECRETARIA_COCAL';
+    // Aba Clínica: apenas usuários que NÃO são recepcionistas veem esse bloqueio.
+    // Recepcionistas (SEDE/COCAL/Educação) PODEM preencher diagnóstico/CID no cadastro.
+    // Especialistas e Admin também têm acesso total.
+    // Somente SPECIALIST é bloqueado de editar dados básicos de cadastro, mas isso é controlado em outro lugar.
+    const isClinicalBlocked = false; // Todos os perfis com acesso ao formulário podem preencher o clínico básico.
 
     const [activeTab, setActiveTab] = useState<'personal' | 'clinical' | 'social' | 'school' | 'documents'>('personal');
     const [isSubmitting, setIsSubmitting] = useState(false);

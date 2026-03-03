@@ -24,11 +24,17 @@ interface AppointmentFormProps {
     onSuccess: () => void;
 }
 
-export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, students, initialData, onCancel, onSuccess }) => {
+export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, students: studentsProp, initialData, onCancel, onSuccess }) => {
     const { success, error: showError } = useToast();
     const [loading, setLoading] = useState(false);
     const [availableProfessionals, setAvailableProfessionals] = useState<User[]>([]);
     const [schools, setSchools] = useState<School[]>([]);
+    // Estado local de alunos — usa o prop se presente, senão busca diretamente
+    const [localStudents, setLocalStudents] = useState<Student[]>(studentsProp || []);
+    // Estados de carregamento refinados
+    const [loadingProfessionals, setLoadingProfessionals] = useState(false);
+    const [loadingSchools, setLoadingSchools] = useState(false);
+    const [loadingStudents, setLoadingStudents] = useState(false);
 
     // Estados de Filtro de Aluno
     const [searchName, setSearchName] = useState(initialData?.studentName || '');
@@ -54,33 +60,67 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
         studentName: initialData?.studentName
     });
 
-
-    const [createdAppointment, setCreatedAppointment] = useState<{ student: string, professional: string, date: string, time: string, phone: string, guardian: string } | null>(null);
-
     // Carregar profissionais quando a especialidade muda
     useEffect(() => {
         if (newApt.specialty) {
+            console.log(`[AppointmentForm] Especialidade selecionada: ${newApt.specialty}. Buscando profissionais...`);
+            setLoadingProfessionals(true);
             SupabaseService.getProfessionalsBySpecialty(newApt.specialty)
-                .then(setAvailableProfessionals)
+                .then(profs => {
+                    console.log(`[AppointmentForm] Recebidos ${profs.length} profissionais.`);
+                    setAvailableProfessionals(profs);
+                })
                 .catch(err => {
                     console.error('[AppointmentForm] Erro ao buscar profissionais:', err);
                     showError("Erro ao carregar profissionais.");
-                });
+                })
+                .finally(() => setLoadingProfessionals(false));
         } else {
             setAvailableProfessionals([]);
         }
     }, [newApt.specialty]);
 
+    // Sincroniza quando prop muda (caso App.tsx termine de carregar)
+    useEffect(() => {
+        if (studentsProp && studentsProp.length > 0) {
+            console.log(`[AppointmentForm] Sincronizando localStudents com studentsProp (${studentsProp.length} registros).`);
+            setLocalStudents(studentsProp);
+        }
+    }, [studentsProp]);
+
+    // Fallback: busca diretamente se prop estiver vazio
+    useEffect(() => {
+        if (!studentsProp || studentsProp.length === 0) {
+            console.log('[AppointmentForm] Prop students vazio — buscando diretamente do banco...');
+            setLoadingStudents(true);
+            SupabaseService.getStudents()
+                .then(data => {
+                    console.log(`[AppointmentForm] Busca direta de alunos retornou ${data.length} registros.`);
+                    if (data.length > 0) setLocalStudents(data);
+                })
+                .finally(() => setLoadingStudents(false));
+        }
+    }, [studentsProp]);
+
+    // Accessor estável para uso nos filtros
+    const students = localStudents;
+
     // Carregar escolas no mount
     useEffect(() => {
+        console.log('[AppointmentForm] Carregando escolas...');
+        setLoadingSchools(true);
         SupabaseService.getSchools()
-            .then(setSchools)
+            .then(data => {
+                console.log(`[AppointmentForm] ${data.length} escolas carregadas.`);
+                setSchools(data);
+            })
             .catch(err => {
                 console.error('[AppointmentForm] Erro ao carregar escolas:', err);
-            });
+            })
+            .finally(() => setLoadingSchools(false));
     }, []);
 
-    // Função auxiliar para normalizar texto (remover acentos)
+
     const normalizeText = (text: string) => {
         if (!text) return "";
         return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -129,18 +169,25 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
             });
 
             if (hasConflict) {
-                showError(`Conflito: Já existe agendamento dia ${hasConflict.date.split('-').reverse().join('/')} às ${hasConflict.startTime} (${hasConflict.professionalName}).`);
+                const dateFormatted = hasConflict.date.split('-').reverse().join('/');
+                showError(`Atenção: O profissional ${hasConflict.professionalName} já possui um agendamento para o dia ${dateFormatted} às ${hasConflict.startTime}. Por favor, verifique a disponibilidade.`);
                 setLoading(false);
                 return;
             }
 
-            // Mapeia para salvar
-            const aptToSave = { ...newApt };
+            // 1. Mapear dados do aluno e salvar agendamento
+            const studentData = students.find(s => s.id === newApt.studentId);
+            const guardianPhone = studentData?.guardians?.[0]?.phone || '';
+
+            const aptToSave = {
+                ...newApt,
+                telefoneResponsavel: guardianPhone
+            };
             if (initialData?.id) aptToSave.id = initialData.id;
 
-            await SupabaseService.saveAppointment(aptToSave);
+            const savedId = await SupabaseService.saveAppointment(aptToSave);
 
-            // Reagendamento: Atualiza anterior
+            // 2. Reagendamento: Atualiza registro anterior se necessário
             if (initialData && initialData.id && newApt.date) {
                 try {
                     const dateFormatted = newApt.date.split('-').reverse().join('/');
@@ -153,21 +200,25 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                 }
             }
 
-            // Preparar para envio WhatsApp
-            const studentData = students.find(s => s.id === newApt.studentId);
-            const guardianName = studentData?.guardians?.[0]?.name || 'Responsável';
-            const guardianPhone = studentData?.guardians?.[0]?.phone || '';
+            // 3. Notificação WhatsApp
+            if (guardianPhone) {
+                success("Agendamento salvo! Enviando WhatsApp...");
+                await sendWhatsAppNotification({
+                    student: newApt.studentName || 'Aluno',
+                    professional: newApt.professionalName || 'Profissional',
+                    date: newApt.date!.split('-').reverse().join('/'),
+                    time: newApt.startTime!,
+                    phone: guardianPhone,
+                    appointmentId: savedId
+                });
+            } else {
+                // Avisa que o agendamento foi salvo, mas o WhatsApp não pode ser enviado
+                showError(
+                    `Agendamento salvo, mas o responsável de "${newApt.studentName}" não possui telefone cadastrado. Cadastre o telefone do responsável para habilitar envio de WhatsApp.`,
+                );
+            }
 
-            setCreatedAppointment({
-                student: newApt.studentName || 'Aluno',
-                professional: newApt.professionalName || 'Profissional',
-                date: newApt.date.split('-').reverse().join('/'),
-                time: newApt.startTime!,
-                phone: guardianPhone,
-                guardian: guardianName
-            });
-
-            success("Agendamento realizado com sucesso!");
+            onSuccess();
         } catch (err: any) {
             console.error("Erro ao salvar agendamento:", err);
             showError(`Erro ao salvar: ${err.message || 'Erro desconhecido'}`);
@@ -176,50 +227,20 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
         }
     };
 
-    const handleWhatsAppSend = async () => {
-        if (!createdAppointment) return;
-
-        setLoading(true);
+    const sendWhatsAppNotification = async (details: { student: string, professional: string, date: string, time: string, phone: string, appointmentId: string }) => {
         try {
-            const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://indshiztdvjgvgnzigqd.supabase.co';
-            const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'apikey': SUPABASE_ANON_KEY,
-                },
-                body: JSON.stringify({
-                    telefone: createdAppointment.phone.replace(/\D/g, ''),
-                    nome: createdAppointment.student,
-                    data: createdAppointment.date,
-                    hora: createdAppointment.time,
-                    professional: createdAppointment.professional
-                }),
-            });
-
-            const resultText = await response.text();
-            let result: any = {};
-            try {
-                result = resultText ? JSON.parse(resultText) : {};
-            } catch {
-                // Resposta não-JSON
-            }
-
-            if (!response.ok) {
-                throw new Error(result.error || `Erro HTTP ${response.status}`);
-            }
-
-            success("Confirmação de WhatsApp enviada!");
-            onSuccess();
+            await SupabaseService.sendWhatsAppNotification(details);
+            success("Confirmação de WhatsApp enviada automaticamente!");
         } catch (err: any) {
             console.error("Erro no envio de WhatsApp:", err);
-            showError(`Erro no envio: ${err.message}`);
-        } finally {
-            setLoading(false);
+            let userMessage = err.message || "Erro ao conectar com serviço de WhatsApp";
 
+            // Profissionaliza mensagens técnicas da Edge Function
+            if (userMessage.includes('WhatsApp credentials not configured') || userMessage.includes('environment variables are not configured') || userMessage.includes('Contact admin')) {
+                userMessage = "Envio falhou: As credenciais do WhatsApp (Token/ID) não estão configuradas no servidor Supabase. O Agendamento foi salvo.";
+            }
+
+            showError(`${userMessage}`);
         }
     };
 
@@ -286,7 +307,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                     options={Object.values(Specialty).map(s => ({ value: s, label: s }))}
                                     value={newApt.specialty || ''}
                                     onChange={(val) => setNewApt({ ...newApt, specialty: val as Specialty, professionalId: undefined, professionalName: undefined })}
-                                    placeholder="Selecione a especialidade..."
+                                    placeholder={loadingProfessionals ? "Carregando profissionais..." : "Selecione a especialidade..."}
                                 />
                             </div>
 
@@ -300,7 +321,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                             const prof = availableProfessionals.find(p => p.id === val);
                                             setNewApt({ ...newApt, professionalId: val, professionalName: prof?.name });
                                         }}
-                                        placeholder="Selecione o profissional..."
+                                        placeholder={loadingProfessionals ? "Carregando especialistas..." : "Selecione o profissional..."}
                                     />
                                 </div>
                             )}
@@ -324,7 +345,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                         ]}
                                         value={selectedSchoolId}
                                         onChange={setSelectedSchoolId}
-                                        placeholder="Buscar escola..."
+                                        placeholder={loadingSchools ? "Carregando escolas..." : "Buscar escola..."}
                                     />
                                 </div>
 
@@ -352,7 +373,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                                 const stu = students.find(s => s.id === val);
                                                 setNewApt({ ...newApt, studentId: val, studentName: stu?.fullName });
                                             }}
-                                            placeholder={filteredStudents.length === 0 ? 'Nenhum aluno encontrado' : 'Selecione o aluno...'}
+                                            placeholder={loadingStudents ? "Carregando alunos..." : (filteredStudents.length === 0 ? 'Nenhum aluno encontrado' : 'Selecione o aluno...')}
                                         />
                                     </div>
                                 </div>
@@ -472,29 +493,6 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                 </div>
             </div>
 
-            {/* Modal WhatsApp */}
-            {createdAppointment && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center space-y-6">
-                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <MessageCircle size={40} className="text-green-600" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-slate-800">Agendamento Realizado!</h2>
-                        <p className="text-slate-600">Enviar confirmação para <strong>{createdAppointment.guardian}</strong>?</p>
-                        <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-left text-sm text-green-800 font-mono">
-                            <p>Olá {createdAppointment.guardian}, confirmamos o agendamento de {createdAppointment.student}.</p>
-                            <p className="mt-2 text-xs">📅 Data: {createdAppointment.date} | ⏰ Hora: {createdAppointment.time}</p>
-                            <p className="font-bold mt-2">Responda CONFIRMAR ou CANCELAR.</p>
-                        </div>
-                        <div className="flex gap-3">
-                            <button onClick={onSuccess} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">Pular</button>
-                            <button onClick={handleWhatsAppSend} disabled={loading} className="flex-1 py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
-                                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <><MessageCircle size={18} /> Enviar</>}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

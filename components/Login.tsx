@@ -348,10 +348,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
 
                             {/* Quick Login - Minimal */}
                             <div className="pt-10">
-                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-4 text-center">Admin Demo</p>
+                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-4 text-center">Acesso de Teste (Ambiente Local)</p>
                                 <div className="flex justify-center gap-2 flex-wrap opacity-50 hover:opacity-100 transition-opacity">
-                                    <button onClick={() => { setUsername('admin@brotar.com'); setPassword('admin123'); }} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-slate-500 text-xs rounded-full">Preencher Admin</button>
-                                    <button onClick={() => { setUsername('sede@edu.com'); setPassword('123456'); }} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-slate-500 text-xs rounded-full">Preencher Sede</button>
+                                    <button onClick={() => { setUsername('edu@brotar.com'); setPassword('123456'); }} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-slate-500 text-xs rounded-full">Login Especialista (Edu)</button>
+                                    <button onClick={() => { setUsername('testuser@brotar.com'); setPassword('123456'); }} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-slate-500 text-xs rounded-full">Login Assistente (Teste)</button>
+                                    <button onClick={() => { setUsername('eduardocampus@msn.com'); setPassword('123456'); }} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-slate-500 text-xs rounded-full">Login Assistente (Eduardo)</button>
+                                    <button onClick={() => { setUsername('eduardocampus@msn.com'); setPassword('123456'); }} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-slate-500 text-xs rounded-full">Login Assistente (Eduardo)</button>
                                 </div>
                             </div>
 

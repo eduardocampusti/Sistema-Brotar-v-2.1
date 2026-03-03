@@ -13,13 +13,14 @@ const COLORS = ['#0ea5e9', '#6366f1', '#10b981', '#f59e0b'];
 
 export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser }) => {
   const stats = useMemo(() => {
-    const total = students.length;
-    const active = students.filter(p => p.status === 'Active').length;
+    console.log('[Dashboard] Students received:', students?.length || 0);
+    const total = students?.length || 0;
+    const active = (students || []).filter(p => p.status === 'Active').length;
 
-    // Simulate distribution for demo purposes based on random logic or real data
     const diagnosisCounts: Record<string, number> = {};
-    students.forEach(p => {
-      const key = p.clinical.diagnosis.split(' ')[0] || 'Outros';
+    (students || []).forEach(p => {
+      const diagnosisStr = p.clinical?.diagnosis || 'Outros';
+      const key = diagnosisStr.split(' ')[0] || 'Outros';
       diagnosisCounts[key] = (diagnosisCounts[key] || 0) + 1;
     });
 
@@ -27,7 +28,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser }) =
       name, value: diagnosisCounts[name]
     }));
 
-    // Mock demand for professionals
     const demandData = [
       { name: Specialty.PSYCHOLOGY, demand: Math.floor(total * 0.8) },
       { name: Specialty.PSYCHOPEDAGOGY, demand: Math.floor(total * 0.6) },
@@ -119,8 +119,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser }) =
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={stats.demandData}>
-                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis hide />
+                <XAxis
+                  dataKey="name"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={0}
+                />
+                <YAxis hide domain={[0, 'auto']} />
                 <Tooltip cursor={{ fill: '#f1f5f9' }} />
                 <Bar dataKey="demand" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
               </BarChart>

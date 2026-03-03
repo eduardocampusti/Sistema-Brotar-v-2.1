@@ -173,6 +173,8 @@ export interface Appointment {
   startTime: string; // HH:mm
   endTime: string; // HH:mm
   status: AppointmentStatus;
+  statusConfirmacao?: string;
+  telefoneResponsavel?: string;
   notes?: string;
   createdAt: string;
 }

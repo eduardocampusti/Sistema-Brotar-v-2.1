@@ -1,0 +1,222 @@
+[
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_14",
+        "event_message":  "POST | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  924,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "ae6033af-7848-4483-a86c-f7ae4471c573",
+        "method":  "POST",
+        "status_code":  200,
+        "timestamp":  1772537832288000,
+        "version":  "14"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_14",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1186,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "5fcabecf-d5a9-4b0f-a96d-84b9d1c91ded",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772537831303000,
+        "version":  "14"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_13",
+        "event_message":  "POST | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  2042,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "3bdf9c83-e8c7-4b8f-9147-34ad6423e8e8",
+        "method":  "POST",
+        "status_code":  200,
+        "timestamp":  1772536971472000,
+        "version":  "13"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_13",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1110,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "c703c709-8687-4801-a0f4-f95d447e5519",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772536969307000,
+        "version":  "13"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_12",
+        "event_message":  "POST | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1737,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "3e4687be-8c7d-48f8-8e76-e6efd193e6a4",
+        "method":  "POST",
+        "status_code":  200,
+        "timestamp":  1772475438791000,
+        "version":  "12"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_12",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  2705,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "2a3d1127-7bf3-45fd-9e73-f4894bcf3f3c",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772475436999000,
+        "version":  "12"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_11",
+        "event_message":  "POST | 400 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  307,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "855f8b2c-f3dd-439d-bf3e-f4eaa69c196d",
+        "method":  "POST",
+        "status_code":  400,
+        "timestamp":  1772475194160000,
+        "version":  "11"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_11",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1137,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "1fd2c2d8-ea75-466e-9db6-2c4d5d417fd5",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772475193793000,
+        "version":  "11"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_10",
+        "event_message":  "POST | 400 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  9575,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "75e07d49-3f9d-4963-a3b8-b894daffd675",
+        "method":  "POST",
+        "status_code":  400,
+        "timestamp":  1772474917815000,
+        "version":  "10"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_10",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  4901,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "3dd0a75d-8809-49ed-be6d-131afa53958b",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772474908182000,
+        "version":  "10"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_9",
+        "event_message":  "POST | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1580,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "1fef4b6d-4294-4c70-8edc-75619a6b2510",
+        "method":  "POST",
+        "status_code":  200,
+        "timestamp":  1772473626395000,
+        "version":  "9"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_9",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  4009,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "67d950b9-8a6e-4cf5-9d20-a44a1b829f81",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772473624756000,
+        "version":  "9"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_9",
+        "event_message":  "POST | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  8628,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "a8abcd17-19fc-4a4a-b73f-e00b37a070b3",
+        "method":  "POST",
+        "status_code":  200,
+        "timestamp":  1772460896280000,
+        "version":  "9"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_9",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1354,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "09f1c208-3a67-4675-96ac-1c5912ed3a53",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772460887595000,
+        "version":  "9"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_8",
+        "event_message":  "POST | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1952,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "c5bee879-7711-48e8-a681-013795671e71",
+        "method":  "POST",
+        "status_code":  200,
+        "timestamp":  1772460641969000,
+        "version":  "8"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_8",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1165,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "d7aefc1a-12bf-492f-b61a-51de824bb156",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772460639962000,
+        "version":  "8"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_7",
+        "event_message":  "POST | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1749,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "add1771b-2f43-42f5-bafa-f783b87d9ab0",
+        "method":  "POST",
+        "status_code":  200,
+        "timestamp":  1772452996681000,
+        "version":  "7"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_7",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1231,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "cf70f479-082e-4442-bc59-24a17ddf117a",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772452994879000,
+        "version":  "7"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_3",
+        "event_message":  "POST | 500 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  78,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "ad420156-502e-4b13-8311-584922a2c870",
+        "method":  "POST",
+        "status_code":  500,
+        "timestamp":  1772451865039000,
+        "version":  "3"
+    },
+    {
+        "deployment_id":  "indshiztdvjgvgnzigqd_adea42a4-7a5c-4aca-b6f5-65bd6fabe0db_3",
+        "event_message":  "OPTIONS | 200 | https://indshiztdvjgvgnzigqd.supabase.co/functions/v1/whatsapp-send",
+        "execution_time_ms":  1134,
+        "function_id":  "adea42a4-7a5c-4aca-b6f5-65bd6fabe0db",
+        "id":  "f88eb1c9-3fbe-4559-a3d7-5060fb08555a",
+        "method":  "OPTIONS",
+        "status_code":  200,
+        "timestamp":  1772451864906000,
+        "version":  "3"
+    }
+]

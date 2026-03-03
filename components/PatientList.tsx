@@ -81,8 +81,8 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
   };
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
-  const isRestricted = (currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT') && currentUser?.scope === 'COCAL';
-  const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT';
+  const isRestricted = (currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'SECRETARIA_SEDE') && currentUser?.scope === 'COCAL';
+  const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.role === 'SECRETARIA_COCAL';
   const canViewClinical = currentUser?.role === 'ADMIN' || currentUser?.role === 'SPECIALIST';
 
   // Permissões Específicas

@@ -15,7 +15,9 @@ import {
     ChevronLeft,
     ChevronRight,
     Loader2,
-    Trash2
+    Trash2,
+    MessageSquare,
+    Smartphone
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { Appointment, AppointmentStatus, Unit, Specialty, Student, User } from '../types';
@@ -33,6 +35,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [viewMode, setViewMode] = useState<'DAILY' | 'UPCOMING'>('DAILY');
     const { success, error: showError } = useToast();
 
     // Filtros
@@ -51,7 +54,8 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         setLoading(true);
         try {
             const data = await SupabaseService.getAppointments({
-                date: selectedDate,
+                date: viewMode === 'DAILY' ? selectedDate : undefined,
+                fromDate: viewMode === 'UPCOMING' ? new Date().toISOString().split('T')[0] : undefined,
                 unit: filterUnit === 'ALL' ? undefined : filterUnit as Unit,
                 specialty: filterSpecialty === 'ALL' ? undefined : filterSpecialty as Specialty,
                 status: filterStatus === 'ALL' ? undefined : filterStatus as AppointmentStatus
@@ -72,7 +76,15 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             setFilterUnit('SEDE');
         }
         loadAppointments();
-    }, [selectedDate, filterUnit, filterSpecialty, filterStatus, currentUser]);
+    }, [selectedDate, filterUnit, filterSpecialty, filterStatus, viewMode, currentUser]);
+
+    // Auto-refresh a cada 30 segundos para capturar confirmações de WhatsApp em tempo real
+    useEffect(() => {
+        const interval = setInterval(() => {
+            loadAppointments();
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [selectedDate, filterUnit, filterSpecialty, filterStatus, viewMode]);
 
     // State para Modal de Exclusão
     const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -116,6 +128,50 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             case 'FALTOU': return <XCircle size={14} />;
             case 'REMARCAR': return <RotateCcw size={14} />;
         }
+    };
+
+    const getConfirmationBadge = (apt: Appointment) => {
+        const status = apt.statusConfirmacao;
+        const hasPhone = !!apt.telefoneResponsavel;
+
+        // Sem telefone cadastrado
+        if (!hasPhone) {
+            return (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-orange-50 text-orange-500 border border-orange-200 text-[9px] font-black uppercase tracking-wider">
+                    <Smartphone size={12} />
+                    Sem Tel. Cadastrado
+                </div>
+            );
+        }
+
+        if (!status || status === 'PENDENTE') {
+            return (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 text-slate-400 border border-slate-200 text-[9px] font-black uppercase tracking-wider">
+                    <MessageSquare size={12} className="opacity-50" />
+                    WhatsApp: Pendente
+                </div>
+            );
+        }
+
+        if (status === 'CONFIRMADO') {
+            return (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 text-[9px] font-black uppercase tracking-wider">
+                    <CheckCircle2 size={12} />
+                    WhatsApp: Confirmado ✓
+                </div>
+            );
+        }
+
+        if (status === 'CANCELADO') {
+            return (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50 text-red-600 border border-red-200 text-[9px] font-black uppercase tracking-wider">
+                    <XCircle size={12} />
+                    WhatsApp: Cancelado
+                </div>
+            );
+        }
+
+        return null;
     };
 
     return (
@@ -207,10 +263,33 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             {/* 3. LISTA OPERACIONAL */}
             <div className="flex-1 overflow-hidden bg-white rounded-3xl border border-slate-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] flex flex-col">
                 <div className="p-4 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Lista de Atendimentos do Dia</span>
-                    <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight">
-                        {appointments.length} registros
-                    </span>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setViewMode('DAILY')}
+                            className={`text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'DAILY' ? 'text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Agenda do Dia
+                        </button>
+                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
+                        <button
+                            onClick={() => setViewMode('UPCOMING')}
+                            className={`text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'UPCOMING' ? 'text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Próximos Agendamentos
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight">
+                            {appointments.length} registros
+                        </span>
+                        <button
+                            onClick={loadAppointments}
+                            title="Atualizar agendamentos"
+                            className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-slate-100 rounded-lg transition-all"
+                        >
+                            <RotateCcw size={14} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
@@ -237,7 +316,14 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
 
                                     {/* Aluno e Info */}
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="text-sm font-bold text-slate-800 truncate">{apt.studentName}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-sm font-bold text-slate-800 truncate">{apt.studentName}</h3>
+                                            {viewMode === 'UPCOMING' && (
+                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-bold">
+                                                    {apt.date.split('-').reverse().join('/')}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-3 mt-0.5">
                                             <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
                                                 <UserIcon size={12} className="text-primary-500" />
@@ -251,7 +337,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                     </div>
 
                                     {/* Status Badge */}
-                                    <div className="hidden sm:flex items-center gap-2">
+                                    <div className="hidden sm:flex flex-col items-end gap-1.5">
                                         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${getStatusColor(apt.status)}`}>
                                             {getStatusIcon(apt.status)}
                                             {apt.status === 'REMARCAR' ? 'REMARCADO' : apt.status}
@@ -261,6 +347,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                                 </span>
                                             )}
                                         </div>
+                                        {getConfirmationBadge(apt)}
                                     </div>
 
                                     {/* Ações Rápidas */}

@@ -100,7 +100,12 @@ const hexToRgb = (hex: string) => {
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState<string>(() => {
+    // Tenta restaurar a página do Hash ou LocalStorage
+    const hash = window.location.hash.replace('#', '');
+    if (hash && hash !== 'dashboard') return hash;
+    return localStorage.getItem('brotar_current_page') || 'dashboard';
+  });
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [rescheduleData, setRescheduleData] = useState<Appointment | null>(null);
@@ -111,7 +116,10 @@ function App() {
     return hash.includes('type=recovery') || search.includes('recovery=true');
   });
   const [showLogin, setShowLogin] = useState(() => {
-    return new URLSearchParams(window.location.search).get('login') === 'true' ||
+    // Persiste o estado do modal de login
+    const storedShowLogin = localStorage.getItem('brotar_show_login') === 'true';
+    return storedShowLogin ||
+      new URLSearchParams(window.location.search).get('login') === 'true' ||
       new URLSearchParams(window.location.search).get('recovery') === 'true' ||
       window.location.hash.includes('type=recovery');
   });
@@ -163,6 +171,37 @@ function App() {
     }
   }, [systemSettings]);
 
+  // Sincroniza estado de navegação com URL e LocalStorage
+  useEffect(() => {
+    if (user && !user.mustChangePassword) {
+      if (window.location.hash !== `#${currentPage}`) {
+        window.location.hash = currentPage;
+      }
+      localStorage.setItem('brotar_current_page', currentPage);
+    }
+  }, [currentPage, user]);
+
+  // Sincroniza showLogin com LocalStorage
+  useEffect(() => {
+    if (!user) {
+      localStorage.setItem('brotar_show_login', showLogin.toString());
+    } else {
+      localStorage.removeItem('brotar_show_login');
+    }
+  }, [showLogin, user]);
+
+  // Listener para o botão voltar do navegador (PopState)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && hash !== currentPage) {
+        setCurrentPage(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [currentPage]);
+
   // Load students and handle auth session
   useEffect(() => {
     // Limpeza de parâmetros de URL para evitar loops de renderização
@@ -189,15 +228,27 @@ function App() {
         console.log('[App] 2. Verificando sessão inicial...');
         const { data: { session } } = await supabase.auth.getSession();
 
-        // O perfil agora é carregado EXCLUSIVAMENTE pelo listener onAuthStateChange abaixo
-        // para evitar condições de corrida e loops de renderização. 
-        if (session?.user && isRecoveryMode) {
-          console.log('[App] 2a. Modo Recuperação Detectado.');
-          const userData = await SupabaseService.getUserProfile(session.user.id);
-          if (userData) {
-            setUser({ ...userData, mustChangePassword: true });
-            setCurrentPage('my-access');
-            setShowLogin(false);
+        if (session?.user) {
+          const sessionId = session.access_token || session.user.id;
+          console.log('[App] 2a. Sessão detectada no boot. Carregando perfil...', sessionId.substring(0, 10));
+
+          if (isRecoveryMode) {
+            console.log('[App] Modo Recuperação Detectado.');
+            const userData = await SupabaseService.getUserProfile(session.user.id);
+            if (userData) {
+              processedSessionId.current = sessionId;
+              setUser({ ...userData, mustChangePassword: true });
+              setCurrentPage('my-access');
+              setShowLogin(false);
+            }
+          } else {
+            // Carregamento proativo do perfil para evitar LandingPage frame
+            const userData = await SupabaseService.getUserProfile(session.user.id);
+            if (userData) {
+              console.log('[App] Perfil carregado com sucesso no boot.');
+              processedSessionId.current = sessionId;
+              setUser(userData);
+            }
           }
         }
       } catch (err) {
@@ -215,9 +266,9 @@ function App() {
 
       console.log(`[App-Auth] Evento: ${event} | SessionID: ${sessionId.substring(0, 10)}...`);
 
-      // Bloqueio de redundância: se for a mesma sessão e o mesmo evento de login/update, ignora.
-      if (processedSessionId.current === sessionId && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
-        console.log('[App-Auth] Ignorando evento duplicado:', event);
+      // Se já processamos esta sessão no loadInitialData e o evento é inicial/redundante, ignora
+      if (processedSessionId.current === sessionId && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+        console.log('[App-Auth] Ignorando evento já processado ou inicial:', event);
         setIsAuthLoading(false);
         return;
       }
@@ -255,6 +306,9 @@ function App() {
           setCurrentPage('dashboard');
           setIsRecoveryMode(false);
           setIsAuthLoading(false);
+          localStorage.removeItem('brotar_current_page');
+          localStorage.removeItem('brotar_show_login');
+          window.location.hash = '';
         }
       } catch (err) {
         console.error('[App-Auth] Erro no listener:', err);
@@ -272,9 +326,21 @@ function App() {
   // Carrega dados pesados apenas após o login
   useEffect(() => {
     if (user && !user.mustChangePassword) {
-      SupabaseService.getStudents().then(setStudents);
+      console.log('[App] Carregando dados iniciais para:', user.email);
+      SupabaseService.getStudents()
+        .then(data => {
+          console.log('[App] Alunos carregados:', data.length);
+          setStudents(data);
+        })
+        .catch(err => {
+          if (err.name === 'AbortError') {
+            console.warn('[App] Busca de alunos abortada (comum no Hot Reload ou boot rápido).');
+          } else {
+            console.error('[App] Erro ao carregar alunos:', err);
+          }
+        });
     }
-  }, [user]);
+  }, [user?.id]); // Usar ID para estabilidade
 
   const refreshData = async () => {
     setStudents(await SupabaseService.getStudents());
@@ -320,12 +386,21 @@ function App() {
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
-    setCurrentPage('dashboard');
+    localStorage.removeItem('brotar_show_login');
+    // Mantém a página atual se ela existir, senão vai para dashboard
+    const storedPage = localStorage.getItem('brotar_current_page');
+    if (!storedPage || storedPage === 'dashboard') {
+      setCurrentPage('dashboard');
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     setCurrentPage('dashboard');
+    localStorage.removeItem('brotar_current_page');
+    localStorage.removeItem('brotar_show_login');
+    window.location.hash = '';
   };
 
   if (isAuthLoading) {
@@ -339,11 +414,35 @@ function App() {
     );
   }
 
+  // Debug Panel (Hidden by default, shown if ?debug=true)
+  const isDebug = window.location.search.includes('debug=true');
+
   if (!user) {
-    if (showLogin) {
-      return <Login onLogin={handleLogin} onBack={() => setShowLogin(false)} systemSettings={systemSettings} />;
+    // Se o usuário já acessou o sistema antes ou está tentando entrar, mostra o login direto
+    const shouldShowLogin = showLogin || localStorage.getItem('brotar_visited') === 'true';
+
+    if (shouldShowLogin) {
+      return (
+        <>
+          <Login
+            onLogin={(u) => {
+              localStorage.setItem('brotar_visited', 'true');
+              handleLogin(u);
+            }}
+            onBack={() => {
+              localStorage.removeItem('brotar_visited');
+              setShowLogin(false);
+            }}
+            systemSettings={systemSettings}
+          />
+          {isDebug && <div className="fixed bottom-0 right-0 p-2 bg-black/80 text-white text-[10px] z-[9999]">No User | Debug Mode Active</div>}
+        </>
+      );
     }
-    return <LandingPage onAccessSystem={() => setShowLogin(true)} systemSettings={systemSettings} />;
+    return <LandingPage onAccessSystem={() => {
+      localStorage.setItem('brotar_visited', 'true');
+      setShowLogin(true);
+    }} systemSettings={systemSettings} />;
   }
 
   // Bloqueio para troca obrigatória de senha

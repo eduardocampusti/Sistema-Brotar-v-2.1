@@ -26,7 +26,8 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
     const canViewClinicalContent = currentUser.role === 'ADMIN' || currentUser.role === 'SPECIALIST';
     // Secretárias podem ver que houve um atendimento (data/prof), mas não as notas.
     const canViewClinicalList = canViewClinicalContent || currentUser.role === 'SECRETARIA_SEDE' || currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'EDUCATION_SECRETARY';
-    const isAdmin = currentUser.role === 'ADMIN';
+    // Recepcionistas podem editar dados do aluno (cadastro), mas não podem acessar prontuário clínico.
+    const canEdit = currentUser.role === 'ADMIN' || currentUser.role === 'SECRETARIA_SEDE' || currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'EDUCATION_SECRETARY' || currentUser.role === 'ASSISTANT';
 
     // Ensure history array exists and load if empty (on-demand loading)
     useEffect(() => {
@@ -97,7 +98,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                     Voltar para a lista
                 </button>
 
-                {isAdmin && (
+                {canEdit && (
                     <button
                         onClick={() => onEdit(student)}
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 shadow-sm text-sm font-medium"
