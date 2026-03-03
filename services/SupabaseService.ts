@@ -1550,29 +1550,44 @@ export class SupabaseService {
         phone: string,
         appointmentId: string
     }) {
-        console.log('[SupabaseService] Enviando WhatsApp...', details);
+        console.log('[SupabaseService] Enviando WhatsApp chamando Edge Function diretamente...', details);
+
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-send`;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
         try {
-            const { data, error } = await supabase.functions.invoke('whatsapp-send', {
-                body: {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${anonKey}`,
+                    'apikey': anonKey
+                },
+                body: JSON.stringify({
                     telefone: details.phone.replace(/\D/g, ''),
                     nome: details.student,
                     data: details.date,
                     hora: details.time,
                     professional: details.professional,
                     appointmentId: details.appointmentId
-                }
+                })
             });
 
-            if (error) {
-                console.error('[SupabaseService] Erro retornado pela função:', error);
-                throw error;
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('[SupabaseService] Erro na Edge Function:', response.status, errorData);
+                throw new Error(errorData.error || `Erro do servidor: ${response.status}`);
             }
 
+            const data = await response.json();
+            console.log('[SupabaseService] Sucesso no envio:', data);
             return data;
         } catch (err: any) {
-            console.error('[SupabaseService] Erro ao invocar função de WhatsApp:', err);
-            // Se for um erro de rede/CORS, o err.message pode ser genérico.
-            // Tentamos extrair o máximo de informação possível.
+            console.error('[SupabaseService] Falha técnica no envio de WhatsApp:', err);
+            // Captura o erro "Failed to fetch" (CORS/Rede) e dá um nome amigável
+            if (err.message === 'Failed to fetch') {
+                throw new Error('Erro de conexão: Verifique sua internet ou se o Supabase está bloqueado no navegador.');
+            }
             throw err;
         }
     }
