@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { SupportProfessional, School, Student, User as UserType } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
-import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle } from 'lucide-react';
+import { formatarNomeBR } from '../utils/formatters';
+import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
+import { ConfirmModal } from './ConfirmModal';
 
 // Componente de Toast Simples
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => {
@@ -26,6 +28,25 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
     );
 };
 
+// Função auxiliar para normalizar strings (remover acentos, espaços extras e converter para minúsculas)
+const normalizeString = (str: string | undefined | null): string => {
+    if (!str) return '';
+    return str
+        .toLowerCase()
+        .normalize('NFD') // Decompor caracteres acentuados
+        .replace(/[\u0300-\u036f]/g, '') // Remover marcas de acento
+        .replace(/[^a-z0-9\s]/gi, '') // Remover pontuação como pontos e hífens
+        .replace(/\s+/g, ' ') // Substituir múltiplos espaços por um só
+        .trim();
+};
+
+const sanitizeCPF = (cpf: string | undefined | null): string => {
+    if (!cpf) return '';
+    return cpf.replace(/\D/g, '');
+};
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 interface SupportProfessionalManagementProps {
     currentUser?: UserType;
 }
@@ -36,6 +57,9 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [students, setStudents] = useState<Student[]>([]);
     const [isAdding, setIsAdding] = useState(false);
     const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Estados para o autocomplete de escola
@@ -86,7 +110,9 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
     const loadData = async () => {
         try {
+            console.log('[SupportProf] Carregando dados...');
             const profs = await SupabaseService.getSupportProfessionals();
+            console.log('[SupportProf] Profissionais carregados:', profs.length, profs);
             const schoolsData = await SupabaseService.getSchools();
             const studentsData = await SupabaseService.getStudents();
             setProfessionals(profs);
@@ -184,16 +210,26 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         setIsAdding(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm('Tem certeza que deseja excluir este profissional?')) {
-            try {
-                await SupabaseService.deleteSupportProfessional(id);
-                loadData();
-                showNotification('Profissional excluído.', 'success');
-            } catch (err) {
-                console.error(err);
-                showNotification('Erro ao excluir profissional.', 'error');
-            }
+    const handleDeleteClick = (id: string) => {
+        setPendingDeleteId(id);
+        setShowDeleteConfirm(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!pendingDeleteId) return;
+
+        setIsDeleting(true);
+        try {
+            await SupabaseService.deleteSupportProfessional(pendingDeleteId);
+            await loadData();
+            showNotification('Profissional excluído.', 'success');
+        } catch (err) {
+            console.error(err);
+            showNotification('Erro ao excluir profissional.', 'error');
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+            setPendingDeleteId(null);
         }
     };
 
@@ -240,6 +276,284 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const getSchoolName = (id: string) => schools.find(s => s.id === id)?.name || 'Desconhecida';
     const getStudentName = (id: string) => students.find(s => s.id === id)?.fullName || 'Desconhecido';
 
+    const renderStudentAndRegent = (prof: SupportProfessional) => {
+        let studentStr = getStudentName(prof.studentId);
+        let regentStr = prof.regentTeacher || '-';
+
+        if (studentStr === 'Desconhecido' && regentStr.includes('Aluno não cadastrado:')) {
+            const parts = regentStr.split('| Aluno não cadastrado:');
+            if (parts.length === 2) {
+                regentStr = parts[0].trim() || '-';
+                studentStr = parts[1].trim() + ' (Apenas Texto)';
+            } else if (regentStr.startsWith('Aluno não cadastrado:')) {
+                studentStr = regentStr.replace('Aluno não cadastrado:', '').trim() + ' (Apenas Texto)';
+                regentStr = '-';
+            }
+        }
+
+        return { studentStr, regentStr };
+    };
+
+    const handleExportCSV = () => {
+        if (professionals.length === 0) {
+            showNotification('Não há dados para exportar.', 'error');
+            return;
+        }
+
+        const headers = [
+            'Nome Completo', 'CPF', 'Telefone', 'E-mail', 'Formação',
+            'Início do Contrato', 'Carga Horária', 'Escola', 'Regente', 'Aluno',
+            'Rua', 'Número', 'Bairro', 'Cidade', 'Estado', 'CEP'
+        ];
+
+        const csvContent = [
+            headers.join(','),
+            ...professionals.map(p => {
+                const schoolName = getSchoolName(p.schoolId);
+                const studentName = getStudentName(p.studentId);
+                const addr = p.address || { street: '', number: '', district: '', city: '', state: '', zipCode: '' };
+
+                return [
+                    `"${p.name || ''}"`,
+                    `"${p.cpf || ''}"`,
+                    `"${p.phone || ''}"`,
+                    `"${p.email || ''}"`,
+                    `"${p.education || ''}"`,
+                    `"${p.contractStartDate || ''}"`,
+                    `"${p.workload || ''}"`,
+                    `"${schoolName}"`,
+                    `"${p.regentTeacher || ''}"`,
+                    `"${studentName}"`,
+                    `"${addr.street || ''}"`,
+                    `"${addr.number || ''}"`,
+                    `"${addr.district || ''}"`,
+                    `"${addr.city || ''}"`,
+                    `"${addr.state || ''}"`,
+                    `"${addr.zipCode || ''}"`
+                ].join(',');
+            })
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `profissionais_apoio_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const text = e.target?.result as string;
+            if (!text) return;
+
+            const lines = text.split(/\r?\n/).filter(line => line.trim());
+            if (lines.length < 2) {
+                showNotification('O arquivo CSV está vazio ou inválido.', 'error');
+                return;
+            }
+
+            const headerLine = lines[0];
+            const dataLines = lines.slice(1);
+
+            // Detecção automática de separador (Brotas/Brasil costuma usar ; no Excel)
+            const commaCount = (headerLine.match(/,/g) || []).length;
+            const semicolonCount = (headerLine.match(/;/g) || []).length;
+            const separator = semicolonCount > commaCount ? ';' : ',';
+
+            console.log(`[CSV Import] Separador detectado: "${separator}"`);
+
+            const headers = headerLine.split(separator).map(h => h.replace(/^"|"$/g, '').trim());
+            console.log('[CSV Import] Cabeçalhos encontrados:', headers);
+            console.log('[CSV Import] Escolas carregadas:', schools.length);
+            console.log('[CSV Import] Alunos carregados:', students.length);
+
+            // Mapeamento de colunas baseado na imagem enviada pelo usuário
+            const columnMap: Record<string, number> = {};
+            headers.forEach((h, index) => {
+                const normalizedH = normalizeString(h);
+                if (normalizedH.includes('nome completo')) columnMap.name = index;
+                else if (normalizedH.includes('cpf')) columnMap.cpf = index;
+                else if (normalizedH.includes('formacao academica') || normalizedH.includes('escolaridade')) columnMap.education = index;
+                else if (normalizedH.includes('telefone')) columnMap.phone = index;
+                else if (normalizedH.includes('email')) columnMap.email = index;
+                else if (normalizedH.includes('inicio do contrato')) columnMap.contractStartDate = index;
+                else if (normalizedH.includes('carga horaria')) columnMap.workload = index;
+                else if (normalizedH.includes('escola de lotacao') || normalizedH.includes('escola')) columnMap.school = index;
+                else if (normalizedH.includes('professor regente') || normalizedH.includes('regente')) columnMap.regentTeacher = index;
+                else if (normalizedH.includes('aluno assistido') || normalizedH.includes('aluno')) columnMap.student = index;
+                else if (normalizedH.includes('endereco residencial') || normalizedH.includes('rua') || normalizedH.includes('logradouro')) columnMap.street = index;
+                else if (normalizedH.includes('nº') || normalizedH.includes('numero')) columnMap.number = index;
+                else if (normalizedH.includes('bairro')) columnMap.district = index;
+                else if (normalizedH.includes('cidade')) columnMap.city = index;
+                else if (normalizedH.includes('estado')) columnMap.state = index;
+                else if (normalizedH.includes('cep')) columnMap.zipCode = index;
+            });
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            showNotification(`Iniciando importação de ${dataLines.length} registros...`, 'success');
+
+            const professionalsToSave: Partial<SupportProfessional>[] = [];
+
+            for (const line of dataLines) {
+                try {
+                    // Parser que lida com aspas e o separador detectado
+                    const values: string[] = [];
+                    let current = '';
+                    let inQuotes = false;
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"') inQuotes = !inQuotes;
+                        else if (char === separator && !inQuotes) {
+                            values.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    values.push(current.trim());
+
+                    const getValue = (key: string) => columnMap[key] !== undefined ? values[columnMap[key]]?.replace(/^"|"$/g, '') : '';
+
+                    const name = getValue('name');
+                    if (!name) continue;
+
+                    const schoolName = getValue('school');
+                    const studentName = getValue('student');
+
+                    // Função para extrair a "essência" do nome da escola (ignorando prefixos e preposições)
+                    const getSchoolEssence = (name: string) => {
+                        let ess = normalizeString(name);
+                        const stopWords = ['escola', 'escoala', 'mun', 'municipal', 'estadual', 'creche', 'colegio', 'centro', 'educacional', 'de', 'da', 'do', 'dos', 'das', 'e', 'infantil', '1', '1o', 'grau', 'dr', 'dra', 'prof', 'profa', 'professor', 'professora'];
+
+                        // Remover palavras exatas usando boundries, para não cortar pedaços de palavras
+                        stopWords.forEach(w => {
+                            const regex = new RegExp(`\\b${w}\\b`, 'g');
+                            ess = ess.replace(regex, '');
+                        });
+                        return ess.replace(/\s+/g, ' ').trim();
+                    };
+
+                    // MATCH DE ESCOLA: Tentar match exato normalizado ou bater pela "essência" (Nossa Senhora de Brotas == Nossa Senhora Brotas)
+                    let foundSchool = undefined;
+                    if (schoolName) {
+                        const normalizedCsvSchool = normalizeString(schoolName);
+                        const csvEssence = getSchoolEssence(schoolName);
+
+                        foundSchool = schools.find(s => {
+                            const normalizedDb = normalizeString(s.name);
+                            if (normalizedDb === normalizedCsvSchool) return true;
+
+                            const dbEssence = getSchoolEssence(s.name);
+                            if (csvEssence && dbEssence) {
+                                // Se a essência do banco estiver contida na do CSV (Ex: "Luis Eduardo Magalhães")
+                                return csvEssence.includes(dbEssence) || dbEssence.includes(csvEssence);
+                            }
+                            return false;
+                        });
+                    }
+
+                    // MATCH DE ALUNO: Em vez de igualdade estrita, verifica se o nome do banco está contido na string do CSV.
+                    // Isso resolve quando a secretária digita vários alunos na mesma célula.
+                    let foundStudent = undefined;
+                    if (studentName) {
+                        const normalizedStudentName = normalizeString(studentName);
+                        foundStudent = students.find(s => {
+                            const studentDBName = normalizeString(s.fullName);
+                            if (!studentDBName || studentDBName.length < 3) return false;
+                            return normalizedStudentName.includes(studentDBName);
+                        });
+                    }
+
+                    const schoolId = foundSchool?.id || '';
+                    const studentId = foundStudent?.id || '';
+
+                    if (!schoolId && schoolName) console.warn(`[CSV Import] Escola não pareada: "${schoolName}"`);
+                    if (!studentId && studentName) console.warn(`[CSV Import] Aluno não pareado/Encontrado: "${studentName}"`);
+
+                    let finalRegentTeacher = getValue('regentTeacher');
+                    if (!studentId && studentName) {
+                        // Salva o nome do aluno do CSV no campo do regente para não perder a informação!
+                        finalRegentTeacher = finalRegentTeacher
+                            ? `${finalRegentTeacher} | Aluno não cadastrado: ${studentName}`
+                            : `Aluno não cadastrado: ${studentName}`;
+                    }
+
+                    // Formatar data (Início do contrato pode vir em formatos diferentes)
+                    let formattedStartDate = getValue('contractStartDate');
+                    if (formattedStartDate && formattedStartDate.includes('/')) {
+                        const parts = formattedStartDate.split('/');
+                        if (parts.length === 3) {
+                            formattedStartDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                        }
+                    }
+
+                    const cpf = sanitizeCPF(getValue('cpf'));
+
+                    const prof: Partial<SupportProfessional> = {
+                        name,
+                        cpf,
+                        phone: getValue('phone'),
+                        email: getValue('email'),
+                        education: getValue('education'),
+                        contractStartDate: formattedStartDate,
+                        workload: getValue('workload'),
+                        regentTeacher: finalRegentTeacher,
+                        schoolId,
+                        studentId,
+                        address: {
+                            street: getValue('street'),
+                            number: getValue('number'),
+                            district: getValue('district'),
+                            city: getValue('city'),
+                            state: getValue('state'),
+                            zipCode: getValue('zipCode')
+                        }
+                    };
+
+                    // Verificar se profissional já existe para atualização
+                    if (prof.cpf) {
+                        const existing = professionals.find(p => sanitizeCPF(p.cpf) === prof.cpf);
+                        if (existing) {
+                            prof.id = existing.id;
+                        }
+                    }
+
+                    professionalsToSave.push(prof);
+                    successCount++;
+                } catch (err) {
+                    console.error('Erro ao processar linha:', line, err);
+                    errorCount++;
+                }
+            }
+
+            if (professionalsToSave.length > 0) {
+                try {
+                    console.log(`[CSV Import] Salvando em lote ${professionalsToSave.length} registros...`);
+                    await SupabaseService.upsertSupportProfessionals(professionalsToSave);
+                } catch (saveErr: any) {
+                    console.error('[CSV Import] Falha no salvamento em lote:', saveErr);
+                    showNotification(`Falha crítica ao salvar lote: ${saveErr.message}`, 'error');
+                    return;
+                }
+            }
+
+            await loadData();
+            showNotification(`Importação concluída! ${successCount} sucessos, ${errorCount} erros.`, errorCount > 0 ? 'error' : 'success');
+        };
+        reader.readAsText(file);
+        // Reset input
+        event.target.value = '';
+    };
+
     return (
         <div className="max-w-6xl mx-auto space-y-6">
             {notification && (
@@ -249,18 +563,56 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     onClose={() => setNotification(null)}
                 />
             )}
+
+            <ConfirmModal
+                isOpen={showDeleteConfirm}
+                title="Excluir Profissional"
+                message="Tem certeza que deseja excluir este profissional de apoio? Esta ação não pode ser desfeita."
+                confirmLabel="Sim, Excluir"
+                cancelLabel="Cancelar"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+                type="danger"
+                isLoading={isDeleting}
+            />
+
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800">Profissionais de Apoio Escolar</h2>
                     <p className="text-slate-500">Gestão de acompanhantes terapêuticos e monitores</p>
                 </div>
                 {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
-                    <button
-                        onClick={() => { setIsAdding(true); resetForm(); }}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-                    >
-                        <UserCog size={18} /> Novo Profissional
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                            title="Exportar registros ativos para Excel/CSV"
+                        >
+                            <Download size={18} /> Exportar
+                        </button>
+
+                        <div className="relative">
+                            <input
+                                type="file"
+                                accept=".csv"
+                                onChange={handleImportCSV}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                title="Importar dados do Google Forms (CSV)"
+                            />
+                            <button
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm"
+                            >
+                                <FileSpreadsheet size={18} /> Importar CSV
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => { setIsAdding(true); resetForm(); }}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                        >
+                            <UserCog size={18} /> Novo Profissional
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -317,9 +669,11 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 <div className="space-y-4">
                                     <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2">Dados Pessoais e Formação</h4>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo *</label>
                                         <input required type="text" className="w-full rounded-lg border-slate-300 p-2.5 border focus:ring-primary-500"
-                                            value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                                            value={formData.name}
+                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                            onBlur={e => setFormData({ ...formData, name: formatarNomeBR(e.target.value) })}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Formação Acadêmica</label>
@@ -437,9 +791,12 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Professor Regente</label>
                                         <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                            value={formData.regentTeacher} onChange={e => setFormData({ ...formData, regentTeacher: e.target.value })} placeholder="Nome do professor da sala" />
+                                            value={formData.regentTeacher}
+                                            onChange={e => setFormData({ ...formData, regentTeacher: e.target.value })}
+                                            onBlur={e => setFormData({ ...formData, regentTeacher: formatarNomeBR(e.target.value) })}
+                                            placeholder="Nome do professor da sala"
+                                        />
                                     </div>
 
                                     <div>
@@ -569,13 +926,27 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <div className="text-sm font-medium text-slate-800 flex items-center gap-1">
-                                        <User size={14} className="text-green-600" />
-                                        {getStudentName(prof.studentId)}
-                                    </div>
-                                    <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                                        <BookOpen size={12} /> Regente: {prof.regentTeacher}
-                                    </div>
+                                    {(() => {
+                                        const { studentStr, regentStr } = renderStudentAndRegent(prof);
+                                        return (
+                                            <>
+                                                <div className="text-sm font-medium text-slate-800 flex items-center gap-1">
+                                                    <User size={14} className={studentStr.includes('(Apenas Texto)') ? "text-amber-500" : "text-green-600"} />
+                                                    <span title={studentStr.includes('(Apenas Texto)') ? "Aluno ainda não possui cadastro oficial no sistema" : ""}>
+                                                        {studentStr.replace(' (Apenas Texto)', '')}
+                                                        {studentStr.includes('(Apenas Texto)') && (
+                                                            <span className="ml-2 text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-semibold">
+                                                                S/ CADASTRO
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                                                    <BookOpen size={12} /> Regente: {regentStr}
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
                                 </td>
                                 <td className="px-6 py-4 text-sm text-slate-600">
                                     {prof.contractStartDate && (
@@ -596,7 +967,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                                 <button onClick={() => handleEdit(prof)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Editar">
                                                     <Edit size={16} />
                                                 </button>
-                                                <button onClick={() => handleDelete(prof.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors" title="Excluir">
+                                                <button onClick={() => handleDeleteClick(prof.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors" title="Excluir">
                                                     <Trash2 size={16} />
                                                 </button>
                                             </>

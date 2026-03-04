@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { School } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
+import { formatarNomeBR } from '../utils/formatters';
 import {
     Save, School as SchoolIcon, X, MapPin, Phone, Building,
     AlertCircle, Wifi, Globe, Upload, FileText, CheckCircle,
@@ -391,9 +392,11 @@ export const SchoolManagement: React.FC = () => {
                                             placeholder="Ex: Cocal, Sede, Feira Nova..." value={formData.district} onChange={e => setFormData({ ...formData, district: e.target.value })} />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase">Diretor(a)</label>
                                         <input type="text" className="w-full bg-slate-50 border-slate-200 rounded-xl p-3.5 text-slate-800 font-medium focus:bg-white focus:ring-4 focus:ring-primary-50 transition-all border"
-                                            value={formData.director} onChange={e => setFormData({ ...formData, director: e.target.value })} />
+                                            value={formData.director}
+                                            onChange={e => setFormData({ ...formData, director: e.target.value })}
+                                            onBlur={e => setFormData({ ...formData, director: formatarNomeBR(e.target.value) })}
+                                        />
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Telefone de Contato</label>

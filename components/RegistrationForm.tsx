@@ -3,6 +3,7 @@ import { Student, Gender, DocumentType, StudentDocument, School } from '../types
 import { Save, X, Activity, User, BookOpen, Users as UsersIcon, Upload, Trash2, FileText, Check, Paperclip, AlertCircle, Download } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
+import { formatarNomeBR } from '../utils/formatters';
 import SearchableSelect from './SearchableSelect';
 
 interface RegistrationFormProps {
@@ -443,7 +444,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                             <div className="md:col-span-2">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo do Aluno *</label>
                                                 <input required type="text" className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
-                                                    value={formData.fullName || ''} onChange={e => handleInputChange(null, 'fullName', e.target.value)} />
+                                                    value={formData.fullName || ''}
+                                                    onChange={e => handleInputChange(null, 'fullName', e.target.value)}
+                                                    onBlur={e => handleInputChange(null, 'fullName', formatarNomeBR(e.target.value))}
+                                                />
                                             </div>
 
                                             <div>
@@ -481,12 +485,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                             <div className="md:col-span-1">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Mãe</label>
                                                 <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                    value={formData.motherName || ''} onChange={e => handleInputChange(null, 'motherName', e.target.value)} />
+                                                    value={formData.motherName || ''}
+                                                    onChange={e => handleInputChange(null, 'motherName', e.target.value)}
+                                                    onBlur={e => handleInputChange(null, 'motherName', formatarNomeBR(e.target.value))}
+                                                />
                                             </div>
                                             <div className="md:col-span-2">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Pai</label>
                                                 <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                    value={formData.fatherName || ''} onChange={e => handleInputChange(null, 'fatherName', e.target.value)} />
+                                                    value={formData.fatherName || ''}
+                                                    onChange={e => handleInputChange(null, 'fatherName', e.target.value)}
+                                                    onBlur={e => handleInputChange(null, 'fatherName', formatarNomeBR(e.target.value))}
+                                                />
                                             </div>
                                         </div>
 
@@ -645,7 +655,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Responsável</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.guardians?.[0]?.name || ''} onChange={e => handleInputChange('guardians', 'name', e.target.value)} />
+                                                value={formData.guardians?.[0]?.name || ''}
+                                                onChange={e => handleInputChange('guardians', 'name', e.target.value)}
+                                                onBlur={e => handleInputChange('guardians', 'name', formatarNomeBR(e.target.value))}
+                                            />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Parentesco</label>
@@ -774,6 +787,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                                     className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
                                                     value={formData.school?.schoolName.trim() === '' ? '' : formData.school?.schoolName}
                                                     onChange={e => handleInputChange('school', 'schoolName', e.target.value)}
+                                                    onBlur={e => handleInputChange('school', 'schoolName', formatarNomeBR(e.target.value))}
                                                     placeholder="Ex: Escola Municipal Nova Vida"
                                                 />
                                             </div>

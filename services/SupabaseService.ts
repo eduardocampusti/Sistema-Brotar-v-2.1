@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import { Student, User, School, SupportProfessional, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit } from '../types';
 
 // Mapeamento de campos snake_case do banco para camelCase do frontend
+const sanitizeCPF = (cpf: string | undefined | null): string => {
+    if (!cpf) return '';
+    return cpf.replace(/\D/g, '');
+};
+
 const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     id: dbStudent.id,
     fullName: dbStudent.full_name,
@@ -43,6 +48,20 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     status: dbStudent.status,
     createdAt: dbStudent.created_at
 });
+
+// Função utilitária para retry em caso de AbortError ou falha de rede
+const safeCall = async <T>(fn: () => Promise<T>, retries = 3, interval = 500): Promise<T> => {
+    try {
+        return await fn();
+    } catch (error: any) {
+        if (retries > 0 && (error.name === 'AbortError' || error.message?.includes('AbortError') || !navigator.onLine)) {
+            console.warn(`[SupabaseService] Requisição abortada ou erro de rede. Tentando novamente... (${retries} restantes)`);
+            await new Promise(resolve => setTimeout(resolve, interval));
+            return safeCall(fn, retries - 1, interval * 2);
+        }
+        throw error;
+    }
+};
 
 export class SupabaseService {
     // Mapeamento centralizado de especialidades para o banco de dados
@@ -418,10 +437,7 @@ export class SupabaseService {
             }
 
             if (!dataToProcess || dataToProcess.length === 0) {
-                console.warn('[SupabaseService] Aviso: A consulta retornou um array vazio.', {
-                    hasData: !!dataToProcess,
-                    length: dataToProcess?.length
-                });
+                console.warn('[SupabaseService] Aviso: A consulta retornou um array vazio.');
                 return [];
             }
 
@@ -1406,68 +1422,103 @@ export class SupabaseService {
 
     // --- Support Professionals ---
     static async getSupportProfessionals(): Promise<SupportProfessional[]> {
-        const { data, error } = await supabase.from('support_professionals').select('*');
-        if (error) {
-            console.error('Erro ao buscar profissionais de apoio:', error);
-            return [];
-        }
-        return data.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            photoUrl: p.photo_url,
-            cpf: p.cpf,
-            phone: p.phone,
-            email: p.email,
-            education: p.education,
-            contractStartDate: p.contract_start_date,
-            workload: p.workload,
-            address: p.address,
-            schoolId: p.school_id,
-            regentTeacher: p.regent_teacher,
-            studentId: p.student_id,
-            createdAt: p.created_at
-        }));
+        return safeCall(async () => {
+            const { data, error } = await supabase.from('support_professionals').select('*').order('name');
+            if (error) {
+                console.error('Erro ao buscar profissionais de apoio:', error);
+                throw error;
+            }
+            return data.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                photoUrl: p.photo_url,
+                cpf: p.cpf,
+                phone: p.phone,
+                email: p.email,
+                education: p.education,
+                contractStartDate: p.contract_start_date,
+                workload: p.workload,
+                address: p.address,
+                schoolId: p.school_id,
+                regentTeacher: p.regent_teacher,
+                studentId: p.student_id,
+                createdAt: p.created_at
+            }));
+        });
     }
 
     static async saveSupportProfessional(prof: SupportProfessional): Promise<void> {
-        // Helper para converter vazio em null
-        const toNull = (value: any) => (value === '' || value === undefined ? null : value);
+        return this.upsertSupportProfessionals([prof]);
+    }
 
-        const payload = {
-            name: prof.name,
-            photo_url: prof.photoUrl,
-            cpf: prof.cpf,
-            phone: prof.phone,
-            email: prof.email,
-            education: prof.education,
-            contract_start_date: toNull(prof.contractStartDate),
-            workload: prof.workload,
-            address: prof.address,
-            school_id: toNull(prof.schoolId),
-            regent_teacher: prof.regentTeacher,
-            student_id: toNull(prof.studentId)
-        };
+    static async upsertSupportProfessionals(professionals: Partial<SupportProfessional>[]): Promise<void> {
+        if (professionals.length === 0) return;
 
-        // Remove chaves undefined
-        Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
+        const payloads = professionals.map(prof => {
+            const toNull = (value: any) => (value === '' || value === undefined ? null : value);
 
-        console.log('[DEBUG] Payload SupportProfessional:', payload);
+            const payload: any = {
+                name: prof.name,
+                photo_url: prof.photoUrl,
+                cpf: sanitizeCPF(prof.cpf),
+                phone: prof.phone,
+                email: prof.email,
+                education: prof.education,
+                contract_start_date: toNull(prof.contractStartDate),
+                workload: prof.workload,
+                address: prof.address,
+                school_id: toNull(prof.schoolId),
+                regent_teacher: prof.regentTeacher,
+                student_id: toNull(prof.studentId)
+            };
 
-        let error;
-        // Se tiver ID e for update
-        if (prof.id && prof.id.length > 10) {
-            const { error: updateError } = await supabase.from('support_professionals').update(payload).eq('id', prof.id);
-            error = updateError;
-        } else {
-            // Insert
-            const { error: insertError } = await supabase.from('support_professionals').insert(payload);
-            error = insertError;
+            if (prof.id && prof.id.length > 10) {
+                payload.id = prof.id;
+            }
+
+            // Remove chaves undefined
+            Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+            return payload;
+        });
+
+        // Remove possíveis duplicatas no array local (linhas repetidas no CSV)
+        // Isso evita o erro "ON CONFLICT DO UPDATE command cannot affect row a second time"
+        const uniquePayloadsMap = new Map();
+        for (const p of payloads) {
+            const key = p.id ? `id_${p.id}` : (p.cpf ? `cpf_${p.cpf}` : `name_${p.name}`);
+            uniquePayloadsMap.set(key, p);
         }
+        const uniquePayloads = Array.from(uniquePayloadsMap.values());
 
-        if (error) {
-            console.error('Erro ao salvar profissional de apoio (Detalhado):', JSON.stringify(error, null, 2));
-            throw new Error(`Erro Banco de Dados: ${error.message} (${error.code || 'sem código'})`);
-        }
+        console.log(`[SupabaseService] Processando ${uniquePayloads.length} profissionais únicos (após deduplicação)...`);
+
+        return safeCall(async () => {
+            // Separa em inserts (sem ID) e updates (com ID) para evitar o erro de constraint "null value in column id"
+            const updates = uniquePayloads.filter(p => p.id != null);
+            const inserts = uniquePayloads.filter(p => p.id == null);
+
+            // Realizando UPDATES individuais. Evita o erro de concorrência "cannot affect row a second time"
+            // que costuma ocorrer quando triggers ou chaves únicas secundárias (como cpf) atrapalham o bulk upsert
+            if (updates.length > 0) {
+                for (const up of updates) {
+                    const updateData = { ...up };
+                    delete updateData.id; // Retira o ID do body, usando só no .eq()
+                    const { error } = await supabase.from('support_professionals').update(updateData).eq('id', up.id);
+                    if (error) {
+                        console.error('Erro no UPDATE de profissionais:', error);
+                        throw new Error(`Erro Banco de Dados (Update do ID ${up.id}): ${error.message}`);
+                    }
+                }
+            }
+
+            if (inserts.length > 0) {
+                const { error } = await supabase.from('support_professionals').insert(inserts);
+                if (error) {
+                    console.error('Erro no INSERT de profissionais:', error);
+                    throw new Error(`Erro Banco de Dados (Insert): ${error.message}`);
+                }
+            }
+        });
     }
 
     static async deleteSupportProfessional(id: string): Promise<void> {

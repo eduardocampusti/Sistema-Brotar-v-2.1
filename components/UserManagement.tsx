@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole, Specialty, UserScope } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { useToast } from '../contexts/ToastContext';
+import { formatarNomeBR } from '../utils/formatters';
 import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 
 const JOB_TITLES = [
@@ -308,7 +309,10 @@ export const UserManagement: React.FC = () => {
                                         <label className="block">
                                             <span className="text-sm font-medium text-slate-700">Nome Completo *</span>
                                             <input required type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2.5 border"
-                                                value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                                                value={formData.name}
+                                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                                onBlur={e => setFormData({ ...formData, name: formatarNomeBR(e.target.value) })}
+                                            />
                                         </label>
                                     </div>
                                     <div>
