@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
 
     // Define se deve usar template ou texto simples
-    const USE_TEMPLATE = false; // Mudar para true quando o template 'confirmar_agendamento' for aprovado
+    const USE_TEMPLATE = true; // Ativado para garantir entrega para novos números
 
     const messageBody = USE_TEMPLATE ? {
         messaging_product: "whatsapp",
@@ -50,17 +50,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     type: "button",
                     sub_type: "quick_reply",
                     index: "0",
-                    parameters: [{ type: "payload", payload: appointmentId }]
+                    parameters: [{ type: "payload", payload: `CONFIRM_${appointmentId}` }]
                 },
                 {
                     type: "button",
                     sub_type: "quick_reply",
                     index: "1",
-                    parameters: [{ type: "payload", payload: appointmentId }]
+                    parameters: [{ type: "payload", payload: `RESCHEDULE_${appointmentId}` }]
+                },
+                {
+                    type: "button",
+                    sub_type: "quick_reply",
+                    index: "2",
+                    parameters: [{ type: "payload", payload: `CANCEL_${appointmentId}` }]
                 }
             ]
         }
     } : {
+        // ... (Mantendo o texto simples como fallback no código mas inativo)
         messaging_product: "whatsapp",
         to: formattedPhone,
         type: "interactive",
@@ -94,16 +101,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     try {
+        const messagePayload = JSON.stringify(messageBody);
+        console.log(`[WhatsApp] Enviando mensagem para ${formattedPhone}:`, messagePayload);
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(messageBody),
+            body: messagePayload,
         });
 
         const dataResponse = await response.json();
+        console.log('[WhatsApp] Resposta da Meta:', JSON.stringify(dataResponse));
 
         if (!response.ok) {
             console.error('Meta API Error:', dataResponse);

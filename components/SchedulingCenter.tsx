@@ -171,6 +171,15 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             );
         }
 
+        if (status === 'REMARCAR') {
+            return (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-orange-50 text-orange-600 border border-orange-200 text-[9px] font-black uppercase tracking-wider">
+                    <RotateCcw size={12} />
+                    WhatsApp: Pediu Remarcar
+                </div>
+            );
+        }
+
         return null;
     };
 

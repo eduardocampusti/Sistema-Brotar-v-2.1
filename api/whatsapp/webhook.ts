@@ -29,6 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // --- RECEBIMENTO POST (Eventos Meta) ---
     if (req.method === 'POST') {
         const body = req.body;
+        console.log('[Webhook] Payload bruto recebido:', JSON.stringify(body, null, 2));
 
         if (body.object === 'whatsapp_business_account') {
             try {
@@ -38,31 +39,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const message = value?.messages?.[0];
 
                 if (message) {
-                    console.log('Mensagem recebida:', message);
+                    console.log('[Webhook] Detalhes da mensagem:', JSON.stringify(message));
 
                     let newStatus = '';
                     let appointmentId = '';
 
-                    // Lógica para BOTÕES INTERATIVOS (button_reply)
-                    if (message.type === 'interactive' && message.interactive?.button_reply) {
+                    // 1. Lógica para BOTÕES DE TEMPLATE (button payload)
+                    if (message.type === 'button' && message.button?.payload) {
+                        const payload = message.button.payload;
+                        console.log('[Webhook] Botão de Template clicado. Payload:', payload);
+
+                        if (payload.startsWith('CONFIRM_')) {
+                            newStatus = 'CONFIRMADO';
+                            appointmentId = payload.replace('CONFIRM_', '');
+                        } else if (payload.startsWith('RESCHEDULE_')) {
+                            newStatus = 'REMARCAR';
+                            appointmentId = payload.replace('RESCHEDULE_', '');
+                        } else if (payload.startsWith('CANCEL_')) {
+                            newStatus = 'CANCELADO';
+                            appointmentId = payload.replace('CANCEL_', '');
+                        }
+                    }
+                    // 2. Lógica para BOTÕES INTERATIVOS (button_reply)
+                    else if (message.type === 'interactive' && message.interactive?.button_reply) {
                         const replyId = message.interactive.button_reply.id;
-                        console.log('Botão clicado:', replyId);
+                        console.log('[Webhook] Botão Interativo clicado:', replyId);
 
                         if (replyId.startsWith('CONFIRM_')) {
                             newStatus = 'CONFIRMADO';
                             appointmentId = replyId.replace('CONFIRM_', '');
+                        } else if (replyId.startsWith('RESCHEDULE_')) {
+                            newStatus = 'REMARCAR';
+                            appointmentId = replyId.replace('RESCHEDULE_', '');
                         } else if (replyId.startsWith('CANCEL_')) {
                             newStatus = 'CANCELADO';
                             appointmentId = replyId.replace('CANCEL_', '');
                         }
-                    }
-                    // Lógica para mensagens de BOTÃO (quick_reply de templates)
-                    else if (message.type === 'button') {
-                        const buttonText = message.button?.text;
-                        appointmentId = message.button?.payload; // ID capturado do payload enviado no /api/whatsapp/send.ts
-
-                        if (buttonText === 'Confirmar') newStatus = 'CONFIRMADO';
-                        else if (buttonText === 'Cancelar') newStatus = 'CANCELADO';
                     }
                     // Lógica para TEXTO
                     else if (message.type === 'text') {
