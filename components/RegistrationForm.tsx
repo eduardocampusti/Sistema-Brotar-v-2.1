@@ -3,8 +3,9 @@ import { Student, Gender, DocumentType, StudentDocument, School } from '../types
 import { Save, X, Activity, User, BookOpen, Users as UsersIcon, Upload, Trash2, FileText, Check, Paperclip, AlertCircle, Download } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
-import { formatarNomeBR } from '../utils/formatters';
+import { formatarNomeBR, formatarCPF, formatarTelefoneBR, formatarDataBR, apenasNumeros, dataBRParaISO, dataISOParaBR, calcularIdade, formatarCEP, limparDocumento } from '../utils/formatters';
 import SearchableSelect from './SearchableSelect';
+import { CEPService } from '../services/CEPService';
 
 interface RegistrationFormProps {
     onSuccess: () => void;
@@ -30,6 +31,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const [saveError, setSaveError] = useState<string | null>(null);
     const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
     const [documentFiles, setDocumentFiles] = useState<{ file: File, type: string }[]>([]);
+    const [isSearchingCEP, setIsSearchingCEP] = useState(false);
+    const [cepError, setCepError] = useState<string | null>(null);
 
     // Novos estados locais para separar Naturalidade e Estado
     const [birthCity, setBirthCity] = useState('');
@@ -114,35 +117,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         loadSchools();
     }, []);
 
-    // Função auxiliar para formatar CPF
-    const formatCPF = (value: string) => {
-        return value
-            .replace(/\D/g, '')
-            .replace(/(\d{3})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d{1,2})/, '$1-$2')
-            .replace(/(-\d{2})\d+?$/, '$1');
-    };
-
-    // Função auxiliar para formatar CEP
-    const formatCEP = (value: string) => {
-        return value
-            .replace(/\D/g, '')
-            .replace(/(\d{5})(\d)/, '$1-$2')
-            .replace(/(-\d{3})\d+?$/, '$1');
-    };
-
-    // Função auxiliar para formatar Telefone / WhatsApp
-    const formatPhone = (value: string) => {
-        const v = value.replace(/\D/g, '');
-        if (v.length <= 10) {
-            return v.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
-        }
-        return v.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '');
-    };
+    // Funções auxiliares internas removidas em favor dos utilitários centrais (../utils/formatters)
 
     const handleInputChange = (section: keyof Student | null, field: string, value: any) => {
         const objectSections = ['address', 'clinical', 'school', 'socialInfo'];
+        const nameFields = ['fullName', 'motherName', 'fatherName', 'name'];
+        let finalValue = value;
+
+        if (nameFields.includes(field)) {
+            finalValue = formatarNomeBR(value);
+        }
 
         if (section && objectSections.includes(section)) {
             setFormData(prev => {
@@ -151,7 +135,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                     ...prev,
                     [section]: {
                         ...currentSection,
-                        [field]: value
+                        [field]: finalValue
                     }
                 };
             });
@@ -167,11 +151,44 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                     } as any);
                 }
 
-                newGuardians[0] = { ...newGuardians[0], [field]: value };
+                newGuardians[0] = { ...newGuardians[0], [field]: finalValue };
                 return { ...prev, guardians: newGuardians };
             });
         } else {
-            setFormData(prev => ({ ...prev, [field]: value }));
+            setFormData(prev => ({ ...prev, [field]: finalValue }));
+        }
+    };
+
+    const handleCEPChange = async (value: string) => {
+        const formattedCEP = formatarCEP(value);
+        handleInputChange('address', 'zipCode', formattedCEP);
+
+        const numeros = apenasNumeros(value);
+        if (numeros.length === 8) {
+            setIsSearchingCEP(true);
+            setCepError(null);
+            try {
+                const data = await CEPService.fetchAddress(numeros);
+                if (data) {
+                    setFormData(prev => ({
+                        ...prev,
+                        address: {
+                            ...prev.address!,
+                            street: data.street,
+                            district: data.district,
+                            city: data.city,
+                            state: data.state
+                        }
+                    }));
+                } else {
+                    setCepError('CEP não encontrado');
+                }
+            } catch (error) {
+                console.error("Erro ao buscar CEP:", error);
+                setCepError('Erro ao buscar CEP');
+            } finally {
+                setIsSearchingCEP(false);
+            }
         }
     };
 
@@ -263,8 +280,22 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
             setSaveError(null);
 
             // Unir Naturalidade e Estado antes de salvar
-            const combinedBirthPlace = birthCity && birthState ? `${birthCity} / ${birthState}` : birthCity || birthState || '';
-            const submissionData = { ...formData, birthPlace: combinedBirthPlace } as Student;
+            const combinedBirthPlace = (birthCity && birthState ? `${birthCity} / ${birthState}` : birthCity || birthState || '').trim();
+
+            // Higienização final dos nomes para garantir que espaços extras sejam removidos antes de salvar
+            const sanitizedData = {
+                ...formData,
+                fullName: formData.fullName ? formatarNomeBR(formData.fullName).replace(/\s+/g, ' ').trim() : '',
+                motherName: formData.motherName ? formatarNomeBR(formData.motherName).replace(/\s+/g, ' ').trim() : '',
+                fatherName: formData.fatherName ? formatarNomeBR(formData.fatherName).replace(/\s+/g, ' ').trim() : '',
+                birthPlace: combinedBirthPlace,
+                guardians: formData.guardians?.map(g => ({
+                    ...g,
+                    name: g.name ? formatarNomeBR(g.name).replace(/\s+/g, ' ').trim() : ''
+                }))
+            };
+
+            const submissionData = sanitizedData as Student;
 
             console.log('[RegistrationForm] Enviando para saveStudent - ID:', submissionData.id, 'CPF:', submissionData.cpf);
             const savedId = await SupabaseService.saveStudent(
@@ -390,14 +421,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8">
-                    {/* ... (The content inside form is omitted here to remain within context limits, I am relying on the fact that I am replacing the START and END of the component render in a smart way or I have to be very careful) 
-                        Actually, replace_file_content requires EXACT target match.
-                        I can't match the middle 500 lines easily.
-                        
-                        Strategy:
-                        1. Replace the top `return (` line to `return (<>`.
-                        2. Replace the bottom `</div> );` to `</div> {modal} </> );`.
-                    */}
 
                     {
                         activeTab === 'personal' && (
@@ -440,23 +463,35 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
                                     {/* Main Inputs */}
                                     <div className="flex-1 space-y-5">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                            <div className="md:col-span-2">
+                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                                            <div className="md:col-span-12">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo do Aluno *</label>
                                                 <input required type="text" className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
-                                                    value={formData.fullName || ''}
-                                                    onChange={e => handleInputChange(null, 'fullName', e.target.value)}
-                                                    onBlur={e => handleInputChange(null, 'fullName', formatarNomeBR(e.target.value))}
-                                                />
+                                                    value={formData.fullName || ''} onChange={e => handleInputChange(null, 'fullName', e.target.value)} />
                                             </div>
 
-                                            <div>
+                                            <div className="md:col-span-4">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Data de Nascimento *</label>
                                                 <input required type="date" className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
                                                     value={formData.birthDate || ''} onChange={e => handleInputChange(null, 'birthDate', e.target.value)} />
                                             </div>
 
-                                            <div>
+                                            <div className="md:col-span-3">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Idade</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        readOnly
+                                                        className="w-full rounded-lg border-slate-200 bg-slate-50 text-slate-600 p-2.5 border font-semibold text-center cursor-default"
+                                                        value={formData.birthDate ? `${calcularIdade(formData.birthDate)} Anos` : '--'}
+                                                    />
+                                                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                                        <Activity size={16} className="text-slate-300" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="md:col-span-5">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Gênero</label>
                                                 <select className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
                                                     value={formData.gender || ''} onChange={e => handleInputChange(null, 'gender', e.target.value)}>
@@ -485,18 +520,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                             <div className="md:col-span-1">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Mãe</label>
                                                 <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                    value={formData.motherName || ''}
-                                                    onChange={e => handleInputChange(null, 'motherName', e.target.value)}
-                                                    onBlur={e => handleInputChange(null, 'motherName', formatarNomeBR(e.target.value))}
-                                                />
+                                                    value={formData.motherName || ''} onChange={e => handleInputChange(null, 'motherName', e.target.value)} />
                                             </div>
                                             <div className="md:col-span-2">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Pai</label>
                                                 <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                    value={formData.fatherName || ''}
-                                                    onChange={e => handleInputChange(null, 'fatherName', e.target.value)}
-                                                    onBlur={e => handleInputChange(null, 'fatherName', formatarNomeBR(e.target.value))}
-                                                />
+                                                    value={formData.fatherName || ''} onChange={e => handleInputChange(null, 'fatherName', e.target.value)} />
                                             </div>
                                         </div>
 
@@ -512,7 +541,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                                     type="text"
                                                     className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
                                                     value={formData.cpf || ''}
-                                                    onChange={e => handleInputChange(null, 'cpf', formatCPF(e.target.value))}
+                                                    onChange={e => handleInputChange(null, 'cpf', formatarCPF(e.target.value))}
                                                     placeholder="000.000.000-00"
                                                     maxLength={14}
                                                 />
@@ -531,7 +560,22 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         <div className="w-1 h-4 bg-primary-500 rounded-full"></div> Endereço Residencial
                                     </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        <div className="md:col-span-3">
+                                        <div className="md:col-span-1">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="block text-xs font-medium text-slate-500">CEP</label>
+                                                {isSearchingCEP && <span className="text-[10px] text-primary-600 animate-pulse font-bold italic">Buscando...</span>}
+                                                {cepError && <span className="text-[10px] text-red-500 font-bold italic">{cepError}</span>}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                className={`w-full rounded-lg p-2.5 border transition-all ${cepError ? 'border-red-300 bg-red-50' : 'border-slate-300 focus:ring-primary-500 focus:border-primary-500'}`}
+                                                value={formData.address?.zipCode || ''}
+                                                onChange={e => handleCEPChange(e.target.value)}
+                                                placeholder="00000-000"
+                                                maxLength={9}
+                                            />
+                                        </div>
+                                        <div className="md:col-span-2">
                                             <label className="block text-xs font-medium text-slate-500 mb-1">Logradouro (Rua, Av, etc)</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
                                                 value={formData.address?.street} onChange={e => handleInputChange('address', 'street', e.target.value)} />
@@ -555,17 +599,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                             <label className="block text-xs font-medium text-slate-500 mb-1">UF</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
                                                 value={formData.address?.state} onChange={e => handleInputChange('address', 'state', e.target.value)} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">CEP</label>
-                                            <input
-                                                type="text"
-                                                className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.address?.zipCode || ''}
-                                                onChange={e => handleInputChange('address', 'zipCode', formatCEP(e.target.value))}
-                                                placeholder="00000-000"
-                                                maxLength={9}
-                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -655,10 +688,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Responsável</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.guardians?.[0]?.name || ''}
-                                                onChange={e => handleInputChange('guardians', 'name', e.target.value)}
-                                                onBlur={e => handleInputChange('guardians', 'name', formatarNomeBR(e.target.value))}
-                                            />
+                                                value={formData.guardians?.[0]?.name || ''} onChange={e => handleInputChange('guardians', 'name', e.target.value)} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Parentesco</label>
@@ -683,7 +713,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                                 type="text"
                                                 className="w-full rounded-lg border-slate-300 p-2.5 border"
                                                 value={formData.guardians?.[0]?.cpf || ''}
-                                                onChange={e => handleInputChange('guardians', 'cpf', formatCPF(e.target.value))}
+                                                onChange={e => handleInputChange('guardians', 'cpf', formatarCPF(e.target.value))}
                                                 placeholder="000.000.000-00"
                                                 maxLength={14}
                                             />
@@ -699,7 +729,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                                 type="text"
                                                 className="w-full rounded-lg border-slate-300 p-2.5 border"
                                                 value={formData.guardians?.[0]?.phone || ''}
-                                                onChange={e => handleInputChange('guardians', 'phone', formatPhone(e.target.value))}
+                                                onChange={e => handleInputChange('guardians', 'phone', formatarTelefoneBR(e.target.value))}
                                                 placeholder="(00) 00000-0000"
                                                 maxLength={15}
                                             />
@@ -787,7 +817,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                                     className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
                                                     value={formData.school?.schoolName.trim() === '' ? '' : formData.school?.schoolName}
                                                     onChange={e => handleInputChange('school', 'schoolName', e.target.value)}
-                                                    onBlur={e => handleInputChange('school', 'schoolName', formatarNomeBR(e.target.value))}
                                                     placeholder="Ex: Escola Municipal Nova Vida"
                                                 />
                                             </div>

@@ -216,6 +216,7 @@ export interface Student {
   // Dados Pessoais Expandidos
   cpf: string;
   rg?: string;
+  birthCertificate?: string;
   susCard: string;
   motherName?: string;
   fatherName?: string;
