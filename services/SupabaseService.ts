@@ -615,7 +615,7 @@ export class SupabaseService {
             sus_card: sanitizeField(student.susCard),
             grade: student.school.grade,
             shift: student.school.shift,
-            school_id: student.school.schoolId, // PERSISTÊNCIA DO ID DA ESCOLA
+            school_id: sanitizeField(student.school.schoolId) || null, // UUID: null se vazio
             address: student.address,
             guardians: student.guardians,
             photo_url: finalPhotoUrl,
