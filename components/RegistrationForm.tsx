@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Student, Gender, DocumentType, StudentDocument, School } from '../types';
+import { Student, Gender, DocumentType, StudentDocument, School, AuditAction } from '../types';
 import { Save, X, Activity, User, BookOpen, Users as UsersIcon, Upload, Trash2, FileText, Check, Paperclip, AlertCircle, Download } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
@@ -303,6 +303,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                 selectedPhotoFile || undefined,
                 documentFiles
             );
+
+            // Registro de Auditoria: Estudante
+            const acao = initialData ? AuditAction.UPDATE : AuditAction.CREATE;
+            await SupabaseService.logAction(currentUser, acao, 'ALUNOS', submissionData.fullName || 'Novo Aluno');
 
             setDocumentFiles([]);
             setSelectedPhotoFile(null);

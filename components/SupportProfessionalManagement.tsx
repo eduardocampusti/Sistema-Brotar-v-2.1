@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { SupportProfessional, School, Student, User as UserType } from '../types';
+import { SupportProfessional, School, Student, User as UserType, AuditAction } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
 import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
@@ -61,6 +61,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const isEscola = currentUser?.role === 'ESCOLA';
 
     // Estados para o autocomplete de escola
     const [schoolSearchTerm, setSchoolSearchTerm] = useState('');
@@ -176,6 +177,13 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
         try {
             await SupabaseService.saveSupportProfessional(newProf);
+
+            // Registro de Auditoria: Profissional Apoio
+            const acao = formData.id ? AuditAction.UPDATE : AuditAction.CREATE;
+            if (currentUser) {
+                await SupabaseService.logAction(currentUser as any, acao, 'PROFISSIONAIS_APOIO', newProf.name);
+            }
+
             await loadData();
             setIsAdding(false);
             resetForm();
@@ -204,6 +212,17 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         setSchoolSearchTerm('');
     };
 
+    // Auto-seleção de escola para o role ESCOLA
+    useEffect(() => {
+        if (currentUser?.role === 'ESCOLA' && currentUser.schoolInep && !formData.schoolId && schools.length > 0) {
+            const mySchool = schools.find(s => s.inep === currentUser.schoolInep);
+            if (mySchool) {
+                setFormData(prev => ({ ...prev, schoolId: mySchool.id }));
+                setSchoolSearchTerm(mySchool.name);
+            }
+        }
+    }, [currentUser, schools, formData.schoolId]);
+
     const handleEdit = (prof: SupportProfessional) => {
         const address = prof.address || { street: '', number: '', district: '', city: '', state: '', zipCode: '' };
         setFormData({ ...prof, address });
@@ -220,7 +239,13 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
         setIsDeleting(true);
         try {
+            const profToDelete = professionals.find(p => p.id === pendingDeleteId);
             await SupabaseService.deleteSupportProfessional(pendingDeleteId);
+
+            if (currentUser && profToDelete) {
+                await SupabaseService.logAction(currentUser as any, AuditAction.DELETE, 'PROFISSIONAIS_APOIO', profToDelete.name);
+            }
+
             await loadData();
             showNotification('Profissional excluído.', 'success');
         } catch (err) {
@@ -273,6 +298,13 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         return students.filter(s => s.school?.schoolId === formData.schoolId);
     }, [students, formData.schoolId]);
 
+    // Filtragem de profissionais por permissão (Escola só vê os dela)
+    const filteredProfessionals = useMemo(() => {
+        if (!isEscola) return professionals;
+        const mySchoolId = schools.find(s => s.inep === currentUser?.schoolInep)?.id;
+        return professionals.filter(p => p.schoolId === mySchoolId);
+    }, [professionals, isEscola, currentUser, schools]);
+
     const getSchoolName = (id: string) => schools.find(s => s.id === id)?.name || 'Desconhecida';
     const getStudentName = (id: string) => students.find(s => s.id === id)?.fullName || 'Desconhecido';
 
@@ -295,7 +327,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     };
 
     const handleExportCSV = () => {
-        if (professionals.length === 0) {
+        if (filteredProfessionals.length === 0) {
             showNotification('Não há dados para exportar.', 'error');
             return;
         }
@@ -308,7 +340,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
         const csvContent = [
             headers.join(','),
-            ...professionals.map(p => {
+            ...filteredProfessionals.map(p => {
                 const schoolName = getSchoolName(p.schoolId);
                 const studentName = getStudentName(p.studentId);
                 const addr = p.address || { street: '', number: '', district: '', city: '', state: '', zipCode: '' };
@@ -581,7 +613,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     <h2 className="text-2xl font-bold text-slate-800">Profissionais de Apoio Escolar</h2>
                     <p className="text-slate-500">Gestão de acompanhantes terapêuticos e monitores</p>
                 </div>
-                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
+                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA') && (
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleExportCSV}
@@ -740,10 +772,11 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                             <input
                                                 type="text"
                                                 required={!formData.schoolId}
-                                                className="w-full rounded-lg border-slate-300 p-2.5 border pl-9 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                                                className="w-full rounded-lg border-slate-300 p-2.5 border pl-9 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none disabled:bg-slate-50 disabled:text-slate-500"
                                                 placeholder="Digite o nome da escola..."
                                                 value={schoolSearchTerm}
-                                                onFocus={() => setShowSchoolSuggestions(true)}
+                                                onFocus={() => !isEscola && setShowSchoolSuggestions(true)}
+                                                disabled={isEscola}
                                                 onChange={e => {
                                                     setSchoolSearchTerm(e.target.value);
                                                     setShowSchoolSuggestions(true);
@@ -892,16 +925,16 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                        {professionals.length === 0 ? (
+                        {filteredProfessionals.length === 0 ? (
                             <tr>
                                 <td colSpan={5} className="px-6 py-10 text-center text-slate-500">
                                     <div className="flex flex-col items-center gap-2">
                                         <UserCog size={32} className="text-slate-300" />
-                                        <p>Nenhum profissional de apoio cadastrado.</p>
+                                        <p>Nenhum profissional de apoio encontrado.</p>
                                     </div>
                                 </td>
                             </tr>
-                        ) : professionals.map(prof => (
+                        ) : filteredProfessionals.map(prof => (
                             <tr key={prof.id} className="hover:bg-slate-50">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
@@ -962,14 +995,16 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
+                                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA') && (
                                             <>
                                                 <button onClick={() => handleEdit(prof)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Editar">
                                                     <Edit size={16} />
                                                 </button>
-                                                <button onClick={() => handleDeleteClick(prof.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors" title="Excluir">
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
+                                                    <button onClick={() => handleDeleteClick(prof.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors" title="Excluir">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
                                             </>
                                         )}
                                     </div>

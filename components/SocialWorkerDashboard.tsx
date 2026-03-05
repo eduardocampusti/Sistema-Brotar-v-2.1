@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { SupabaseService } from '../services/SupabaseService';
 import {
     Users,
     Activity,
@@ -17,7 +18,7 @@ import {
     AlertTriangle,
     Flag
 } from 'lucide-react';
-import { Student, User, Specialty } from '../types';
+import { Student, User, Specialty, Appointment } from '../types';
 
 // Helper simples para idade se não conseguir importar
 const getAge = (birthDate?: string) => {
@@ -46,8 +47,29 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
     onNavigateNew
 }) => {
 
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
+                setAppointments(data);
+            } catch (error) {
+                console.error('Erro ao carregar agenda:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, [currentUser.id]);
+
     // --- CÁLCULO DE ESTATÍSTICAS ---
     const stats = useMemo(() => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const monthStr = now.toISOString().slice(0, 7);
+
         let activeCases = 0;
         let pendingSearch = 0;
         let pendingInterview = 0;
@@ -55,6 +77,11 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
 
         const myCases: Student[] = [];
         const pendingList: Student[] = [];
+
+        // Agenda Stats
+        const todayCount = appointments.filter(a => a.date === todayStr).length;
+        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
+        const absences = appointments.filter(a => a.status === 'FALTOU').length;
 
         students.forEach(s => {
             const social = s.clinical?.social_data?.formData;
@@ -106,9 +133,12 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
             pendingInterview,
             institutionalReferrals,
             myCases: myCases.slice(0, 5), // Top 5 recentes
-            pendingList: pendingList.slice(0, 5) // Top 5 pendentes
+            pendingList: pendingList.slice(0, 5), // Top 5 pendentes
+            todayCount,
+            monthCount,
+            absences
         };
-    }, [students]);
+    }, [students, appointments]);
 
     // Simulação de Atendimentos de Hoje (Já que não temos a prop de appointments aqui, 
     // idealmente viria de uma prop ou fetch, mas vamos simular um estado vazio visualmente 
@@ -139,37 +169,22 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
 
             {/* 1. CARDS INFORMATIVOS (TOPO) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group hover:border-primary-300 transition-all">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Users size={80} />
-                    </div>
-                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Total Acompanhados</p>
-                    <h3 className="text-4xl font-black text-slate-800">{stats.activeCases}</h3>
-                    <div className="mt-4 flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 w-fit px-2 py-1 rounded-md uppercase">
-                        <Activity size={10} /> Em andamento
-                    </div>
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-[#1E7F85] transition-all">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Hoje</p>
+                    <h3 className="text-4xl font-black text-slate-800">{stats.todayCount}</h3>
+                    <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Atendimentos</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group hover:border-amber-300 transition-all">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <AlertCircle size={80} />
-                    </div>
-                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Busca Ativa Pendente</p>
-                    <h3 className="text-4xl font-black text-slate-800">{stats.pendingSearch}</h3>
-                    <div className="mt-4 flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 w-fit px-2 py-1 rounded-md uppercase">
-                        <AlertTriangle size={10} /> Requer Atenção
-                    </div>
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-amber-300 transition-all">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Mensal</p>
+                    <h3 className="text-4xl font-black text-slate-800">{stats.monthCount}</h3>
+                    <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Produtividade</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group hover:border-blue-300 transition-all">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <FileText size={80} />
-                    </div>
-                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Entrevistas Pendentes</p>
-                    <h3 className="text-4xl font-black text-slate-800">{stats.pendingInterview}</h3>
-                    <div className="mt-4 flex items-center gap-1 text-[10px] font-bold text-blue-600 bg-blue-50 w-fit px-2 py-1 rounded-md uppercase">
-                        <Clock size={10} /> Aguardando
-                    </div>
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-rose-300 transition-all">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Faltas</p>
+                    <h3 className="text-4xl font-black text-rose-600">{stats.absences}</h3>
+                    <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Absenteísmo</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-[#1E7F85] to-[#145f63] p-6 rounded-[2rem] border border-[#1E7F85] shadow-lg text-white relative overflow-hidden group">
@@ -184,6 +199,36 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                     >
                         Ver Atendimentos <ArrowRight size={14} />
                     </button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                        <Users size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs font-bold text-slate-400 uppercase">Casos Ativos</p>
+                        <p className="text-xl font-black text-slate-800">{stats.activeCases}</p>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                        <AlertCircle size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs font-bold text-slate-400 uppercase">Busca Ativa</p>
+                        <p className="text-xl font-black text-slate-800">{stats.pendingSearch}</p>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                        <FileText size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs font-bold text-slate-400 uppercase">Entrevistas</p>
+                        <p className="text-xl font-black text-slate-800">{stats.pendingInterview}</p>
+                    </div>
                 </div>
             </div>
 

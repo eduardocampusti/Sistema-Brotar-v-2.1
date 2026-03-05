@@ -36,31 +36,59 @@ export const PsychologyDashboard: React.FC<{
 }> = ({ currentUser, onNavigate }) => {
     const [activeTab, setActiveTab] = useState('resumo');
     const [students, setStudents] = useState<Student[]>([]);
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [stats, setStats] = useState({
         totalStudents: 0,
         activeCases: 0,
-        pendingDrafts: 0,
-        sessionsThisMonth: 0
+        todayCount: 0,
+        weekCount: 0,
+        monthCount: 0,
+        absences: 0
     });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            const allStudents = await SupabaseService.getStudents();
-            setStudents(allStudents);
+            try {
+                const allStudents = await SupabaseService.getStudents();
+                const allAppointments = await SupabaseService.getAppointments({ professionalId: currentUser.id });
 
-            // Simulação de contagem - No mundo real isso viria de queries específicas
-            setStats({
-                totalStudents: allStudents.length,
-                activeCases: allStudents.filter(s => s.status === 'Active').length,
-                pendingDrafts: 3, // Mock
-                sessionsThisMonth: 42 // Mock
-            });
-            setLoading(false);
+                setStudents(allStudents);
+                setAppointments(allAppointments);
+
+                const now = new Date();
+                const todayStr = now.toISOString().split('T')[0];
+                const monthStr = now.toISOString().slice(0, 7);
+
+                const myStudents = allStudents.filter(s => s.history?.some(h => h.specialty === Specialty.PSYCHOLOGY));
+
+                const todayCount = allAppointments.filter(a => a.date === todayStr).length;
+                const weekCount = allAppointments.filter(a => {
+                    const d = new Date(a.date);
+                    const weekAhead = new Date();
+                    weekAhead.setDate(now.getDate() + 7);
+                    return d >= now && d <= weekAhead;
+                }).length;
+                const monthCount = allAppointments.filter(a => a.date.startsWith(monthStr)).length;
+                const absences = allAppointments.filter(a => a.status === 'FALTOU').length;
+
+                setStats({
+                    totalStudents: myStudents.length,
+                    activeCases: myStudents.length,
+                    todayCount,
+                    weekCount,
+                    monthCount,
+                    absences
+                });
+            } catch (error) {
+                console.error('Erro ao carregar dados do dashboard:', error);
+            } finally {
+                setLoading(false);
+            }
         };
         loadData();
-    }, []);
+    }, [currentUser.id]);
 
     const menuItems = [
         { id: 'resumo', label: 'Início', icon: LayoutDashboard },
@@ -95,9 +123,9 @@ export const PsychologyDashboard: React.FC<{
         <div className="space-y-6 animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard title="Alunos Vinculados" value={stats.totalStudents} icon={Users} gradient="from-purple-500 to-indigo-600" subtext="No seu CRP" />
-                <StatCard title="Casos Ativos" value={stats.activeCases} icon={Activity} gradient="from-emerald-500 to-teal-600" subtext="Em acompanhamento" />
-                <StatCard title="Rascunhos" value={stats.pendingDrafts} icon={AlertCircle} gradient="from-amber-400 to-orange-500" subtext="Pendentes de finalização" />
-                <StatCard title="Sessões/Mês" value={stats.sessionsThisMonth} icon={CheckCircle} gradient="from-blue-500 to-cyan-600" subtext="Produtividade" />
+                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-emerald-500 to-teal-600" subtext="Atendimentos hoje" />
+                <StatCard title="Faltas" value={stats.absences} icon={AlertCircle} gradient="from-amber-400 to-orange-500" subtext="Absenteísmo recorrente" />
+                <StatCard title="Sessões/Mês" value={stats.monthCount} icon={CheckCircle} gradient="from-blue-500 to-cyan-600" subtext="Produtividade" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
-import { Student, User, Specialty, Session } from '../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Student, User, Specialty, Session, Appointment } from '../types';
 import { StorageService } from '../services/storageService';
+import { SupabaseService } from '../services/SupabaseService';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer } from 'lucide-react';
 import { WelcomeHeader } from './WelcomeHeader';
@@ -55,72 +56,101 @@ const StatCard = ({ title, value, icon: Icon, gradient, subtext, trend }: any) =
 export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
     const stats = useMemo(() => {
         const total = students.length;
-        const active = students.filter(s => s.status === 'Active').length;
-        const pending = students.filter(s => s.status === 'Pending').length;
-        const professionals = StorageService.getUsers().filter(u => u.isActive && (u.role === 'SPECIALIST' || u.role === 'EDUCATION_SECRETARY')).length;
+        const teaStudents = students.filter(s => {
+            const diag = (s.clinical?.diagnosis || '').toUpperCase();
+            const needs = (s.clinical?.specialNeeds || []).map(n => n.toUpperCase());
+            return diag.includes('TEA') || diag.includes('AUTISMO') || needs.includes('AUTISMO') || needs.includes('TEA');
+        });
 
-        const schoolData = students.reduce((acc: any[], s) => {
+        const withSupport = students.filter(s => s.school?.hasSpecialAide === true).length;
+        const pendingEval = students.filter(s => s.status === 'Pending').length;
+
+        // Distribuição TEA por Escola
+        const teaBySchool = teaStudents.reduce((acc: any[], s) => {
             const school = s.school.schoolName || 'Não Informada';
             const existing = acc.find(i => i.name === school);
             if (existing) existing.value++;
             else acc.push({ name: school, value: 1 });
             return acc;
-        }, []).slice(0, 5);
+        }, []).sort((a, b) => b.value - a.value).slice(0, 5);
 
-        return { total, active, pending, professionals, schoolData };
+        // Distribuição TEA por Idade
+        const teaByAge = teaStudents.reduce((acc: any[], s) => {
+            if (!s.birthDate) return acc;
+            const birth = new Date(s.birthDate);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const m = today.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+
+            const ageGroup = `${age} anos`;
+            const existing = acc.find(i => i.name === ageGroup);
+            if (existing) existing.value++;
+            else acc.push({ name: ageGroup, age, value: 1 });
+            return acc;
+        }, []).sort((a, b) => a.age - b.age);
+
+        return {
+            total,
+            teaCount: teaStudents.length,
+            withSupport,
+            withoutSupport: total - withSupport,
+            pendingEval,
+            teaBySchool,
+            teaByAge
+        };
     }, [students]);
 
     return (
         <div className="space-y-8 animate-slideUp">
             <WelcomeHeader name={currentUser.name.split(' ')[0]} />
 
-            {/* Action Cards Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <ActionCard
-                    title="Novo Usuário"
-                    description="Cadastre profissionais e defina permissões de acesso"
-                    icon={UserPlus}
-                    onClick={() => onNavigate('admin')}
-                    colorClass="bg-blue-50 text-blue-600"
-                />
-                <ActionCard
-                    title="Segurança"
-                    description="Gerencie backups e restaure dados do sistema"
-                    icon={Shield}
-                    onClick={() => onNavigate('backup')}
-                    colorClass="bg-emerald-50 text-emerald-600"
-                />
-                <ActionCard
-                    title="Personalização"
-                    description="Ajuste a identidade visual e temas do sistema"
-                    icon={Palette}
-                    onClick={() => onNavigate('settings')}
-                    colorClass="bg-purple-50 text-purple-600"
-                />
+            {/* Indicadores de Educação Inclusiva */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Total Alunos" value={stats.total} icon={Users} gradient="from-blue-500 to-indigo-600" />
+                <StatCard title="Alunos TEA" value={stats.teaCount} icon={Brain} gradient="from-purple-500 to-indigo-600" />
+                <StatCard title="Com Apoio" value={stats.withSupport} icon={HeartPulse} gradient="from-emerald-500 to-teal-600" />
+                <StatCard title="Sem Apoio" value={stats.withoutSupport} icon={AlertTriangle} gradient="from-orange-400 to-red-500" />
+                <StatCard title="Aguar. Avaliação" value={stats.pendingEval} icon={Clock} gradient="from-slate-600 to-slate-800" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Stats Column */}
-                <div className="lg:col-span-1 space-y-6">
-                    <StatCard title="Total Alunos" value={stats.total} icon={Users} gradient="from-blue-500 to-indigo-600" subtext="Na rede" />
-                    <StatCard title="Profissionais" value={stats.professionals} icon={Stethoscope} gradient="from-slate-700 to-slate-900" subtext="Ativos" />
-                    <StatCard title="Fila de Espera" value={stats.pending} icon={AlertTriangle} gradient="from-amber-400 to-orange-500" subtext="Pendentes" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Gráfico 1: TEA por Escola */}
+                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
+                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
+                        <School size={20} className="text-primary-600" /> Distribuição TEA por Escola
+                    </h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={stats.teaBySchool} layout="vertical">
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" width={150} fontSize={11} tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
+                                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px' }} />
+                                <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={20} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
 
-                {/* Main Chart */}
-                <div className="lg:col-span-3 bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 flex flex-col">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="font-bold text-xl text-slate-800">Distribuição por Escola</h3>
-                        <button onClick={() => onNavigate('schools')} className="text-sm text-primary-600 font-bold hover:underline">Gerenciar Escolas</button>
-                    </div>
-                    <div className="flex-1 min-h-[300px]">
+                {/* Gráfico 2: TEA por Idade */}
+                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
+                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
+                        <Activity size={20} className="text-primary-600" /> Alunos TEA por Idade
+                    </h3>
+                    <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.schoolData} layout="vertical" margin={{ left: 0, right: 30 }}>
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" width={150} fontSize={11} fontWeight={600} tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
-                                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px' }} />
-                                <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={24} />
-                            </BarChart>
+                            <AreaChart data={stats.teaByAge}>
+                                <defs>
+                                    <linearGradient id="colorTea" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                                <YAxis hide />
+                                <Tooltip contentStyle={{ borderRadius: '12px' }} />
+                                <Area type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorTea)" />
+                            </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
@@ -132,6 +162,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
 // --- 2. SECRETÁRIA DE EDUCAÇÃO ---
 export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
     const isCocal = currentUser.scope === 'COCAL';
+
     const stats = useMemo(() => {
         const filteredStudents = isCocal
             ? students.filter(s => {
@@ -141,15 +172,50 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
             })
             : students;
 
-        const served = filteredStudents.length;
-        const waiting = filteredStudents.filter(s => s.status === 'Pending').length;
-        const waitingList = [
-            { name: 'Psicologia', value: isCocal ? 2 : 45 },
-            { name: 'Fono', value: isCocal ? 1 : 32 },
-            { name: 'Psicopedagogia', value: isCocal ? 0 : 28 },
-            { name: 'T.O.', value: isCocal ? 1 : 15 },
-        ];
-        return { served, waiting, waitingList };
+        const total = filteredStudents.length;
+        const teaStudents = filteredStudents.filter(s => {
+            const diag = (s.clinical?.diagnosis || '').toUpperCase();
+            const needs = (s.clinical?.specialNeeds || []).map(n => n.toUpperCase());
+            return diag.includes('TEA') || diag.includes('AUTISMO') || needs.includes('AUTISMO') || needs.includes('TEA');
+        });
+
+        const withSupport = filteredStudents.filter(s => s.school?.hasSpecialAide === true).length;
+        const pendingEval = filteredStudents.filter(s => s.status === 'Pending').length;
+
+        // Distribuição TEA por Escola
+        const teaBySchool = teaStudents.reduce((acc: any[], s) => {
+            const school = s.school.schoolName || 'Não Informada';
+            const existing = acc.find(i => i.name === school);
+            if (existing) existing.value++;
+            else acc.push({ name: school, value: 1 });
+            return acc;
+        }, []).sort((a, b) => b.value - a.value).slice(0, 5);
+
+        // Distribuição TEA por Idade
+        const teaByAge = teaStudents.reduce((acc: any[], s) => {
+            if (!s.birthDate) return acc;
+            const birth = new Date(s.birthDate);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const m = today.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+
+            const ageGroup = `${age} anos`;
+            const existing = acc.find(i => i.name === ageGroup);
+            if (existing) existing.value++;
+            else acc.push({ name: ageGroup, age, value: 1 });
+            return acc;
+        }, []).sort((a, b) => a.age - b.age);
+
+        return {
+            total,
+            teaCount: teaStudents.length,
+            withSupport,
+            withoutSupport: total - withSupport,
+            pendingEval,
+            teaBySchool,
+            teaByAge
+        };
     }, [students, isCocal]);
 
     return (
@@ -163,52 +229,52 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                 )}
             </div>
 
-            {/* Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <ActionCard
-                    title="Novo Aluno"
-                    description="Inicie o processo de matrícula ou cadastro"
-                    icon={UserPlus}
-                    onClick={() => onNavigate('register')}
-                    colorClass="bg-blue-50 text-blue-600"
-                />
-                <ActionCard
-                    title="Lista de Espera"
-                    description="Verifique alunos aguardando atendimento"
-                    icon={Clock}
-                    onClick={() => onNavigate('list')}
-                    colorClass="bg-amber-50 text-amber-600"
-                />
-                <ActionCard
-                    title="Unidades Escolares"
-                    description={isCocal ? "Gerencie as escolas do distrito" : "Visualize todas as escolas da rede"}
-                    icon={School}
-                    onClick={() => onNavigate('schools')}
-                    colorClass="bg-indigo-50 text-indigo-600"
-                />
+            {/* Indicadores de Educação Inclusiva */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Total Alunos" value={stats.total} icon={Users} gradient="from-blue-500 to-indigo-600" />
+                <StatCard title="Alunos TEA" value={stats.teaCount} icon={Brain} gradient="from-purple-500 to-indigo-600" />
+                <StatCard title="Com Apoio" value={stats.withSupport} icon={HeartPulse} gradient="from-emerald-500 to-teal-600" />
+                <StatCard title="Sem Apoio" value={stats.withoutSupport} icon={AlertTriangle} gradient="from-orange-400 to-red-500" />
+                <StatCard title="Aguar. Avaliação" value={stats.pendingEval} icon={Clock} gradient="from-slate-600 to-slate-800" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="space-y-6">
-                    <StatCard
-                        title="Alunos Ativos"
-                        value={stats.served}
-                        icon={Users}
-                        gradient={isCocal ? "from-orange-400 to-red-500" : "from-blue-500 to-indigo-600"}
-                    />
-                    <StatCard title="Fila de Espera" value={stats.waiting} icon={Clock} gradient="from-amber-400 to-yellow-500" />
-                </div>
-
-                <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                    <h3 className="font-bold text-xl text-slate-800 mb-6">Demanda por Especialidade</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Gráfico 1: TEA por Escola */}
+                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
+                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
+                        <School size={20} className="text-primary-600" /> Distribuição TEA por Escola
+                    </h3>
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.waitingList}>
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                <YAxis axisLine={false} tickLine={false} />
+                            <BarChart data={stats.teaBySchool} layout="vertical">
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" width={150} fontSize={11} tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
                                 <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px' }} />
-                                <Bar dataKey="value" fill={isCocal ? "#f97316" : "#3b82f6"} radius={[6, 6, 0, 0]} barSize={50} />
+                                <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={20} />
                             </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Gráfico 2: TEA por Idade */}
+                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
+                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
+                        <Activity size={20} className="text-primary-600" /> Alunos TEA por Idade
+                    </h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={stats.teaByAge}>
+                                <defs>
+                                    <linearGradient id="colorTea" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                                <YAxis hide />
+                                <Tooltip contentStyle={{ borderRadius: '12px' }} />
+                                <Area type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorTea)" />
+                            </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
@@ -217,30 +283,190 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
     );
 };
 
-// --- 3. PSICOLOGIA ---
-export const PsychologyDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+// --- 2.1. SECRETÁRIAS (SEDE e COCAL) ---
+export const SecretaryDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadAppointments = async () => {
+            try {
+                const data = await SupabaseService.getAppointments({
+                    unit: currentUser.scope as any // Filtra por unidade se aplicável
+                });
+                setAppointments(data);
+            } catch (error) {
+                console.error('Erro ao carregar atendimentos para dashboard:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadAppointments();
+    }, [currentUser.scope]);
+
     const stats = useMemo(() => {
-        const myStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.PSYCHOLOGY));
-        const diagnosisData = myStudents.reduce((acc: any[], s) => {
-            const diag = s.clinical.diagnosis.split(' ')[0] || 'Outros';
-            const existing = acc.find(i => i.name === diag);
-            if (existing) existing.value++;
-            else acc.push({ name: diag, value: 1 });
-            return acc;
-        }, []);
-        return { activeCount: myStudents.length, diagnosisData };
-    }, [students]);
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
+        // Atendimentos do dia
+        const todayAppointments = appointments.filter(a => a.date === todayStr);
+
+        // Atendimentos da semana (próximos 7 dias)
+        const nextWeek = new Date();
+        nextWeek.setDate(now.getDate() + 7);
+        const stWeek = now.getTime();
+        const enWeek = nextWeek.getTime();
+
+        const weekAppointments = appointments.filter(a => {
+            const d = new Date(a.date).getTime();
+            return d >= stWeek && d <= enWeek;
+        });
+
+        const confirmed = appointments.filter(a => a.status === 'CONFIRMADO' || a.status === 'ATENDIDO').length;
+        const cancelled = appointments.filter(a => a.status === 'CANCELADO').length;
+        const waiting = students.filter(s => s.status === 'Pending').length;
+
+        return {
+            today: todayAppointments.length,
+            week: weekAppointments.length,
+            confirmed,
+            cancelled,
+            waiting
+        };
+    }, [appointments, students]);
 
     return (
         <div className="space-y-8 animate-slideUp">
             <WelcomeHeader name={currentUser.name.split(' ')[0]} />
 
-            {/* Main Layout: Actions Left, Stats Right */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Action Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <ActionCard
+                    title="Novo Agendamento"
+                    description="Marcar novo atendimento para aluno"
+                    icon={Calendar}
+                    onClick={() => onNavigate('new-appointment')}
+                    colorClass="bg-blue-50 text-blue-600"
+                />
+                <ActionCard
+                    title="Central de Vagas"
+                    description="Gerenciar lista de espera e triagens"
+                    icon={Clock}
+                    onClick={() => onNavigate('list')}
+                    colorClass="bg-amber-50 text-amber-600"
+                />
+                <ActionCard
+                    title="Minha Agenda"
+                    description="Visualizar todos os horários marcados"
+                    icon={Calendar}
+                    onClick={() => onNavigate('scheduling')}
+                    colorClass="bg-indigo-50 text-indigo-600"
+                />
+            </div>
 
-                {/* Left Column: Actions & Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard
+                    title="Hoje"
+                    value={stats.today}
+                    icon={Calendar}
+                    gradient="from-blue-400 to-blue-600"
+                    subtext="Atendimentos hoje"
+                />
+                <StatCard
+                    title="Semana"
+                    value={stats.week}
+                    icon={Activity}
+                    gradient="from-indigo-400 to-indigo-600"
+                    subtext="Próximos 7 dias"
+                />
+                <StatCard
+                    title="Confirmados"
+                    value={stats.confirmed}
+                    icon={CheckCircle}
+                    gradient="from-emerald-400 to-emerald-600"
+                    subtext="Status: Confirmado"
+                />
+                <StatCard
+                    title="Cancelados"
+                    value={stats.cancelled}
+                    icon={AlertTriangle}
+                    gradient="from-rose-400 to-rose-600"
+                    subtext="Status: Cancelado"
+                />
+                <StatCard
+                    title="Aguar. Vaga"
+                    value={stats.waiting}
+                    icon={Clock}
+                    gradient="from-amber-400 to-amber-600"
+                    subtext="Fila de espera"
+                />
+            </div>
+        </div>
+    );
+};
+
+// --- 3. PSICOLOGIA ---
+export const PsychologyDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
+                setAppointments(data);
+            } catch (error) {
+                console.error('Erro ao carregar agenda:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, [currentUser.id]);
+
+    const stats = useMemo(() => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const monthStr = now.toISOString().slice(0, 7);
+
+        const myStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.PSYCHOLOGY));
+
+        const todayCount = appointments.filter(a => a.date === todayStr).length;
+        const weekCount = appointments.filter(a => {
+            const d = new Date(a.date);
+            const weekAhead = new Date();
+            weekAhead.setDate(now.getDate() + 7);
+            return d >= now && d <= weekAhead;
+        }).length;
+        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
+        const absences = appointments.filter(a => a.status === 'FALTOU').length;
+
+        const diagnosisData = myStudents.reduce((acc: any[], s) => {
+            const diag = (s.clinical?.diagnosis || '').split(' ')[0] || 'Outros';
+            const existing = acc.find(i => i.name === diag);
+            if (existing) existing.value++;
+            else acc.push({ name: diag, value: 1 });
+            return acc;
+        }, []);
+
+        return { activeCount: myStudents.length, diagnosisData, todayCount, weekCount, monthCount, absences };
+    }, [students, appointments]);
+
+    return (
+        <div className="space-y-8 animate-slideUp">
+            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+
+            {/* Indicadores de Agenda */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-purple-500 to-indigo-600" />
+                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-indigo-500 to-blue-600" />
+                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-blue-500 to-cyan-600" />
+                <StatCard title="Pacientes Ativos" value={stats.activeCount} icon={Users} gradient="from-emerald-500 to-teal-600" />
+                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-orange-400 to-red-500" subtext="Faltas recorrentes" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Action Cards similar to image */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <ActionCard
                             title="Nova sessão"
@@ -258,7 +484,6 @@ export const PsychologyDashboard: React.FC<DashboardProps> = ({ students, curren
                         />
                     </div>
 
-                    {/* Chart Area */}
                     <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
                         <h3 className="font-bold text-xl text-slate-800 mb-6">Diagnósticos Recorrentes</h3>
                         <div className="h-64">
@@ -277,11 +502,7 @@ export const PsychologyDashboard: React.FC<DashboardProps> = ({ students, curren
                     </div>
                 </div>
 
-                {/* Right Column: Stats & Secondary Actions */}
                 <div className="space-y-6">
-                    <StatCard title="Meus Pacientes" value={stats.activeCount} icon={Users} gradient="from-purple-500 to-indigo-600" />
-                    <StatCard title="Sessões Hoje" value={4} icon={Calendar} gradient="from-fuchsia-500 to-pink-500" />
-
                     <div className="bg-white p-6 rounded-3xl shadow-card border border-slate-100">
                         <h3 className="font-bold text-lg text-slate-800 mb-4">Acesso Rápido</h3>
                         <div className="space-y-3">
@@ -404,9 +625,55 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
 
 // --- 5. TERAPIA OCUPACIONAL ---
 export const OccupationalTherapyDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
+                setAppointments(data);
+            } catch (error) {
+                console.error('Erro ao carregar agenda:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, [currentUser.id]);
+
+    const stats = useMemo(() => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const monthStr = now.toISOString().slice(0, 7);
+
+        const myStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.OCCUPATIONAL_THERAPY));
+
+        const todayCount = appointments.filter(a => a.date === todayStr).length;
+        const weekCount = appointments.filter(a => {
+            const d = new Date(a.date);
+            const weekAhead = new Date();
+            weekAhead.setDate(now.getDate() + 7);
+            return d >= now && d <= weekAhead;
+        }).length;
+        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
+        const absences = appointments.filter(a => a.status === 'FALTOU').length;
+
+        return { activeCases: myStudents.length, todayCount, weekCount, monthCount, absences };
+    }, [students, appointments]);
+
     return (
         <div className="space-y-8 animate-slideUp">
             <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+
+            {/* Indicadores de Agenda */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-indigo-500 to-violet-600" />
+                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-violet-500 to-purple-600" />
+                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-purple-500 to-fuchsia-600" />
+                <StatCard title="Pacientes Ativos" value={stats.activeCases} icon={Users} gradient="from-blue-500 to-indigo-600" />
+                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-red-400 to-rose-500" subtext="Faltas recorrentes" />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <ActionCard
@@ -424,34 +691,49 @@ export const OccupationalTherapyDashboard: React.FC<DashboardProps> = ({ student
                     colorClass="bg-violet-50 text-violet-600"
                 />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="Sessões" value={24} icon={CheckCircle} gradient="from-indigo-400 to-violet-600" />
-                <StatCard title="Pacientes" value={15} icon={Users} gradient="from-violet-400 to-fuchsia-500" />
-                <StatCard title="Avaliações" value={3} icon={Clock} gradient="from-slate-400 to-slate-600" />
-            </div>
         </div>
     );
 };
 
 // --- 6. PSICOPEDAGOGIA ---
 export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
+                setAppointments(data);
+            } catch (error) {
+                console.error('Erro ao carregar agenda:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, [currentUser.id]);
+
     const stats = useMemo(() => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const monthStr = now.toISOString().slice(0, 7);
+
         const ppStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.PSYCHOPEDAGOGY) || (s.clinical.pp_data && s.clinical.pp_data.diagnosis));
+
+        const todayCount = appointments.filter(a => a.date === todayStr).length;
+        const weekCount = appointments.filter(a => {
+            const d = new Date(a.date);
+            const weekAhead = new Date();
+            weekAhead.setDate(now.getDate() + 7);
+            return d >= now && d <= weekAhead;
+        }).length;
+        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
+        const absences = appointments.filter(a => a.status === 'FALTOU').length;
 
         // Diagnosis Logic
         const diagnosisMap = new Map<string, number>();
-        let activeCases = 0;
-        let totalSessions = 0;
-        const upcoming: any[] = [];
-        const recent: any[] = [];
-
-        // Obtém a data local formatada como YYYY-MM-DD
-        const now = new Date();
-        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
         ppStudents.forEach(student => {
-            // Extract Diagnosis
             const rawPP = student.clinical.pp_data || {};
             if (rawPP.diagnosis && rawPP.diagnosis.hipoteseDiagnostica) {
                 const diag = rawPP.diagnosis.hipoteseDiagnostica.split(' ')[0] || 'Em Avaliação';
@@ -459,71 +741,47 @@ export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, cu
             } else {
                 diagnosisMap.set('Em Avaliação', (diagnosisMap.get('Em Avaliação') || 0) + 1);
             }
-
-            // Extract Sessions
-            const ppSessions = (student.history || []).filter(h => h.specialty === Specialty.PSYCHOPEDAGOGY);
-            if (ppSessions.length > 0) {
-                activeCases++;
-                totalSessions += ppSessions.length;
-
-                ppSessions.forEach(session => {
-                    if ((session as any).content?.status === 'Agendado' && session.date === today) {
-                        upcoming.push({ session, studentName: student.fullName, studentId: student.id });
-                    } else if ((session as any).content?.status === 'Realizado' || !session.hasOwnProperty('content')) {
-                        // Fallback for legacy sessions without content wrapper which are usually realized
-                        recent.push({ session, studentName: student.fullName, studentId: student.id });
-                    }
-                });
-            }
         });
 
         const diagnosisData = Array.from(diagnosisMap.entries()).map(([name, value]) => ({ name, value }));
+        const upcoming = appointments.filter(a => a.date === todayStr).map(a => ({ session: a, studentName: a.studentName }));
 
-        return { activeCases, totalSessions, diagnosisData, upcoming, recent };
-    }, [students]);
+        return { activeCases: ppStudents.length, diagnosisData, todayCount, weekCount, monthCount, absences, upcoming };
+    }, [students, appointments]);
 
     return (
         <div className="space-y-8 animate-slideUp">
-            {/* Header Removed (Replaced by Custom Banner below) */}
+            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+
+            {/* Indicadores de Agenda */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-pink-500 to-rose-600" />
+                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-rose-500 to-orange-600" />
+                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-orange-500 to-amber-600" />
+                <StatCard title="Pacientes Ativos" value={stats.activeCases} icon={Users} gradient="from-emerald-500 to-teal-600" />
+                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-red-400 to-rose-500" subtext="Faltas recorrentes" />
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column: Actions & Chart */}
-                {/* Left Column: Actions & Charts */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Welcome Banner Personalized */}
-                    <div className="bg-gradient-to-r from-pink-600 to-rose-600 rounded-3xl p-8 text-white shadow-[0_8px_30px_rgba(236,72,153,0.3)] relative overflow-hidden flex items-center justify-between">
-                        <div className="relative z-10">
-                            <h1 className="text-3xl font-extrabold mb-2">Olá, {currentUser.name.split(' ')[0]}</h1>
-                            <p className="text-pink-100 font-medium text-lg">Bem-vinda de volta ao seu painel de Psicopedagogia.</p>
-                        </div>
-                        <div className="relative z-10 hidden md:block opacity-90">
-                            <Brain size={64} className="text-white" />
-                        </div>
-                        {/* Decorative Background */}
-                        <div className="absolute right-0 top-0 h-full w-1/3 bg-white opacity-10 skew-x-12 transform translate-x-10"></div>
-                    </div>
-
-                    {/* Action Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <ActionCard
                             title="Nova Avaliação"
-                            description="Iniciar nova bateria de testes, anamnese ou sessão"
+                            description="Iniciar nova bateria de testes ou sessão"
                             icon={Puzzle}
                             onClick={() => onNavigate('psychopedagogy/new-session')}
                             colorClass="bg-pink-50 text-pink-600"
                         />
                         <ActionCard
                             title="Central de Laudos"
-                            description="Acesse modelos e documentos emitidos recentemente"
+                            description="Acesse modelos e documentos emitidos"
                             icon={Printer}
                             onClick={() => onNavigate('documents')}
                             colorClass="bg-rose-50 text-rose-600"
                         />
                     </div>
 
-                    {/* Charts Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Chart 1: Diagnosis */}
                         <div className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
                             <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
                                 <Activity size={18} className="text-pink-500" /> Diagnósticos
@@ -542,62 +800,26 @@ export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, cu
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
                                             )) : <Cell fill="#e2e8f0" />}
                                         </Pie>
-                                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
+                                        <Tooltip contentStyle={{ borderRadius: '12px' }} />
                                         <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
 
-                        {/* Chart 2: Evolution (New) */}
                         <div className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
                             <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
-                                <TrendingUp size={18} className="text-pink-500" /> Evolução Mensal
+                                <TrendingUp size={18} className="text-pink-500" /> Evolução (Atendimentos Mês)
                             </h3>
-                            <div className="h-48">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={[
-                                        { name: 'Set', valor: 4 },
-                                        { name: 'Out', valor: 8 },
-                                        { name: 'Nov', valor: 12 },
-                                        { name: 'Dez', valor: 10 },
-                                        { name: 'Jan', valor: stats.totalSessions } // Current month approx
-                                    ]}>
-                                        <defs>
-                                            <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-                                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
-                                        <Area type="monotone" dataKey="valor" stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorValor)" />
-                                    </AreaChart>
-                                </ResponsiveContainer>
+                            <div className="h-48 flex items-center justify-center">
+                                <span className="text-4xl font-black text-pink-600">{stats.monthCount}</span>
+                                <span className="text-slate-400 ml-2 font-bold uppercase text-xs">Sessões em Março</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Right Column: Stats & Agenda */}
                 <div className="space-y-6">
-                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-                        <StatCard
-                            title="Pacientes Ativos"
-                            value={stats.activeCases}
-                            icon={Users}
-                            gradient="from-pink-500 to-rose-600"
-                        />
-                        <StatCard
-                            title="Sessões Realizadas"
-                            value={stats.totalSessions}
-                            icon={CheckCircle}
-                            gradient="from-orange-400 to-pink-500"
-                        />
-                    </div>
-
-                    {/* Agenda Quick View */}
                     <div className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
                         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center justify-between">
                             <span className="flex items-center gap-2"><Calendar size={16} className="text-pink-600" /> Agenda (Hoje)</span>
@@ -608,7 +830,7 @@ export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, cu
                                 {stats.upcoming.map((item: any, idx: number) => (
                                     <div key={idx} className="flex items-center gap-3 p-3 bg-pink-50 rounded-xl border border-pink-100">
                                         <div className="font-bold text-pink-700 bg-white px-2 py-1 rounded text-xs shadow-sm">
-                                            {(item.session.content?.startTime || '00:00').substring(0, 5)}
+                                            {(item.session.startTime || '00:00').substring(0, 5)}
                                         </div>
                                         <p className="text-sm font-bold text-slate-700 truncate">{item.studentName}</p>
                                     </div>
@@ -630,9 +852,55 @@ export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, cu
 
 // --- 7. FONOAUDIOLOGIA ---
 export const SpeechTherapyDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
+                setAppointments(data);
+            } catch (error) {
+                console.error('Erro ao carregar agenda:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, [currentUser.id]);
+
+    const stats = useMemo(() => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const monthStr = now.toISOString().slice(0, 7);
+
+        const myStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.SPEECH_THERAPY));
+
+        const todayCount = appointments.filter(a => a.date === todayStr).length;
+        const weekCount = appointments.filter(a => {
+            const d = new Date(a.date);
+            const weekAhead = new Date();
+            weekAhead.setDate(now.getDate() + 7);
+            return d >= now && d <= weekAhead;
+        }).length;
+        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
+        const absences = appointments.filter(a => a.status === 'FALTOU').length;
+
+        return { activeCases: myStudents.length, todayCount, weekCount, monthCount, absences };
+    }, [students, appointments]);
+
     return (
         <div className="space-y-8 animate-slideUp">
             <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+
+            {/* Indicadores de Agenda */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-teal-500 to-emerald-600" />
+                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-emerald-500 to-green-600" />
+                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-green-500 to-lime-600" />
+                <StatCard title="Pacientes Ativos" value={stats.activeCases} icon={Users} gradient="from-cyan-500 to-blue-600" />
+                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-red-400 to-rose-500" subtext="Faltas recorrentes" />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <ActionCard
@@ -650,21 +918,61 @@ export const SpeechTherapyDashboard: React.FC<DashboardProps> = ({ students, cur
                     colorClass="bg-cyan-50 text-cyan-600"
                 />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="Sessões" value={18} icon={CheckCircle} gradient="from-cyan-400 to-teal-600" />
-                <StatCard title="Pacientes" value={10} icon={Users} gradient="from-teal-400 to-emerald-500" />
-                <StatCard title="Triagens" value={50} icon={Stethoscope} gradient="from-emerald-400 to-green-500" />
-            </div>
         </div>
     );
 };
 
 // --- 8. NUTRIÇÃO ---
 export const NutritionDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
+                setAppointments(data);
+            } catch (error) {
+                console.error('Erro ao carregar agenda:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, [currentUser.id]);
+
+    const stats = useMemo(() => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const monthStr = now.toISOString().slice(0, 7);
+
+        const myStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.NUTRITION));
+
+        const todayCount = appointments.filter(a => a.date === todayStr).length;
+        const weekCount = appointments.filter(a => {
+            const d = new Date(a.date);
+            const weekAhead = new Date();
+            weekAhead.setDate(now.getDate() + 7);
+            return d >= now && d <= weekAhead;
+        }).length;
+        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
+        const absences = appointments.filter(a => a.status === 'FALTOU').length;
+
+        return { activeCases: myStudents.length, todayCount, weekCount, monthCount, absences };
+    }, [students, appointments]);
+
     return (
         <div className="space-y-8 animate-slideUp">
             <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+
+            {/* Indicadores de Agenda */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-green-500 to-emerald-600" />
+                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-emerald-500 to-teal-600" />
+                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-teal-500 to-cyan-600" />
+                <StatCard title="Pacientes Ativos" value={stats.activeCases} icon={Users} gradient="from-lime-500 to-green-600" />
+                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-red-400 to-rose-500" subtext="Faltas recorrentes" />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <ActionCard
@@ -682,11 +990,136 @@ export const NutritionDashboard: React.FC<DashboardProps> = ({ students, current
                     colorClass="bg-emerald-50 text-emerald-600"
                 />
             </div>
+        </div>
+    );
+};
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="Consultas" value={15} icon={CheckCircle} gradient="from-green-400 to-emerald-600" />
-                <StatCard title="Avaliações" value={8} icon={Activity} gradient="from-emerald-400 to-teal-500" />
-                <StatCard title="Triagens" value={20} icon={Search} gradient="from-lime-400 to-green-500" />
+// --- 9. ESCOLA ---
+export const SchoolDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const stats = useMemo(() => {
+        // Filtra alunos da escola do usuário logado baseado no schoolInep
+        const myStudents = students.filter(s =>
+            s.school.schoolId === currentUser.schoolInep ||
+            s.school.schoolName === currentUser.name
+        );
+        const total = myStudents.length;
+
+        const teaStudents = myStudents.filter(s => {
+            const diag = (s.clinical?.diagnosis || '').toUpperCase();
+            const needs = (s.clinical?.specialNeeds || []).map(n => n.toUpperCase());
+            return diag.includes('TEA') || diag.includes('AUTISMO') || needs.includes('AUTISMO') || needs.includes('TEA');
+        });
+
+        const withSupport = myStudents.filter(s => s.school?.hasSpecialAide === true).length;
+        const pendingEval = myStudents.filter(s => s.status === 'Pending').length;
+
+        // Distribuição TEA por Idade
+        const teaByAge = teaStudents.reduce((acc: any[], s) => {
+            if (!s.birthDate) return acc;
+            const birth = new Date(s.birthDate);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const m = today.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+
+            const ageGroup = `${age} anos`;
+            const existing = acc.find(i => i.name === ageGroup);
+            if (existing) existing.value++;
+            else acc.push({ name: ageGroup, age, value: 1 });
+            return acc;
+        }, []).sort((a, b) => a.age - b.age);
+
+        return {
+            total,
+            teaCount: teaStudents.length,
+            withSupport,
+            withoutSupport: total - withSupport,
+            pendingEval,
+            teaByAge
+        };
+    }, [students, currentUser]);
+
+    return (
+        <div className="space-y-8 animate-slideUp">
+            {/* Header com mensagem específica solicitada */}
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-3xl p-8 text-white shadow-[0_8px_30px_rgba(16,185,129,0.3)] relative overflow-hidden flex items-center justify-between">
+                <div className="relative z-10">
+                    <h1 className="text-3xl font-extrabold mb-2 text-white">Painel Escolar</h1>
+                    <p className="text-emerald-50 text-xl font-bold mb-2">Unidade: {currentUser.name}</p>
+                    <p className="text-emerald-100 font-medium">Acompanhamento de Educação Inclusiva e Gestão de Alunos</p>
+                </div>
+                <div className="relative z-10 hidden md:block opacity-90">
+                    <School size={80} className="text-white" />
+                </div>
+                <div className="absolute right-0 top-0 h-full w-1/3 bg-white opacity-10 skew-x-12 transform translate-x-10"></div>
+            </div>
+
+            {/* Action Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ActionCard
+                    title="Alunos"
+                    description="Gerencie os cadastros e acompanhe os alunos da sua escola"
+                    icon={Users}
+                    onClick={() => onNavigate('list')}
+                    colorClass="bg-emerald-50 text-emerald-600"
+                />
+                <ActionCard
+                    title="Profissionais de Apoio"
+                    description="Gestão de acompanhantes e monitores escolares"
+                    icon={HeartPulse}
+                    onClick={() => onNavigate('support-professionals')}
+                    colorClass="bg-teal-50 text-teal-600"
+                />
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard title="Total Alunos" value={stats.total} icon={Users} gradient="from-blue-500 to-indigo-600" />
+                <StatCard title="Alunos TEA" value={stats.teaCount} icon={Brain} gradient="from-purple-500 to-indigo-600" />
+                <StatCard title="Com Apoio" value={stats.withSupport} icon={HeartPulse} gradient="from-emerald-500 to-teal-600" />
+                <StatCard title="Sem Apoio" value={stats.withoutSupport} icon={AlertTriangle} gradient="from-orange-400 to-red-500" />
+                <StatCard title="Aguar. Avaliação" value={stats.pendingEval} icon={Clock} gradient="from-slate-600 to-slate-800" />
+            </div>
+
+            {/* Gráfico TEA por Idade */}
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
+                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
+                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
+                        <Activity size={20} className="text-primary-600" /> Alunos TEA por Idade na Unidade
+                    </h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={stats.teaByAge}>
+                                <defs>
+                                    <linearGradient id="colorTeaSchool" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                                <YAxis hide />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                                <Area type="monotone" dataKey="value" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorTeaSchool)" strokeWidth={3} />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            {/* Info Section */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="flex items-start gap-4">
+                    <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-slate-800 text-lg">Informações Importantes</h4>
+                        <p className="text-slate-600 mt-2 leading-relaxed">
+                            Como usuário da escola, você tem permissão para visualizar e editar os dados cadastrais dos alunos e profissionais vinculados à sua instituição.
+                            <strong> Dados clínicos e agendas são restritos à equipe técnica da sede.</strong>
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );

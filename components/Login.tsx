@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SupabaseService } from '../services/SupabaseService';
-import { User, SystemSettings } from '../types';
+import { User, SystemSettings, AuditAction } from '../types';
 import { HeartPulse, Lock, User as UserIcon, ArrowRight, Eye, EyeOff, Activity, ShieldCheck, Sparkles, Users } from 'lucide-react';
 
 interface LoginProps {
@@ -193,6 +193,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
             clearTimeout(loginTimeout);
 
             if (user) {
+                // Registro de Auditoria: Login
+                await SupabaseService.logAction(user, AuditAction.LOGIN, 'SISTEMA', 'Login realizado com sucesso');
                 onLogin(user);
             } else {
                 setError('Login falhou. Verifique se o e-mail e a senha estão corretos.');

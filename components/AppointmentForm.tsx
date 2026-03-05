@@ -12,7 +12,7 @@ import {
     MessageCircle
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
-import { Appointment, Specialty, Student, User, Unit, School } from '../types';
+import { Appointment, Specialty, Student, User, Unit, School, AuditAction } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import SearchableSelect from './SearchableSelect';
 
@@ -186,6 +186,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
             if (initialData?.id) aptToSave.id = initialData.id;
 
             const savedId = await SupabaseService.saveAppointment(aptToSave);
+
+            // Registro de Auditoria: Agendamento
+            const acao = initialData?.id ? AuditAction.UPDATE : AuditAction.CREATE;
+            await SupabaseService.logAction(currentUser, acao, 'AGENDAMENTOS', `Consulta de ${studentData?.fullName || 'Desconhecido'} com ${newApt.professionalName}`);
 
             // 2. Reagendamento: Atualiza registro anterior se necessário
             if (initialData && initialData.id && newApt.date) {

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Login } from './components/Login';
@@ -7,7 +6,7 @@ import { LandingPage } from './components/LandingPage';
 import { SupabaseService } from './services/SupabaseService';
 import { supabase } from './services/supabaseClient';
 import { useToast } from './contexts/ToastContext';
-import { Student, User, Specialty, SystemSettings, hasPermission, Appointment } from './types';
+import { Student, User, Specialty, SystemSettings, hasPermission, Appointment, AuditAction } from './types';
 import { Loader2 } from 'lucide-react';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { NotificationBell } from './components/NotificationBell';
@@ -32,6 +31,7 @@ const AppointmentForm = React.lazy(() => import('./components/AppointmentForm').
 const DocumentVault = React.lazy(() => import('./components/DocumentVault').then(m => ({ default: m.DocumentVault })));
 const MyAccess = React.lazy(() => import('./components/MyAccess').then(m => ({ default: m.MyAccess })));
 const ChangePassword = React.lazy(() => import('./components/ChangePassword').then(m => ({ default: m.ChangePassword })));
+const AuditLogs = React.lazy(() => import('./components/AuditLogs').then(m => ({ default: m.AuditLogs })));
 
 // --- Lazy Clinical Pages (Named Exports) ---
 const PsychologyDashboardPage = React.lazy(() => import('./components/ClinicalPages').then(m => ({ default: m.PsychologyDashboardPage })));
@@ -63,6 +63,8 @@ const SocialServiceDashboard = React.lazy(() => import('./components/RoleDashboa
 const OccupationalTherapyDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.OccupationalTherapyDashboard })));
 const SpeechTherapyDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.SpeechTherapyDashboard })));
 const NutritionDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.NutritionDashboard })));
+const SchoolDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.SchoolDashboard })));
+const SecretaryDashboard = React.lazy(() => import('./components/RoleDashboards').then(m => ({ default: m.SecretaryDashboard })));
 
 // Loading Component
 const PageLoading = () => (
@@ -395,6 +397,9 @@ function App() {
   };
 
   const handleLogout = async () => {
+    if (user) {
+      await SupabaseService.logAction(user, AuditAction.LOGOUT, 'SISTEMA', 'Logout realizado');
+    }
     await supabase.auth.signOut();
     setUser(null);
     setCurrentPage('dashboard');
@@ -464,6 +469,26 @@ function App() {
   }
 
   const renderContent = () => {
+    const isEscola = user.role === 'ESCOLA';
+
+    // Guard global: páginas bloqueadas para ESCOLA
+    const ESCOLA_BLOCKED_PAGES = [
+      'scheduling', 'new-appointment', 'agenda',
+      'documents', 'vault', 'my-access',
+      'admin', 'settings', 'letterhead-config', 'backup', 'about', 'audit-logs',
+      'psychology', 'psychopedagogy', 'social-service-hub',
+      'social-service-list', 'social-interview',
+      'occupational-therapy', 'speech-therapy',
+      'physiotherapy', 'nutrition',
+    ];
+    const isBlockedForEscola = isEscola && (
+      ESCOLA_BLOCKED_PAGES.includes(currentPage) ||
+      currentPage.includes('/new-session')
+    );
+    if (isBlockedForEscola) {
+      return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
+    }
+
     // Rotas de perfil e edição
     if (currentPage === 'profile' && selectedStudent) {
       return <PatientProfile student={selectedStudent} onBack={() => setCurrentPage('list')} currentUser={user} onEdit={handleEditStudent} onNavigate={handleNavigate} />;
@@ -505,7 +530,9 @@ function App() {
     switch (currentPage) {
       case 'dashboard':
         if (user.role === 'ADMIN') return <AdminDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
-        if (user.role === 'EDUCATION_SECRETARY' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') return <EducationSecretaryDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
+        if (user.role === 'EDUCATION_SECRETARY') return <EducationSecretaryDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
+        if (user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') return <SecretaryDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
+        if (user.role === 'ESCOLA') return <SchoolDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
         if (user.role === 'SPECIALIST') {
           switch (user.specialty) {
             case Specialty.PSYCHOLOGY: return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
@@ -583,17 +610,18 @@ function App() {
       case 'list': return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
       case 'register': return <RegistrationForm onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('list')} currentUser={user} />;
       case 'admin': return user.role === 'ADMIN' ? <UserManagement /> : <Dashboard students={students} />;
+      case 'audit-logs': return user.role === 'ADMIN' ? <AuditLogs currentUser={user} /> : <Dashboard students={students} />;
 
       // ROTAS PROTEGIDAS POR PERMISSÃO
       case 'backup':
         return hasPermission(user, 'can_access_security_data')
           ? <BackupSystem currentUser={user} />
-          : <Dashboard students={students} currentUser={user} />; // Redireciona para dashboard se não tiver permissão
+          : <Dashboard students={students} currentUser={user} />;
 
       case 'settings': return user.role === 'ADMIN' ? <SystemSettingsPanel /> : <Dashboard students={students} />;
       case 'letterhead-config': return user.role === 'ADMIN' ? <PapelTimbradoConfigPanel /> : <Dashboard students={students} />;
       case 'schools': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') ? <SchoolManagement /> : <Dashboard students={students} />;
-      case 'support-professionals': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') ? <SupportProfessionalManagement currentUser={user} /> : <Dashboard students={students} />;
+      case 'support-professionals': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' || user.role === 'ESCOLA') ? <SupportProfessionalManagement currentUser={user} /> : <Dashboard students={students} />;
       case 'about': return <AboutSystem />;
       case 'documents': return <DocumentGenerator currentUser={user} />;
       case 'vault': return <DocumentVault

@@ -20,7 +20,7 @@ import {
     Smartphone
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
-import { Appointment, AppointmentStatus, Unit, Specialty, Student, User } from '../types';
+import { Appointment, AppointmentStatus, Unit, Specialty, Student, User, AuditAction } from '../types';
 import { useToast } from '../contexts/ToastContext';
 
 interface SchedulingCenterProps {
@@ -102,7 +102,13 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
     const confirmDelete = async () => {
         if (!itemToDelete) return;
         try {
+            const aptToDelete = appointments.find(a => a.id === itemToDelete);
             await SupabaseService.deleteAppointment(itemToDelete);
+
+            if (currentUser && aptToDelete) {
+                await SupabaseService.logAction(currentUser as any, AuditAction.DELETE, 'AGENDAMENTOS', `Consulta de ${aptToDelete.studentName} com ${aptToDelete.professionalName}`);
+            }
+
             success("Agendamento excluído com sucesso!");
             loadAppointments();
             setItemToDelete(null);

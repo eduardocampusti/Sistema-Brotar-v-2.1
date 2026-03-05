@@ -16,7 +16,7 @@ export enum Specialty {
   NUTRITION = 'Nutrição'
 }
 
-export type UserRole = 'ADMIN' | 'SPECIALIST' | 'ASSISTANT' | 'EDUCATION_SECRETARY' | 'SECRETARIA_SEDE' | 'SECRETARIA_COCAL';
+export type UserRole = 'ADMIN' | 'SPECIALIST' | 'ASSISTANT' | 'EDUCATION_SECRETARY' | 'SECRETARIA_SEDE' | 'SECRETARIA_COCAL' | 'ESCOLA';
 export type UserScope = 'GLOBAL' | 'SEDE' | 'COCAL'; // Escopo de acesso (Sede ou Distrito)
 
 // --- PERMISSION SYSTEM ---
@@ -42,6 +42,7 @@ export interface User {
 
   // Novos Campos
   scope?: UserScope; // Define se vê tudo (Sede) ou apenas regional (Cocal)
+  schoolInep?: string; // INEP da escola (apenas para role ESCOLA)
   photoUrl?: string; // Foto de perfil
   signatureUrl?: string; // Assinatura digital/Carimbo
   email?: string;
@@ -158,7 +159,7 @@ export interface Session {
   content?: any; // JSON completo da sessão (estruturado por especialidade)
 }
 
-export type AppointmentStatus = 'AGENDADO' | 'ATENDIDO' | 'FALTOU' | 'REMARCAR';
+export type AppointmentStatus = 'AGENDADO' | 'CONFIRMADO' | 'ATENDIDO' | 'FALTOU' | 'REMARCAR' | 'CANCELADO';
 export type Unit = 'SEDE' | 'COCAL';
 
 export interface Appointment {
@@ -335,4 +336,24 @@ export interface PapelTimbradoConfig {
   showLogo: boolean;
   showTitulos: boolean;
   showContato: boolean;
+}
+
+// --- AUDIT SYSTEM ---
+export enum AuditAction {
+  LOGIN = 'LOGIN',
+  CREATE = 'CRIAR',
+  UPDATE = 'EDITAR',
+  DELETE = 'EXCLUIR',
+  CANCEL = 'CANCELAR',
+  LOGOUT = 'LOGOUT'
+}
+
+export interface AuditLog {
+  id: string;
+  usuario: string; // Nome ou email
+  perfil: string;  // Role do usuário (ex: ADMIN, ESCOLA, PSICOLOGIA)
+  acao: AuditAction | string;
+  modulo: string;  // Ex: 'ALUNOS', 'AGENTAMENTOS', 'PROFISSIONAIS'
+  registro_afetado: string; // Nome do aluno, ou ID do apontamento
+  data_hora: string; // Timestamp ISO
 }

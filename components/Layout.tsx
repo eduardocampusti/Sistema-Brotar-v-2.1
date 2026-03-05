@@ -28,6 +28,7 @@ import {
   Info, // Retained from original
   Palette, // Retained from original
   Scroll, // Retained from original
+  ShieldAlert, // Novo ícone de auditoria
   Apple // Retained from original
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission } from '../types';
@@ -57,6 +58,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
       active: 'bg-white/10 text-white shadow-glow',
       hover: 'hover:bg-white/5 text-slate-300',
       accent: 'text-slate-100'
+    };
+    if (currentUser.role === 'ESCOLA') return {
+      sidebar: 'bg-gradient-to-b from-emerald-900 to-teal-800 text-white',
+      active: 'bg-white/20 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]',
+      hover: 'hover:bg-white/10 text-emerald-100',
+      accent: 'text-emerald-200'
     };
     if (currentUser.role === 'EDUCATION_SECRETARY' || currentUser.role === 'SECRETARIA_SEDE' || currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'ASSISTANT') {
       if (currentUser.scope === 'COCAL' || currentUser.role === 'SECRETARIA_COCAL') {
@@ -105,6 +112,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
     const administration = [
       { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
       { id: 'admin', label: 'Gestão de Usuários', icon: <ShieldCheck size={20} /> },
+      { id: 'audit-logs', label: 'Auditoria do Sistema', icon: <ShieldAlert size={20} /> },
     ];
 
     // Grupo 3: Configurações
@@ -179,11 +187,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
     return [];
   };
 
+  // Menu restrito para role ESCOLA
+  const getEscolaMenuItems = () => [
+    { id: 'list', label: 'Alunos', icon: <Users size={20} /> },
+    { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
+  ];
+
   // Decide which menu structure to use
   const isAdmin = currentUser.role === 'ADMIN';
+  const isEscola = currentUser.role === 'ESCOLA';
   const adminMenuGroups = isAdmin ? getAdminMenuGroups() : null;
-  const standardMenuItems = !isAdmin ? getStandardMenuItems() : [];
-  const standardSpecialtyItems = !isAdmin ? getStandardSpecialtyItems() : [];
+  const standardMenuItems = (!isAdmin && !isEscola) ? getStandardMenuItems() : [];
+  const standardSpecialtyItems = (!isAdmin && !isEscola) ? getStandardSpecialtyItems() : [];
+  const escolaMenuItems = isEscola ? getEscolaMenuItems() : [];
 
   const isItemActive = (itemId: string) => {
     if (activePage === itemId) return true;
@@ -201,6 +217,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
       case 'SECRETARIA_COCAL':
         return 'Secretária Cocal';
       case 'SPECIALIST': return currentUser.specialty || 'Especialista';
+      case 'ESCOLA': return 'Escola';
       default: return 'Recepção';
     }
   };
@@ -242,7 +259,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
 
         <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar pb-6">
 
-          {/* RENDERIZAÇÃO DO MENU - MODO ADMIN OU MODO PADRÃO */}
+          {/* RENDERIZAÇÃO DO MENU */}
           {isAdmin && adminMenuGroups ? (
             <>
               <SectionHeader title="Navegação Principal" />
@@ -259,6 +276,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
               {adminMenuGroups.clinical.map(item => <MenuButton key={item.id} item={item} />)}
 
 
+            </>
+          ) : isEscola ? (
+            <>
+              {/* Banner de boas-vindas para escola */}
+              <div className="mx-2 mb-4 mt-2 p-3 bg-white/10 rounded-xl border border-white/20">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200 opacity-70 mb-1">Bem-vindo(a)</p>
+                <p className="text-sm font-bold text-white leading-tight">Sistema Brotar</p>
+                <p className="text-xs text-emerald-100 mt-1 leading-snug">Escola: {currentUser.name}</p>
+                {currentUser.schoolInep && (
+                  <p className="text-[10px] text-emerald-200/60 mt-0.5">INEP: {currentUser.schoolInep}</p>
+                )}
+              </div>
+              <SectionHeader title="Acesso Escolar" />
+              {escolaMenuItems.map(item => <MenuButton key={item.id} item={item} />)}
             </>
           ) : (
             <>

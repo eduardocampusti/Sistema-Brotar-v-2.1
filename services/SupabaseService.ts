@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
-import { Student, User, School, SupportProfessional, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit } from '../types';
+import { Student, User, School, SupportProfessional, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog } from '../types';
 
 // Mapeamento de campos snake_case do banco para camelCase do frontend
 const sanitizeCPF = (cpf: string | undefined | null): string => {
@@ -87,11 +87,65 @@ export class SupabaseService {
         'NUTRICAO': Specialty.NUTRITION
     };
 
+    // --- Auditoria ---
+    static async getAuditLogs(filters?: { user?: string, date?: string, action?: string, module?: string }): Promise<AuditLog[]> {
+        try {
+            let query = supabase.from('audit_logs').select('*').order('data_hora', { ascending: false });
+
+            if (filters) {
+                if (filters.user) query = query.ilike('usuario', `%${filters.user}%`);
+                if (filters.date) {
+                    const dateObj = new Date(filters.date + 'T00:00:00'); // Garante que a data é tratada no fuso local aproximado
+                    const startOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 0, 0, 0, 0);
+                    const endOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 23, 59, 59, 999);
+                    query = query.gte('data_hora', startOfDay.toISOString()).lte('data_hora', endOfDay.toISOString());
+                }
+                if (filters.action) query = query.eq('acao', filters.action);
+                if (filters.module) query = query.eq('modulo', filters.module);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data as AuditLog[];
+        } catch (error) {
+            console.error('[SupabaseService] Erro ao buscar logs de auditoria:', error);
+            throw error;
+        }
+    }
+
+    static async logAction(
+        currentUser: Pick<User, 'name' | 'email' | 'role'> | null,
+        acao: AuditAction | string,
+        modulo: string,
+        registroAfetado: string
+    ): Promise<void> {
+        try {
+            if (!currentUser) return;
+            const nomeStr = currentUser.name || currentUser.email || 'Sistema';
+
+            const { error } = await supabase.from('audit_logs').insert({
+                usuario: nomeStr,
+                perfil: currentUser.role,
+                acao,
+                modulo,
+                registro_afetado: registroAfetado
+            });
+
+            if (error) {
+                console.warn('[SupabaseService] Erro silencioso ao registrar log:', error.message);
+            }
+        } catch (error) {
+            console.warn('[SupabaseService] Falha na auditoria:', error);
+        }
+    }
+
     // --- Auth ---
     static async authenticate(email: string, password: string): Promise<User | null> {
-        // Normaliza para email se for apenas username e remove espaços
         const cleanEmail = email.trim();
-        const finalEmail = cleanEmail.includes('@') ? cleanEmail : `${cleanEmail}@brotar.com`;
+        // Se for puramente numérico, é um INEP (Escola) e usa o sufixo @escola.brotar
+        // Caso contrário, usa o padrão @brotar.com
+        const suffix = /^\d+$/.test(cleanEmail) ? '@escola.brotar' : '@brotar.com';
+        const finalEmail = cleanEmail.includes('@') ? cleanEmail : `${cleanEmail}${suffix}`;
 
         const { data, error } = await supabase.auth.signInWithPassword({
             email: finalEmail,
@@ -148,6 +202,7 @@ export class SupabaseService {
             email: profile.email,
             photoUrl: profile.photo_url,
             scope: profile.scope,
+            schoolInep: profile.school_inep || undefined,
             mustChangePassword: profile.must_change_password
         };
     }
@@ -207,6 +262,7 @@ export class SupabaseService {
             email: profile.email,
             photoUrl: profile.photo_url,
             scope: profile.scope,
+            schoolInep: profile.school_inep || undefined,
             mustChangePassword: profile.must_change_password
         };
     }

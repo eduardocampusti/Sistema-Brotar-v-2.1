@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Student, School, User, Specialty } from '../types';
+import { Student, School, User, Specialty, AuditAction } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
 import {
@@ -82,12 +82,14 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
   const isRestricted = (currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'SECRETARIA_SEDE') && currentUser?.scope === 'COCAL';
-  const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.role === 'SECRETARIA_COCAL';
+  const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'ESCOLA';
   const canViewClinical = currentUser?.role === 'ADMIN' || currentUser?.role === 'SPECIALIST';
 
   // Permissões Específicas
   const isSocialWorker = currentUser?.specialty === Specialty.SOCIAL_WORK;
   const isClinician = currentUser?.role === 'SPECIALIST';
+
+  const isSchool = currentUser?.role === 'ESCOLA';
 
   // Filter students based on search, school filter AND user scope
   const filteredStudents = students.filter(p => {
@@ -96,6 +98,14 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
       const schoolName = (p.school.schoolName || '').toLowerCase();
       const district = (p.school.district || '').toLowerCase();
       if (!schoolName.includes('cocal') && !district.includes('cocal')) return false;
+    }
+
+    // 1b. School Specific Restriction
+    if (isSchool) {
+      const mySchoolId = currentUser?.schoolInep;
+      const mySchoolName = currentUser?.name;
+      const isMyStudent = p.school?.schoolId === mySchoolId || p.school?.schoolName === mySchoolName;
+      if (!isMyStudent) return false;
     }
 
     // 2. Search Term Filter
@@ -111,8 +121,11 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
     return matchesSearch && matchesSchool;
   });
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (studentToDelete) {
+      if (currentUser) {
+        await SupabaseService.logAction(currentUser, AuditAction.DELETE, 'ALUNOS', studentToDelete.fullName);
+      }
       onDelete(studentToDelete.id);
       setStudentToDelete(null);
     }
