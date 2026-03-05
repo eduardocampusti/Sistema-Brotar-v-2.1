@@ -158,6 +158,19 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             return;
         }
 
+        // Validação de Duplicidade por CPF (Apenas se CPF estiver preenchido)
+        if (formData.cpf) {
+            const cleanCPF = sanitizeCPF(formData.cpf);
+            const isDuplicate = professionals.some(p =>
+                sanitizeCPF(p.cpf) === cleanCPF && p.id !== formData.id
+            );
+
+            if (isDuplicate) {
+                showNotification('Atenção: Já existe um profissional cadastrado com este CPF.', 'error');
+                return;
+            }
+        }
+
         const newProf: SupportProfessional = {
             id: formData.id || '', // Se for novo, manda vazio para cair no INSERT do backend
             name: formData.name,
