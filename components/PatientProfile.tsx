@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Student, Specialty, Session, User } from '../types';
-import { ArrowLeft, Phone, MapPin, Activity, School, Clock, Calendar, FileText, Plus, Save, User as UserIcon, Lock, Paperclip, CreditCard, Download, Edit, Heart } from 'lucide-react';
+import { Student, Specialty, Session, User, SupportProfessional } from '../types';
+import { ArrowLeft, Phone, MapPin, Activity, School, Clock, Calendar, FileText, Plus, Save, User as UserIcon, Lock, Paperclip, CreditCard, Download, Edit, Heart, UserCheck } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 
 interface StudentProfileProps {
@@ -29,6 +29,9 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
     // Recepcionistas podem editar dados do aluno (cadastro), mas não podem acessar prontuário clínico.
     const canEdit = currentUser.role === 'ADMIN' || currentUser.role === 'SECRETARIA_SEDE' || currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'EDUCATION_SECRETARY' || currentUser.role === 'ASSISTANT' || currentUser.role === 'ESCOLA';
 
+    // ATs Vinculados State
+    const [linkedATs, setLinkedATs] = useState<SupportProfessional[]>([]);
+
     // Ensure history array exists and load if empty (on-demand loading)
     useEffect(() => {
         setStudent(initialStudent);
@@ -40,6 +43,13 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                 setStudent(prev => ({ ...prev, history: sessions }));
             };
             loadSessions();
+        }
+
+        // Buscar ATs vinculados
+        if (initialStudent.id) {
+            SupabaseService.getSupportProfessionalsByStudent(initialStudent.id)
+                .then(ats => setLinkedATs(ats))
+                .catch(err => console.error("Erro ao buscar ATs vinculados:", err));
         }
     }, [initialStudent]);
 
@@ -380,10 +390,25 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                 </div>
                             )}
                             <div className="pt-2 border-t border-slate-100">
-                                <p className="text-sm text-slate-500 mb-1">Apoio</p>
-                                {student.school.hasSpecialAide ? (
+                                <p className="text-sm text-slate-500 mb-1">Apoio em Sala de Aula</p>
+
+                                {linkedATs.length > 0 ? (
+                                    <div className="flex flex-col gap-2 mt-2">
+                                        <span className="inline-flex items-center w-fit px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                            Possui Profissional de Apoio (Sistema)
+                                        </span>
+                                        <div className="flex flex-col gap-1 mt-1">
+                                            {linkedATs.map(at => (
+                                                <div key={at.id} className="flex items-center gap-2 text-sm text-green-700 bg-green-50 p-2 rounded border border-green-100">
+                                                    <UserCheck size={16} className="text-green-600" />
+                                                    <span className="font-medium">{at.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : student.school.hasSpecialAide ? (
                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        Possui Acompanhante (AT)
+                                        Possui Acompanhante Particular/Outros
                                     </span>
                                 ) : (
                                     <span className="text-sm text-slate-600">Não possui acompanhante</span>

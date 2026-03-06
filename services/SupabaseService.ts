@@ -1477,6 +1477,38 @@ export class SupabaseService {
     }
 
     // --- Support Professionals ---
+    static async getSupportProfessionalsByStudent(studentId: string): Promise<SupportProfessional[]> {
+        return safeCall(async () => {
+            const { data, error } = await supabase
+                .from('support_professionals')
+                .select('*')
+                .eq('student_id', studentId)
+                .order('name');
+
+            if (error) {
+                console.error(`Erro ao buscar ATs para o aluno ${studentId}:`, error);
+                throw error;
+            }
+
+            return data.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                photoUrl: p.photo_url,
+                cpf: p.cpf,
+                phone: p.phone,
+                email: p.email,
+                education: p.education,
+                contractStartDate: p.contract_start_date,
+                workload: p.workload,
+                address: p.address,
+                schoolId: p.school_id,
+                regentTeacher: p.regent_teacher,
+                studentId: p.student_id,
+                createdAt: p.created_at
+            }));
+        });
+    }
+
     static async getSupportProfessionals(): Promise<SupportProfessional[]> {
         return safeCall(async () => {
             const { data, error } = await supabase.from('support_professionals').select('*').order('name');

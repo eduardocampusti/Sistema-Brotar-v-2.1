@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Student, Gender, DocumentType, StudentDocument, School, AuditAction } from '../types';
-import { Save, X, Activity, User, BookOpen, Users as UsersIcon, Upload, Trash2, FileText, Check, Paperclip, AlertCircle, Download } from 'lucide-react';
+import { Student, Gender, DocumentType, StudentDocument, School, AuditAction, SupportProfessional } from '../types';
+import { Save, X, Activity, User, BookOpen, Users as UsersIcon, Upload, Trash2, FileText, Check, Paperclip, AlertCircle, Download, UserCheck } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
 import { formatarNomeBR, formatarCPF, formatarTelefoneBR, formatarDataBR, apenasNumeros, dataBRParaISO, dataISOParaBR, calcularIdade, formatarCEP, limparDocumento } from '../utils/formatters';
@@ -33,6 +33,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const [documentFiles, setDocumentFiles] = useState<{ file: File, type: string }[]>([]);
     const [isSearchingCEP, setIsSearchingCEP] = useState(false);
     const [cepError, setCepError] = useState<string | null>(null);
+    const [linkedATs, setLinkedATs] = useState<SupportProfessional[]>([]); // Novo estado para exibir ATs
 
     // Novos estados locais para separar Naturalidade e Estado
     const [birthCity, setBirthCity] = useState('');
@@ -93,9 +94,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
             }
 
             setFormData(safeData);
+
+            // Buscar ATs vinculados se estivermos editando um aluno existente
+            if (safeData.id) {
+                SupabaseService.getSupportProfessionalsByStudent(safeData.id)
+                    .then(ats => setLinkedATs(ats))
+                    .catch(err => console.error("Erro ao buscar ATs vinculados:", err));
+            }
+
         } else {
             setBirthCity('');
             setBirthState('');
+            setLinkedATs([]); // Limpa se for novo aluno
         }
     }, [initialData]);
 
@@ -895,13 +905,33 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                         <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
                                             value={formData.school?.schedule || ''} onChange={e => handleInputChange('school', 'schedule', e.target.value)} placeholder="07:00 às 12:00" />
                                     </div>
-                                    <div className="flex items-end pb-3 md:col-span-2">
-                                        <label className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 w-full cursor-pointer hover:bg-slate-100">
+                                    <div className="flex flex-col pb-3 md:col-span-2 gap-2">
+                                        <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border w-full transition-colors ${linkedATs.length > 0 ? 'bg-green-50/50 border-green-200 cursor-default' : 'bg-slate-50 border-slate-200 cursor-pointer hover:bg-slate-100'}`}>
                                             <input type="checkbox" className="rounded text-primary-600 focus:ring-primary-500"
-                                                checked={formData.school?.hasSpecialAide}
+                                                checked={linkedATs.length > 0 ? true : !!formData.school?.hasSpecialAide}
+                                                disabled={linkedATs.length > 0}
                                                 onChange={e => handleInputChange('school', 'hasSpecialAide', e.target.checked)} />
-                                            <span className="text-sm font-medium text-slate-700">Possui Acompanhante Terapêutico (AT)?</span>
+                                            <span className={`text-sm font-medium ${linkedATs.length > 0 ? 'text-green-800' : 'text-slate-700'}`}>
+                                                Possui Acompanhante Terapêutico (AT)?
+                                            </span>
                                         </label>
+
+                                        {linkedATs.length > 0 && (
+                                            <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg animate-fadeIn text-green-800">
+                                                <UserCheck className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm font-semibold">Profissional de Apoio Vinculado no Sistema:</p>
+                                                    <ul className="text-sm mt-1 space-y-1">
+                                                        {linkedATs.map(at => (
+                                                            <li key={at.id} className="flex items-center gap-1.5">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                                {at.name}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
