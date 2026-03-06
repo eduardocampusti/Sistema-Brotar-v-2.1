@@ -324,19 +324,23 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const renderStudentAndRegent = (prof: SupportProfessional) => {
         let studentStr = getStudentName(prof.studentId);
         let regentStr = prof.regentTeacher || '-';
+        let isUnregistered = false;
 
+        // Limpeza dos textos importados pelo CSV (que guardam o nome do aluno no regente provisoriamente)
         if (studentStr === 'Desconhecido' && regentStr.includes('Aluno não cadastrado:')) {
             const parts = regentStr.split('| Aluno não cadastrado:');
             if (parts.length === 2) {
                 regentStr = parts[0].trim() || '-';
-                studentStr = parts[1].trim() + ' (Apenas Texto)';
+                studentStr = parts[1].trim();
+                isUnregistered = true;
             } else if (regentStr.startsWith('Aluno não cadastrado:')) {
-                studentStr = regentStr.replace('Aluno não cadastrado:', '').trim() + ' (Apenas Texto)';
+                studentStr = regentStr.replace('Aluno não cadastrado:', '').trim();
                 regentStr = '-';
+                isUnregistered = true;
             }
         }
 
-        return { studentStr, regentStr };
+        return { studentStr, regentStr, isUnregistered };
     };
 
     const handleExportCSV = () => {
