@@ -16,12 +16,25 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.log('[SupabaseClient] Initialized for project:', supabaseUrl.split('//')[1].split('.')[0]);
 }
 
+// Wrapper seguro para o LocalStorage (evita quebra em modo incógnito/Safari)
+const getSafeStorage = () => {
+    try {
+        const testKey = '__test__';
+        window.localStorage.setItem(testKey, testKey);
+        window.localStorage.removeItem(testKey);
+        return window.localStorage;
+    } catch (e) {
+        console.warn('[SupabaseClient] LocalStorage bloqueado ou indisponível. Usando fallback em memória.');
+        return undefined; // Deixa o Supabase usar fallback interno (in-memory)
+    }
+};
+
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
     auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        storage: window.localStorage
+        storage: getSafeStorage()
     },
     global: {
         headers: { 'x-application-name': 'brotar-web' }

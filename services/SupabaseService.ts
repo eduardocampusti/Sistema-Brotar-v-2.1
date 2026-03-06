@@ -64,6 +64,8 @@ const safeCall = async <T>(fn: () => Promise<T>, retries = 3, interval = 500): P
 };
 
 export class SupabaseService {
+    // Cache de perfil para evitar requisições redundantes durante o mesmo ciclo de vida
+    private static userProfileCache: Map<string, User> = new Map();
     // Mapeamento centralizado de especialidades para o banco de dados
     private static readonly SPECIALTY_MAP: Record<string, string> = {
         'Psicologia': 'PSICOLOGIA',
@@ -86,6 +88,11 @@ export class SupabaseService {
         'ENFERMAGEM': 'Enfermagem' as any,
         'NUTRICAO': Specialty.NUTRITION
     };
+
+    private static mapSpecialtyFromDB(dbValue?: string): Specialty | undefined {
+        if (!dbValue) return undefined;
+        return this.REVERSE_SPECIALTY_MAP[dbValue] || (dbValue as any);
+    }
 
     // --- Auditoria ---
     static async getAuditLogs(filters?: { user?: string, date?: string, action?: string, module?: string }): Promise<AuditLog[]> {
@@ -164,53 +171,43 @@ export class SupabaseService {
             .eq('id', data.user.id)
             .single();
 
+        const userData = profileError || !profile ? null : profile;
+
         // Se o perfil não existir, usamos um fallback seguro baseado no metadata do Auth
-        if (profileError || !profile) {
-            console.warn('Perfil não encontrado ou inacessível no banco:', profileError?.message);
-
-            return {
-                id: data.user.id,
-                name: data.user.user_metadata?.full_name || finalEmail.split('@')[0],
-                username: email,
-                role: (data.user.user_metadata?.role as UserRole) || 'SPECIALIST',
-                isActive: true,
-                email: finalEmail
-            };
-        }
-
-        // Reverse Mapping: DB Enum (PSICOPEDAGOGIA) -> Frontend Value (Psicopedagogia)
-        const specialtyReverseMap: Record<string, Specialty> = {
-            'PSICOLOGIA': Specialty.PSYCHOLOGY,
-            'FONOAUDIOLOGIA': Specialty.SPEECH_THERAPY,
-            'PSICOPEDAGOGIA': Specialty.PSYCHOPEDAGOGY,
-            'TERAPIA_OCUPACIONAL': Specialty.OCCUPATIONAL_THERAPY,
-            'SERVICO_SOCIAL': Specialty.SOCIAL_WORK,
-            'FISIOTERAPIA': Specialty.PHYSIOTHERAPY,
-            'ENFERMAGEM': 'Enfermagem' as any,
-            'NUTRICAO': Specialty.NUTRITION
+        const user: User = {
+            id: userData?.id || data.user.id,
+            name: userData?.full_name || data.user.user_metadata?.full_name || finalEmail.split('@')[0],
+            username: userData?.username || email,
+            role: userData?.role || (data.user.user_metadata?.role as UserRole) || 'SPECIALIST',
+            isActive: userData?.is_active ?? true,
+            specialty: this.mapSpecialtyFromDB(userData?.specialty),
+            email: userData?.email || finalEmail,
+            photoUrl: userData?.photo_url,
+            scope: userData?.scope,
+            schoolInep: userData?.school_inep || undefined,
+            mustChangePassword: userData?.must_change_password
         };
 
-        const frontendSpecialty = profile.specialty ? (specialtyReverseMap[profile.specialty] || profile.specialty) : undefined;
+        // Salva no cache
+        this.userProfileCache.set(user.id, user);
 
-        return {
-            id: profile.id,
-            name: profile.full_name,
-            username: profile.username || email,
-            role: profile.role,
-            isActive: profile.is_active,
-            specialty: frontendSpecialty,
-            email: profile.email,
-            photoUrl: profile.photo_url,
-            scope: profile.scope,
-            schoolInep: profile.school_inep || undefined,
-            mustChangePassword: profile.must_change_password
-        };
+        return user;
+    }
+
+    // Limpa o cache (usado no logout)
+    static clearProfileCache() {
+        this.userProfileCache.clear();
     }
 
     /**
      * Busca o perfil do usuário pelo ID sem precisar autenticar (útil para sessões já ativas como Recovery)
      */
     static async getUserProfile(userId: string): Promise<User | null> {
+        // Verifica cache primeiro
+        if (this.userProfileCache.has(userId)) {
+            return this.userProfileCache.get(userId) || null;
+        }
+
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
@@ -239,32 +236,24 @@ export class SupabaseService {
             return null;
         }
 
-        const specialtyReverseMap: Record<string, Specialty> = {
-            'PSICOLOGIA': Specialty.PSYCHOLOGY,
-            'FONOAUDIOLOGIA': Specialty.SPEECH_THERAPY,
-            'PSICOPEDAGOGIA': Specialty.PSYCHOPEDAGOGY,
-            'TERAPIA_OCUPACIONAL': Specialty.OCCUPATIONAL_THERAPY,
-            'SERVICO_SOCIAL': Specialty.SOCIAL_WORK,
-            'FISIOTERAPIA': Specialty.PHYSIOTHERAPY,
-            'ENFERMAGEM': 'Enfermagem' as any,
-            'NUTRICAO': Specialty.NUTRITION
-        };
-
-        const frontendSpecialty = profile.specialty ? (specialtyReverseMap[profile.specialty] || profile.specialty) : undefined;
-
-        return {
+        const user: User = {
             id: profile.id,
             name: profile.full_name,
             username: profile.username || (profile.email ? profile.email.split('@')[0] : 'user'),
             role: profile.role,
             isActive: profile.is_active,
-            specialty: frontendSpecialty,
+            specialty: this.mapSpecialtyFromDB(profile.specialty),
             email: profile.email,
             photoUrl: profile.photo_url,
             scope: profile.scope,
             schoolInep: profile.school_inep || undefined,
             mustChangePassword: profile.must_change_password
         };
+
+        // Salva no cache
+        this.userProfileCache.set(user.id, user);
+
+        return user;
     }
 
     static async signUp(email: string, password: string, fullName: string, role: UserRole = 'ADMIN'): Promise<{ user: any, error: any }> {

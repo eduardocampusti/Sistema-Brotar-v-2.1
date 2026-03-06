@@ -169,7 +169,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
       items.push(
         { id: 'vault', label: 'Cofre Documentos', icon: <Shield size={20} /> },
         { id: 'documents', label: 'Documentos Oficiais', icon: <FileCheck size={20} /> },
-        { id: 'my-access', label: 'Meus Acessos', icon: <Key size={20} /> }
+        { id: 'audit-logs', label: 'Auditoria do Sistema', icon: <ShieldAlert size={20} /> },
+        { id: 'my-access', label: 'Meus Acessos', icon: <Key size={20} /> },
+        { id: 'about', label: 'Sobre o Sistema', icon: <Info size={20} /> }
       );
     } else if (currentUser.role === 'SPECIALIST') {
       // Especialistas veem o menu de documentos padrão

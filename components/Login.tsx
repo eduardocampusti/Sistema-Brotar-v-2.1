@@ -173,24 +173,28 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLoading) return; // Evita cliques duplos
+
         setError('');
         setIsLoading(true);
 
+        // Referência para cancelar o timeout se o login for rápido
+        let loginTimeoutId: NodeJS.Timeout | null = null;
+
         try {
             // Timeout de segurança: se o login não responder em 15s, libera o botão
-            const loginTimeout = setTimeout(() => {
-                if (isLoading) {
-                    setIsLoading(false);
-                    setError('A conexão com o servidor está lenta. Tente novamente ou verifique sua internet.');
-                }
+            loginTimeoutId = setTimeout(() => {
+                setIsLoading(false);
+                setError('A conexão com o servidor está demorando mais que o esperado. Verifique sua internet, mas o sistema ainda pode completar o acesso em instantes.');
             }, 15000);
 
             const cleanUsername = username.trim();
             const cleanPassword = password.trim();
-            console.log('Tentando autenticar:', cleanUsername);
+
+            // Tenta autenticar
             const user = await SupabaseService.authenticate(cleanUsername, cleanPassword);
 
-            clearTimeout(loginTimeout);
+            if (loginTimeoutId) clearTimeout(loginTimeoutId);
 
             if (user) {
                 // Registro de Auditoria: Login
@@ -198,11 +202,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
                 onLogin(user);
             } else {
                 setError('Login falhou. Verifique se o e-mail e a senha estão corretos.');
+                setIsLoading(false);
             }
         } catch (err: any) {
+            if (loginTimeoutId) clearTimeout(loginTimeoutId);
             console.error('Erro inesperado:', err);
             setError('Erro: ' + (err.message || 'Conexão falhou.'));
-        } finally {
             setIsLoading(false);
         }
     };

@@ -103,10 +103,14 @@ const hexToRgb = (hex: string) => {
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState<string>(() => {
-    // Tenta restaurar a página do Hash ou LocalStorage
-    const hash = window.location.hash.replace('#', '');
-    if (hash && hash !== 'dashboard') return hash;
-    return localStorage.getItem('brotar_current_page') || 'dashboard';
+    try {
+      // Tenta restaurar a página do Hash ou LocalStorage
+      const hash = window.location.hash.replace('#', '');
+      if (hash && hash !== 'dashboard') return hash;
+      return localStorage.getItem('brotar_current_page') || 'dashboard';
+    } catch (e) {
+      return 'dashboard';
+    }
   });
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -118,12 +122,16 @@ function App() {
     return hash.includes('type=recovery') || search.includes('recovery=true');
   });
   const [showLogin, setShowLogin] = useState(() => {
-    // Persiste o estado do modal de login
-    const storedShowLogin = localStorage.getItem('brotar_show_login') === 'true';
-    return storedShowLogin ||
-      new URLSearchParams(window.location.search).get('login') === 'true' ||
-      new URLSearchParams(window.location.search).get('recovery') === 'true' ||
-      window.location.hash.includes('type=recovery');
+    try {
+      // Persiste o estado do modal de login
+      const storedShowLogin = localStorage.getItem('brotar_show_login') === 'true';
+      return storedShowLogin ||
+        new URLSearchParams(window.location.search).get('login') === 'true' ||
+        new URLSearchParams(window.location.search).get('recovery') === 'true' ||
+        window.location.hash.includes('type=recovery');
+    } catch (e) {
+      return false;
+    }
   });
 
   // Trava de idempotência para evitar loop de processamento da mesma sessão
@@ -179,16 +187,24 @@ function App() {
       if (window.location.hash !== `#${currentPage}`) {
         window.location.hash = currentPage;
       }
-      localStorage.setItem('brotar_current_page', currentPage);
+      try {
+        localStorage.setItem('brotar_current_page', currentPage);
+      } catch (e) {
+        // En silêncio se o storage estiver bloqueado
+      }
     }
   }, [currentPage, user]);
 
   // Sincroniza showLogin com LocalStorage
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem('brotar_show_login', showLogin.toString());
-    } else {
-      localStorage.removeItem('brotar_show_login');
+    try {
+      if (!user) {
+        localStorage.setItem('brotar_show_login', showLogin.toString());
+      } else {
+        localStorage.removeItem('brotar_show_login');
+      }
+    } catch (e) {
+      // Falha silenciosa se storage indisponível
     }
   }, [showLogin, user]);
 
@@ -305,11 +321,14 @@ function App() {
         } else if (event === 'SIGNED_OUT') {
           processedSessionId.current = null;
           setUser(null);
+          SupabaseService.clearProfileCache(); // IMPORTANTE: Limpa o cache para não vazar dados
           setCurrentPage('dashboard');
           setIsRecoveryMode(false);
           setIsAuthLoading(false);
-          localStorage.removeItem('brotar_current_page');
-          localStorage.removeItem('brotar_show_login');
+          try {
+            localStorage.removeItem('brotar_current_page');
+            localStorage.removeItem('brotar_show_login');
+          } catch (e) { }
           window.location.hash = '';
         }
       } catch (err) {
@@ -401,10 +420,13 @@ function App() {
       await SupabaseService.logAction(user, AuditAction.LOGOUT, 'SISTEMA', 'Logout realizado');
     }
     await supabase.auth.signOut();
+    SupabaseService.clearProfileCache();
     setUser(null);
     setCurrentPage('dashboard');
-    localStorage.removeItem('brotar_current_page');
-    localStorage.removeItem('brotar_show_login');
+    try {
+      localStorage.removeItem('brotar_current_page');
+      localStorage.removeItem('brotar_show_login');
+    } catch (e) { }
     window.location.hash = '';
   };
 
@@ -424,18 +446,28 @@ function App() {
 
   if (!user) {
     // Se o usuário já acessou o sistema antes ou está tentando entrar, mostra o login direto
-    const shouldShowLogin = showLogin || localStorage.getItem('brotar_visited') === 'true';
+    const shouldShowLogin = showLogin || (() => {
+      try {
+        return localStorage.getItem('brotar_visited') === 'true';
+      } catch (e) {
+        return false;
+      }
+    })();
 
     if (shouldShowLogin) {
       return (
         <>
           <Login
             onLogin={(u) => {
-              localStorage.setItem('brotar_visited', 'true');
+              try {
+                localStorage.setItem('brotar_visited', 'true');
+              } catch (e) { }
               handleLogin(u);
             }}
             onBack={() => {
-              localStorage.removeItem('brotar_visited');
+              try {
+                localStorage.removeItem('brotar_visited');
+              } catch (e) { }
               setShowLogin(false);
             }}
             systemSettings={systemSettings}
@@ -445,7 +477,9 @@ function App() {
       );
     }
     return <LandingPage onAccessSystem={() => {
-      localStorage.setItem('brotar_visited', 'true');
+      try {
+        localStorage.setItem('brotar_visited', 'true');
+      } catch (e) { }
       setShowLogin(true);
     }} systemSettings={systemSettings} />;
   }
@@ -610,7 +644,13 @@ function App() {
       case 'list': return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
       case 'register': return <RegistrationForm onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('list')} currentUser={user} />;
       case 'admin': return user.role === 'ADMIN' ? <UserManagement /> : <Dashboard students={students} />;
-      case 'audit-logs': return user.role === 'ADMIN' ? <AuditLogs currentUser={user} /> : <Dashboard students={students} />;
+      case 'audit-logs':
+        const canAccessAudit = user.role === 'ADMIN' ||
+          user.role === 'EDUCATION_SECRETARY' ||
+          user.role === 'SECRETARIA_SEDE' ||
+          user.role === 'SECRETARIA_COCAL' ||
+          user.role === 'ASSISTANT';
+        return canAccessAudit ? <AuditLogs currentUser={user} /> : <Dashboard students={students} />;
 
       // ROTAS PROTEGIDAS POR PERMISSÃO
       case 'backup':

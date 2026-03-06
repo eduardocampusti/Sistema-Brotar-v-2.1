@@ -112,11 +112,14 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
     const normalizedSearch = normalizeText(searchTerm);
     const matchesSearch =
       normalizeText(p.fullName || '').includes(normalizedSearch) ||
+      normalizeText(p.school?.schoolName || '').includes(normalizedSearch) ||
       (canViewClinical && normalizeText(p.clinical?.diagnosis || '').includes(normalizedSearch)) ||
       (p.cpf || '').includes(searchTerm);
 
     // 3. School Dropdown Filter
-    const matchesSchool = selectedSchoolId === 'ALL' || p.school?.schoolId === selectedSchoolId;
+    const matchesSchool = selectedSchoolId === 'ALL' ||
+      p.school?.schoolId === selectedSchoolId ||
+      (selectedSchoolId !== 'ALL' && !p.school?.schoolId && p.school?.schoolName === selectedSchoolId);
 
     return matchesSearch && matchesSchool;
   });
@@ -159,8 +162,15 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
             <SearchableSelect
               options={[
                 { value: 'ALL', label: 'Todas as Escolas' },
-                ...Array.from(new Map(students.filter(s => s.school?.schoolId).map(s => [s.school?.schoolId, s.school?.schoolName])).entries())
-                  .map(([id, name]) => ({ value: id, label: name }))
+                ...Array.from(new Map(
+                  students
+                    .filter(s => s.school?.schoolId || s.school?.schoolName)
+                    .map(s => {
+                      const id = s.school?.schoolId || s.school?.schoolName; // Fallback para o nome se não tiver ID
+                      return [id, s.school?.schoolName || 'Sem nome'];
+                    })
+                ).entries())
+                  .map(([id, name]) => ({ value: id as string, label: name as string }))
                   .sort((a, b) => a.label.localeCompare(b.label))
               ]}
               value={selectedSchoolId}
@@ -174,7 +184,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
-              placeholder="Buscar aluno, CPF..."
+              placeholder="Localizar aluno, CPF ou escola..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
