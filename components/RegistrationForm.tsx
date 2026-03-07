@@ -308,11 +308,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
             const submissionData = sanitizedData as Student;
 
             console.log('[RegistrationForm] Enviando para saveStudent - ID:', submissionData.id, 'CPF:', submissionData.cpf);
+            const startTime = Date.now();
             const savedId = await SupabaseService.saveStudent(
                 submissionData,
                 selectedPhotoFile || undefined,
                 documentFiles
             );
+            console.log(`[RegistrationForm] saveStudent concluído em ${Date.now() - startTime}ms. ID salvo:`, savedId);
 
             // Registro de Auditoria: Estudante
             const acao = initialData ? AuditAction.UPDATE : AuditAction.CREATE;
