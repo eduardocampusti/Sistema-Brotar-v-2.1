@@ -446,28 +446,16 @@ function App() {
 
   if (!user) {
     // Se o usuário já acessou o sistema antes ou está tentando entrar, mostra o login direto
-    const shouldShowLogin = showLogin || (() => {
-      try {
-        return localStorage.getItem('brotar_visited') === 'true';
-      } catch (e) {
-        return false;
-      }
-    })();
+    const shouldShowLogin = showLogin;
 
     if (shouldShowLogin) {
       return (
         <>
           <Login
             onLogin={(u) => {
-              try {
-                localStorage.setItem('brotar_visited', 'true');
-              } catch (e) { }
               handleLogin(u);
             }}
             onBack={() => {
-              try {
-                localStorage.removeItem('brotar_visited');
-              } catch (e) { }
               setShowLogin(false);
             }}
             systemSettings={systemSettings}
@@ -477,9 +465,6 @@ function App() {
       );
     }
     return <LandingPage onAccessSystem={() => {
-      try {
-        localStorage.setItem('brotar_visited', 'true');
-      } catch (e) { }
       setShowLogin(true);
     }} systemSettings={systemSettings} />;
   }
