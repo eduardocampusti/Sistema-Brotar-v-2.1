@@ -1,4 +1,3 @@
-import React, { useState, useEffect, useRef } from 'react';
 import {
     Shield, Users, FileText, Globe, ChevronRight, CheckCircle,
     Brain, Heart, BookOpen, Dumbbell, Mic, Apple, ArrowRight,
@@ -6,6 +5,7 @@ import {
     School, Briefcase, UserCheck, BarChart3, Zap, Phone,
     Info, Code, Smartphone, Mail, Server, User
 } from 'lucide-react';
+import { FULL_VERSION } from '../utils/version';
 
 interface LandingPageProps {
     onAccessSystem: () => void;
@@ -780,7 +780,7 @@ export function LandingPage({ onAccessSystem, systemSettings }: LandingPageProps
                                     </div>
                                     <div className="flex items-center justify-between border-b border-white/10 pb-3">
                                         <span className="text-slate-400 text-sm">Versão</span>
-                                        <span className="text-blue-400 font-bold text-sm text-right">v2.1 Stable (Supabase)</span>
+                                        <span className="text-blue-400 font-bold text-sm text-right">{FULL_VERSION}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="text-slate-400 text-sm">LGPD</span>

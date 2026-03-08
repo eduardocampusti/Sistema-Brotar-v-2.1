@@ -1,5 +1,5 @@
-
 import React from 'react';
+import { FULL_VERSION } from '../utils/version';
 import {
     Code, Server, Database, Shield, Smartphone, Mail, Globe,
     CheckCircle, Info, QrCode, Building, User, Cpu, Layers, HeartPulse, ExternalLink
@@ -24,7 +24,7 @@ export const AboutSystem: React.FC = () => {
                         <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">Sistema Brotar</h1>
                         <p className="text-primary-200 font-medium text-lg mb-4">Gestão Multidisciplinar Educacional e Clínica</p>
                         <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-300">
-                            <span className="bg-white/10 px-3 py-1 rounded-full border border-white/10">Versão 2.1 (Supabase)</span>
+                            <span className="bg-white/10 px-3 py-1 rounded-full border border-white/10">Versão {FULL_VERSION}</span>
                             <span className="bg-white/10 px-3 py-1 rounded-full border border-white/10">Atualizado: {new Date().toLocaleDateString()}</span>
                         </div>
                         <div className="mt-6 text-slate-300 max-w-2xl leading-relaxed space-y-4">
@@ -198,7 +198,7 @@ export const AboutSystem: React.FC = () => {
                                 </li>
                                 <li className="flex items-center justify-between text-sm">
                                     <span className="text-slate-300">Versão</span>
-                                    <span className="flex items-center gap-1.5 text-blue-400 font-bold">v2.1 Stable (Supabase)</span>
+                                    <span className="flex items-center gap-1.5 text-blue-400 font-bold">{FULL_VERSION}</span>
                                 </li>
                             </ul>
                         </div>
