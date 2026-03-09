@@ -770,7 +770,7 @@ export class SupabaseService {
     static async getSchools(): Promise<School[]> {
         console.log('[SupabaseService] Iniciando busca de escolas...');
         try {
-            const { data, error } = await supabase.from('schools').select('*');
+            const { data, error } = await supabase.from('escolas').select('*');
             if (error) {
                 console.error('[SupabaseService] Erro ao buscar escolas:', error);
                 throw error;
@@ -779,27 +779,22 @@ export class SupabaseService {
             console.log(`[SupabaseService] Escolas encontradas: ${data?.length || 0}`);
             return (data || []).map((s: any) => ({
                 id: s.id,
-                name: s.name,
+                name: s.nome,
                 inep: s.inep,
-                director: s.director || '',
-                phone: s.phone || '',
-                district: s.district,
-                isActive: s.is_active,
-                // Mapeia endereço do JSONB ou colunas, dependendo do schema. Assumindo JSONB address ou colunas planas.
-                // Para simplificar, vou assumir que 'address' é um jsonb. Se não for, precisaria ajustar.
-                address: s.address || { street: '', number: '', district: s.district, city: 'Brotas', state: 'BA', zipCode: '' },
-                hasInternet: s.has_internet,
-                internetType: s.internet_type,
-                internetProviderContact: s.internet_provider_contact,
-                internetProviders: (() => {
-                    try {
-                        // Tenta parsear o JSON armazenado na coluna de contato
-                        const parsed = JSON.parse(s.internet_provider_contact || '{}');
-                        return typeof parsed === 'object' ? parsed : {};
-                    } catch {
-                        return {};
-                    }
-                })()
+                director: s.diretor || '',
+                phone: s.telefone || '',
+                district: s.distrito,
+                isActive: s.status === 'Ativa',
+                address: {
+                    street: s.logradouro || '',
+                    number: s.numero || '',
+                    district: s.bairro || s.distrito || '',
+                    city: s.cidade || 'Brotas',
+                    state: s.estado || 'BA',
+                    zipCode: s.cep || ''
+                },
+                hasInternet: s.possui_internet === 'Sim',
+                internetType: s.tipo_internet
             }));
         } catch (err) {
             console.error('[SupabaseService] Erro fatal em getSchools:', err);
@@ -809,24 +804,27 @@ export class SupabaseService {
 
     static async saveSchool(school: School): Promise<void> {
         const payload: any = {
-            name: school.name,
+            nome: school.name,
             inep: school.inep,
-            director: school.director,
-            phone: school.phone,
-            district: school.district,
-            is_active: school.isActive,
-            address: school.address,
-            has_internet: school.hasInternet,
-            internet_type: school.internetType,
-            // Salva os provedores estruturados como JSON na coluna de contato para evitar erros de schema
-            internet_provider_contact: JSON.stringify(school.internetProviders || {})
+            diretor: school.director,
+            telefone: school.phone,
+            distrito: school.district,
+            status: school.isActive ? 'Ativa' : 'Inativa',
+            logradouro: school.address?.street,
+            numero: school.address?.number,
+            bairro: school.address?.district,
+            cidade: school.address?.city,
+            estado: school.address?.state,
+            cep: school.address?.zipCode,
+            possui_internet: school.hasInternet ? 'Sim' : 'Não',
+            tipo_internet: school.internetType
         };
 
         if (school.id) {
             payload.id = school.id;
         }
 
-        const { error } = await supabase.from('schools').upsert(payload);
+        const { error } = await supabase.from('escolas').upsert(payload);
         if (error) {
             console.error('Erro ao salvar escola:', error);
             throw error;

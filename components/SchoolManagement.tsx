@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { generateSchoolPDF, generateAllSchoolsPDF } from '../utils/pdfExport';
 import { PapelTimbradoConfig } from '../types';
+import { ConfirmModal } from './ConfirmModal';
 
 export const SchoolManagement: React.FC = () => {
     const [schools, setSchools] = useState<School[]>([]);
@@ -23,6 +24,7 @@ export const SchoolManagement: React.FC = () => {
     const [filterStatus, setFilterStatus] = useState('Todos');
     const [filterInternet, setFilterInternet] = useState('Todos');
     const [letterheadConfig, setLetterheadConfig] = useState<PapelTimbradoConfig | null>(null);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const formatPhone = (value: string) => {
         const numbers = value.replace(/\D/g, '');
         if (numbers.length <= 10) {
@@ -221,8 +223,12 @@ export const SchoolManagement: React.FC = () => {
         document.body.removeChild(link);
     };
 
+    const handleGenerateAccessesClick = () => {
+        setIsConfirmModalOpen(true);
+    };
+
     const generateAccesses = async () => {
-        if (!confirm('Deseja criar os acessos (senha: 123456) para as escolas do banco de dados que não têm acesso configurado?')) return;
+        setIsConfirmModalOpen(false);
 
         setIsGeneratingAccess(true);
         setError('');
@@ -343,7 +349,7 @@ export const SchoolManagement: React.FC = () => {
                     </button>
 
                     <button
-                        onClick={generateAccesses}
+                        onClick={handleGenerateAccessesClick}
                         disabled={isGeneratingAccess}
                         className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-bold text-sm opacity-90 hover:opacity-100 disabled:opacity-50"
                     >
@@ -726,6 +732,17 @@ export const SchoolManagement: React.FC = () => {
                     </div>
                 ))}
             </div>
+
+            <ConfirmModal
+                isOpen={isConfirmModalOpen}
+                title="Gerar Acessos em Massa"
+                message="Deseja criar os acessos (senha padrão: 123456) para as escolas do banco de dados que ainda não possuem credenciais configuradas?"
+                confirmLabel="Sim, Gerar Acessos"
+                cancelLabel="Agora Não"
+                onConfirm={generateAccesses}
+                onCancel={() => setIsConfirmModalOpen(false)}
+                type="info"
+            />
         </div >
     );
 };
