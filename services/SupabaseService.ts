@@ -426,7 +426,8 @@ export class SupabaseService {
                 phone: newUser.phone,
                 email: newUser.email || authEmail,
                 photo_url: newUser.photoUrl,
-                address: newUser.address
+                address: newUser.address,
+                school_inep: newUser.schoolInep
             };
 
             const { error: profileError } = await supabase
@@ -829,6 +830,23 @@ export class SupabaseService {
         if (error) {
             console.error('Erro ao salvar escola:', error);
             throw error;
+        }
+
+        // Tentar criar acesso Auth para a Escola
+        try {
+            const schoolUser: User = {
+                id: school.id || '',
+                name: school.name,
+                username: school.inep, // O email real será {inep}@escola.brotar no backend/createAccountAsAdmin
+                role: 'ESCOLA',
+                isActive: school.isActive,
+                scope: 'GLOBAL',
+                schoolInep: school.inep
+            };
+            // A senha padrão é 123456
+            await SupabaseService.createAccountAsAdmin(schoolUser, '123456');
+        } catch (e) {
+            console.warn('Erro ao tentar criar conta de acesso para a escola (pode já existir):', e);
         }
     }
 

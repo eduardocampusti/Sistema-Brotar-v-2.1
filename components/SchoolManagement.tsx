@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { School } from '../types';
+import { School, UserRole, User } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
 import {
     Save, School as SchoolIcon, X, MapPin, Phone, Building,
     AlertCircle, Wifi, Globe, Upload, FileText, CheckCircle,
     Info, Layout, Search, Filter, ChevronRight, Activity, Tag,
-    Download, Printer, File
+    Download, Printer, File, Lock
 } from 'lucide-react';
 import { generateSchoolPDF, generateAllSchoolsPDF } from '../utils/pdfExport';
 import { PapelTimbradoConfig } from '../types';
@@ -15,6 +15,7 @@ import { PapelTimbradoConfig } from '../types';
 export const SchoolManagement: React.FC = () => {
     const [schools, setSchools] = useState<School[]>([]);
     const [isAdding, setIsAdding] = useState(false);
+    const [isGeneratingAccess, setIsGeneratingAccess] = useState(false);
     const [error, setError] = useState<string>('');
     const [successMessage, setSuccessMessage] = useState<string>('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -220,6 +221,46 @@ export const SchoolManagement: React.FC = () => {
         document.body.removeChild(link);
     };
 
+    const generateAccesses = async () => {
+        if (!confirm('Deseja criar os acessos (senha: 123456) para as escolas do banco de dados que não têm acesso configurado?')) return;
+
+        setIsGeneratingAccess(true);
+        setError('');
+        setSuccessMessage('');
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const school of schools) {
+            try {
+                const schoolUser: User = {
+                    id: school.id || '',
+                    name: school.name,
+                    username: school.inep,
+                    role: 'ESCOLA' as UserRole,
+                    isActive: school.isActive,
+                    scope: 'GLOBAL',
+                    schoolInep: school.inep,
+                    email: `${school.inep}@escola.brotar`
+                };
+
+                const result = await SupabaseService.createAccountAsAdmin(schoolUser, '123456');
+                if (result.success) {
+                    successCount++;
+                } else if (result.error && result.error.includes('já está cadastrado')) {
+                    // Ignora
+                } else {
+                    failCount++;
+                }
+            } catch (err) {
+                failCount++;
+            }
+        }
+
+        setIsGeneratingAccess(false);
+        setSuccessMessage(`Processo finalizado. Novos acessos criados: ${successCount}. Falhas: ${failCount}. Escolas com cadastro existente foram ignoradas sem erro.`);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -299,6 +340,14 @@ export const SchoolManagement: React.FC = () => {
 
                     <button onClick={exportToCSV} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-bold text-sm">
                         <Download size={18} className="text-emerald-500" /> Exportar CSV
+                    </button>
+
+                    <button
+                        onClick={generateAccesses}
+                        disabled={isGeneratingAccess}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-bold text-sm opacity-90 hover:opacity-100 disabled:opacity-50"
+                    >
+                        <Lock size={18} className="text-indigo-500" /> {isGeneratingAccess ? 'Gerando...' : 'Gerar Acessos'}
                     </button>
 
                     <button
