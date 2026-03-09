@@ -855,6 +855,10 @@ export class SupabaseService {
 
     /**
      * Importação massiva de Profissionais de Apoio com Auditoria
+     * 
+     * CORREÇÃO: Separa profissionais com e sem CPF para evitar o erro do Postgres
+     * ao tentar `upsert` com `onConflict: 'cpf'` em registros com CPF nulo.
+     * NULL != NULL no Postgres, então o upsert por cpf nulo é inválido.
      */
     static async importProfessionalsInBulk(professionals: any[], currentUser: Pick<User, 'name' | 'email' | 'role'>): Promise<{ success: number, errors: any[] }> {
         const results = { success: 0, errors: [] as any[] };
@@ -863,41 +867,92 @@ export class SupabaseService {
         const uniqueMap = new Map();
         for (const p of professionals) {
             const cpf = sanitizeCPF(p.cpf) || null;
-            const key = cpf ? `cpf_${cpf}` : `name_${p.name}`;
+            const key = cpf ? `cpf_${cpf}` : `name_${(p.name || '').trim().toLowerCase()}`;
             uniqueMap.set(key, p);
         }
         const uniqueProfessionals = Array.from(uniqueMap.values());
 
-        const CHUNK_SIZE = 50;
-        for (let i = 0; i < uniqueProfessionals.length; i += CHUNK_SIZE) {
-            const chunk = uniqueProfessionals.slice(i, i + CHUNK_SIZE);
-            const payloads = chunk.map(p => ({
-                name: p.name,
-                cpf: sanitizeCPF(p.cpf) || null,
-                phone: p.phone || '',
-                email: p.email || '',
-                education: p.education || '',
-                school_id: p.schoolId || null,
-                student_id: p.studentId || null,
-                regent_teacher: p.regentTeacher || '',
-                workload: p.workload || ''
-            }));
+        // Separate records: CPF-identified (can upsert safely) vs name-only (must insert or skip)
+        const withCpf = uniqueProfessionals.filter(p => sanitizeCPF(p.cpf));
+        const withoutCpf = uniqueProfessionals.filter(p => !sanitizeCPF(p.cpf));
 
-            const { data, error } = await supabase.from('support_professionals').upsert(payloads, { onConflict: 'cpf' }).select('id');
+        const buildPayload = (p: any) => ({
+            name: p.name || '',
+            cpf: sanitizeCPF(p.cpf) || null,
+            phone: p.phone || '',
+            email: p.email || '',
+            education: p.education || '',
+            school_id: p.schoolId || null,
+            student_id: p.studentId || null,
+            regent_teacher: p.regentTeacher || '',
+            workload: p.workload || ''
+        });
+
+        // --- Group 1: With CPF — safe upsert by CPF ---
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < withCpf.length; i += CHUNK_SIZE) {
+            const chunk = withCpf.slice(i, i + CHUNK_SIZE);
+            const payloads = chunk.map(buildPayload);
+
+            const { data, error } = await supabase
+                .from('support_professionals')
+                .upsert(payloads, { onConflict: 'cpf' })
+                .select('id');
 
             if (error) {
-                // Em caso de conflito extremo de chaves únicas ou falha no chunk, tenta um por um
-                console.warn('[SupabaseService] Erro no chunk de profissionais. Tentando individualmente...', error.message);
+                console.warn('[SupabaseService] Erro no chunk (com CPF). Tentando individualmente...', error.message);
                 for (const payload of payloads) {
-                    const { error: singleError } = await supabase.from('support_professionals').upsert([payload], { onConflict: 'cpf' });
+                    const { error: singleError } = await supabase
+                        .from('support_professionals')
+                        .upsert([payload], { onConflict: 'cpf' });
                     if (singleError) {
-                        results.errors.push({ chunk: i / CHUNK_SIZE, message: `Falha ao importar ${payload.name}: ${singleError.message}` });
+                        results.errors.push({ chunk: i / CHUNK_SIZE, message: `CPF ${payload.cpf} - ${payload.name}: ${singleError.message}` });
                     } else {
                         results.success += 1;
                     }
                 }
             } else {
                 results.success += (data?.length || 0);
+            }
+        }
+
+        // --- Group 2: Without CPF — insert individually (skip existing by exact name match) ---
+        for (const p of withoutCpf) {
+            const payload = buildPayload(p);
+            try {
+                // Check if a professional with same name already exists (to avoid full duplicates)
+                const { data: existing } = await supabase
+                    .from('support_professionals')
+                    .select('id')
+                    .eq('name', payload.name)
+                    .maybeSingle();
+
+                if (existing) {
+                    // Update existing record found by name
+                    const { error: updateError } = await supabase
+                        .from('support_professionals')
+                        .update(payload)
+                        .eq('id', existing.id);
+
+                    if (updateError) {
+                        results.errors.push({ chunk: 'sem-cpf', message: `Update ${payload.name}: ${updateError.message}` });
+                    } else {
+                        results.success += 1;
+                    }
+                } else {
+                    // Insert new record
+                    const { error: insertError } = await supabase
+                        .from('support_professionals')
+                        .insert([payload]);
+
+                    if (insertError) {
+                        results.errors.push({ chunk: 'sem-cpf', message: `Insert ${payload.name}: ${insertError.message}` });
+                    } else {
+                        results.success += 1;
+                    }
+                }
+            } catch (err: any) {
+                results.errors.push({ chunk: 'sem-cpf', message: `${payload.name}: ${err.message}` });
             }
         }
 
