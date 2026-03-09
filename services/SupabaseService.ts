@@ -859,9 +859,18 @@ export class SupabaseService {
     static async importProfessionalsInBulk(professionals: any[], currentUser: Pick<User, 'name' | 'email' | 'role'>): Promise<{ success: number, errors: any[] }> {
         const results = { success: 0, errors: [] as any[] };
 
+        // Deduplicate professionals carefully to avoid Postgres "cannot affect row a second time" ON CONFLICT errors
+        const uniqueMap = new Map();
+        for (const p of professionals) {
+            const cpf = sanitizeCPF(p.cpf) || null;
+            const key = cpf ? `cpf_${cpf}` : `name_${p.name}`;
+            uniqueMap.set(key, p);
+        }
+        const uniqueProfessionals = Array.from(uniqueMap.values());
+
         const CHUNK_SIZE = 50;
-        for (let i = 0; i < professionals.length; i += CHUNK_SIZE) {
-            const chunk = professionals.slice(i, i + CHUNK_SIZE);
+        for (let i = 0; i < uniqueProfessionals.length; i += CHUNK_SIZE) {
+            const chunk = uniqueProfessionals.slice(i, i + CHUNK_SIZE);
             const payloads = chunk.map(p => ({
                 name: p.name,
                 cpf: sanitizeCPF(p.cpf) || null,
@@ -874,16 +883,26 @@ export class SupabaseService {
                 workload: p.workload || ''
             }));
 
-            const { data, error } = await supabase.from('support_professionals').upsert(payloads, { onConflict: 'cpf' }).select('id, name');
+            const { data, error } = await supabase.from('support_professionals').upsert(payloads, { onConflict: 'cpf' }).select('id');
 
             if (error) {
-                results.errors.push({ chunk: i / CHUNK_SIZE, message: error.message });
+                // Em caso de conflito extremo de chaves únicas ou falha no chunk, tenta um por um
+                console.warn('[SupabaseService] Erro no chunk de profissionais. Tentando individualmente...', error.message);
+                for (const payload of payloads) {
+                    const { error: singleError } = await supabase.from('support_professionals').upsert([payload], { onConflict: 'cpf' });
+                    if (singleError) {
+                        results.errors.push({ chunk: i / CHUNK_SIZE, message: `Falha ao importar ${payload.name}: ${singleError.message}` });
+                    } else {
+                        results.success += 1;
+                    }
+                }
             } else {
                 results.success += (data?.length || 0);
-                if (data && data.length > 0) {
-                    await this.logAction(currentUser, AuditAction.CREATE, 'PROFISSIONAIS', `Importação massiva: ${data.length} profissionais de apoio`);
-                }
             }
+        }
+
+        if (results.success > 0) {
+            await this.logAction(currentUser, AuditAction.CREATE, 'PROFISSIONAIS', `Importação massiva: ${results.success} profissionais de apoio processados.`);
         }
 
         return results;
