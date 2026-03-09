@@ -229,13 +229,13 @@ function App() {
       window.history.replaceState({}, document.title, newUrl);
     }
 
-    // Timeout de segurança GLOBAL: se após 5 segundos ainda estiver carregando, libera a tela
+    // Timeout de segurança GLOBAL: se após 10 segundos ainda estiver carregando, libera a tela
     const safetyTimeout = setTimeout(() => {
       setIsAuthLoading(prev => {
         if (prev) console.warn('[App] Destravando loading via Timeout de Segurança.');
         return false;
       });
-    }, 5000);
+    }, 10000);
 
     async function loadInitialData() {
       try {
@@ -244,11 +244,23 @@ function App() {
         setSystemSettings(settings);
 
         console.log('[App] 2. Verificando sessão inicial...');
-        const { data: { session } } = await supabase.auth.getSession();
+
+        // Tenta obter sessão com retry em caso de AbortError
+        let session = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const { data } = await supabase.auth.getSession();
+            session = data.session;
+            break; // Sucesso - sai do loop
+          } catch (sessionErr: any) {
+            console.warn(`[App] Tentativa ${attempt} de getSession falhou:`, sessionErr?.name || sessionErr?.message);
+            if (attempt < 3) await new Promise(r => setTimeout(r, 500)); // Aguarda 500ms antes de retentar
+          }
+        }
 
         if (session?.user) {
           const sessionId = session.access_token || session.user.id;
-          console.log('[App] 2a. Sessão detectada no boot. Carregando perfil...', sessionId.substring(0, 10));
+          console.log('[App] 2a. Sessão detectada no boot.', sessionId.substring(0, 10));
 
           if (isRecoveryMode) {
             console.log('[App] Modo Recuperação Detectado.');
@@ -266,6 +278,19 @@ function App() {
               console.log('[App] Perfil carregado com sucesso no boot.');
               processedSessionId.current = sessionId;
               setUser(userData);
+            } else {
+              // Fallback mínimo: usa metadados do JWT para não perder a sessão
+              const meta = session.user.user_metadata;
+              console.warn('[App] Usando fallback JWT para manter sessão ativa.');
+              const fallbackUser = {
+                id: session.user.id,
+                name: meta?.full_name || session.user.email?.split('@')[0] || 'Administrador',
+                username: session.user.email?.split('@')[0] || 'admin',
+                role: (meta?.role as any) || 'ADMIN',
+                isActive: true,
+                email: session.user.email
+              };
+              setUser(fallbackUser);
             }
           }
         }
@@ -645,7 +670,7 @@ function App() {
 
       case 'settings': return user.role === 'ADMIN' ? <SystemSettingsPanel /> : <Dashboard students={students} />;
       case 'letterhead-config': return user.role === 'ADMIN' ? <PapelTimbradoConfigPanel /> : <Dashboard students={students} />;
-      case 'schools': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL') ? <SchoolManagement /> : <Dashboard students={students} />;
+      case 'schools': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' || user.role === 'ESCOLA') ? <SchoolManagement /> : <Dashboard students={students} />;
       case 'support-professionals': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' || user.role === 'ESCOLA') ? <SupportProfessionalManagement currentUser={user} /> : <Dashboard students={students} />;
       case 'about': return <AboutSystem />;
       case 'documents': return <DocumentGenerator currentUser={user} />;

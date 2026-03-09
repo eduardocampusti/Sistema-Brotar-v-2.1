@@ -44,8 +44,8 @@ export function AuditLogs({ currentUser }: AuditLogsProps) {
 
     // Obter opções únicas para filtros baseados nos dados atuais ajuda, mas no banco podem ter mais.
     // Vamos deixar aberto ou usar os que já carregaram se não quisermos fazer queries distintas.
-    const uniqueModules = useMemo(() => Array.from(new Set(logs.map(log => log.modulo))).filter(Boolean).sort(), [logs]);
-    const uniqueActions = useMemo(() => Array.from(new Set(logs.map(log => log.acao))).filter(Boolean).sort(), [logs]);
+    const uniqueModules = useMemo(() => Array.from(new Set(logs.map(log => log.module))).filter(Boolean).sort(), [logs]);
+    const uniqueActions = useMemo(() => Array.from(new Set(logs.map(log => log.action))).filter(Boolean).sort(), [logs]);
 
     if (currentUser.role !== 'ADMIN') {
         return (
@@ -179,31 +179,31 @@ export function AuditLogs({ currentUser }: AuditLogsProps) {
                                 logs.map((log) => (
                                     <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
                                         <td className="p-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                                            {new Date(log.data_hora).toLocaleString('pt-BR')}
+                                            {new Date(log.timestamp).toLocaleString('pt-BR')}
                                         </td>
                                         <td className="p-4 text-sm font-medium text-gray-900 dark:text-white">
-                                            {log.usuario}
+                                            {log.user}
                                         </td>
                                         <td className="p-4 text-sm text-gray-500 dark:text-gray-400">
                                             <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-md text-xs font-medium">
-                                                {log.perfil}
+                                                {log.role}
                                             </span>
                                         </td>
                                         <td className="p-4 text-sm">
-                                            <span className={`px-2 py-1 rounded-md text-xs font-medium ${log.acao === 'CRIAR' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                    log.acao === 'EDITAR' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                                        log.acao === 'EXCLUIR' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                                            log.acao === 'LOGIN' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                                                                'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                            <span className={`px-2 py-1 rounded-md text-xs font-medium ${log.action === 'CRIAR' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                                log.action === 'EDITAR' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                                    log.action === 'EXCLUIR' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                                        log.action === 'LOGIN' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                                            'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                                                 }`}>
-                                                {log.acao}
+                                                {log.action}
                                             </span>
                                         </td>
                                         <td className="p-4 text-sm font-medium text-gray-900 dark:text-gray-300">
-                                            {log.modulo}
+                                            {log.module}
                                         </td>
-                                        <td className="p-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" title={log.registro_afetado}>
-                                            {log.registro_afetado}
+                                        <td className="p-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" title={log.affected_record}>
+                                            {log.affected_record}
                                         </td>
                                     </tr>
                                 ))

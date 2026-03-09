@@ -192,6 +192,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
   // Menu restrito para role ESCOLA
   const getEscolaMenuItems = () => [
     { id: 'list', label: 'Alunos', icon: <Users size={20} /> },
+    { id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> },
     { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
   ];
 

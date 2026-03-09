@@ -20,9 +20,11 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  FileEdit
+  FileEdit,
+  Loader2
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
+import { CSVImporter } from './CSVImporter';
 
 interface StudentListProps {
   students: Student[];
@@ -59,6 +61,7 @@ const getStudentStatus = (student: Student) => {
 export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStudent, onDelete, onRegister, onEdit, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
+  const [showImporter, setShowImporter] = useState(false);
 
   // Menu de Ações
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -192,16 +195,50 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
           </div>
 
           {canRegister && (
-            <button
-              onClick={onRegister}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-95 whitespace-nowrap"
-            >
-              <UserPlus size={16} />
-              Novo Aluno
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowImporter(true)}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-xl hover:bg-teal-100 transition-all font-bold text-xs uppercase tracking-widest shadow-sm"
+              >
+                <FileText size={16} />
+                Importar CSV
+              </button>
+              <button
+                onClick={onRegister}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-95 whitespace-nowrap"
+              >
+                <UserPlus size={16} />
+                Novo Aluno
+              </button>
+            </div>
           )}
         </div>
       </div>
+
+      {/* Modal Importador */}
+      {showImporter && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto custom-scrollbar relative">
+            <button
+              onClick={() => setShowImporter(false)}
+              className="absolute top-4 right-4 z-10 p-2 bg-white/10 text-white hover:bg-white/20 rounded-full transition-colors"
+            >
+              <X size={24} />
+            </button>
+            {/* Importação Dinâmica do Componente se necessário, ou uso direto */}
+            <React.Suspense fallback={<div className="bg-white p-20 rounded-2xl flex justify-center"><Loader2 className="animate-spin text-teal-600" size={48} /></div>}>
+              <CSVImporter
+                type="students"
+                currentUser={currentUser || { name: 'Admin', email: '', role: 'ADMIN' }}
+                onComplete={() => {
+                  setShowImporter(false);
+                  window.location.reload(); // Simplificado para atualizar lista
+                }}
+              />
+            </React.Suspense>
+          </div>
+        </div>
+      )}
 
       {/* TABLE */}
       <div className="bg-white rounded-[1.5rem] shadow-sm border border-slate-100 overflow-hidden relative min-h-[400px]">

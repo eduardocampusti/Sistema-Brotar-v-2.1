@@ -1,0 +1,17 @@
+=== DIAGNÓSTICO BACKEND SISTEMA BROTAR ===
+Projeto: indshiztdvjgvgnzigqd
+Data: 2026-03-09T16:54:27.098Z
+
+--- TESTE 1: Acesso Anônimo à tabela schools ---
+✅ SUCESSO - 0 escolas visíveis anonimamente
+
+--- TESTE 2: Contagem total de escolas ---
+✅ Total de escolas no banco: 0
+
+--- TESTE 3: Autenticação Admin ---
+❌ FALHOU na autenticação: {
+  "code": 400,
+  "message": "Invalid login credentials"
+}
+
+=== FIM DO DIAGNÓSTICO ===

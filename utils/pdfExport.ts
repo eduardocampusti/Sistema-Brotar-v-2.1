@@ -153,8 +153,8 @@ export const generateStudentPDF = async (student: Student) => {
     }
 
     // Save
-    const safeName = student.fullName?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'aluno';
-    doc.save(`ficha_${safeName}.pdf`);
+    const safeName = student.fullName?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'student';
+    doc.save(`student_file_${safeName}.pdf`);
 };
 
 // --- Letterhead Helper ---
@@ -308,7 +308,7 @@ export const generateSchoolPDF = async (school: School, config: PapelTimbradoCon
     // Footer
     await drawFooter(doc, config);
 
-    doc.save(`escola_${school.inep}.pdf`);
+    doc.save(`school_file_${school.inep}.pdf`);
 };
 
 export const generateAllSchoolsPDF = async (schools: School[], config: PapelTimbradoConfig) => {
@@ -347,7 +347,7 @@ export const generateAllSchoolsPDF = async (schools: School[], config: PapelTimb
 
     await drawFooter(doc, config);
 
-    doc.save(`relatorio_geral_escolas.pdf`);
+    doc.save(`general_school_report.pdf`);
 };
 
 // Helper: Convert URL to Base64

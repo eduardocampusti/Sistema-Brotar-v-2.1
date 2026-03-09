@@ -97,18 +97,18 @@ export class SupabaseService {
     // --- Auditoria ---
     static async getAuditLogs(filters?: { user?: string, date?: string, action?: string, module?: string }): Promise<AuditLog[]> {
         try {
-            let query = supabase.from('audit_logs').select('*').order('data_hora', { ascending: false });
+            let query = supabase.from('audit_logs').select('*').order('timestamp', { ascending: false });
 
             if (filters) {
-                if (filters.user) query = query.ilike('usuario', `%${filters.user}%`);
+                if (filters.user) query = query.ilike('user', `%${filters.user}%`);
                 if (filters.date) {
                     const dateObj = new Date(filters.date + 'T00:00:00'); // Garante que a data é tratada no fuso local aproximado
                     const startOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 0, 0, 0, 0);
                     const endOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 23, 59, 59, 999);
-                    query = query.gte('data_hora', startOfDay.toISOString()).lte('data_hora', endOfDay.toISOString());
+                    query = query.gte('timestamp', startOfDay.toISOString()).lte('timestamp', endOfDay.toISOString());
                 }
-                if (filters.action) query = query.eq('acao', filters.action);
-                if (filters.module) query = query.eq('modulo', filters.module);
+                if (filters.action) query = query.eq('action', filters.action);
+                if (filters.module) query = query.eq('module', filters.module);
             }
 
             const { data, error } = await query;
@@ -122,20 +122,20 @@ export class SupabaseService {
 
     static async logAction(
         currentUser: Pick<User, 'name' | 'email' | 'role'> | null,
-        acao: AuditAction | string,
-        modulo: string,
-        registroAfetado: string
+        action: AuditAction | string,
+        module: string,
+        affectedRecord: string
     ): Promise<void> {
         try {
             if (!currentUser) return;
             const nomeStr = currentUser.name || currentUser.email || 'Sistema';
 
             const { error } = await supabase.from('audit_logs').insert({
-                usuario: nomeStr,
-                perfil: currentUser.role,
-                acao,
-                modulo,
-                registro_afetado: registroAfetado
+                user: nomeStr,
+                role: currentUser.role,
+                action,
+                module,
+                affected_record: affectedRecord
             });
 
             if (error) {
@@ -149,10 +149,13 @@ export class SupabaseService {
     // --- Auth ---
     static async authenticate(email: string, password: string): Promise<User | null> {
         const cleanEmail = email.trim();
-        // Se for puramente numérico, é um INEP (Escola) e usa o sufixo @escola.brotar
-        // Caso contrário, usa o padrão @brotar.com
-        const suffix = /^\d+$/.test(cleanEmail) ? '@escola.brotar' : '@brotar.com';
-        const finalEmail = cleanEmail.includes('@') ? cleanEmail : `${cleanEmail}${suffix}`;
+        // Se for puramente numérico, é um INEP (Escola). Caso contrário, usa o email como está.
+        // Se não houver @, tentamos os sufixos padrão como fallback.
+        let finalEmail = cleanEmail;
+        if (!cleanEmail.includes('@')) {
+            const suffix = /^\d+$/.test(cleanEmail) ? '@escola.brotar' : '@brotar.com'; // Restaurado para @brotar.com
+            finalEmail = `${cleanEmail}${suffix}`;
+        }
 
         const { data, error } = await supabase.auth.signInWithPassword({
             email: finalEmail,
@@ -177,7 +180,7 @@ export class SupabaseService {
         const user: User = {
             id: userData?.id || data.user.id,
             name: userData?.full_name || data.user.user_metadata?.full_name || finalEmail.split('@')[0],
-            username: userData?.username || email,
+            username: email, // Usa o que o usuário digitou
             role: userData?.role || (data.user.user_metadata?.role as UserRole) || 'SPECIALIST',
             isActive: userData?.is_active ?? true,
             specialty: this.mapSpecialtyFromDB(userData?.specialty),
@@ -747,6 +750,143 @@ export class SupabaseService {
         }
     }
 
+    // --- Intelligent Import & Lookup ---
+
+    /**
+     * Busca IDs de escolas por nomes (lookup inteligente)
+     */
+    static async lookupSchoolsByNames(names: string[]): Promise<Record<string, string>> {
+        if (names.length === 0) return {};
+        const uniqueNames = [...new Set(names.filter(Boolean))];
+
+        const { data, error } = await supabase
+            .from('schools')
+            .select('id, name')
+            .in('name', uniqueNames);
+
+        if (error) {
+            console.error('[SupabaseService] Erro no lookup de escolas:', error);
+            return {};
+        }
+
+        return (data || []).reduce((acc: any, school: any) => {
+            acc[school.name] = school.id;
+            return acc;
+        }, {});
+    }
+
+    /**
+     * Busca IDs de alunos por nomes ou CPFs (lookup inteligente para ATs)
+     */
+    static async lookupStudentsByNamesOrCPF(identifiers: { name?: string, cpf?: string }[]): Promise<Record<string, string>> {
+        if (identifiers.length === 0) return {};
+
+        const names = identifiers.map(i => i.name).filter(Boolean) as string[];
+        const cpfs = identifiers.map(i => sanitizeCPF(i.cpf)).filter(Boolean) as string[];
+
+        let query = supabase.from('students').select('id, full_name, cpf');
+
+        if (names.length > 0 && cpfs.length > 0) {
+            query = query.or(`full_name.in.(${names.map(n => `"${n}"`).join(',')}),cpf.in.(${cpfs.join(',')})`);
+        } else if (names.length > 0) {
+            query = query.in('full_name', names);
+        } else if (cpfs.length > 0) {
+            query = query.in('cpf', cpfs);
+        } else {
+            return {};
+        }
+
+        const { data, error } = await query;
+        if (error) {
+            console.error('[SupabaseService] Erro no lookup de alunos:', error);
+            return {};
+        }
+
+        const map: Record<string, string> = {};
+        (data || []).forEach((s: any) => {
+            if (s.full_name) map[s.full_name] = s.id;
+            if (s.cpf) map[s.cpf] = s.id;
+        });
+        return map;
+    }
+
+    /**
+     * Importação massiva de Alunos com Auditoria
+     */
+    static async importStudentsInBulk(students: any[], currentUser: Pick<User, 'name' | 'email' | 'role'>): Promise<{ success: number, errors: any[] }> {
+        const results = { success: 0, errors: [] as any[] };
+
+        // Chunk sizes for performance and safety
+        const CHUNK_SIZE = 100;
+        for (let i = 0; i < students.length; i += CHUNK_SIZE) {
+            const chunk = students.slice(i, i + CHUNK_SIZE);
+            const payloads = chunk.map(s => ({
+                full_name: s.fullName,
+                birth_date: s.birthDate,
+                cpf: sanitizeCPF(s.cpf) || null,
+                sus_card: sanitizeCPF(s.susCard) || null,
+                school_id: s.schoolId || null,
+                grade: s.grade || '',
+                shift: s.shift || 'Manhã',
+                status: 'Active',
+                clinical_info: s.clinical || {},
+                address: s.address || {},
+                guardians: s.guardians || []
+            }));
+
+            const { data, error } = await supabase.from('students').upsert(payloads, { onConflict: 'cpf' }).select('id, full_name');
+
+            if (error) {
+                console.error('[SupabaseService] Erro no chunk de importação:', error);
+                results.errors.push({ chunk: i / CHUNK_SIZE, message: error.message });
+            } else {
+                results.success += (data?.length || 0);
+                // Log audit individual (ou resumo se for muito grande)
+                if (data && data.length > 0) {
+                    await this.logAction(currentUser, AuditAction.CREATE, 'ALUNOS', `Importação massiva: ${data.length} alunos`);
+                }
+            }
+        }
+
+        return results;
+    }
+
+    /**
+     * Importação massiva de Profissionais de Apoio com Auditoria
+     */
+    static async importProfessionalsInBulk(professionals: any[], currentUser: Pick<User, 'name' | 'email' | 'role'>): Promise<{ success: number, errors: any[] }> {
+        const results = { success: 0, errors: [] as any[] };
+
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < professionals.length; i += CHUNK_SIZE) {
+            const chunk = professionals.slice(i, i + CHUNK_SIZE);
+            const payloads = chunk.map(p => ({
+                name: p.name,
+                cpf: sanitizeCPF(p.cpf) || null,
+                phone: p.phone || '',
+                email: p.email || '',
+                education: p.education || '',
+                school_id: p.schoolId || null,
+                student_id: p.studentId || null,
+                regent_teacher: p.regentTeacher || '',
+                workload: p.workload || ''
+            }));
+
+            const { data, error } = await supabase.from('support_professionals').upsert(payloads, { onConflict: 'cpf' }).select('id, name');
+
+            if (error) {
+                results.errors.push({ chunk: i / CHUNK_SIZE, message: error.message });
+            } else {
+                results.success += (data?.length || 0);
+                if (data && data.length > 0) {
+                    await this.logAction(currentUser, AuditAction.CREATE, 'PROFISSIONAIS', `Importação massiva: ${data.length} profissionais de apoio`);
+                }
+            }
+        }
+
+        return results;
+    }
+
     // --- Clinical Sessions (Evoluções) ---
     static async saveSession(session: Session, studentId: string, professionalId: string): Promise<void> {
         await supabase.from('clinical_sessions').insert({
@@ -770,31 +910,35 @@ export class SupabaseService {
     static async getSchools(): Promise<School[]> {
         console.log('[SupabaseService] Iniciando busca de escolas...');
         try {
-            const { data, error } = await supabase.from('escolas').select('*');
+            const { data, error } = await supabase.from('schools').select('*');
             if (error) {
                 console.error('[SupabaseService] Erro ao buscar escolas:', error);
                 throw error;
             }
 
             console.log(`[SupabaseService] Escolas encontradas: ${data?.length || 0}`);
+            if (data && data.length > 0) {
+                console.log('[SupabaseService] Exemplo de escola do banco:', JSON.stringify(data[0], null, 2));
+            }
+
             return (data || []).map((s: any) => ({
-                id: s.id,
-                name: s.nome,
-                inep: s.inep,
-                director: s.diretor || '',
-                phone: s.telefone || '',
-                district: s.distrito,
-                isActive: s.status === 'Ativa',
+                id: s.id || '',
+                name: s.name || 'Escola sem Nome',
+                inep: s.inep || '',
+                director: s.director || '',
+                phone: s.phone || '',
+                district: s.district || s.address?.district || 'Sede',
+                isActive: s.is_active === true,
                 address: {
-                    street: s.logradouro || '',
-                    number: s.numero || '',
-                    district: s.bairro || s.distrito || '',
-                    city: s.cidade || 'Brotas',
-                    state: s.estado || 'BA',
-                    zipCode: s.cep || ''
+                    street: s.address?.street || '',
+                    number: s.address?.number || '',
+                    district: s.address?.district || s.district || '',
+                    city: s.address?.city || 'Brotas',
+                    state: s.address?.state || 'BA',
+                    zipCode: s.address?.zipCode || ''
                 },
-                hasInternet: s.possui_internet === 'Sim',
-                internetType: s.tipo_internet
+                hasInternet: s.has_internet === true,
+                internetType: s.internet_type || ''
             }));
         } catch (err) {
             console.error('[SupabaseService] Erro fatal em getSchools:', err);
@@ -804,27 +948,22 @@ export class SupabaseService {
 
     static async saveSchool(school: School): Promise<void> {
         const payload: any = {
-            nome: school.name,
+            name: school.name,
             inep: school.inep,
-            diretor: school.director,
-            telefone: school.phone,
-            distrito: school.district,
-            status: school.isActive ? 'Ativa' : 'Inativa',
-            logradouro: school.address?.street,
-            numero: school.address?.number,
-            bairro: school.address?.district,
-            cidade: school.address?.city,
-            estado: school.address?.state,
-            cep: school.address?.zipCode,
-            possui_internet: school.hasInternet ? 'Sim' : 'Não',
-            tipo_internet: school.internetType
+            director: school.director,
+            phone: school.phone,
+            district: school.district,
+            is_active: school.isActive,
+            address: school.address,
+            has_internet: school.hasInternet,
+            internet_type: school.internetType
         };
 
         if (school.id) {
             payload.id = school.id;
         }
 
-        const { error } = await supabase.from('escolas').upsert(payload);
+        const { error } = await supabase.from('schools').upsert(payload);
         if (error) {
             console.error('Erro ao salvar escola:', error);
             throw error;
@@ -877,7 +1016,7 @@ export class SupabaseService {
         return (data || []).map((p: any) => ({
             id: p.id,
             name: p.full_name,
-            username: p.username || p.email, // Fallback
+            username: p.username || p.email,
             email: p.email,
             role: p.role,
             specialty: p.specialty ? (specialtyReverseMap[p.specialty] || p.specialty) : undefined,
@@ -888,7 +1027,7 @@ export class SupabaseService {
             photoUrl: p.photo_url,
             address: p.address || {},
             mustChangePassword: p.must_change_password,
-            password: '' // Não retornamos senha hash
+            password: ''
         }));
     }
 
@@ -931,8 +1070,7 @@ export class SupabaseService {
             const { error: updateError } = await supabase.from('profiles').update(payload).eq('id', user.id);
             error = updateError;
         } else {
-            // Tenta inserir
-            console.warn('Criação de usuário via SupabaseService requer auth.signUp. Atualizando apenas dados de perfil se possível.');
+            console.warn('Criação de usuário via SupabaseService requer auth.signUp.');
             const { error: insertError } = await supabase.from('profiles').insert(payload);
             error = insertError;
         }
@@ -949,7 +1087,7 @@ export class SupabaseService {
         if (rpcError) {
             console.warn('Erro na RPC de exclusão (talvez função não exista), tentando método legado:', rpcError);
 
-            // Fallback: Exclusão apenas do Profile (não remove Auth, mas remove da lista visual)
+            // Fallback: Exclusão apenas do usuário (não remove Auth, mas remove da lista visual)
             const { error, data } = await supabase.from('profiles').delete().eq('id', id).select();
 
             if (error) {

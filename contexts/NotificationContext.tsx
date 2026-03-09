@@ -24,7 +24,7 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType>({} as NotificationContextType);
 
-export const NotificationProvider: React.FC<{ children: React.ReactNode, currentUser: User | null }> = ({ children, currentUser }) => {
+export function NotificationProvider({ children, currentUser }: { children: React.ReactNode, currentUser: User | null }) {
     const [notifications, setNotifications] = useState<SystemMessage[]>([]);
     const [sentMessages, setSentMessages] = useState<SystemMessage[]>([]);
     const [loading, setLoading] = useState(false);
@@ -169,4 +169,4 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode, current
     );
 };
 
-export const useNotifications = () => useContext(NotificationContext);
+export function useNotifications() { return useContext(NotificationContext); }

@@ -350,10 +350,10 @@ export enum AuditAction {
 
 export interface AuditLog {
   id: string;
-  usuario: string; // Nome ou email
-  perfil: string;  // Role do usuário (ex: ADMIN, ESCOLA, PSICOLOGIA)
-  acao: AuditAction | string;
-  modulo: string;  // Ex: 'ALUNOS', 'AGENTAMENTOS', 'PROFISSIONAIS'
-  registro_afetado: string; // Nome do aluno, ou ID do apontamento
-  data_hora: string; // Timestamp ISO
+  user: string; // Nome ou email
+  role: string;  // Role do usuário (ex: ADMIN, ESCOLA, PSICOLOGIA)
+  action: AuditAction | string;
+  module: string;  // Ex: 'ALUNOS', 'AGENTAMENTOS', 'PROFISSIONAIS'
+  affected_record: string; // Nome do aluno, ou ID do apontamento
+  timestamp: string; // Timestamp ISO
 }

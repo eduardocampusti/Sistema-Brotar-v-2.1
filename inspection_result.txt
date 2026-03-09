@@ -1,0 +1,21 @@
+{
+  "id": "16c2f9d9-a979-45f7-99ca-d93900a6eb1e",
+  "name": "ESCOLA MUN. PAPA JOAO PAULO II",
+  "inep": "29438756",
+  "district": "SUMIDOURO",
+  "is_active": true,
+  "created_at": "2026-02-01T15:50:56.664077+00:00",
+  "director": "",
+  "phone": "",
+  "address": {
+    "city": "Brotas",
+    "state": "BA",
+    "number": "",
+    "street": "",
+    "zipCode": "",
+    "district": "SUMIDOURO"
+  },
+  "has_internet": false,
+  "internet_type": null,
+  "internet_provider_contact": null
+}

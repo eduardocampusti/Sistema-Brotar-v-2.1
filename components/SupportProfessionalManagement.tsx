@@ -3,8 +3,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { SupportProfessional, School, Student, User as UserType, AuditAction } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
+import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
+import { CSVImporter } from './CSVImporter';
 
 // Componente de Toast Simples
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => {
@@ -60,6 +61,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+    const [showImporter, setShowImporter] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const isEscola = currentUser?.role === 'ESCOLA';
 
@@ -393,214 +395,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         document.body.removeChild(link);
     };
 
-    const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const text = e.target?.result as string;
-            if (!text) return;
-
-            const lines = text.split(/\r?\n/).filter(line => line.trim());
-            if (lines.length < 2) {
-                showNotification('O arquivo CSV está vazio ou inválido.', 'error');
-                return;
-            }
-
-            const headerLine = lines[0];
-            const dataLines = lines.slice(1);
-
-            // Detecção automática de separador (Brotas/Brasil costuma usar ; no Excel)
-            const commaCount = (headerLine.match(/,/g) || []).length;
-            const semicolonCount = (headerLine.match(/;/g) || []).length;
-            const separator = semicolonCount > commaCount ? ';' : ',';
-
-            console.log(`[CSV Import] Separador detectado: "${separator}"`);
-
-            const headers = headerLine.split(separator).map(h => h.replace(/^"|"$/g, '').trim());
-            console.log('[CSV Import] Cabeçalhos encontrados:', headers);
-            console.log('[CSV Import] Escolas carregadas:', schools.length);
-            console.log('[CSV Import] Alunos carregados:', students.length);
-
-            // Mapeamento de colunas baseado na imagem enviada pelo usuário
-            const columnMap: Record<string, number> = {};
-            headers.forEach((h, index) => {
-                const normalizedH = normalizeString(h);
-                if (normalizedH.includes('nome completo')) columnMap.name = index;
-                else if (normalizedH.includes('cpf')) columnMap.cpf = index;
-                else if (normalizedH.includes('formacao academica') || normalizedH.includes('escolaridade')) columnMap.education = index;
-                else if (normalizedH.includes('telefone')) columnMap.phone = index;
-                else if (normalizedH.includes('email')) columnMap.email = index;
-                else if (normalizedH.includes('inicio do contrato')) columnMap.contractStartDate = index;
-                else if (normalizedH.includes('carga horaria')) columnMap.workload = index;
-                else if (normalizedH.includes('escola de lotacao') || normalizedH.includes('escola')) columnMap.school = index;
-                else if (normalizedH.includes('professor regente') || normalizedH.includes('regente')) columnMap.regentTeacher = index;
-                else if (normalizedH.includes('aluno assistido') || normalizedH.includes('aluno')) columnMap.student = index;
-                else if (normalizedH.includes('endereco residencial') || normalizedH.includes('rua') || normalizedH.includes('logradouro')) columnMap.street = index;
-                else if (normalizedH.includes('nº') || normalizedH.includes('numero')) columnMap.number = index;
-                else if (normalizedH.includes('bairro')) columnMap.district = index;
-                else if (normalizedH.includes('cidade')) columnMap.city = index;
-                else if (normalizedH.includes('estado')) columnMap.state = index;
-                else if (normalizedH.includes('cep')) columnMap.zipCode = index;
-            });
-
-            let successCount = 0;
-            let errorCount = 0;
-
-            showNotification(`Iniciando importação de ${dataLines.length} registros...`, 'success');
-
-            const professionalsToSave: Partial<SupportProfessional>[] = [];
-
-            for (const line of dataLines) {
-                try {
-                    // Parser que lida com aspas e o separador detectado
-                    const values: string[] = [];
-                    let current = '';
-                    let inQuotes = false;
-                    for (let i = 0; i < line.length; i++) {
-                        const char = line[i];
-                        if (char === '"') inQuotes = !inQuotes;
-                        else if (char === separator && !inQuotes) {
-                            values.push(current.trim());
-                            current = '';
-                        } else {
-                            current += char;
-                        }
-                    }
-                    values.push(current.trim());
-
-                    const getValue = (key: string) => columnMap[key] !== undefined ? values[columnMap[key]]?.replace(/^"|"$/g, '') : '';
-
-                    const name = getValue('name');
-                    if (!name) continue;
-
-                    const schoolName = getValue('school');
-                    const studentName = getValue('student');
-
-                    // Função para extrair a "essência" do nome da escola (ignorando prefixos e preposições)
-                    const getSchoolEssence = (name: string) => {
-                        let ess = normalizeString(name);
-                        const stopWords = ['escola', 'escoala', 'mun', 'municipal', 'estadual', 'creche', 'colegio', 'centro', 'educacional', 'de', 'da', 'do', 'dos', 'das', 'e', 'infantil', '1', '1o', 'grau', 'dr', 'dra', 'prof', 'profa', 'professor', 'professora'];
-
-                        // Remover palavras exatas usando boundries, para não cortar pedaços de palavras
-                        stopWords.forEach(w => {
-                            const regex = new RegExp(`\\b${w}\\b`, 'g');
-                            ess = ess.replace(regex, '');
-                        });
-                        return ess.replace(/\s+/g, ' ').trim();
-                    };
-
-                    // MATCH DE ESCOLA: Tentar match exato normalizado ou bater pela "essência" (Nossa Senhora de Brotas == Nossa Senhora Brotas)
-                    let foundSchool = undefined;
-                    if (schoolName) {
-                        const normalizedCsvSchool = normalizeString(schoolName);
-                        const csvEssence = getSchoolEssence(schoolName);
-
-                        foundSchool = schools.find(s => {
-                            const normalizedDb = normalizeString(s.name);
-                            if (normalizedDb === normalizedCsvSchool) return true;
-
-                            const dbEssence = getSchoolEssence(s.name);
-                            if (csvEssence && dbEssence) {
-                                // Se a essência do banco estiver contida na do CSV (Ex: "Luis Eduardo Magalhães")
-                                return csvEssence.includes(dbEssence) || dbEssence.includes(csvEssence);
-                            }
-                            return false;
-                        });
-                    }
-
-                    // MATCH DE ALUNO: Em vez de igualdade estrita, verifica se o nome do banco está contido na string do CSV.
-                    // Isso resolve quando a secretária digita vários alunos na mesma célula.
-                    let foundStudent = undefined;
-                    if (studentName) {
-                        const normalizedStudentName = normalizeString(studentName);
-                        foundStudent = students.find(s => {
-                            const studentDBName = normalizeString(s.fullName);
-                            if (!studentDBName || studentDBName.length < 3) return false;
-                            return normalizedStudentName.includes(studentDBName);
-                        });
-                    }
-
-                    const schoolId = foundSchool?.id || '';
-                    const studentId = foundStudent?.id || '';
-
-                    if (!schoolId && schoolName) console.warn(`[CSV Import] Escola não pareada: "${schoolName}"`);
-                    if (!studentId && studentName) console.warn(`[CSV Import] Aluno não pareado/Encontrado: "${studentName}"`);
-
-                    let finalRegentTeacher = getValue('regentTeacher');
-                    if (!studentId && studentName) {
-                        // Salva o nome do aluno do CSV no campo do regente para não perder a informação!
-                        finalRegentTeacher = finalRegentTeacher
-                            ? `${finalRegentTeacher} | Aluno não cadastrado: ${studentName}`
-                            : `Aluno não cadastrado: ${studentName}`;
-                    }
-
-                    // Formatar data (Início do contrato pode vir em formatos diferentes)
-                    let formattedStartDate = getValue('contractStartDate');
-                    if (formattedStartDate && formattedStartDate.includes('/')) {
-                        const parts = formattedStartDate.split('/');
-                        if (parts.length === 3) {
-                            formattedStartDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                        }
-                    }
-
-                    const cpf = sanitizeCPF(getValue('cpf'));
-
-                    const prof: Partial<SupportProfessional> = {
-                        name,
-                        cpf,
-                        phone: getValue('phone'),
-                        email: getValue('email'),
-                        education: getValue('education'),
-                        contractStartDate: formattedStartDate,
-                        workload: getValue('workload'),
-                        regentTeacher: finalRegentTeacher,
-                        schoolId,
-                        studentId,
-                        address: {
-                            street: getValue('street'),
-                            number: getValue('number'),
-                            district: getValue('district'),
-                            city: getValue('city'),
-                            state: getValue('state'),
-                            zipCode: getValue('zipCode')
-                        }
-                    };
-
-                    // Verificar se profissional já existe para atualização
-                    if (prof.cpf) {
-                        const existing = professionals.find(p => sanitizeCPF(p.cpf) === prof.cpf);
-                        if (existing) {
-                            prof.id = existing.id;
-                        }
-                    }
-
-                    professionalsToSave.push(prof);
-                    successCount++;
-                } catch (err) {
-                    console.error('Erro ao processar linha:', line, err);
-                    errorCount++;
-                }
-            }
-
-            if (professionalsToSave.length > 0) {
-                try {
-                    console.log(`[CSV Import] Salvando em lote ${professionalsToSave.length} registros...`);
-                    await SupabaseService.upsertSupportProfessionals(professionalsToSave);
-                } catch (saveErr: any) {
-                    console.error('[CSV Import] Falha no salvamento em lote:', saveErr);
-                    showNotification(`Falha crítica ao salvar lote: ${saveErr.message}`, 'error');
-                    return;
-                }
-            }
-
-            await loadData();
-            showNotification(`Importação concluída! ${successCount} sucessos, ${errorCount} erros.`, errorCount > 0 ? 'error' : 'success');
-        };
-        reader.readAsText(file);
-        // Reset input
-        event.target.value = '';
+    const handleImportCSV = () => {
+        setShowImporter(true);
     };
 
     return (
@@ -640,20 +436,12 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                             <Download size={18} /> Exportar
                         </button>
 
-                        <div className="relative">
-                            <input
-                                type="file"
-                                accept=".csv"
-                                onChange={handleImportCSV}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                title="Importar dados do Google Forms (CSV)"
-                            />
-                            <button
-                                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm"
-                            >
-                                <FileSpreadsheet size={18} /> Importar CSV
-                            </button>
-                        </div>
+                        <button
+                            onClick={handleImportCSV}
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm"
+                        >
+                            <FileSpreadsheet size={18} /> Importar CSV
+                        </button>
 
                         <button
                             onClick={() => { setIsAdding(true); resetForm(); }}
@@ -664,6 +452,28 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     </div>
                 )}
             </div>
+
+            {/* Modal Importador */}
+            {showImporter && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
+                    <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto custom-scrollbar relative">
+                        <button
+                            onClick={() => setShowImporter(false)}
+                            className="absolute top-4 right-4 z-10 p-2 bg-white/10 text-white hover:bg-white/20 rounded-full transition-colors"
+                        >
+                            <X size={24} />
+                        </button>
+                        <CSVImporter
+                            type="support_professionals"
+                            currentUser={currentUser || { name: 'Admin', email: '', role: 'ADMIN' }}
+                            onComplete={() => {
+                                setShowImporter(false);
+                                loadData();
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
 
             {isAdding && (
                 <div className="bg-white rounded-xl shadow-lg border border-primary-100 p-6 animate-fadeIn">
