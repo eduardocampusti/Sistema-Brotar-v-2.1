@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Shield, Users, FileText, Globe, ChevronRight, CheckCircle,
     Brain, Heart, BookOpen, Dumbbell, Mic, Apple, ArrowRight,
