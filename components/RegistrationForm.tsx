@@ -51,6 +51,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         status: 'Active',
         createdAt: new Date().toISOString(),
         photoUrl: '',
+        ethnicity: '',
         rg: '',
         nationality: 'Brasileira',
         birthPlace: '',
@@ -70,6 +71,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         if (initialData) {
             const safeData = {
                 ...initialData,
+                ethnicity: initialData.ethnicity || '',
                 guardians: (initialData.guardians && initialData.guardians.length > 0)
                     ? initialData.guardians
                     : [{ name: '', relationship: '', phone: '', email: '', occupation: '', ethnicity: '', cpf: '', rg: '' }],
@@ -507,12 +509,24 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                                 </div>
                                             </div>
 
-                                            <div className="md:col-span-5">
+                                            <div className="md:col-span-2">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Gênero</label>
                                                 <select className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
                                                     value={formData.gender || ''} onChange={e => handleInputChange(null, 'gender', e.target.value)}>
                                                     <option value="">Selecione</option>
                                                     {Object.values(Gender).map(g => <option key={g} value={g}>{g}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="md:col-span-3">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Cor / Etnia</label>
+                                                <select className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
+                                                    value={formData.ethnicity || ''} onChange={e => handleInputChange(null, 'ethnicity', e.target.value)}>
+                                                    <option value="">Selecione</option>
+                                                    <option value="Branca">Branca</option>
+                                                    <option value="Preta">Preta</option>
+                                                    <option value="Parda">Parda</option>
+                                                    <option value="Amarela">Amarela</option>
+                                                    <option value="Indígena">Indígena</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -711,18 +725,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
                                                 value={formData.guardians?.[0]?.relationship || ''} onChange={e => handleInputChange('guardians', 'relationship', e.target.value)} placeholder="Mãe, Pai, Avó..." />
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Cor / Etnia</label>
-                                            <select className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.guardians?.[0]?.ethnicity || ''} onChange={e => handleInputChange('guardians', 'ethnicity', e.target.value)}>
-                                                <option value="">Selecione</option>
-                                                <option value="Branca">Branca</option>
-                                                <option value="Preta">Preta</option>
-                                                <option value="Parda">Parda</option>
-                                                <option value="Amarela">Amarela</option>
-                                                <option value="Indígena">Indígena</option>
-                                            </select>
-                                        </div>
+
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">CPF do Responsável</label>
                                             <input

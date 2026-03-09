@@ -212,6 +212,7 @@ export interface Student {
   fullName: string;
   birthDate: string;
   gender: Gender;
+  ethnicity?: string;
   photoUrl?: string; // Optional URL for placeholder
 
   // Dados Pessoais Expandidos

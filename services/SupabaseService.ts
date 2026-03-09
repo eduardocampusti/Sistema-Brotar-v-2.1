@@ -21,6 +21,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     fatherName: dbStudent.clinical_info?.fatherName,
     nationality: dbStudent.clinical_info?.nationality,
     birthPlace: dbStudent.clinical_info?.birthPlace,
+    ethnicity: dbStudent.ethnicity || undefined,
     address: dbStudent.address || {},
     guardians: dbStudent.guardians || [],
     clinical: dbStudent.clinical_info || {
@@ -609,6 +610,7 @@ export class SupabaseService {
             grade: student.school.grade,
             shift: student.school.shift,
             school_id: sanitizeField(student.school.schoolId) || null, // UUID: null se vazio
+            ethnicity: sanitizeField(student.ethnicity),
             address: student.address,
             guardians: student.guardians,
             photo_url: finalPhotoUrl,
