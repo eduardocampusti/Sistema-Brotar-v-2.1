@@ -51,15 +51,21 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     createdAt: dbStudent.created_at
 });
 
-// Função utilitária para retry em caso de AbortError ou falha de rede
-const safeCall = async <T>(fn: () => Promise<T>, retries = 3, interval = 500): Promise<T> => {
+// Função utilitária para retry em caso de AbortError ou falha de rede e monitoramento de performance
+const safeCall = async <T>(fn: () => Promise<T>, retries = 2, interval = 300, contextName = 'Operação'): Promise<T> => {
     try {
-        return await fn();
+        const start = performance.now();
+        const result = await fn();
+        const duration = performance.now() - start;
+        if (duration > 1500) { // Loga se demorar mais que 1.5s
+            console.warn(`[SupabaseService] LENTIDÃO DETECTADA: ${contextName} demorou ${duration.toFixed(0)}ms`);
+        }
+        return result;
     } catch (error: any) {
-        if (retries > 0 && (error.name === 'AbortError' || error.message?.includes('AbortError') || !navigator.onLine)) {
-            console.warn(`[SupabaseService] Requisição abortada ou erro de rede. Tentando novamente... (${retries} restantes)`);
+        if (retries > 0 && (error.name === 'AbortError' || error.message?.includes('AbortError') || !navigator.onLine || error.message?.includes('Failed to fetch'))) {
+            console.warn(`[SupabaseService] Retentativa ativada em ${contextName}. Falha de rede. (${retries} restantes)`);
             await new Promise(resolve => setTimeout(resolve, interval));
-            return safeCall(fn, retries - 1, interval * 2);
+            return safeCall(fn, retries - 1, interval, contextName);
         }
         throw error;
     }
@@ -493,18 +499,22 @@ export class SupabaseService {
         const cached = this.getFromCache<Student[]>(cacheKey);
         if (cached) return cached;
 
-        try {
+        return safeCall(async () => {
             console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'})...`);
+            
+            // Otimização: Apenas os campos necessários do join para evitar carga excessiva
             let query = supabase
                 .from('students')
                 .select(`
-                    *,
-                    schools (id, name, district)
+                    id, full_name, birth_date, cpf, sus_card, grade, shift, status, created_at, unit,
+                    ethnicity, school_id,
+                    schools (name, district)
                 `)
                 .order('full_name');
 
+            // Filtragem no Lado do Servidor (Server-Side)
             if (unit) {
-                query = query.filter('unit', 'eq', unit);
+                query = query.eq('unit', unit);
             }
 
             const { data, error } = await query;
@@ -513,10 +523,7 @@ export class SupabaseService {
             const students = (data || []).map(s => mapStudentFromDB(s));
             this.setInCache(cacheKey, students);
             return students;
-        } catch (error) {
-            console.error('Erro ao buscar alunos:', error);
-            return [];
-        }
+        }, 1, 300, 'getStudents');
     }
 
     static async getStudentSessions(studentId: string): Promise<Session[]> {
@@ -980,7 +987,7 @@ export class SupabaseService {
         try {
             const { data, error } = await supabase
                 .from('schools')
-                .select('*')
+                .select('id, name, inep, director, phone, district, is_active, has_internet, internet_type')
                 .order('name');
 
             if (error) throw error;
@@ -994,12 +1001,12 @@ export class SupabaseService {
                 district: s.district || s.address?.district || 'Sede',
                 isActive: s.is_active === true,
                 address: {
-                    street: s.address?.street || '',
-                    number: s.address?.number || '',
-                    district: s.address?.district || s.district || '',
-                    city: s.address?.city || 'Brotas',
-                    state: s.address?.state || 'BA',
-                    zipCode: s.address?.zipCode || ''
+                    street: '',
+                    number: '',
+                    district: s.district || '',
+                    city: 'Brotas',
+                    state: 'BA',
+                    zipCode: ''
                 },
                 hasInternet: s.has_internet === true,
                 internetType: s.internet_type || ''
@@ -1709,7 +1716,11 @@ export class SupabaseService {
         return safeCall(async () => {
             const { data, error } = await supabase
                 .from('support_professionals')
-                .select('*')
+                .select(`
+                    id, name, photo_url, cpf, phone, email, education,
+                    contract_start_date, workload, address, school_id,
+                    regent_teacher, student_id, created_at
+                `)
                 .eq('student_id', studentId)
                 .order('name');
 
@@ -1734,12 +1745,26 @@ export class SupabaseService {
                 studentId: p.student_id,
                 createdAt: p.created_at
             }));
-        });
+        }, 2, 300, `getSupportProfessionalsByStudent(${studentId})`);
     }
 
-    static async getSupportProfessionals(): Promise<SupportProfessional[]> {
+    static async getSupportProfessionals(unit?: Unit): Promise<SupportProfessional[]> {
         return safeCall(async () => {
-            const { data, error } = await supabase.from('support_professionals').select('*').order('name');
+            let query = supabase
+                .from('support_professionals')
+                .select(`
+                    id, name, photo_url, cpf, phone, email, education,
+                    contract_start_date, workload, school_id,
+                    regent_teacher, student_id, created_at
+                `)
+                .order('name');
+            
+            // Possível futura filtragem por unidade, análoga aos alunos (se houver campo unit na tabela ou address->unit)
+            // if (unit) {
+            //     query = query.eq('unit', unit);
+            // }
+
+            const { data, error } = await query;
             if (error) {
                 console.error('Erro ao buscar profissionais de apoio:', error);
                 throw error;
@@ -1754,13 +1779,12 @@ export class SupabaseService {
                 education: p.education,
                 contractStartDate: p.contract_start_date,
                 workload: p.workload,
-                address: p.address,
                 schoolId: p.school_id,
                 regentTeacher: p.regent_teacher,
                 studentId: p.student_id,
                 createdAt: p.created_at
             }));
-        });
+        }, 1, 300, 'getSupportProfessionals');
     }
 
     static async saveSupportProfessional(prof: SupportProfessional): Promise<void> {
