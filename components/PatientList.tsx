@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Student, School, User, Specialty, AuditAction } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
@@ -78,10 +78,10 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Normalização de texto
-  const normalizeText = (text: string) => {
+  // Normalização de texto — memoizada para evitar recriação
+  const normalizeText = useCallback((text: string) => {
     return (text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  };
+  }, []);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
   const isRestricted = (currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'SECRETARIA_SEDE') && currentUser?.scope === 'COCAL';
@@ -94,8 +94,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
 
   const isSchool = currentUser?.role === 'ESCOLA';
 
-  // Filter students based on search, school filter AND user scope
-  const filteredStudents = students.filter(p => {
+  const filteredStudents = useMemo(() => students.filter(p => {
     // 1. User Scope Filter (Cocal Security)
     if (isRestricted) {
       const schoolName = (p.school.schoolName || '').toLowerCase();
@@ -125,9 +124,24 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
       (selectedSchoolId !== 'ALL' && !p.school?.schoolId && p.school?.schoolName === selectedSchoolId);
 
     return matchesSearch && matchesSchool;
-  });
+  }), [students, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical]);
 
-  const confirmDelete = async () => {
+  // Memoize school options — recomputed only when students list changes
+  const schoolOptions = useMemo(() => [
+    { value: 'ALL', label: 'Todas as Escolas' },
+    ...Array.from(new Map(
+      students
+        .filter(s => s.school?.schoolId || s.school?.schoolName)
+        .map(s => {
+          const id = s.school?.schoolId || s.school?.schoolName;
+          return [id, s.school?.schoolName || 'Sem nome'];
+        })
+    ).entries())
+      .map(([id, name]) => ({ value: id as string, label: name as string }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  ], [students]);
+
+  const confirmDelete = useCallback(async () => {
     if (studentToDelete) {
       if (currentUser) {
         await SupabaseService.logAction(currentUser, AuditAction.DELETE, 'ALUNOS', studentToDelete.fullName);
@@ -135,7 +149,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
       onDelete(studentToDelete.id);
       setStudentToDelete(null);
     }
-  };
+  }, [studentToDelete, currentUser, onDelete]);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-20">
@@ -163,19 +177,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
           {/* Filtros */}
           <div className="w-full sm:w-64 z-20">
             <SearchableSelect
-              options={[
-                { value: 'ALL', label: 'Todas as Escolas' },
-                ...Array.from(new Map(
-                  students
-                    .filter(s => s.school?.schoolId || s.school?.schoolName)
-                    .map(s => {
-                      const id = s.school?.schoolId || s.school?.schoolName; // Fallback para o nome se não tiver ID
-                      return [id, s.school?.schoolName || 'Sem nome'];
-                    })
-                ).entries())
-                  .map(([id, name]) => ({ value: id as string, label: name as string }))
-                  .sort((a, b) => a.label.localeCompare(b.label))
-              ]}
+              options={schoolOptions}
               value={selectedSchoolId}
               onChange={setSelectedSchoolId}
               placeholder="Filtrar por escola..."

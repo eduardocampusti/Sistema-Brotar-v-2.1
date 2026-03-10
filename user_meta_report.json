@@ -1,0 +1,35 @@
+{
+  "auth_metadata": {
+    "email": "admin@brotar.com",
+    "email_verified": true,
+    "full_name": "Administrador",
+    "phone_verified": false,
+    "role": "ADMIN",
+    "sub": "d5f963a2-48a2-4b78-b04c-e9e21edd56fe"
+  },
+  "app_metadata": {
+    "provider": "email",
+    "providers": [
+      "email"
+    ]
+  },
+  "user_id": "d5f963a2-48a2-4b78-b04c-e9e21edd56fe",
+  "profile": {
+    "id": "d5f963a2-48a2-4b78-b04c-e9e21edd56fe",
+    "full_name": "Administrador",
+    "role": "ADMIN",
+    "specialty": null,
+    "district_scope": null,
+    "is_active": true,
+    "created_at": "2026-01-21T11:47:51.878308+00:00",
+    "address": {},
+    "email": null,
+    "username": null,
+    "phone": null,
+    "job_title": null,
+    "photo_url": null,
+    "scope": "GLOBAL",
+    "must_change_password": false,
+    "school_inep": null
+  }
+}

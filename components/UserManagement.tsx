@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { User, UserRole, Specialty, UserScope } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { useToast } from '../contexts/ToastContext';
@@ -48,19 +48,18 @@ export const UserManagement: React.FC = () => {
         address: { street: '', number: '', district: '', city: '', state: '', zipCode: '' }
     });
 
-    useEffect(() => {
-        loadUsers();
-    }, []);
-
-    const loadUsers = async () => {
+    const loadUsers = useCallback(async () => {
         const data = await SupabaseService.getUsers();
         setUsers(data);
-    };
+    }, []);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    useEffect(() => {
+        loadUsers();
+    }, [loadUsers]);
+
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Na edição (com ID), a senha é opcional. Na criação, é obrigatória.
         if (!formData.name) {
             showError('O Nome Completo é obrigatório.', 'Campo Obrigatório');
             return;
@@ -74,27 +73,16 @@ export const UserManagement: React.FC = () => {
             return;
         }
 
-        if (isLoading) return; // [NEW] Previne duplo clique
+        if (isLoading) return;
 
-        setIsLoading(true); // [NEW] Bloqueia
-
-        // Se tiver ID, é EDIÇÃO. Se não, é CRIAÇÃO.
+        setIsLoading(true);
         const isEditing = !!formData.id;
-
-        // Normalização
         const normalizedUsername = formData.username?.trim().toLowerCase();
-
-        console.log('Submitting User Form:', {
-            originalUsername: formData.username,
-            normalizedUsername,
-            email: formData.email,
-            password: formData.password
-        });
 
         const newUser: User = {
             id: formData.id || '',
             name: formData.name,
-            username: normalizedUsername || '', // Garante que usa o normalizado
+            username: normalizedUsername || '',
             password: formData.password,
             role: formData.role as UserRole,
             isActive: formData.isActive ?? true,
@@ -109,36 +97,19 @@ export const UserManagement: React.FC = () => {
 
         try {
             if (isEditing) {
-                // Edição: Atualiza o perfil no banco de dados (tabela profiles)
                 await SupabaseService.saveUser(newUser);
-
-                // Se uma senha foi informada no formulário de edição, atualizamos também o Auth
                 if (formData.password?.trim()) {
-                    const passwordResult = await SupabaseService.setUserPassword(formData.id!, formData.password.trim());
-                    if (!passwordResult.success) {
-                        console.error('Erro ao sincronizar senha no Auth:', passwordResult.error);
-                        showError(passwordResult.error || 'O perfil foi salvo, mas não foi possível atualizar a senha no sistema de login.', 'Alerta de Autenticação');
-                    } else {
-                        console.log('Senha sincronizada com sucesso no Auth para o usuário:', formData.id);
-                    }
+                    await SupabaseService.setUserPassword(formData.id!, formData.password.trim());
                 }
-
                 success('Usuário atualizado com sucesso!', 'Perfil atualizado');
             } else {
-                // Criação: Usa o método seguro de Admin
-                const cleanPassword = formData.password!.trim();
-                const result = await SupabaseService.createAccountAsAdmin(newUser, cleanPassword);
+                const result = await SupabaseService.createAccountAsAdmin(newUser, formData.password!.trim());
                 if (!result.success) {
                     showError(result.error || 'Erro ao criar usuário', 'Falha no cadastro');
                     setIsLoading(false);
                     return;
                 }
-
-                if (result.warning) {
-                    showError(result.warning, 'Atenção: Perfil incompleto');
-                } else {
-                    success('Usuário criado com sucesso! O login já está ativo.', 'Novo usuário adicionado');
-                }
+                success('Usuário criado com sucesso!', 'Novo usuário adicionado');
             }
 
             await loadUsers();
@@ -146,11 +117,11 @@ export const UserManagement: React.FC = () => {
             resetForm();
         } catch (err) {
             console.error(err);
-            showError('Erro inesperado ao salvar usuário.', 'Erro do sistema');
+            showError('Erro inesperado.', 'Erro');
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [formData, isLoading, loadUsers, success, showError]);
 
     const resetForm = () => {
         setFormData({

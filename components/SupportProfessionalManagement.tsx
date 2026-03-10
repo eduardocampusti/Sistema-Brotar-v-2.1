@@ -69,6 +69,49 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [schoolSearchTerm, setSchoolSearchTerm] = useState('');
     const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
     const schoolInputRef = useRef<HTMLDivElement>(null);
+    const numberInputRef = useRef<HTMLInputElement>(null);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        let maskedValue = value;
+
+        if (name === 'cpf') {
+            maskedValue = value
+                .replace(/\D/g, '')
+                .replace(/(\d{3})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+                .replace(/(-\d{2})\d+?$/, '$1');
+        } else if (name === 'phone') {
+            maskedValue = value
+                .replace(/\D/g, '')
+                .replace(/(\d{2})(\d)/, '($1) $2')
+                .replace(/(\d{5})(\d)/, '$1-$2')
+                .replace(/(-\d{4})\d+?$/, '$1');
+        }
+
+        setFormData(prev => ({ ...prev, [name]: maskedValue }));
+    };
+
+    const handleAddressInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        let maskedValue = value;
+
+        if (name === 'zipCode') {
+            maskedValue = value
+                .replace(/\D/g, '')
+                .replace(/(\d{5})(\d)/, '$1-$2')
+                .replace(/(-\d{3})\d+?$/, '$1');
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            address: {
+                ...prev.address!,
+                [name]: maskedValue
+            }
+        }));
+    };
 
     const [formData, setFormData] = useState<Partial<SupportProfessional>>({
         name: '',
@@ -110,6 +153,36 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Efeito para busca automática de CEP
+    useEffect(() => {
+        const fetchCEP = async () => {
+            const cep = formData.address?.zipCode?.replace(/\D/g, '') || '';
+            if (cep.length === 8) {
+                try {
+                    const { CEPService } = await import('../services/CEPService');
+                    const addressData = await CEPService.fetchAddress(cep);
+                    if (addressData) {
+                        setFormData(prev => ({
+                            ...prev,
+                            address: {
+                                ...prev.address!,
+                                street: addressData.street,
+                                district: addressData.district,
+                                city: addressData.city,
+                                state: addressData.state
+                            }
+                        }));
+                        // Foco automático no campo Número
+                        setTimeout(() => numberInputRef.current?.focus(), 100);
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar CEP:', error);
+                }
+            }
+        };
+        fetchCEP();
+    }, [formData.address?.zipCode]);
 
     const loadData = async () => {
         try {
@@ -177,7 +250,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             id: formData.id || '', // Se for novo, manda vazio para cair no INSERT do backend
             name: formData.name,
             photoUrl: formData.photoUrl || '',
-            cpf: formData.cpf || '',
+            cpf: sanitizeCPF(formData.cpf) || '',
             phone: formData.phone || '',
             email: formData.email || '',
             education: formData.education || '',
@@ -530,7 +603,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                     <div>
                                         <input required type="text" className="w-full rounded-lg border-slate-300 p-2.5 border focus:ring-primary-500"
                                             value={formData.name}
-                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                            name="name"
+                                            onChange={handleInputChange}
                                             onBlur={e => setFormData({ ...formData, name: formatarNomeBR(e.target.value) })}
                                         />
                                     </div>
@@ -540,7 +614,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                             <select
                                                 className="w-full rounded-lg border-slate-300 p-2.5 border bg-white appearance-none pl-9"
                                                 value={formData.education}
-                                                onChange={e => setFormData({ ...formData, education: e.target.value })}
+                                                name="education"
+                                                onChange={handleInputChange}
                                             >
                                                 <option value="">Selecione a formação...</option>
                                                 {academicOptions.map(opt => (
@@ -555,18 +630,23 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">CPF</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.cpf} onChange={e => setFormData({ ...formData, cpf: e.target.value })} />
+                                                name="cpf"
+                                                placeholder="000.000.000-00"
+                                                value={formData.cpf} onChange={handleInputChange} />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Telefone</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Telefone/WhatsApp</label>
                                             <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                                                name="phone"
+                                                placeholder="(00) 00000-0000"
+                                                value={formData.phone} onChange={handleInputChange} />
                                         </div>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
                                         <input type="email" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                            value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                            name="email"
+                                            value={formData.email} onChange={handleInputChange} />
                                     </div>
                                 </div>
 
@@ -579,14 +659,16 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Início do Contrato</label>
                                             <div className="relative">
                                                 <input type="date" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                    value={formData.contractStartDate} onChange={e => setFormData({ ...formData, contractStartDate: e.target.value })} />
+                                                    name="contractStartDate"
+                                                    value={formData.contractStartDate} onChange={handleInputChange} />
                                             </div>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Carga Horária</label>
                                             <div className="relative">
                                                 <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border pl-9"
-                                                    value={formData.workload} onChange={e => setFormData({ ...formData, workload: e.target.value })} placeholder="Ex: 40h" />
+                                                    name="workload"
+                                                    value={formData.workload} onChange={handleInputChange} placeholder="Ex: 40h" />
                                                 <Briefcase className="absolute left-3 top-3 text-slate-400" size={16} />
                                             </div>
                                         </div>
@@ -650,14 +732,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                         )}
                                     </div>
 
-                                    <div>
-                                        <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                            value={formData.regentTeacher}
-                                            onChange={e => setFormData({ ...formData, regentTeacher: e.target.value })}
-                                            onBlur={e => setFormData({ ...formData, regentTeacher: formatarNomeBR(e.target.value) })}
-                                            placeholder="Nome do professor da sala"
-                                        />
-                                    </div>
+                                    {/* Removido campo de Professor Regente (Entrada Manual) conforme solicitação */}
 
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Aluno Assistido *</label>
@@ -666,7 +741,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                                 required
                                                 className="w-full rounded-lg border-slate-300 p-2.5 border bg-white appearance-none disabled:bg-slate-100 disabled:text-slate-400"
                                                 value={formData.studentId}
-                                                onChange={e => setFormData({ ...formData, studentId: e.target.value })}
+                                                name="studentId"
+                                                onChange={handleInputChange}
                                                 disabled={!formData.schoolId}
                                             >
                                                 <option value="">
@@ -697,35 +773,43 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 <MapPin size={16} /> Endereço Residencial
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                <div>
+                                    <label className="block text-xs text-slate-500 mb-1">CEP</label>
+                                    <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                        name="zipCode"
+                                        placeholder="00000-000"
+                                        value={formData.address?.zipCode} onChange={handleAddressInputChange} />
+                                </div>
                                 <div className="md:col-span-2">
                                     <label className="block text-xs text-slate-500 mb-1">Rua / Logradouro</label>
                                     <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        value={formData.address?.street} onChange={e => handleAddressChange('street', e.target.value)} />
+                                        name="street"
+                                        value={formData.address?.street} onChange={handleAddressInputChange} />
                                 </div>
                                 <div>
                                     <label className="block text-xs text-slate-500 mb-1">Número</label>
                                     <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        value={formData.address?.number} onChange={e => handleAddressChange('number', e.target.value)} />
+                                        ref={numberInputRef}
+                                        name="number"
+                                        value={formData.address?.number} onChange={handleAddressInputChange} />
                                 </div>
                                 <div>
                                     <label className="block text-xs text-slate-500 mb-1">Bairro</label>
                                     <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        value={formData.address?.district} onChange={e => handleAddressChange('district', e.target.value)} />
+                                        name="district"
+                                        value={formData.address?.district} onChange={handleAddressInputChange} />
                                 </div>
                                 <div className="md:col-span-2">
                                     <label className="block text-xs text-slate-500 mb-1">Cidade</label>
                                     <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        value={formData.address?.city} onChange={e => handleAddressChange('city', e.target.value)} />
+                                        name="city"
+                                        value={formData.address?.city} onChange={handleAddressInputChange} />
                                 </div>
                                 <div>
                                     <label className="block text-xs text-slate-500 mb-1">Estado</label>
                                     <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        value={formData.address?.state} onChange={e => handleAddressChange('state', e.target.value)} />
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-slate-500 mb-1">CEP</label>
-                                    <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        value={formData.address?.zipCode} onChange={e => handleAddressChange('zipCode', e.target.value)} />
+                                        name="state"
+                                        value={formData.address?.state} onChange={handleAddressInputChange} />
                                 </div>
                             </div>
                         </div>

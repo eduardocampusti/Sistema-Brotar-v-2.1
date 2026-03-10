@@ -1,0 +1,78 @@
+{
+  "schools": {
+    "columns": [
+      "id",
+      "name",
+      "inep",
+      "district",
+      "is_active",
+      "created_at",
+      "director",
+      "phone",
+      "address",
+      "has_internet",
+      "internet_type",
+      "internet_provider_contact"
+    ]
+  },
+  "students": {
+    "columns": [
+      "id",
+      "full_name",
+      "birth_date",
+      "cpf",
+      "sus_card",
+      "school_id",
+      "grade",
+      "shift",
+      "guardians",
+      "address",
+      "status",
+      "created_at",
+      "updated_at",
+      "clinical_info",
+      "social_info",
+      "photo_url",
+      "documents",
+      "ethnicity"
+    ]
+  },
+  "support_professionals": {
+    "columns": [
+      "id",
+      "name",
+      "photo_url",
+      "cpf",
+      "phone",
+      "email",
+      "education",
+      "contract_start_date",
+      "workload",
+      "address",
+      "school_id",
+      "regent_teacher",
+      "student_id",
+      "created_at"
+    ]
+  },
+  "profiles": {
+    "columns": [
+      "id",
+      "full_name",
+      "role",
+      "specialty",
+      "district_scope",
+      "is_active",
+      "created_at",
+      "address",
+      "email",
+      "username",
+      "phone",
+      "job_title",
+      "photo_url",
+      "scope",
+      "must_change_password",
+      "school_inep"
+    ]
+  }
+}

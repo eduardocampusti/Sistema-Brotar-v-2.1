@@ -56,7 +56,7 @@ async function runDiagnostics() {
     log('--- TESTE 3: Autenticação Admin ---');
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
         email: 'admin@brotar.com',
-        password: 'admin123'
+        password: '123456'
     });
 
     if (authErr) {
@@ -67,31 +67,27 @@ async function runDiagnostics() {
         log(`   role_meta: ${authData.user.user_metadata?.role}`);
         log('');
 
-        // TESTE 4: Acesso autenticado à tabela schools
-        log('--- TESTE 4: Acesso Autenticado à tabela schools ---');
-        const { data: schoolsAuth, error: schoolsAuthErr } = await supabase.from('schools').select('id, name, inep, is_active').limit(3);
-        if (schoolsAuthErr) {
-            log('❌ FALHOU (acesso autenticado bloqueado)', { code: schoolsAuthErr.code, message: schoolsAuthErr.message });
+        // TESTE 6: Acesso autenticado à tabela students
+        log('--- TESTE 6: Acesso Autenticado à tabela students ---');
+        const { data: students, error: studentsErr } = await supabase.from('students').select('id, full_name').limit(3);
+        if (studentsErr) {
+            log('❌ FALHOU ao buscar alunos', { code: studentsErr.code, message: studentsErr.message });
         } else {
-            log(`✅ SUCESSO - ${schoolsAuth.length} escolas visíveis como admin`);
-            if (schoolsAuth.length > 0) log('Amostra:', schoolsAuth[0]);
+            log(`✅ SUCESSO - ${students.length} alunos visíveis`);
+            if (students.length > 0) log('Amostra:', students[0]);
         }
         log('');
 
-        // TESTE 5: Leitura do perfil do admin
-        log('--- TESTE 5: Leitura do perfil admin na tabela profiles ---');
-        const { data: profile, error: profileErr } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authData.user.id)
-            .single();
-
-        if (profileErr) {
-            log('❌ FALHOU ao ler perfil', { code: profileErr.code, message: profileErr.message });
-            log('   → CAUSA PROVÁVEL DO BUG: RLS bloqueia leitura do próprio perfil');
+        // TESTE 7: Acesso autenticado à tabela support_professionals
+        log('--- TESTE 7: Acesso Autenticado à tabela support_professionals ---');
+        const { data: supportProfs, error: supportProfsErr } = await supabase.from('support_professionals').select('id, full_name').limit(3);
+        if (supportProfsErr) {
+            log('❌ FALHOU ao buscar profissionais', { code: supportProfsErr.code, message: supportProfsErr.message });
         } else {
-            log('✅ Perfil carregado com sucesso:', profile);
+            log(`✅ SUCESSO - ${supportProfs.length} profissionais visíveis`);
+            if (supportProfs.length > 0) log('Amostra:', supportProfs[0]);
         }
+        log('');
 
         await supabase.auth.signOut();
     }

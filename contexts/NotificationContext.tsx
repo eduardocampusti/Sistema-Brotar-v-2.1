@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { SupabaseService } from '../services/SupabaseService';
 import { supabase } from '../services/supabaseClient';
 import { User, SystemMessage } from '../types';
@@ -71,8 +71,7 @@ export function NotificationProvider({ children, currentUser }: { children: Reac
                         table: 'system_messages',
                         filter: `recipient_id=eq.${currentUser.id}`
                     },
-                    (payload) => {
-                        console.log('[DEBUG] Realtime Payload (Entrada):', payload);
+                    () => {
                         fetchNotifications();
                     }
                 )
@@ -84,8 +83,7 @@ export function NotificationProvider({ children, currentUser }: { children: Reac
                         table: 'system_messages',
                         filter: `sender_id=eq.${currentUser.id}`
                     },
-                    (payload) => {
-                        console.log('[DEBUG] Realtime Payload (Saída):', payload);
+                    () => {
                         fetchSentMessages();
                     }
                 )
@@ -136,34 +134,35 @@ export function NotificationProvider({ children, currentUser }: { children: Reac
         }
     };
 
-    // Filtros Derivados
-    const alerts = notifications.filter(n => !n.type || n.type === 'ALERT');
-    const messages = notifications.filter(n => n.type === 'MESSAGE');
+    // Filtered Derivados — memoizados para evitar recalculo desnecessário
+    const alerts = useMemo(() => notifications.filter(n => !n.type || n.type === 'ALERT'), [notifications]);
+    const messages = useMemo(() => notifications.filter(n => n.type === 'MESSAGE'), [notifications]);
+    const sentAlerts = useMemo(() => sentMessages.filter(n => !n.type || n.type === 'ALERT'), [sentMessages]);
+    const sentPrivateMessages = useMemo(() => sentMessages.filter(n => n.type === 'MESSAGE'), [sentMessages]);
+    const unreadAlertsCount = useMemo(() => alerts.filter(n => !n.is_read).length, [alerts]);
+    const unreadMessagesCount = useMemo(() => messages.filter(n => !n.is_read).length, [messages]);
 
-    // Filtros de Enviados
-    const sentAlerts = sentMessages.filter(n => !n.type || n.type === 'ALERT');
-    const sentPrivateMessages = sentMessages.filter(n => n.type === 'MESSAGE');
-
-    const unreadAlertsCount = alerts.filter(n => !n.is_read).length;
-    const unreadMessagesCount = messages.filter(n => !n.is_read).length;
+    // Memoiza o objeto de contexto para evitar re-render de todos os consumers
+    const contextValue = useMemo(() => ({
+        notifications,
+        sentMessages,
+        alerts,
+        messages,
+        sentAlerts,
+        sentPrivateMessages,
+        unreadCount: unreadAlertsCount + unreadMessagesCount,
+        unreadAlertsCount,
+        unreadMessagesCount,
+        loading,
+        refreshNotifications: fetchNotifications,
+        refreshSentMessages: fetchSentMessages,
+        markAsRead,
+        deleteMessage,
+    }), [notifications, sentMessages, alerts, messages, sentAlerts, sentPrivateMessages,
+         unreadAlertsCount, unreadMessagesCount, loading, markAsRead, deleteMessage]);
 
     return (
-        <NotificationContext.Provider value={{
-            notifications, // Legacy/Raw
-            sentMessages, // Legacy/Raw
-            alerts,
-            messages,
-            sentAlerts,
-            sentPrivateMessages,
-            unreadCount: unreadAlertsCount + unreadMessagesCount,
-            unreadAlertsCount,
-            unreadMessagesCount,
-            loading,
-            refreshNotifications: () => fetchNotifications(),
-            refreshSentMessages: () => fetchSentMessages(),
-            markAsRead,
-            deleteMessage
-        }}>
+        <NotificationContext.Provider value={contextValue}>
             {children}
         </NotificationContext.Provider>
     );

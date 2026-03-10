@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { Login } from './components/Login';
 import { LandingPage } from './components/LandingPage';
@@ -101,10 +101,10 @@ const hexToRgb = (hex: string) => {
 }
 
 function App() {
+  // 1. Estados e Refs
   const [user, setUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState<string>(() => {
     try {
-      // Tenta restaurar a página do Hash ou LocalStorage
       const hash = window.location.hash.replace('#', '');
       if (hash && hash !== 'dashboard') return hash;
       return localStorage.getItem('brotar_current_page') || 'dashboard';
@@ -123,7 +123,6 @@ function App() {
   });
   const [showLogin, setShowLogin] = useState(() => {
     try {
-      // Persiste o estado do modal de login
       const storedShowLogin = localStorage.getItem('brotar_show_login') === 'true';
       return storedShowLogin ||
         new URLSearchParams(window.location.search).get('login') === 'true' ||
@@ -134,102 +133,132 @@ function App() {
     }
   });
 
-  // Trava de idempotência para evitar loop de processamento da mesma sessão
   const processedSessionId = React.useRef<string | null>(null);
-
   const { error: showError } = useToast();
-
-  // Initialize settings directly from storage
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => SupabaseService.getSystemSettingsSync());
 
-  // Function to apply theme variables to DOM safely
-  const applyTheme = () => {
+  // 2. Funções de Lógica (Hoisted or referenced in effects/callbacks)
+  const applyTheme = useCallback(() => {
     try {
       const activeTheme = SupabaseService.getActiveTheme();
       const root = document.documentElement;
 
-      if (!activeTheme || !activeTheme.colors) {
-        console.warn("Tema inválido detectado, aplicando fallback.");
-        return;
-      }
+      if (!activeTheme || !activeTheme.colors) return;
 
-      // Set dynamic colors
       Object.entries(activeTheme.colors).forEach(([shade, value]) => {
-        if (value) {
-          root.style.setProperty(`--color-primary-${shade}`, value as string);
-        }
+        if (value) root.style.setProperty(`--color-primary-${shade}`, value as string);
       });
 
-      // Set RGB for opacity utilities using the '500' shade as base
-      // Garante que existe a cor 500, senão usa uma cor segura
       const primary500 = activeTheme.colors[500] || '#14b8a6';
       root.style.setProperty('--color-primary-500-rgb', hexToRgb(primary500));
-
     } catch (error) {
       console.error("Erro crítico ao aplicar tema:", error);
-      // Não revertemos drasticamente para evitar loop, apenas logamos. 
-      // O CSS padrão (fallback) do index.html segurará o layout.
     }
-  };
+  }, []);
 
-  // useLayoutEffect runs synchronously before the browser paints
-  // This ensures colors are correct BEFORE the user sees the page
+  const refreshData = useCallback(async () => {
+    const data = await SupabaseService.getStudents();
+    setStudents(data);
+  }, []);
+
+  const handleNavigate = useCallback((page: string, keepSelection = false) => {
+    setCurrentPage(page);
+    if (page !== 'profile' && page !== 'edit-student' && !keepSelection) {
+      setSelectedStudent(null);
+    }
+  }, []);
+
+  const handleRegisterSuccess = useCallback(async () => {
+    const updatedStudents = await SupabaseService.getStudents();
+    setStudents(updatedStudents);
+    setSelectedStudent(prev => {
+      if (!prev) return null;
+      return updatedStudents.find(s => s.id === prev.id) || prev;
+    });
+    setCurrentPage(prev => (prev === 'edit-student' ? 'profile' : 'list'));
+  }, []);
+
+  const handleSelectStudent = useCallback((student: Student) => {
+    setSelectedStudent(student);
+    setCurrentPage('profile');
+  }, []);
+
+  const handleEditStudent = useCallback((student: Student) => {
+    setSelectedStudent(student);
+    setCurrentPage('edit-student');
+  }, []);
+
+  const handleDeleteStudent = useCallback(async (id: string) => {
+    try {
+      await SupabaseService.deleteStudent(id);
+      await refreshData();
+    } catch (err) {
+      showError('Erro ao excluir aluno. Verifique se existem dependências.', 'Erro na exclusão');
+    }
+  }, [refreshData, showError]);
+
+  const handleLogin = useCallback((loggedInUser: User) => {
+    setUser(loggedInUser);
+    localStorage.removeItem('brotar_show_login');
+    const storedPage = localStorage.getItem('brotar_current_page');
+    if (!storedPage || storedPage === 'dashboard') {
+      setCurrentPage('dashboard');
+    }
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    if (user) {
+      await SupabaseService.logAction(user, AuditAction.LOGOUT, 'SISTEMA', 'Logout realizado');
+    }
+    await supabase.auth.signOut();
+    SupabaseService.clearProfileCache();
+    setUser(null);
+    setCurrentPage('dashboard');
+    try {
+      localStorage.removeItem('brotar_current_page');
+      localStorage.removeItem('brotar_show_login');
+    } catch (e) { }
+    window.location.hash = '';
+  }, [user]);
+
+  // 3. Effects
   useLayoutEffect(() => {
     applyTheme();
     if (systemSettings.systemName) {
       document.title = `${systemSettings.systemName} - Gestão Multidisciplinar`;
     }
-  }, [systemSettings]);
+  }, [systemSettings, applyTheme]);
 
-  // Sincroniza estado de navegação com URL e LocalStorage
   useEffect(() => {
     if (user && !user.mustChangePassword) {
-      if (window.location.hash !== `#${currentPage}`) {
-        window.location.hash = currentPage;
-      }
-      try {
-        localStorage.setItem('brotar_current_page', currentPage);
-      } catch (e) {
-        // En silêncio se o storage estiver bloqueado
-      }
+      if (window.location.hash !== `#${currentPage}`) window.location.hash = currentPage;
+      try { localStorage.setItem('brotar_current_page', currentPage); } catch (e) { }
     }
   }, [currentPage, user]);
 
-  // Sincroniza showLogin com LocalStorage
   useEffect(() => {
     try {
-      if (!user) {
-        localStorage.setItem('brotar_show_login', showLogin.toString());
-      } else {
-        localStorage.removeItem('brotar_show_login');
-      }
-    } catch (e) {
-      // Falha silenciosa se storage indisponível
-    }
+      if (!user) localStorage.setItem('brotar_show_login', showLogin.toString());
+      else localStorage.removeItem('brotar_show_login');
+    } catch (e) { }
   }, [showLogin, user]);
 
-  // Listener para o botão voltar do navegador (PopState)
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash && hash !== currentPage) {
-        setCurrentPage(hash);
-      }
+      if (hash && hash !== currentPage) setCurrentPage(hash);
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [currentPage]);
 
-  // Load students and handle auth session
   useEffect(() => {
-    // Limpeza de parâmetros de URL para evitar loops de renderização
     const params = new URLSearchParams(window.location.search);
     if (params.get('login') === 'true') {
       const newUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
     }
 
-    // Timeout de segurança GLOBAL: se após 10 segundos ainda estiver carregando, libera a tela
     const safetyTimeout = setTimeout(() => {
       setIsAuthLoading(prev => {
         if (prev) console.warn('[App] Destravando loading via Timeout de Segurança.');
@@ -239,31 +268,23 @@ function App() {
 
     async function loadInitialData() {
       try {
-        console.log('[App] 1. Carregando configurações...');
         const settings = await SupabaseService.getSystemSettings();
         setSystemSettings(settings);
 
-        console.log('[App] 2. Verificando sessão inicial...');
-
-        // Tenta obter sessão com retry em caso de AbortError
         let session = null;
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             const { data } = await supabase.auth.getSession();
             session = data.session;
-            break; // Sucesso - sai do loop
+            break;
           } catch (sessionErr: any) {
-            console.warn(`[App] Tentativa ${attempt} de getSession falhou:`, sessionErr?.name || sessionErr?.message);
-            if (attempt < 3) await new Promise(r => setTimeout(r, 500)); // Aguarda 500ms antes de retentar
+            if (attempt < 3) await new Promise(r => setTimeout(r, 500));
           }
         }
 
         if (session?.user) {
           const sessionId = session.access_token || session.user.id;
-          console.log('[App] 2a. Sessão detectada no boot.', sessionId.substring(0, 10));
-
           if (isRecoveryMode) {
-            console.log('[App] Modo Recuperação Detectado.');
             const userData = await SupabaseService.getUserProfile(session.user.id);
             if (userData) {
               processedSessionId.current = sessionId;
@@ -272,16 +293,12 @@ function App() {
               setShowLogin(false);
             }
           } else {
-            // Carregamento proativo do perfil para evitar LandingPage frame
             const userData = await SupabaseService.getUserProfile(session.user.id);
             if (userData) {
-              console.log('[App] Perfil carregado com sucesso no boot.');
               processedSessionId.current = sessionId;
               setUser(userData);
             } else {
-              // Fallback mínimo: usa metadados do JWT para não perder a sessão
               const meta = session.user.user_metadata;
-              console.warn('[App] Usando fallback JWT para manter sessão ativa.');
               const fallbackUser = {
                 id: session.user.id,
                 name: meta?.full_name || session.user.email?.split('@')[0] || 'Administrador',
@@ -303,15 +320,9 @@ function App() {
 
     loadInitialData();
 
-    // Listener prioritário de Auth
     const { data: { subscription } } = SupabaseService.onAuthStateChange(async (event, session) => {
       const sessionId = session?.access_token || session?.user?.id || 'no-session';
-
-      console.log(`[App-Auth] Evento: ${event} | SessionID: ${sessionId.substring(0, 10)}...`);
-
-      // Se já processamos esta sessão no loadInitialData e o evento é inicial/redundante, ignora
       if (processedSessionId.current === sessionId && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
-        console.log('[App-Auth] Ignorando evento já processado ou inicial:', event);
         setIsAuthLoading(false);
         return;
       }
@@ -346,7 +357,7 @@ function App() {
         } else if (event === 'SIGNED_OUT') {
           processedSessionId.current = null;
           setUser(null);
-          SupabaseService.clearProfileCache(); // IMPORTANTE: Limpa o cache para não vazar dados
+          SupabaseService.clearProfileCache();
           setCurrentPage('dashboard');
           setIsRecoveryMode(false);
           setIsAuthLoading(false);
@@ -369,171 +380,32 @@ function App() {
     };
   }, []);
 
-  // Carrega dados pesados apenas após o login
   useEffect(() => {
     if (user && !user.mustChangePassword) {
-      console.log('[App] Carregando dados iniciais para:', user.email);
       SupabaseService.getStudents()
-        .then(data => {
-          console.log('[App] Alunos carregados:', data.length);
-          setStudents(data);
-        })
+        .then(data => setStudents(data))
         .catch(err => {
-          if (err.name === 'AbortError') {
-            console.warn('[App] Busca de alunos abortada (comum no Hot Reload ou boot rápido).');
-          } else {
-            console.error('[App] Erro ao carregar alunos:', err);
-          }
+          if (err.name !== 'AbortError') console.error('[App] Erro ao carregar alunos:', err);
         });
     }
-  }, [user?.id]); // Usar ID para estabilidade
+  }, [user?.id]);
 
-  const refreshData = async () => {
-    setStudents(await SupabaseService.getStudents());
-  };
-
-  const handleNavigate = (page: string, keepSelection = false) => {
-    setCurrentPage(page);
-    if (page !== 'profile' && page !== 'edit-student' && !keepSelection) {
-      setSelectedStudent(null);
-    }
-  };
-
-  const handleRegisterSuccess = async () => {
-    await refreshData();
-    if (currentPage === 'edit-student' && selectedStudent) {
-      const updatedStudents = await SupabaseService.getStudents();
-      const updated = updatedStudents.find(s => s.id === selectedStudent.id);
-      if (updated) setSelectedStudent(updated);
-      setCurrentPage('profile');
-    } else {
-      setCurrentPage('list');
-    }
-  };
-
-  const handleSelectStudent = (student: Student) => {
-    setSelectedStudent(student);
-    setCurrentPage('profile');
-  };
-
-  const handleEditStudent = (student: Student) => {
-    setSelectedStudent(student);
-    setCurrentPage('edit-student');
-  };
-
-  const handleDeleteStudent = async (id: string) => {
-    try {
-      await SupabaseService.deleteStudent(id);
-      await refreshData();
-    } catch (err) {
-      showError('Erro ao excluir aluno. Verifique se existem dependências.', 'Erro na exclusão');
-    }
-  };
-
-  const handleLogin = (loggedInUser: User) => {
-    setUser(loggedInUser);
-    localStorage.removeItem('brotar_show_login');
-    // Mantém a página atual se ela existir, senão vai para dashboard
-    const storedPage = localStorage.getItem('brotar_current_page');
-    if (!storedPage || storedPage === 'dashboard') {
-      setCurrentPage('dashboard');
-    }
-  };
-
-  const handleLogout = async () => {
-    if (user) {
-      await SupabaseService.logAction(user, AuditAction.LOGOUT, 'SISTEMA', 'Logout realizado');
-    }
-    await supabase.auth.signOut();
-    SupabaseService.clearProfileCache();
-    setUser(null);
-    setCurrentPage('dashboard');
-    try {
-      localStorage.removeItem('brotar_current_page');
-      localStorage.removeItem('brotar_show_login');
-    } catch (e) { }
-    window.location.hash = '';
-  };
-
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white space-y-4">
-        <Loader2 size={48} className="animate-spin text-primary-600" />
-        <p className="text-slate-500 font-medium">
-          {isRecoveryMode ? 'Validando link de recuperação...' : 'Iniciando sistema...'}
-        </p>
-      </div>
-    );
-  }
-
-  // Debug Panel (Hidden by default, shown if ?debug=true)
-  const isDebug = window.location.search.includes('debug=true');
-
-  if (!user) {
-    // Se o usuário já acessou o sistema antes ou está tentando entrar, mostra o login direto
-    const shouldShowLogin = showLogin;
-
-    if (shouldShowLogin) {
-      return (
-        <>
-          <Login
-            onLogin={(u) => {
-              handleLogin(u);
-            }}
-            onBack={() => {
-              setShowLogin(false);
-            }}
-            systemSettings={systemSettings}
-          />
-          {isDebug && <div className="fixed bottom-0 right-0 p-2 bg-black/80 text-white text-[10px] z-[9999]">No User | Debug Mode Active</div>}
-        </>
-      );
-    }
-    return <LandingPage onAccessSystem={() => {
-      setShowLogin(true);
-    }} systemSettings={systemSettings} />;
-  }
-
-  // Bloqueio para troca obrigatória de senha
-  if (user.mustChangePassword) {
-    return (
-      <React.Suspense fallback={<PageLoading />}>
-        <ChangePassword
-          userId={user.id}
-          onSuccess={async () => {
-            // Recarrega o usuário do banco para atualizar o flag localmente
-            const updatedUser = await SupabaseService.authenticate(user.username, '');
-            // Nota: O authenticate sem senha deve funcionar se a sessão persistir no SupabaseService, 
-            // mas como acabamos de trocar a senha, o ideal é atualizar o estado local manualmente.
-            setUser({ ...user, mustChangePassword: false });
-          }}
-        />
-      </React.Suspense>
-    );
-  }
-
-  const renderContent = () => {
+  // 4. Render Content Logic (Must be hoisted or after definitions)
+  function renderContent() {
+    if (!user) return null;
     const isEscola = user.role === 'ESCOLA';
 
-    // Guard global: páginas bloqueadas para ESCOLA
     const ESCOLA_BLOCKED_PAGES = [
-      'scheduling', 'new-appointment', 'agenda',
-      'documents', 'vault', 'my-access',
+      'scheduling', 'new-appointment', 'agenda', 'documents', 'vault', 'my-access',
       'admin', 'settings', 'letterhead-config', 'backup', 'about', 'audit-logs',
-      'psychology', 'psychopedagogy', 'social-service-hub',
-      'social-service-list', 'social-interview',
-      'occupational-therapy', 'speech-therapy',
-      'physiotherapy', 'nutrition',
+      'psychology', 'psychopedagogy', 'social-service-hub', 'social-service-list',
+      'social-interview', 'occupational-therapy', 'speech-therapy', 'physiotherapy', 'nutrition',
     ];
-    const isBlockedForEscola = isEscola && (
-      ESCOLA_BLOCKED_PAGES.includes(currentPage) ||
-      currentPage.includes('/new-session')
-    );
-    if (isBlockedForEscola) {
+
+    if (isEscola && (ESCOLA_BLOCKED_PAGES.includes(currentPage) || currentPage.includes('/new-session'))) {
       return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
     }
 
-    // Rotas de perfil e edição
     if (currentPage === 'profile' && selectedStudent) {
       return <PatientProfile student={selectedStudent} onBack={() => setCurrentPage('list')} currentUser={user} onEdit={handleEditStudent} onNavigate={handleNavigate} />;
     }
@@ -541,12 +413,7 @@ function App() {
       return <RegistrationForm initialData={selectedStudent} onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('profile')} currentUser={user} />;
     }
 
-    // Rotas Clínicas
-    const commonProps = {
-      onNavigateNew: () => { }, // Dashboards main page usually doesn't use this directly or overrides it
-      currentUser: user,
-      preSelectedStudent: selectedStudent || undefined
-    };
+    const commonProps = { currentUser: user, preSelectedStudent: selectedStudent || undefined };
 
     if (currentPage === 'psychology') return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
     if (currentPage === 'psychopedagogy') return <PsychopedagogyDashboardPage onNavigateNew={() => handleNavigate('psychopedagogy/new-session')} {...commonProps} />;
@@ -558,7 +425,6 @@ function App() {
     if (currentPage === 'physiotherapy') return <PhysiotherapyDashboardPage onNavigateNew={() => handleNavigate('physiotherapy/new-session')} {...commonProps} />;
     if (currentPage === 'nutrition') return <NutritionDashboardPage onNavigateNew={() => handleNavigate('nutrition/new-session')} {...commonProps} />;
 
-    // Rotas de Nova Sessão
     if (currentPage.includes('/new-session')) {
       const basePage = currentPage.split('/')[0];
       const props = { onCancel: () => handleNavigate(basePage), currentUser: user, preSelectedStudent: selectedStudent || undefined };
@@ -580,26 +446,15 @@ function App() {
         if (user.role === 'SPECIALIST') {
           switch (user.specialty) {
             case Specialty.PSYCHOLOGY: return <PsychologyDashboard onNavigate={handleNavigate} {...commonProps} />;
-            case Specialty.SOCIAL_WORK: return <SocialWorkerDashboard
-              students={students}
-              currentUser={user}
-              onNavigate={handleNavigate}
-              onNavigateNew={() => handleNavigate('social-service-hub')}
-              onNavigateToCase={(id) => {
-                const student = students.find(s => s.id === id);
-                if (student) {
-                  setSelectedStudent(student);
-                  // Lógica inteligente de redirecionamento baseada no estado do caso
-                  if (student.clinical?.social_interview?.status === 'Pendente' || student.clinical?.social_interview?.status === 'Em Análise') {
-                    handleNavigate('social-interview', true);
-                  } else if (student.clinical?.social_data?.formData?.statusCaso) {
-                    handleNavigate('social-service-list', true); // Vai para ficha de acompanhamento
-                  } else {
-                    handleNavigate('profile');
-                  }
-                }
-              }}
-            />;
+            case Specialty.SOCIAL_WORK: return <SocialWorkerDashboard students={students} currentUser={user} onNavigate={handleNavigate} onNavigateNew={() => handleNavigate('social-service-hub')} onNavigateToCase={(id) => {
+              const s = students.find(x => x.id === id);
+              if (s) {
+                setSelectedStudent(s);
+                if (s.clinical?.social_interview?.status === 'Pendente' || s.clinical?.social_interview?.status === 'Em Análise') handleNavigate('social-interview', true);
+                else if (s.clinical?.social_data?.formData?.statusCaso) handleNavigate('social-service-list', true);
+                else handleNavigate('profile');
+              }
+            }} />;
             case Specialty.PSYCHOPEDAGOGY: return <PsychopedagogyDashboard students={students} currentUser={user} onNavigate={handleNavigate} />;
             case Specialty.OCCUPATIONAL_THERAPY: return <OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} {...commonProps} />;
             case Specialty.SPEECH_THERAPY: return <SpeechTherapyDashboardPage onNavigateNew={() => handleNavigate('speech-therapy/new-session')} {...commonProps} />;
@@ -609,93 +464,67 @@ function App() {
           }
         }
         return <Dashboard students={students} currentUser={user} />;
-
       case 'scheduling':
         if (user.specialty === Specialty.SOCIAL_WORK) {
-          return (
-            <SocialWorkerAgenda
-              currentUser={user}
-              students={students}
-              onNavigate={handleNavigate}
-              onNavigateToCase={(id) => {
-                setSelectedStudent(students.find(s => s.id === id) || null);
-                handleNavigate('profile');
-              }}
-            />
-          );
+          return <SocialWorkerAgenda currentUser={user} students={students} onNavigate={handleNavigate} onNavigateToCase={(id) => { setSelectedStudent(students.find(s => s.id === id) || null); handleNavigate('profile'); }} />;
         }
-        return (
-          <SchedulingCenter
-            students={students}
-            currentUser={user}
-            onNavigate={handleNavigate}
-            onReschedule={(apt) => {
-              setRescheduleData(apt);
-              setCurrentPage('new-appointment');
-            }}
-          />
-        );
-      case 'new-appointment': return (
-        <AppointmentForm
-          students={students}
-          currentUser={user}
-          initialData={rescheduleData}
-          onCancel={() => {
-            setRescheduleData(null);
-            handleNavigate('scheduling');
-          }}
-          onSuccess={() => {
-            setRescheduleData(null);
-            handleNavigate('scheduling');
-          }}
-        />
-      );
+        return <SchedulingCenter students={students} currentUser={user} onNavigate={handleNavigate} onReschedule={(apt) => { setRescheduleData(apt); setCurrentPage('new-appointment'); }} />;
+      case 'new-appointment': return <AppointmentForm students={students} currentUser={user} initialData={rescheduleData} onCancel={() => { setRescheduleData(null); handleNavigate('scheduling'); }} onSuccess={() => { setRescheduleData(null); handleNavigate('scheduling'); }} />;
       case 'agenda': return <Agenda students={students} currentUser={user} onNavigate={handleNavigate} />;
       case 'list': return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
       case 'register': return <RegistrationForm onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('list')} currentUser={user} />;
       case 'admin': return user.role === 'ADMIN' ? <UserManagement /> : <Dashboard students={students} />;
-      case 'audit-logs':
-        const canAccessAudit = user.role === 'ADMIN' ||
-          user.role === 'EDUCATION_SECRETARY' ||
-          user.role === 'SECRETARIA_SEDE' ||
-          user.role === 'SECRETARIA_COCAL' ||
-          user.role === 'ASSISTANT';
-        return canAccessAudit ? <AuditLogs currentUser={user} /> : <Dashboard students={students} />;
-
-      // ROTAS PROTEGIDAS POR PERMISSÃO
-      case 'backup':
-        return hasPermission(user, 'can_access_security_data')
-          ? <BackupSystem currentUser={user} />
-          : <Dashboard students={students} currentUser={user} />;
-
+      case 'audit-logs': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' || user.role === 'ASSISTANT') ? <AuditLogs currentUser={user} /> : <Dashboard students={students} />;
+      case 'backup': return hasPermission(user, 'can_access_security_data') ? <BackupSystem currentUser={user} /> : <Dashboard students={students} currentUser={user} />;
       case 'settings': return user.role === 'ADMIN' ? <SystemSettingsPanel /> : <Dashboard students={students} />;
       case 'letterhead-config': return user.role === 'ADMIN' ? <PapelTimbradoConfigPanel /> : <Dashboard students={students} />;
       case 'schools': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' || user.role === 'ESCOLA') ? <SchoolManagement /> : <Dashboard students={students} />;
       case 'support-professionals': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' || user.role === 'ESCOLA') ? <SupportProfessionalManagement currentUser={user} /> : <Dashboard students={students} />;
       case 'about': return <AboutSystem />;
       case 'documents': return <DocumentGenerator currentUser={user} />;
-      case 'vault': return <DocumentVault
-        currentUser={user}
-        students={students}
-        onModelSelect={(model) => {
-          handleNavigate('documents');
-        }}
-      />;
+      case 'vault': return <DocumentVault currentUser={user} students={students} onModelSelect={() => handleNavigate('documents')} />;
       case 'my-access': return <MyAccess currentUser={user} />;
       default: return <Dashboard students={students} currentUser={user} />;
     }
-  };
+  }
+
+  const content = useMemo(() => renderContent(), [currentPage, students, selectedStudent, rescheduleData, user, handleNavigate, handleSelectStudent, handleEditStudent, handleDeleteStudent, handleRegisterSuccess]);
+
+  // 5. Retornos Antecipados (SEMPRE após todos os hooks)
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white space-y-4">
+        <Loader2 size={48} className="animate-spin text-primary-600" />
+        <p className="text-slate-500 font-medium">{isRecoveryMode ? 'Validando link de recuperação...' : 'Iniciando sistema...'}</p>
+      </div>
+    );
+  }
+
+  const isDebug = window.location.search.includes('debug=true');
+
+  if (!user) {
+    if (showLogin) {
+      return (
+        <>
+          <Login onLogin={handleLogin} onBack={() => setShowLogin(false)} systemSettings={systemSettings} />
+          {isDebug && <div className="fixed bottom-0 right-0 p-2 bg-black/80 text-white text-[10px] z-[9999]">No User | Debug Mode Active</div>}
+        </>
+      );
+    }
+    return <LandingPage onAccessSystem={() => setShowLogin(true)} systemSettings={systemSettings} />;
+  }
+
+  if (user.mustChangePassword) {
+    return (
+      <React.Suspense fallback={<PageLoading />}>
+        <ChangePassword userId={user.id} onSuccess={async () => { setUser({ ...user, mustChangePassword: false }); }} />
+      </React.Suspense>
+    );
+  }
 
   return (
     <NotificationProvider currentUser={user}>
-      <Layout
-        activePage={currentPage}
-        onNavigate={handleNavigate}
-        currentUser={user}
-        onLogout={handleLogout}
-        systemSettings={systemSettings}
-      >
-        {/* Header Controls */}
+      <Layout activePage={currentPage} onNavigate={handleNavigate} currentUser={user} onLogout={handleLogout} systemSettings={systemSettings}>
         {user && (
           <div className="flex justify-end items-center gap-3 mb-6 px-4 md:px-0">
             <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-2 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
@@ -705,10 +534,7 @@ function App() {
             </div>
           </div>
         )}
-
-        <React.Suspense fallback={<PageLoading />}>
-          {renderContent()}
-        </React.Suspense>
+        <React.Suspense fallback={<PageLoading />}>{content}</React.Suspense>
       </Layout>
     </NotificationProvider>
   );

@@ -1,0 +1,18 @@
+{
+  "schools": {
+    "accessible_count": 29,
+    "error": null
+  },
+  "students": {
+    "accessible_count": 2,
+    "error": null
+  },
+  "support_professionals": {
+    "accessible_count": 44,
+    "error": null
+  },
+  "profiles": {
+    "accessible_count": 68,
+    "error": null
+  }
+}

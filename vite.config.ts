@@ -26,7 +26,11 @@ export default defineConfig(({ mode }) => {
             'vendor-react': ['react', 'react-dom'],
             'vendor-ui': ['lucide-react', 'recharts'],
             'vendor-supabase': ['@supabase/supabase-js'],
-            'vendor-utils': ['react-markdown']
+            'vendor-utils': ['react-markdown'],
+            // Heavy libs loaded only when needed (PDF, CSV, AI)
+            'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+            'vendor-csv': ['papaparse'],
+            'vendor-ai': ['@google/genai'],
           }
         }
       }

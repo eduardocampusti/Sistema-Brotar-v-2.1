@@ -1,0 +1,15 @@
+{
+  "join_test": {
+    "success": true,
+    "data": [
+      {
+        "id": "caf07256-27ff-4d69-8de8-9cbeadb1a804",
+        "full_name": "Miguel Caetano de Jesus Portela",
+        "schools": {
+          "id": "e7766d59-ec62-449b-bdd5-386547abef09",
+          "name": "Escola Mun. Maria de Meira Lima Costa"
+        }
+      }
+    ]
+  }
+}
