@@ -21,7 +21,9 @@ import {
   CheckCircle2,
   AlertCircle,
   FileEdit,
-  Loader2
+  Loader2,
+  GitMerge,
+  CopyCheck
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import { CSVImporter } from './CSVImporter';
@@ -62,6 +64,13 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
   const [showImporter, setShowImporter] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [isMerging, setIsMerging] = useState(false);
+
+  // Estados para Mesclagem
+  const [mainStudentId, setMainStudentId] = useState<string>('');
+  const [duplicateStudentId, setDuplicateStudentId] = useState<string>('');
+  const [hasConfirmedIrreversible, setHasConfirmedIrreversible] = useState(false);
 
   // Menu de Ações
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -151,6 +160,43 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
     }
   }, [studentToDelete, currentUser, onDelete]);
 
+  const handleMerge = async () => {
+    if (!mainStudentId || !duplicateStudentId || !hasConfirmedIrreversible || !currentUser) return;
+    
+    if (mainStudentId === duplicateStudentId) {
+      alert("Selecione alunos diferentes para realizar a mesclagem.");
+      return;
+    }
+
+    try {
+      setIsMerging(true);
+      const mainStudent = students.find(s => s.id === mainStudentId);
+      const duplicateStudent = students.find(s => s.id === duplicateStudentId);
+      
+      const { error } = await SupabaseService.mergeStudents(mainStudentId, duplicateStudentId);
+      
+      if (error) throw error;
+
+      await SupabaseService.logAction(
+        currentUser, 
+        'MERGE', 
+        'ALUNOS', 
+        `Mesclagem: ${duplicateStudent?.fullName} (removido) -> ${mainStudent?.fullName} (mantido)`
+      );
+
+      setShowMergeModal(false);
+      setMainStudentId('');
+      setDuplicateStudentId('');
+      setHasConfirmedIrreversible(false);
+      window.location.reload(); // Atualiza a lista para refletir a remoção
+    } catch (error: any) {
+      console.error("Erro na mesclagem:", error);
+      alert("Erro ao realizar mesclagem: " + error.message);
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn pb-20">
 
@@ -199,6 +245,13 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
           {canRegister && (
             <div className="flex gap-2">
               <button
+                onClick={() => setShowMergeModal(true)}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-all font-bold text-xs uppercase tracking-widest shadow-sm"
+              >
+                <GitMerge size={16} />
+                Mesclar Alunos
+              </button>
+              <button
                 onClick={() => setShowImporter(true)}
                 className="flex items-center justify-center gap-2 px-5 py-2.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-xl hover:bg-teal-100 transition-all font-bold text-xs uppercase tracking-widest shadow-sm"
               >
@@ -216,6 +269,121 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
           )}
         </div>
       </div>
+
+      {/* Modal Mesclagem */}
+      {showMergeModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-2xl w-full overflow-hidden animate-scaleIn">
+            {/* Header Modal */}
+            <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                  <GitMerge className="text-indigo-600" size={24} />
+                  Mesclar Registros de Alunos
+                </h3>
+                <p className="text-slate-500 text-xs font-medium mt-1">Consolide dois cadastros em um único prontuário</p>
+              </div>
+              <button 
+                onClick={() => setShowMergeModal(false)}
+                className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Aluno Principal */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <CheckCircle2 size={12} className="text-emerald-500" />
+                    Aluno Principal (Será Mantido)
+                  </label>
+                  <SearchableSelect
+                    options={students.map(s => ({ value: s.id, label: `${s.fullName} ${s.cpf ? `(${s.cpf})` : ''}` }))}
+                    value={mainStudentId}
+                    onChange={setMainStudentId}
+                    placeholder="Selecione o aluno oficial..."
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Este registro receberá todos os dados do outro aluno.</p>
+                </div>
+
+                {/* Aluno Duplicado */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Trash2 size={12} className="text-rose-500" />
+                    Aluno Duplicado (Será Apagado)
+                  </label>
+                  <SearchableSelect
+                    options={students.map(s => ({ value: s.id, label: `${s.fullName} ${s.cpf ? `(${s.cpf})` : ''}` }))}
+                    value={duplicateStudentId}
+                    onChange={setDuplicateStudentId}
+                    placeholder="Selecione o cadastro duplicado..."
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Este registro será removido permanentemente após a mesclagem.</p>
+                </div>
+              </div>
+
+              {/* Alerta de Perigo */}
+              <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 flex gap-4">
+                <div className="p-2 bg-rose-100 text-rose-600 rounded-xl h-fit">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-rose-800">Ação Irreversível</h4>
+                  <p className="text-xs text-rose-700/80 mt-1 leading-relaxed">
+                    Ao confirmar, todas as sessões, documentos e informações do <b>Aluno Duplicado</b> serão transferidos para o <b>Aluno Principal</b>. O registro duplicado será <b>excluído permanentemente</b>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Checkbox de Confirmação Extra */}
+              <label className="flex items-start gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors group">
+                <input 
+                  type="checkbox" 
+                  checked={hasConfirmedIrreversible}
+                  onChange={(e) => setHasConfirmedIrreversible(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-xs font-bold text-slate-600 group-hover:text-slate-800 transition-colors">
+                  Estou ciente de que esta ação é irreversível e desejo prosseguir com a mesclagem dos dados.
+                </span>
+              </label>
+            </div>
+
+            {/* Footer Modal */}
+            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
+              <button
+                onClick={() => setShowMergeModal(false)}
+                className="px-6 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-slate-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={!mainStudentId || !duplicateStudentId || !hasConfirmedIrreversible || isMerging}
+                onClick={handleMerge}
+                className={`flex items-center gap-2 px-8 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 ${
+                  !mainStudentId || !duplicateStudentId || !hasConfirmedIrreversible || isMerging
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/20'
+                }`}
+              >
+                {isMerging ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Mesclando...
+                  </>
+                ) : (
+                  <>
+                    <CopyCheck size={16} />
+                    Confirmar Mesclagem
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Importador */}
       {showImporter && (

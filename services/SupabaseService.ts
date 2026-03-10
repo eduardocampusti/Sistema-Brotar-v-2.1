@@ -614,11 +614,14 @@ export class SupabaseService {
             return cleaned === '' ? null : cleaned;
         };
 
+        const cleanCPF = student.cpf ? student.cpf.replace(/\D/g, '') : '';
+
         // dbPayload obrigatório com school_id para permitir atualização de vínculo via upsert
         const dbPayload: any = {
+            id: student.id, // Garante que o ID esteja no payload para upserts por ID
             full_name: student.fullName,
             birth_date: student.birthDate,
-            cpf: sanitizeCPF(student.cpf) || null,
+            cpf: cleanCPF || null,
             sus_card: sanitizeField(student.susCard),
             grade: student.school.grade,
             shift: student.school.shift,
@@ -673,11 +676,13 @@ export class SupabaseService {
         }
 
 
-        console.log(`[SupabaseService] Realizando upsert do aluno com conflito no CPF...`);
-        // Salvamento atômico exclusivo via Upsert com onConflict no CPF
+        const conflictTarget = dbPayload.cpf ? 'cpf' : 'id';
+        console.log(`[SupabaseService] Realizando upsert do aluno com conflito no ${conflictTarget}...`);
+
+        // Salvamento atômico exclusivo via Upsert híbrido (CPF ou ID)
         const { data, error } = await supabase
             .from('students')
-            .upsert(dbPayload, { onConflict: 'cpf' })
+            .upsert(dbPayload, { onConflict: conflictTarget })
             .select('id')
             .single();
 
@@ -701,6 +706,13 @@ export class SupabaseService {
         
         // Invalida o cache
         this.invalidateCache('students_');
+    }
+
+    static async mergeStudents(targetId: string, duplicateId: string) {
+        return await supabase.rpc('merge_students', { 
+            target_student_id: targetId, 
+            duplicate_student_id: duplicateId 
+        });
     }
 
     // --- Intelligent Import & Lookup ---
@@ -1668,9 +1680,11 @@ export class SupabaseService {
         const toNull = (value: any) => (value === '' || value === undefined ? null : value);
 
         const payloads = professionals.map(prof => {
+            const cleanCPF = prof.cpf ? prof.cpf.replace(/\D/g, '') : '';
             const payload: any = {
+                id: prof.id,
                 name: prof.name,
-                cpf: sanitizeCPF(prof.cpf) || null,
+                cpf: cleanCPF || null,
                 phone: prof.phone,
                 email: prof.email,
                 education: prof.education,
@@ -1681,7 +1695,6 @@ export class SupabaseService {
                 regent_teacher: prof.regentTeacher,
                 student_id: toNull(prof.studentId)
             };
-
 
             // Sanitização final: remove chaves undefined
             Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
