@@ -14,6 +14,7 @@ interface SearchableSelectProps {
     placeholder?: string;
     label?: string;
     className?: string;
+    disabled?: boolean;
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -22,7 +23,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     onChange,
     placeholder = "Selecione...",
     label,
-    className = ""
+    className = "",
+    disabled = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -66,11 +68,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
         <div className={`relative ${className}`} ref={dropdownRef}>
             {/* Botão Principal */}
             <div
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={`
           flex items-center justify-between w-full px-3 py-2 bg-white 
-          border rounded-lg cursor-pointer transition-colors
-          ${isOpen ? 'border-primary-500 ring-2 ring-primary-100' : 'border-slate-300 hover:border-slate-400'}
+          border rounded-lg transition-colors
+          ${disabled ? 'bg-slate-50 cursor-not-allowed opacity-70 border-slate-200' : 'cursor-pointer border-slate-300 hover:border-slate-400'}
+          ${isOpen && !disabled ? 'border-primary-500 ring-2 ring-primary-100' : ''}
         `}
             >
                 <div className="flex items-center gap-2 overflow-hidden">

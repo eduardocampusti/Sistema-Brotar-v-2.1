@@ -6,6 +6,7 @@ import { formatarNomeBR } from '../utils/formatters';
 import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 import { CSVImporter } from './CSVImporter';
+import SearchableSelect from './SearchableSelect';
 
 // Componente de Toast Simples
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => {
@@ -62,6 +63,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
     const [showImporter, setShowImporter] = useState(false);
+    const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('ALL');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const isEscola = currentUser?.role === 'ESCOLA';
 
@@ -300,13 +302,17 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         setSchoolSearchTerm('');
     };
 
-    // Auto-seleção de escola para o role ESCOLA
     useEffect(() => {
-        if (currentUser?.role === 'ESCOLA' && currentUser.schoolInep && !formData.schoolId && schools.length > 0) {
+        if (currentUser?.role === 'ESCOLA' && currentUser.schoolInep && schools.length > 0) {
             const mySchool = schools.find(s => s.inep === currentUser.schoolInep);
             if (mySchool) {
-                setFormData(prev => ({ ...prev, schoolId: mySchool.id }));
-                setSchoolSearchTerm(mySchool.name);
+                // Auto-seleção no formulário
+                if (!formData.schoolId) {
+                    setFormData(prev => ({ ...prev, schoolId: mySchool.id }));
+                    setSchoolSearchTerm(mySchool.name);
+                }
+                // Travar o filtro na escola dela
+                setSelectedSchoolFilter(mySchool.id);
             }
         }
     }, [currentUser, schools, formData.schoolId]);
@@ -380,18 +386,34 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         return schools.filter(s => s.name.toLowerCase().includes(schoolSearchTerm.toLowerCase()));
     }, [schools, schoolSearchTerm]);
 
+    // Opções de escola para o filtro de listagem
+    const schoolFilterOptions = useMemo(() => [
+        { value: 'ALL', label: 'Todas as Escolas' },
+        ...schools.map(s => ({ value: s.id, label: s.name }))
+            .sort((a, b) => a.label.localeCompare(b.label))
+    ], [schools]);
+
     // Lógica para filtrar alunos baseada na escola selecionada
     const filteredStudents = useMemo(() => {
         if (!formData.schoolId) return []; // Retorna vazio se nenhuma escola selecionada
         return students.filter(s => s.school?.schoolId === formData.schoolId);
     }, [students, formData.schoolId]);
 
-    // Filtragem de profissionais por permissão (Escola só vê os dela)
+    // Filtragem de profissionais por permissão (Escola só vê os dela) e filtro selecionado
     const filteredProfessionals = useMemo(() => {
-        if (!isEscola) return professionals;
-        const mySchoolId = schools.find(s => s.inep === currentUser?.schoolInep)?.id;
-        return professionals.filter(p => p.schoolId === mySchoolId);
-    }, [professionals, isEscola, currentUser, schools]);
+        let result = professionals;
+
+        // 1. Restrição por Perfil (ESCOLA só vê a sua unidade)
+        if (isEscola) {
+            const mySchoolId = schools.find(s => s.inep === currentUser?.schoolInep)?.id;
+            result = result.filter(p => p.schoolId === mySchoolId);
+        } else if (selectedSchoolFilter !== 'ALL') {
+            // 2. Filtro Manual (Para Admin/Secretaria)
+            result = result.filter(p => p.schoolId === selectedSchoolFilter);
+        }
+
+        return result;
+    }, [professionals, isEscola, currentUser, schools, selectedSchoolFilter]);
 
     const getSchoolName = (id: string) => schools.find(s => s.id === id)?.name || 'Desconhecida';
     const getStudentName = (id: string) => students.find(s => s.id === id)?.fullName || 'Desconhecido';
@@ -823,6 +845,41 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     </form>
                 </div>
             )}
+
+            {/* FILTROS E CONTROLES DE LISTAGEM */}
+            <div className="flex flex-col md:flex-row items-end gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 animate-fadeIn">
+                <div className="w-full md:w-80">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
+                        <SchoolIcon size={12} className="text-primary-500" />
+                        Filtrar por Unidade Escolar
+                    </label>
+                    <SearchableSelect
+                        options={schoolFilterOptions}
+                        value={selectedSchoolFilter}
+                        onChange={setSelectedSchoolFilter}
+                        disabled={isEscola}
+                        placeholder="Todas as escolas..."
+                    />
+                </div>
+                
+                {!isEscola && selectedSchoolFilter !== 'ALL' && (
+                    <button 
+                        onClick={() => setSelectedSchoolFilter('ALL')}
+                        className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all font-bold text-[10px] uppercase tracking-wider mb-0.5"
+                    >
+                        <X size={14} /> Limpar Filtro
+                    </button>
+                )}
+                
+                <div className="flex-1 flex justify-end items-center mb-1">
+                    <div className="bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 flex items-center gap-2 shadow-sm">
+                         <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
+                            Exibindo {filteredProfessionals.length} profissionais
+                         </span>
+                    </div>
+                </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-10">
                 {filteredProfessionals.length === 0 ? (
