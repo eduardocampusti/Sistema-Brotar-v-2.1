@@ -596,11 +596,11 @@ export class SupabaseService {
             return cleaned === '' ? null : cleaned;
         };
 
+        // Pre-processamento do dbPayload para assegurar o CPF null e seguro
         const dbPayload: any = {
-            // id: student.id, // ID é gerado pelo banco no insert
             full_name: student.fullName,
             birth_date: student.birthDate,
-            cpf: sanitizeField(student.cpf),
+            cpf: sanitizeCPF(student.cpf) || null,
             sus_card: sanitizeField(student.susCard),
             grade: student.school.grade,
             shift: student.school.shift,
@@ -662,66 +662,31 @@ export class SupabaseService {
             dbPayload.documents = [...existingDocs, ...uploadedDocs];
         }
 
-        // [FIX] Smart Save: Verifica se já existe por CPF se o ID não foi informado ou é inválido
-        let targetId = student.id;
-
-        // Só busca por CPF se o CPF for válido (não nulo)
-        if ((!targetId || targetId.length < 5) && dbPayload.cpf) {
-            console.log(`[SupabaseService] Buscando aluno por CPF: '${dbPayload.cpf}'`);
-            const { data: existingStudent } = await supabase
-                .from('students')
-                .select('id')
-                .eq('cpf', dbPayload.cpf)
-                .maybeSingle();
-
-            if (existingStudent) {
-                console.log(`[SupabaseService] Aluno encontrado por CPF (${dbPayload.cpf}). ID: ${existingStudent.id}. Modo UPDATE.`);
-                targetId = existingStudent.id;
-            } else {
-                console.log(`[SupabaseService] CPF '${dbPayload.cpf}' não encontrado no banco.`);
-            }
+        if (student.id && student.id.length > 5) {
+            dbPayload.id = student.id;
         }
 
-        let savedId = targetId;
+        console.log(`[SupabaseService] Realizando upsert do aluno...`);
+        const { data, error } = await supabase
+            .from('students')
+            .upsert(dbPayload, { onConflict: 'cpf' })
+            .select('id')
+            .maybeSingle();
 
-        if (targetId && targetId.length > 5) { // Update
-            console.log(`[SupabaseService] Atualizando aluno ${targetId}`);
-
-            const { data, error } = await supabase
-                .from('students')
-                .update(dbPayload)
-                .eq('id', targetId)
-                .select('id')
-                .maybeSingle();
-
-            if (error) {
-                console.error('Erro ao atualizar aluno:', error);
-                throw error;
+        if (error) {
+            console.error('Erro ao salvar aluno (Upsert):', error);
+            // Captura o erro de RLS (Permission Denied) ou colisão em outra unidade
+            if (error.code === '42501' || error.message.includes('RLS') || error.message.includes('permission denied')) {
+                 throw new Error('Este CPF já está cadastrado em outra unidade. Entre em contato com a Secretaria para solicitar a transferência do aluno.');
             }
-            if (!data) {
-                throw new Error('Aluno não encontrado para atualização ou permissão negada.');
-            }
-            savedId = data.id;
-        } else { // Insert
-            console.log(`[SupabaseService] Criando novo aluno`);
-            // Remove ID placeholder if empty
-            if (dbPayload.id === '' || dbPayload.id === undefined) delete (dbPayload as any).id;
-
-            const { data, error } = await supabase
-                .from('students')
-                .insert(dbPayload)
-                .select('id')
-                .maybeSingle();
-
-            if (error) {
-                console.error('Erro ao criar aluno:', error);
-                throw error;
-            }
-            if (!data) {
-                throw new Error('Erro ao criar aluno: Nenhum dado retornado.');
-            }
-            savedId = data.id;
+            throw new Error(error.message);
         }
+
+        if (!data) {
+             throw new Error('Erro ao salvar aluno: Nenhum dado retornado (pode ter sido bloqueado por permissão).');
+        }
+
+        const savedId = data.id;
 
         // --- Alerta Automático (Sino) para Novos Cadastros ---
         if (!student.id && savedId) {
@@ -1833,30 +1798,19 @@ export class SupabaseService {
         console.log(`[SupabaseService] Processando ${uniquePayloads.length} profissionais únicos (após deduplicação)...`);
 
         return safeCall(async () => {
-            // Separa em inserts (sem ID) e updates (com ID) para evitar o erro de constraint "null value in column id"
-            const updates = uniquePayloads.filter(p => p.id != null);
-            const inserts = uniquePayloads.filter(p => p.id == null);
+            // Realizando UPSERT nativo
+            const { error } = await supabase
+                .from('support_professionals')
+                .upsert(uniquePayloads, { onConflict: 'cpf' });
 
-            // Realizando UPDATES individuais. Evita o erro de concorrência "cannot affect row a second time"
-            // que costuma ocorrer quando triggers ou chaves únicas secundárias (como cpf) atrapalham o bulk upsert
-            if (updates.length > 0) {
-                for (const up of updates) {
-                    const updateData = { ...up };
-                    delete updateData.id; // Retira o ID do body, usando só no .eq()
-                    const { error } = await supabase.from('support_professionals').update(updateData).eq('id', up.id);
-                    if (error) {
-                        console.error('Erro no UPDATE de profissionais:', error);
-                        throw new Error(`Erro Banco de Dados (Update do ID ${up.id}): ${error.message}`);
-                    }
+            if (error) {
+                console.error('Erro no UPSERT de profissionais:', error);
+                
+                // Aplica a mesma lógica de RLS amigável para profissionais
+                if (error.code === '42501' || error.message.includes('RLS') || error.message.includes('permission denied')) {
+                     throw new Error('Este CPF de profissional já está cadastrado em outra unidade. Entre em contato para solicitar a transferência.');
                 }
-            }
-
-            if (inserts.length > 0) {
-                const { error } = await supabase.from('support_professionals').insert(inserts);
-                if (error) {
-                    console.error('Erro no INSERT de profissionais:', error);
-                    throw new Error(`Erro Banco de Dados (Insert): ${error.message}`);
-                }
+                throw new Error(`Erro Banco de Dados (Upsert): ${error.message}`);
             }
         });
     }
