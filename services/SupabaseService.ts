@@ -8,48 +8,64 @@ const sanitizeCPF = (cpf: string | undefined | null): string => {
     return cpf.replace(/\D/g, '');
 };
 
-const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
-    id: dbStudent.id,
-    fullName: dbStudent.full_name,
-    birthDate: dbStudent.birth_date,
-    gender: (dbStudent.clinical_info?.gender || 'Outro') as any, // Fallback se não tiver na coluna
-    photoUrl: dbStudent.photo_url || dbStudent.clinical_info?.photoUrl,
-    cpf: dbStudent.cpf || '',
-    rg: dbStudent.clinical_info?.rg,
-    susCard: dbStudent.sus_card,
-    motherName: dbStudent.clinical_info?.motherName,
-    fatherName: dbStudent.clinical_info?.fatherName,
-    nationality: dbStudent.clinical_info?.nationality,
-    birthPlace: dbStudent.clinical_info?.birthPlace,
-    ethnicity: dbStudent.ethnicity || undefined,
-    address: dbStudent.address || {},
-    guardians: dbStudent.guardians || [],
-    clinical: dbStudent.clinical_info || {
-        diagnosis: '', medications: '', allergies: '', specialNeeds: [], therapiesHistory: ''
-    },
-    school: {
-        schoolId: dbStudent.school_id, // Captura o UUID da tabela schools
-        schoolName: (Array.isArray(dbStudent.schools) ? dbStudent.schools[0]?.name : dbStudent.schools?.name) || 'Não vinculada',
-        grade: dbStudent.grade,
-        shift: dbStudent.shift as any,
-        district: (Array.isArray(dbStudent.schools) ? dbStudent.schools[0]?.district : dbStudent.schools?.district) || 'Sede',
-        hasSpecialAide: false,
-        difficulties: ''
-    },
-    socialInfo: dbStudent.social_info,
-    documents: dbStudent.documents || [],
-    unit: dbStudent.unit, // Mapeamento da unidade (Sede/Cocal)
-    history: (sessions || []).map(s => ({
-        id: s.id,
-        date: s.date,
-        specialty: s.specialty,
-        professionalName: 'Profissional', // Join com profile seria ideal
-        notes: s.content?.summary || s.content?.objetivo || s.content?.resumo || 'Atendimento realizado',
-        content: s.content, // Mapeia o JSON completo
-    })),
-    status: dbStudent.status,
-    createdAt: dbStudent.created_at
-});
+const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => {
+    // Fallback seguro para capturar nome e distrito da escola
+    const getSchoolName = (schoolsProp: any) => {
+        if (!schoolsProp) return 'Não vinculada';
+        if (Array.isArray(schoolsProp)) return schoolsProp[0]?.name || 'Não vinculada';
+        return schoolsProp.name || 'Não vinculada';
+    };
+
+    const getSchoolDistrict = (schoolsProp: any) => {
+        if (!schoolsProp) return 'Sede';
+        if (Array.isArray(schoolsProp)) return schoolsProp[0]?.district || 'Sede';
+        return schoolsProp.district || 'Sede';
+    };
+
+    return {
+        id: dbStudent.id,
+        fullName: dbStudent.full_name,
+        birthDate: dbStudent.birth_date,
+        gender: (dbStudent.clinical_info?.gender || 'Outro') as any, // Fallback se não tiver na coluna
+        photoUrl: dbStudent.photo_url || dbStudent.clinical_info?.photoUrl,
+        cpf: dbStudent.cpf || '',
+        rg: dbStudent.clinical_info?.rg,
+        susCard: dbStudent.sus_card,
+        motherName: dbStudent.clinical_info?.motherName,
+        fatherName: dbStudent.clinical_info?.fatherName,
+        nationality: dbStudent.clinical_info?.nationality,
+        birthPlace: dbStudent.clinical_info?.birthPlace,
+        ethnicity: dbStudent.ethnicity || undefined,
+        address: dbStudent.address || {},
+        guardians: dbStudent.guardians || [],
+        clinical: dbStudent.clinical_info || {
+            diagnosis: '', medications: '', allergies: '', specialNeeds: [], therapiesHistory: ''
+        },
+        school: {
+            schoolId: dbStudent.school_id, 
+            schoolName: getSchoolName(dbStudent.schools),
+            grade: dbStudent.grade,
+            shift: dbStudent.shift as any,
+            district: getSchoolDistrict(dbStudent.schools),
+            hasSpecialAide: false,
+            difficulties: ''
+        },
+        socialInfo: dbStudent.social_info,
+        documents: dbStudent.documents || [],
+        unit: dbStudent.unit, // Mapeamento da unidade (Sede/Cocal)
+        history: (sessions || []).map(s => ({
+            id: s.id,
+            date: s.date,
+            specialty: s.specialty,
+            professionalName: 'Profissional', // Join com profile seria ideal
+            notes: s.content?.summary || s.content?.objetivo || s.content?.resumo || 'Atendimento realizado',
+            content: s.content, // Mapeia o JSON completo
+        })),
+        status: dbStudent.status,
+        createdAt: dbStudent.created_at
+    };
+};
+
 
 // Função utilitária para retry em caso de AbortError ou falha de rede e monitoramento de performance
 const safeCall = async <T>(fn: () => Promise<T>, retries = 2, interval = 300, contextName = 'Operação'): Promise<T> => {
@@ -247,10 +263,10 @@ export class SupabaseService {
      * Busca o perfil do usuário pelo ID sem precisar autenticar (útil para sessões já ativas como Recovery)
      */
     static async getUserProfile(userId: string): Promise<User | null> {
-        // Verifica cache primeiro
-        if (this.userProfileCache.has(userId)) {
-            return this.userProfileCache.get(userId) || null;
-        }
+        // Verifica cache primeiro - DESATIVADO TEMPORARIAMENTE para garantir leitura em tempo real
+        // if (this.userProfileCache.has(userId)) {
+        //     return this.userProfileCache.get(userId) || null;
+        // }
 
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
@@ -502,14 +518,11 @@ export class SupabaseService {
         return safeCall(async () => {
             console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'})...`);
             
-            // Otimização: Apenas os campos necessários do join para evitar carga excessiva
+            // Otimização: Apenas os campos necessários do join para evitar carga excessiva.
+            // TEMPORÁRIO: Alterado para .select('*') para restaurar conectividade básica.
             let query = supabase
                 .from('students')
-                .select(`
-                    id, full_name, birth_date, cpf, sus_card, grade, shift, status, created_at, unit,
-                    ethnicity, school_id, photo_url,
-                    schools (name, district)
-                `)
+                .select('*')
                 .order('full_name');
 
             // Filtragem no Lado do Servidor (Server-Side)
@@ -950,9 +963,10 @@ export class SupabaseService {
         if (cached) return cached;
 
         try {
+            // TEMPORÁRIO: Alterado para .select('*') para restaurar conectividade básica.
             const { data, error } = await supabase
                 .from('schools')
-                .select('id, name, inep, director, phone, district, is_active, has_internet, internet_type')
+                .select('*')
                 .order('name');
 
             if (error) throw error;
@@ -1682,7 +1696,7 @@ export class SupabaseService {
             const { data, error } = await supabase
                 .from('support_professionals')
                 .select(`
-                    id, name, photo_url, cpf, phone, email, education,
+                    id, name, cpf, phone, email, education,
                     contract_start_date, workload, address, school_id,
                     regent_teacher, student_id, created_at
                 `)
@@ -1697,7 +1711,6 @@ export class SupabaseService {
             return data.map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                photoUrl: p.photo_url,
                 cpf: p.cpf,
                 phone: p.phone,
                 email: p.email,
@@ -1715,13 +1728,10 @@ export class SupabaseService {
 
     static async getSupportProfessionals(unit?: Unit): Promise<SupportProfessional[]> {
         return safeCall(async () => {
+            // TEMPORÁRIO: Alterado para .select('*') para restaurar conectividade básica.
             let query = supabase
                 .from('support_professionals')
-                .select(`
-                    id, name, photo_url, cpf, phone, email, education,
-                    contract_start_date, workload, school_id,
-                    regent_teacher, student_id, created_at
-                `)
+                .select('*')
                 .order('name');
             
             // Possível futura filtragem por unidade, análoga aos alunos (se houver campo unit na tabela ou address->unit)
@@ -1737,13 +1747,13 @@ export class SupabaseService {
             return data.map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                photoUrl: p.photo_url,
                 cpf: p.cpf,
                 phone: p.phone,
                 email: p.email,
                 education: p.education,
                 contractStartDate: p.contract_start_date,
                 workload: p.workload,
+                address: p.address,
                 schoolId: p.school_id,
                 regentTeacher: p.regent_teacher,
                 studentId: p.student_id,
@@ -1764,7 +1774,6 @@ export class SupabaseService {
 
             const payload: any = {
                 name: prof.name,
-                photo_url: prof.photoUrl,
                 cpf: sanitizeCPF(prof.cpf),
                 phone: prof.phone,
                 email: prof.email,
