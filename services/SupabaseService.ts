@@ -654,9 +654,6 @@ export class SupabaseService {
             dbPayload.documents = [...(student.documents || []), ...uploadedDocs];
         }
 
-        if (student.id && student.id.length > 5) {
-            dbPayload.id = student.id;
-        }
 
         console.log(`[SupabaseService] Realizando upsert do aluno com conflito no CPF...`);
         // Salvamento atômico exclusivo via Upsert com onConflict no CPF
@@ -1667,9 +1664,6 @@ export class SupabaseService {
                 student_id: toNull(prof.studentId)
             };
 
-            if (prof.id && prof.id.length > 10) {
-                payload.id = prof.id;
-            }
 
             // Sanitização final: remove chaves undefined
             Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
