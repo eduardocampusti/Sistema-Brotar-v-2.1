@@ -7,7 +7,7 @@ import {
     Save, School as SchoolIcon, X, MapPin, Phone, Building,
     AlertCircle, Wifi, Globe, Upload, FileText, CheckCircle,
     Info, Layout, Search, Filter, ChevronRight, Activity, Tag,
-    Download, Printer, File, Lock
+    Download, Printer, File, Lock, User as UserIcon
 } from 'lucide-react';
 import { generateSchoolPDF, generateAllSchoolsPDF } from '../utils/pdfExport';
 import { PapelTimbradoConfig } from '../types';
@@ -652,7 +652,7 @@ export const SchoolManagement: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredSchools.length === 0 ? (
                     <div className="col-span-full py-12 text-center bg-white rounded-3xl border border-slate-100">
                         <div className="p-4 bg-slate-50 rounded-full w-fit mx-auto mb-4">
@@ -661,72 +661,70 @@ export const SchoolManagement: React.FC = () => {
                         <p className="text-slate-500 font-bold">Nenhuma unidade encontrada.</p>
                     </div>
                 ) : filteredSchools.map(school => (
-                    <div key={school.id} className="group bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-primary-100 transition-all relative overflow-hidden flex flex-col justify-between">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary-500/5 rounded-bl-full -translate-y-8 translate-x-8 group-hover:scale-110 transition-transform"></div>
+                    <div key={school.id} className="group bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md hover:border-primary-100 transition-all relative flex flex-col justify-between overflow-hidden">
+                        {/* Badge de Status no Canto */}
+                        <div className="absolute top-3 right-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${school.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {school.isActive ? 'Ativo' : 'Inativo'}
+                            </span>
+                        </div>
 
-                        <div>
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="p-3 bg-primary-50 text-primary-600 rounded-2xl group-hover:bg-primary-600 group-hover:text-white transition-colors">
-                                    <Building size={20} />
+                        <div className="space-y-3">
+                            {/* Cabeçalho: Ícone + Nome */}
+                            <div className="flex items-center gap-2 pr-12">
+                                <div className={`p-1.5 rounded-lg ${school.isActive ? 'bg-primary-50 text-primary-600' : 'bg-slate-100 text-slate-400'}`}>
+                                    <SchoolIcon size={16} />
                                 </div>
-                                <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200">
-                                    INEP: {school.inep}
-                                </span>
+                                <h3 className="text-sm font-bold text-slate-800 leading-tight truncate uppercase" title={school.name}>
+                                    {school.name}
+                                </h3>
                             </div>
 
-                            <h3 className="text-lg font-black text-slate-800 leading-tight mb-1 group-hover:text-primary-700 transition-colors uppercase">
-                                {school.name}
-                            </h3>
-                            <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase mb-4">
-                                <MapPin size={12} className="text-orange-500" />
-                                {school.district || 'Sede'}
+                            {/* Grade de Informações Compactas */}
+                            <div className="grid grid-cols-1 gap-1.5 text-[11px] text-slate-500 font-medium">
+                                <div className="flex items-center gap-2">
+                                    <MapPin size={14} className="text-orange-400 shrink-0" />
+                                    <span className="truncate">{school.district || 'Sede'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <UserIcon size={14} className="text-blue-400 shrink-0" />
+                                    <span className="truncate">{school.director || 'Direção não informada'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Phone size={14} className="text-emerald-400 shrink-0" />
+                                    <span>{school.phone || 'Sem telefone'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 pt-1">
+                                    <Tag size={12} className="text-slate-400 shrink-0" />
+                                    <span className="font-mono text-[9px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 text-slate-600">
+                                        INEP: {school.inep}
+                                    </span>
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Gestão</p>
-                                    <p className="text-xs font-bold text-slate-600 truncate">{school.director || 'Não Informado'}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Conectividade</p>
-                                    <div className={`flex flex-col gap-1 text-[10px] font-bold ${school.hasInternet ? 'text-green-600' : 'text-slate-400'}`}>
-                                        <div className="flex items-center gap-1.5">
-                                            <Wifi size={14} className="shrink-0" />
-                                            <span>{school.hasInternet ? 'Conectada' : 'Sem Internet'}</span>
-                                        </div>
-                                        {school.hasInternet && school.internetType && (
-                                            <div className="pl-5 space-y-0.5 opacity-80">
-                                                {school.internetType.split(', ').map(t => {
-                                                    const provider = school.internetProviders?.[t];
-                                                    return (
-                                                        <div key={t} className="truncate">
-                                                            • {t} {provider ? (
-                                                                <span className="text-slate-500 font-normal">
-                                                                    - {provider.company} {provider.contact && `(${provider.contact})`}
-                                                                </span>
-                                                            ) : ''}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
+                            {/* Conectividade - Ultra Simples */}
+                            <div className="pt-2 border-t border-slate-50">
+                                <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase ${school.hasInternet ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                    <Wifi size={12} />
+                                    <span>{school.hasInternet ? 'Conectada' : 'Desconectada'}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex gap-2 pt-4 border-t border-slate-50 mt-4">
-                            <button onClick={() => handleEdit(school)} className="flex-1 py-3 bg-slate-50 text-slate-700 rounded-2xl hover:bg-primary-600 hover:text-white transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                                <Layout size={14} /> Abrir Ficha
+                        {/* Ações do Card - Barra Discreta */}
+                        <div className="flex gap-2 mt-4 bg-slate-50/50 -mx-4 -mb-4 p-2 rounded-b-xl border-t border-slate-100">
+                            <button
+                                onClick={() => handleEdit(school)}
+                                className="flex-1 py-1.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-primary-600 hover:text-white hover:border-primary-600 transition-all font-bold text-[10px] uppercase flex items-center justify-center gap-1.5"
+                            >
+                                <Layout size={12} /> Gerenciar
                             </button>
                             <button
                                 onClick={() => letterheadConfig && generateSchoolPDF(school, letterheadConfig)}
-                                className="p-3 bg-slate-50 text-blue-500 rounded-2xl hover:bg-blue-50 transition-all title='Gerar Ficha PDF'"
+                                className="p-1.5 bg-white text-slate-500 border border-slate-200 rounded-lg hover:text-blue-600 hover:border-blue-200 transition-all font-bold text-[10px]"
+                                title="Imprimir Ficha"
                             >
-                                <Printer size={18} />
-                            </button>
-                            <button className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-100 transition-all">
-                                <ChevronRight size={18} />
+                                <Printer size={14} />
                             </button>
                         </div>
                     </div>

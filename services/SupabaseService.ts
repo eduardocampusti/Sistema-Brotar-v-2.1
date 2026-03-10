@@ -566,15 +566,9 @@ export class SupabaseService {
         const { data: { session } } = await supabase.auth.getSession();
         console.log('[SupabaseService] Tentando salvar como usuário:', session?.user?.id);
 
-        // Check profile role logic client-side just to be sure
-        if (session?.user) {
-            const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-            console.log('[SupabaseService] Role do usuário no banco:', profile?.role);
-        }
-
         let finalPhotoUrl = student.photoUrl;
 
-        // 1. Upload da foto se houver (Try-catch isolado para não bloquear o cadastro)
+        // 1. Upload da foto se houver
         if (photoFile) {
             try {
                 const fileName = `student_${Date.now()}_${photoFile.name}`;
@@ -587,29 +581,23 @@ export class SupabaseService {
                     throw new Error(`Falha no upload da foto: ${uploadError.message}`);
                 }
                 if (uploadData) {
-                    // alert(`[DEBUG] Upload Sucesso! Path: ${uploadData.path}`);
                     const { data: publicUrlData } = supabase.storage
                         .from('students-photos')
                         .getPublicUrl(uploadData.path);
                     finalPhotoUrl = publicUrlData.publicUrl;
-                    // alert(`[DEBUG] URL Gerada: ${finalPhotoUrl}`);
                 }
             } catch (error: any) {
                 console.error("Erro no upload da foto:", error);
-                // Não interrompe o salvamento do aluno, apenas a foto falha
             }
         }
 
-        // Campo documents será preenchido abaixo com a nova lógica tipada
-
-        // Sanitização: Converter strings vazias para null para não violar UNIQUE constraints
         const sanitizeField = (value: string | undefined | null) => {
             if (!value || typeof value !== 'string') return null;
             const cleaned = value.trim();
             return cleaned === '' ? null : cleaned;
         };
 
-        // Pre-processamento do dbPayload para assegurar o CPF null e seguro
+        // dbPayload obrigatório com school_id para permitir atualização de vínculo via upsert
         const dbPayload: any = {
             full_name: student.fullName,
             birth_date: student.birthDate,
@@ -617,13 +605,12 @@ export class SupabaseService {
             sus_card: sanitizeField(student.susCard),
             grade: student.school.grade,
             shift: student.school.shift,
-            school_id: sanitizeField(student.school.schoolId) || null, // UUID: null se vazio
+            school_id: sanitizeField(student.school.schoolId) || null, // Vínculo da escola obrigatório
             ethnicity: sanitizeField(student.ethnicity),
             address: student.address,
             guardians: student.guardians,
             photo_url: finalPhotoUrl,
             documents: student.documents || [],
-            // Campos JSONB
             clinical_info: {
                 ...student.clinical,
                 gender: student.gender,
@@ -637,15 +624,13 @@ export class SupabaseService {
             status: student.status
         };
 
-        // 2. Upload de Documentos (Tipados)
+        // 2. Upload de Documentos
         if (documentFiles && documentFiles.length > 0) {
             const uploadedDocs = [];
-
             for (const docItem of documentFiles) {
                 try {
                     const saneFileName = docItem.file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
                     const filePath = `docs/${Date.now()}_${saneFileName}`;
-
                     const { data: uploadData, error: uploadError } = await supabase.storage
                         .from('student-documents')
                         .upload(filePath, docItem.file);
@@ -658,63 +643,42 @@ export class SupabaseService {
 
                     uploadedDocs.push({
                         id: crypto.randomUUID(),
-                        type: docItem.type, // Usa o tipo correto passado do form
+                        type: docItem.type,
                         fileName: docItem.file.name,
                         url: publicUrlData.publicUrl,
                         uploadedAt: new Date().toISOString()
                     });
                 } catch (docErr) {
-                    console.error(`Erro ao enviar documento (${docItem.type}):`, docErr);
-                    // Não lança erro fatal para não perder o cadastro do aluno
+                    console.error(`Erro ao enviar documento:`, docErr);
                 }
             }
-
-            // Mesclar documentos novos com existentes
-            const existingDocs = student.documents || [];
-            // @ts-ignore
-            dbPayload.documents = [...existingDocs, ...uploadedDocs];
+            dbPayload.documents = [...(student.documents || []), ...uploadedDocs];
         }
 
         if (student.id && student.id.length > 5) {
             dbPayload.id = student.id;
         }
 
-        console.log(`[SupabaseService] Realizando upsert do aluno...`);
+        console.log(`[SupabaseService] Realizando upsert do aluno com conflito no CPF...`);
+        // Salvamento atômico exclusivo via Upsert com onConflict no CPF
         const { data, error } = await supabase
             .from('students')
             .upsert(dbPayload, { onConflict: 'cpf' })
             .select('id')
-            .maybeSingle();
+            .single();
 
         if (error) {
             console.error('Erro ao salvar aluno (Upsert):', error);
-            // Captura o erro de RLS (Permission Denied) ou colisão em outra unidade
+            // Mensagem clara para o usuário sobre a impossibilidade de salvar ou erro de RLS
             if (error.code === '42501' || error.message.includes('RLS') || error.message.includes('permission denied')) {
-                 throw new Error('Este CPF já está cadastrado em outra unidade. Entre em contato com a Secretaria para solicitar a transferência do aluno.');
+                 throw new Error('Acesso negado: Não foi possível salvar ou transferir o registro. Verifique as permissões da escola ou se o CPF pertence a outra unidade restrita.');
             }
-            throw new Error(error.message);
+            throw new Error(`Erro ao salvar dados: ${error.message}`);
         }
 
-        if (!data) {
-             throw new Error('Erro ao salvar aluno: Nenhum dado retornado (pode ter sido bloqueado por permissão).');
-        }
+        if (!data) throw new Error('Erro ao salvar aluno: Operação não retornou dados.');
 
-        const savedId = data.id;
-
-        // --- Alerta Automático (Sino) para Novos Cadastros ---
-        if (!student.id && savedId) {
-            try {
-                // Notificar Administradores/Secretários - Simplificado: Envia Alerta Padrão
-                // Aqui poderíamos buscar todos os admins, mas para evitar lentidão, enviamos um alerta geral 
-                // que pode ser visto por quem tem acesso à tabela de avisos.
-                // Como não temos recipientId específico "Admin", podemos deixar para implementar se o usuário pedir.
-                // Por enquanto, o sistema foca em Agendamentos (Especialistas) conforme pedido.
-            } catch (alertError) {
-                console.warn('Erro ao disparar alerta de novo aluno:', alertError);
-            }
-        }
-
-        return savedId;
+        return data.id;
     }
 
     static async deleteStudent(id: string): Promise<void> {
@@ -837,101 +801,29 @@ export class SupabaseService {
     static async importProfessionalsInBulk(professionals: any[], currentUser: Pick<User, 'name' | 'email' | 'role'>): Promise<{ success: number, errors: any[] }> {
         const results = { success: 0, errors: [] as any[] };
 
-        // Deduplicate professionals carefully to avoid Postgres "cannot affect row a second time" ON CONFLICT errors
-        const uniqueMap = new Map();
-        for (const p of professionals) {
-            const cpf = sanitizeCPF(p.cpf) || null;
-            const key = cpf ? `cpf_${cpf}` : `name_${(p.name || '').trim().toLowerCase()}`;
-            uniqueMap.set(key, p);
-        }
-        const uniqueProfessionals = Array.from(uniqueMap.values());
-
-        // Separate records: CPF-identified (can upsert safely) vs name-only (must insert or skip)
-        const withCpf = uniqueProfessionals.filter(p => sanitizeCPF(p.cpf));
-        const withoutCpf = uniqueProfessionals.filter(p => !sanitizeCPF(p.cpf));
-
-        const buildPayload = (p: any) => ({
+        // Normalização dos tipos antes de enviar
+        const profPayloads = professionals.map(p => ({
             name: p.name || '',
-            cpf: sanitizeCPF(p.cpf) || null,
+            cpf: p.cpf || '',
             phone: p.phone || '',
             email: p.email || '',
             education: p.education || '',
-            school_id: p.schoolId || null,
-            student_id: p.studentId || null,
-            regent_teacher: p.regentTeacher || '',
-            workload: p.workload || ''
-        });
+            contractStartDate: p.contractStartDate || '',
+            workload: p.workload || '',
+            address: p.address || {},
+            schoolId: p.schoolId || null,
+            studentId: p.studentId || null,
+            regentTeacher: p.regentTeacher || ''
+        }));
 
-        // --- Group 1: With CPF — safe upsert by CPF ---
-        const CHUNK_SIZE = 50;
-        for (let i = 0; i < withCpf.length; i += CHUNK_SIZE) {
-            const chunk = withCpf.slice(i, i + CHUNK_SIZE);
-            const payloads = chunk.map(buildPayload);
-
-            const { data, error } = await supabase
-                .from('support_professionals')
-                .upsert(payloads, { onConflict: 'cpf' })
-                .select('id');
-
-            if (error) {
-                console.warn('[SupabaseService] Erro no chunk (com CPF). Tentando individualmente...', error.message);
-                for (const payload of payloads) {
-                    const { error: singleError } = await supabase
-                        .from('support_professionals')
-                        .upsert([payload], { onConflict: 'cpf' });
-                    if (singleError) {
-                        results.errors.push({ chunk: i / CHUNK_SIZE, message: `CPF ${payload.cpf} - ${payload.name}: ${singleError.message}` });
-                    } else {
-                        results.success += 1;
-                    }
-                }
-            } else {
-                results.success += (data?.length || 0);
-            }
-        }
-
-        // --- Group 2: Without CPF — insert individually (skip existing by exact name match) ---
-        for (const p of withoutCpf) {
-            const payload = buildPayload(p);
-            try {
-                // Check if a professional with same name already exists (to avoid full duplicates)
-                const { data: existing } = await supabase
-                    .from('support_professionals')
-                    .select('id')
-                    .eq('name', payload.name)
-                    .maybeSingle();
-
-                if (existing) {
-                    // Update existing record found by name
-                    const { error: updateError } = await supabase
-                        .from('support_professionals')
-                        .update(payload)
-                        .eq('id', existing.id);
-
-                    if (updateError) {
-                        results.errors.push({ chunk: 'sem-cpf', message: `Update ${payload.name}: ${updateError.message}` });
-                    } else {
-                        results.success += 1;
-                    }
-                } else {
-                    // Insert new record
-                    const { error: insertError } = await supabase
-                        .from('support_professionals')
-                        .insert([payload]);
-
-                    if (insertError) {
-                        results.errors.push({ chunk: 'sem-cpf', message: `Insert ${payload.name}: ${insertError.message}` });
-                    } else {
-                        results.success += 1;
-                    }
-                }
-            } catch (err: any) {
-                results.errors.push({ chunk: 'sem-cpf', message: `${payload.name}: ${err.message}` });
-            }
-        }
-
-        if (results.success > 0) {
-            await this.logAction(currentUser, AuditAction.CREATE, 'PROFISSIONAIS', `Importação massiva: ${results.success} profissionais de apoio processados.`);
+        try {
+            await this.upsertSupportProfessionals(profPayloads);
+            results.success = profPayloads.length;
+            
+            await this.logAction(currentUser, AuditAction.CREATE, 'PROFISSIONAIS', `Importação massiva: ${results.success} profissionais de apoio processados via upsert único.`);
+        } catch (err: any) {
+            console.error('[SupabaseService] Erro na importação massiva:', err.message);
+            results.errors.push({ chunk: 0, message: err.message });
         }
 
         return results;
@@ -1769,12 +1661,12 @@ export class SupabaseService {
     static async upsertSupportProfessionals(professionals: Partial<SupportProfessional>[]): Promise<void> {
         if (professionals.length === 0) return;
 
-        const payloads = professionals.map(prof => {
-            const toNull = (value: any) => (value === '' || value === undefined ? null : value);
+        const toNull = (value: any) => (value === '' || value === undefined ? null : value);
 
+        const payloads = professionals.map(prof => {
             const payload: any = {
                 name: prof.name,
-                cpf: sanitizeCPF(prof.cpf),
+                cpf: sanitizeCPF(prof.cpf) || null,
                 phone: prof.phone,
                 email: prof.email,
                 education: prof.education,
@@ -1790,34 +1682,23 @@ export class SupabaseService {
                 payload.id = prof.id;
             }
 
-            // Remove chaves undefined
+            // Sanitização final: remove chaves undefined
             Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
             return payload;
         });
 
-        // Remove possíveis duplicatas no array local (linhas repetidas no CSV)
-        // Isso evita o erro "ON CONFLICT DO UPDATE command cannot affect row a second time"
-        const uniquePayloadsMap = new Map();
-        for (const p of payloads) {
-            const key = p.id ? `id_${p.id}` : (p.cpf ? `cpf_${p.cpf}` : `name_${p.name}`);
-            uniquePayloadsMap.set(key, p);
-        }
-        const uniquePayloads = Array.from(uniquePayloadsMap.values());
-
-        console.log(`[SupabaseService] Processando ${uniquePayloads.length} profissionais únicos (após deduplicação)...`);
+        console.log(`[SupabaseService] Realizando bulk upsert de ${payloads.length} profissionais...`);
 
         return safeCall(async () => {
-            // Realizando UPSERT nativo
             const { error } = await supabase
                 .from('support_professionals')
-                .upsert(uniquePayloads, { onConflict: 'cpf' });
+                .upsert(payloads, { onConflict: 'cpf' });
 
             if (error) {
                 console.error('Erro no UPSERT de profissionais:', error);
-                
-                // Aplica a mesma lógica de RLS amigável para profissionais
+                // Tratamento amigável solicitado
                 if (error.code === '42501' || error.message.includes('RLS') || error.message.includes('permission denied')) {
-                     throw new Error('Este CPF de profissional já está cadastrado em outra unidade. Entre em contato para solicitar a transferência.');
+                     throw new Error('Acesso negado: Este Profissional já está vinculado a outra unidade. Solicite a transferência.');
                 }
                 throw new Error(`Erro Banco de Dados (Upsert): ${error.message}`);
             }
