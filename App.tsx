@@ -7,7 +7,7 @@ import { SupabaseService } from './services/SupabaseService';
 import { supabase } from './services/supabaseClient';
 import { useToast } from './contexts/ToastContext';
 import { Student, User, Specialty, SystemSettings, hasPermission, Appointment, AuditAction } from './types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { NotificationBell } from './components/NotificationBell';
 import { MessagingSystem } from './components/MessagingSystem';
@@ -515,6 +515,28 @@ function App() {
   const content = useMemo(() => renderContent(), [currentPage, students, selectedStudent, rescheduleData, user, handleNavigate, handleSelectStudent, handleEditStudent, handleDeleteStudent, handleRegisterSuccess]);
 
   // 5. Retornos Antecipados (SEMPRE após todos os hooks)
+  
+  // Verificação de configuração do Supabase
+  const isConfigMissing = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (isConfigMissing) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-rose-50 p-6 text-center">
+        <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6 animate-pulse">
+          <AlertCircle size={48} />
+        </div>
+        <h1 className="text-2xl font-black text-rose-900 mb-2">Erro de Configuração</h1>
+        <p className="text-rose-700 font-bold text-lg mb-4">Configuração de Banco de Dados ausente no Servidor</p>
+        <div className="max-w-md bg-white p-4 rounded-2xl border border-rose-200 shadow-sm text-left">
+          <p className="text-sm text-rose-600 leading-relaxed font-medium">
+            O sistema não conseguiu localizar as variáveis de ambiente necessárias para conectar ao banco de dados. 
+            Verifique as chaves <b>VITE_SUPABASE_URL</b> e <b>VITE_SUPABASE_ANON_KEY</b> no servidor de hospedagem.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (isAuthLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white space-y-4">
