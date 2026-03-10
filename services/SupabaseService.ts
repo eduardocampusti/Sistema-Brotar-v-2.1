@@ -709,10 +709,12 @@ export class SupabaseService {
     }
 
     static async mergeStudents(targetId: string, duplicateId: string) {
-        return await supabase.rpc('merge_students', { 
+        const { error } = await supabase.rpc('merge_students', { 
             target_student_id: targetId, 
             duplicate_student_id: duplicateId 
         });
+        if (error) throw new Error(error.message);
+        return true;
     }
 
     // --- Intelligent Import & Lookup ---

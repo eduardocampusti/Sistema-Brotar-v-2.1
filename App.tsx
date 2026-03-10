@@ -495,7 +495,7 @@ function App() {
         return <SchedulingCenter students={students} currentUser={user} onNavigate={handleNavigate} onReschedule={(apt) => { setRescheduleData(apt); setCurrentPage('new-appointment'); }} />;
       case 'new-appointment': return <AppointmentForm students={students} currentUser={user} initialData={rescheduleData} onCancel={() => { setRescheduleData(null); handleNavigate('scheduling'); }} onSuccess={() => { setRescheduleData(null); handleNavigate('scheduling'); }} />;
       case 'agenda': return <Agenda students={students} currentUser={user} onNavigate={handleNavigate} />;
-      case 'list': return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
+      case 'list': return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} onRefresh={refreshData} />;
       case 'register': return <RegistrationForm onSuccess={handleRegisterSuccess} onCancel={() => setCurrentPage('list')} currentUser={user} />;
       case 'admin': return user.role === 'ADMIN' ? <UserManagement /> : <Dashboard students={students} />;
       case 'audit-logs': return (user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY' || user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' || user.role === 'ASSISTANT') ? <AuditLogs currentUser={user} /> : <Dashboard students={students} />;

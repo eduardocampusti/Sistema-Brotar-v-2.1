@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import { CSVImporter } from './CSVImporter';
+import { ConfirmModal } from './ConfirmModal';
+import { useToast } from '../contexts/ToastContext';
 
 interface StudentListProps {
   students: Student[];
@@ -35,6 +37,7 @@ interface StudentListProps {
   onRegister: () => void;
   onEdit: (student: Student) => void;
   currentUser?: User;
+  onRefresh?: () => Promise<void>;
 }
 
 // Helper para Status Visual
@@ -60,12 +63,14 @@ const getStudentStatus = (student: Student) => {
   return { label: 'Sem Registro Recente', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: Clock };
 };
 
-export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStudent, onDelete, onRegister, onEdit, currentUser }) => {
+export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStudent, onDelete, onRegister, onEdit, currentUser, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
   const [showImporter, setShowImporter] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [showConfirmFinal, setShowConfirmFinal] = useState(false);
   const [isMerging, setIsMerging] = useState(false);
+  const { addToast } = useToast();
 
   // Estados para Mesclagem
   const [mainStudentId, setMainStudentId] = useState<string>('');
@@ -160,38 +165,48 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
     }
   }, [studentToDelete, currentUser, onDelete]);
 
-  const handleMerge = async () => {
-    if (!mainStudentId || !duplicateStudentId || !hasConfirmedIrreversible || !currentUser) return;
+  const handleMergeRequest = () => {
+    if (!mainStudentId || !duplicateStudentId || !hasConfirmedIrreversible) return;
     
     if (mainStudentId === duplicateStudentId) {
-      alert("Selecione alunos diferentes para realizar a mesclagem.");
+      addToast("Selecione alunos diferentes para realizar a mesclagem.", "error");
       return;
     }
 
+    setShowConfirmFinal(true);
+  };
+
+  const executeMerge = async () => {
+    if (!currentUser) return;
+    
     try {
       setIsMerging(true);
       const mainStudent = students.find(s => s.id === mainStudentId);
       const duplicateStudent = students.find(s => s.id === duplicateStudentId);
       
-      const { error } = await SupabaseService.mergeStudents(mainStudentId, duplicateStudentId);
+      await SupabaseService.mergeStudents(mainStudentId, duplicateStudentId);
       
-      if (error) throw error;
-
       await SupabaseService.logAction(
         currentUser, 
-        'MERGE', 
+        'MERGE' as AuditAction, 
         'ALUNOS', 
         `Mesclagem: ${duplicateStudent?.fullName} (removido) -> ${mainStudent?.fullName} (mantido)`
       );
 
+      setShowConfirmFinal(false);
       setShowMergeModal(false);
       setMainStudentId('');
       setDuplicateStudentId('');
       setHasConfirmedIrreversible(false);
-      window.location.reload(); // Atualiza a lista para refletir a remoção
+      
+      addToast("Registros mesclados com sucesso!", "success");
+      
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (error: any) {
       console.error("Erro na mesclagem:", error);
-      alert("Erro ao realizar mesclagem: " + error.message);
+      addToast("Erro ao realizar mesclagem: " + error.message, "error");
     } finally {
       setIsMerging(false);
     }
@@ -361,7 +376,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
               </button>
               <button
                 disabled={!mainStudentId || !duplicateStudentId || !hasConfirmedIrreversible || isMerging}
-                onClick={handleMerge}
+                onClick={handleMergeRequest}
                 className={`flex items-center gap-2 px-8 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 ${
                   !mainStudentId || !duplicateStudentId || !hasConfirmedIrreversible || isMerging
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
@@ -375,7 +390,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
                   </>
                 ) : (
                   <>
-                    <CopyCheck size={16} />
+                    <GitMerge size={16} />
                     Confirmar Mesclagem
                   </>
                 )}
@@ -384,6 +399,19 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
           </div>
         </div>
       )}
+
+      {/* Confirmação Final de Mesclagem */}
+      <ConfirmModal
+        isOpen={showConfirmFinal}
+        title="Confirmar Mesclagem?"
+        message={`Você está prestes a mesclar todos os dados de "${students.find(s => s.id === duplicateStudentId)?.fullName}" para o prontuário de "${students.find(s => s.id === mainStudentId)?.fullName}". Esta operação não pode ser desfeita.`}
+        confirmLabel="Sim, Confirmar Mesclagem"
+        cancelLabel="Cancelar"
+        onConfirm={executeMerge}
+        onCancel={() => setShowConfirmFinal(false)}
+        type="danger"
+        isLoading={isMerging}
+      />
 
       {/* Modal Importador */}
       {showImporter && (
