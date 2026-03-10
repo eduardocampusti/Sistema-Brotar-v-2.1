@@ -38,6 +38,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => ({
     },
     socialInfo: dbStudent.social_info,
     documents: dbStudent.documents || [],
+    unit: dbStudent.unit, // Mapeamento da unidade (Sede/Cocal)
     history: (sessions || []).map(s => ({
         id: s.id,
         date: s.date,
@@ -89,6 +90,39 @@ export class SupabaseService {
         'ENFERMAGEM': 'Enfermagem' as any,
         'NUTRICAO': Specialty.NUTRITION
     };
+
+    // Cache genérico com TTL para reduzir latência em consultas frequentes
+    private static dataCache: Map<string, { data: any, timestamp: number }> = new Map();
+    private static readonly DEFAULT_TTL = 30 * 1000; // 30 segundos (reduzido para maior precisão)
+
+    private static setInCache(key: string, data: any): void {
+        this.dataCache.set(key, { data, timestamp: Date.now() });
+    }
+
+    private static getFromCache<T>(key: string): T | null {
+        const cached = this.dataCache.get(key);
+        if (!cached) return null;
+
+        const isExpired = Date.now() - cached.timestamp > this.DEFAULT_TTL;
+        if (isExpired) {
+            this.dataCache.delete(key);
+            return null;
+        }
+
+        return cached.data as T;
+    }
+
+    private static invalidateCache(keyPrefix?: string): void {
+        if (!keyPrefix) {
+            this.dataCache.clear();
+            return;
+        }
+        for (const key of this.dataCache.keys()) {
+            if (key.startsWith(keyPrefix)) {
+                this.dataCache.delete(key);
+            }
+        }
+    }
 
     private static mapSpecialtyFromDB(dbValue?: string): Specialty | undefined {
         if (!dbValue) return undefined;
@@ -455,78 +489,32 @@ export class SupabaseService {
     }
 
     static async getStudents(unit?: Unit): Promise<Student[]> {
-        console.log('[SupabaseService] Iniciando busca de alunos...', { unit });
+        const cacheKey = `students_${unit || 'all'}`;
+        const cached = this.getFromCache<Student[]>(cacheKey);
+        if (cached) return cached;
+
         try {
-            // Tentativa com JOIN para pegar dados da escola
-            const { data, error } = await supabase
+            console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'})...`);
+            let query = supabase
                 .from('students')
                 .select(`
                     *,
-                    schools ( 
-                        id, 
-                        name, 
-                        district 
-                    )
-                `);
-
-            let dataToProcess = data;
-
-            if (error) {
-                console.warn('[SupabaseService] Erro no select com join. Detalhes:', {
-                    message: error.message,
-                    code: error.code,
-                    hint: error.hint
-                });
-                console.log('[SupabaseService] Tentando fallback simples para students...');
-                const { data: simpleData, error: simpleError } = await supabase.from('students').select('*');
-                if (simpleError) {
-                    console.error('[SupabaseService] Erro fatal no fallback de alunos:', simpleError);
-                    throw simpleError;
-                }
-                dataToProcess = simpleData;
-            }
-
-            if (!dataToProcess || dataToProcess.length === 0) {
-                console.warn('[SupabaseService] Aviso: A consulta retornou um array vazio.');
-                return [];
-            }
-
-            // Filtro de Unidade (Scope)
-            let finalStudents = dataToProcess;
+                    schools (id, name, district)
+                `)
+                .order('full_name');
 
             if (unit) {
-                console.log(`[SupabaseService] Aplicando filtro de unidade: ${unit}`);
-                finalStudents = dataToProcess.filter((s: any) => {
-                    const schoolData = Array.isArray(s.schools) ? s.schools[0] : s.schools;
-                    if (!schoolData) {
-                        console.warn(`[SupabaseService] Aluno ${s.full_name} sem escola vinculada. Mantendo na lista por segurança.`);
-                        return true;
-                    }
-
-                    const district = (schoolData.district || '').toUpperCase();
-                    const targetUnit = unit.toUpperCase();
-
-                    if (targetUnit === 'SEDE') {
-                        return district !== 'COCAL';
-                    }
-                    return district === targetUnit;
-                });
+                query = query.filter('unit', 'eq', unit);
             }
 
-            console.log(`[SupabaseService] Mapeando ${finalStudents.length} alunos...`);
-            const mapped = finalStudents.map((s: any) => {
-                try {
-                    return mapStudentFromDB(s, []);
-                } catch (err) {
-                    console.error(`[SupabaseService] Erro ao mapear aluno ID ${s.id}:`, err);
-                    return null;
-                }
-            }).filter(s => s !== null) as Student[];
+            const { data, error } = await query;
+            if (error) throw error;
 
-            console.log(`[SupabaseService] Busca de alunos concluída: ${mapped.length} registros.`);
-            return mapped;
-        } catch (err) {
-            console.error('[SupabaseService] Erro inesperado em getStudents:', err);
+            const students = (data || []).map(s => mapStudentFromDB(s));
+            this.setInCache(cacheKey, students);
+            return students;
+        } catch (error) {
+            console.error('Erro ao buscar alunos:', error);
             return [];
         }
     }
@@ -746,10 +734,10 @@ export class SupabaseService {
 
     static async deleteStudent(id: string): Promise<void> {
         const { error } = await supabase.from('students').delete().eq('id', id);
-        if (error) {
-            console.error('Erro ao excluir aluno:', error);
-            throw error;
-        }
+        if (error) throw error;
+        
+        // Invalida o cache
+        this.invalidateCache('students_');
     }
 
     // --- Intelligent Import & Lookup ---
@@ -850,6 +838,7 @@ export class SupabaseService {
             }
         }
 
+        this.invalidateCache('students_'); // Invalida cache de alunos após importação
         return results;
     }
 
@@ -984,20 +973,19 @@ export class SupabaseService {
     // Mantendo compatibilidade básica
     // --- Schools ---
     static async getSchools(): Promise<School[]> {
-        console.log('[SupabaseService] Iniciando busca de escolas...');
+        const cacheKey = 'schools_list';
+        const cached = this.getFromCache<School[]>(cacheKey);
+        if (cached) return cached;
+
         try {
-            const { data, error } = await supabase.from('schools').select('*');
-            if (error) {
-                console.error('[SupabaseService] Erro ao buscar escolas:', error);
-                throw error;
-            }
+            const { data, error } = await supabase
+                .from('schools')
+                .select('*')
+                .order('name');
 
-            console.log(`[SupabaseService] Escolas encontradas: ${data?.length || 0}`);
-            if (data && data.length > 0) {
-                console.log('[SupabaseService] Exemplo de escola do banco:', JSON.stringify(data[0], null, 2));
-            }
+            if (error) throw error;
 
-            return (data || []).map((s: any) => ({
+            const schools = (data || []).map((s: any) => ({
                 id: s.id || '',
                 name: s.name || 'Escola sem Nome',
                 inep: s.inep || '',
@@ -1016,6 +1004,9 @@ export class SupabaseService {
                 hasInternet: s.has_internet === true,
                 internetType: s.internet_type || ''
             }));
+
+            this.setInCache(cacheKey, schools);
+            return schools;
         } catch (err) {
             console.error('[SupabaseService] Erro fatal em getSchools:', err);
             return [];
@@ -1044,6 +1035,10 @@ export class SupabaseService {
             console.error('Erro ao salvar escola:', error);
             throw error;
         }
+
+        // Invalida cache de escolas
+        this.invalidateCache('schools_list');
+        this.invalidateCache('students_'); // Pode afetar nomes de escolas nos alunos
 
         // Tentar criar acesso Auth para a Escola
         try {
@@ -1200,26 +1195,40 @@ export class SupabaseService {
 
     // --- System Settings ---
     static async getSystemSettings(): Promise<SystemSettings> {
-        const { data, error } = await supabase
-            .from('system_settings')
-            .select('*')
-            .single();
+        const cacheKey = 'system_settings';
+        const cached = this.getFromCache<SystemSettings>(cacheKey);
+        if (cached) return cached;
 
-        if (error || !data) {
-            return { systemName: 'Brotar', activeThemeId: 'teal-default', logoUrl: '' };
+        try {
+            const { data, error } = await supabase
+                .from('system_settings')
+                .select('*')
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error; // PGRST116 means "no rows found"
+
+            const settings = {
+                systemName: data?.system_name || 'Sistema Brotar',
+                logoUrl: data?.logo_url || null,
+                loginBackgroundImage: data?.login_background_image || null,
+                showLoginInfo: data?.show_login_info ?? true,
+                activeThemeId: data?.active_theme_id || 'default'
+            };
+
+            this.setInCache(cacheKey, settings);
+            return settings;
+        } catch (error) {
+            console.error('Erro ao buscar configurações:', error);
+            return {
+                systemName: 'Sistema Brotar',
+                activeThemeId: 'default'
+            };
         }
-
-        return {
-            systemName: data.system_name,
-            activeThemeId: data.active_theme_id,
-            logoUrl: data.logo_url,
-            loginBackgroundImage: data.login_background_image,
-            showLoginInfo: data.show_login_info ?? true // Padrão true
-        };
     }
 
     static async saveSystemSettings(settings: SystemSettings): Promise<void> {
         const payload = {
+            id: 'settings', // ID único para garantir que sempre atualizamos o mesmo registro
             system_name: settings.systemName,
             active_theme_id: settings.activeThemeId,
             logo_url: settings.logoUrl,

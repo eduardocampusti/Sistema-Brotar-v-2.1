@@ -230,6 +230,7 @@ export interface Student {
 
   clinical: ClinicalInfo;
   school: SchoolInfo;
+  unit?: Unit; // Campo relacional de unidade (Sede/Cocal)
 
   // Novos campos baseados no PDF
   socialInfo?: SocialInfo;
