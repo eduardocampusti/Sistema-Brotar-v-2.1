@@ -1611,16 +1611,12 @@ export class SupabaseService {
         return safeCall(async () => {
             console.log(`[SupabaseService] Buscando profissionais de apoio (${unit || 'Global'}) com Projeção Estrita...`);
             
-            // Colunas Obrigatórias conforme solicitado + colunas existentes confirmadas
-            // NOTA: 'unit' removido pois não existe nesta tabela
+            // Colunas Específicas conforme solicitado: id, name, cpf, phone, photo_url, education, school_id, student_id, regent_teacher, contract_start_date, workload
             let query = supabase
                 .from('support_professionals')
-                .select('id, name, cpf, phone, school_id, photo_url, education, workload, regent_teacher')
+                .select('id, name, cpf, phone, photo_url, education, school_id, student_id, regent_teacher, contract_start_date, workload')
                 .order('name');
             
-            // A filtragem por Unidade foi removida para evitar o erro 'Erro ao aceder dados' 
-            // já que a coluna 'unit' não existe nesta tabela.
-
             const { data, error } = await query;
             if (error) {
                 console.error('Erro ao buscar profissionais de apoio:', error);
@@ -1629,22 +1625,22 @@ export class SupabaseService {
 
             return (data || []).map((p: any) => ({
                 id: p.id,
-                name: p.name,
-                cpf: p.cpf,
-                phone: p.phone,
-                schoolId: p.school_id,
-                photoUrl: p.photo_url,
-                // Mapeamento com fallbacks para campos que podem ser nulos ou não selecionados
+                name: p.name || 'Sem nome',
+                cpf: p.cpf || '',
+                phone: p.phone || '',
+                photoUrl: p.photo_url || '',
                 education: p.education || '',
-                workload: p.workload || '',
-                regentTeacher: p.regent_teacher || '',
-                // Campos obrigatórios da interface SupportProfessional com fallbacks seguros
-                email: p.email || '',
-                contractStartDate: p.contract_start_date || '',
+                schoolId: p.school_id || '',
                 studentId: p.student_id || '',
+                regentTeacher: p.regent_teacher || '-',
+                contractStartDate: p.contract_start_date || '',
+                workload: p.workload || '',
+                // Fallbacks para campos da interface que não estão na consulta otimizada
+                email: p.email || '',
+                address: p.address || {},
                 createdAt: p.created_at || new Date().toISOString()
             }));
-        }, 0, 300, 'getSupportProfessionals'); // Retries: 0 para debug real
+        }, 0, 300, 'getSupportProfessionals');
     }
 
     static async saveSupportProfessional(prof: SupportProfessional): Promise<void> {

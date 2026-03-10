@@ -824,106 +824,91 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                 </div>
             )}
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Profissional</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Lotação (Escola)</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Aluno / Regente</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Contrato</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {filteredProfessionals.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-10 text-center text-slate-500">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <UserCog size={32} className="text-slate-300" />
-                                        <p>Nenhum profissional de apoio encontrado.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : filteredProfessionals.map(prof => (
-                            <tr key={prof.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 flex-shrink-0">
-                                            {prof.photoUrl ? (
-                                                <img src={prof.photoUrl} alt={prof.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <UserCog size={18} className="text-slate-400" />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <div className="font-medium text-slate-900">{prof.name}</div>
-                                            <div className="text-xs text-slate-400">CPF: {prof.cpf || '-'}</div>
-                                            <div className="text-xs text-slate-500 mt-0.5">{prof.education}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                                        <SchoolIcon size={14} className="text-primary-500" />
-                                        {getSchoolName(prof.schoolId)}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    {(() => {
-                                        const { studentStr, regentStr } = renderStudentAndRegent(prof);
-                                        return (
-                                            <>
-                                                <div className="text-sm font-medium text-slate-800 flex items-center gap-1">
-                                                    <User size={14} className={studentStr.includes('(Apenas Texto)') ? "text-amber-500" : "text-green-600"} />
-                                                    <span title={studentStr.includes('(Apenas Texto)') ? "Aluno ainda não possui cadastro oficial no sistema" : ""}>
-                                                        {studentStr.replace(' (Apenas Texto)', '')}
-                                                        {studentStr.includes('(Apenas Texto)') && (
-                                                            <span className="ml-2 text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-semibold">
-                                                                S/ CADASTRO
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                                                    <BookOpen size={12} /> Regente: {regentStr}
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-slate-600">
-                                    {prof.contractStartDate && (
-                                        <div className="flex items-center gap-1 mb-1" title="Início do Contrato">
-                                            <Calendar size={12} /> {new Date(prof.contractStartDate).toLocaleDateString()}
-                                        </div>
-                                    )}
-                                    {prof.workload && (
-                                        <div className="flex items-center gap-1" title="Carga Horária">
-                                            <Briefcase size={12} /> {prof.workload}
-                                        </div>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA') && (
-                                            <>
-                                                <button onClick={() => handleEdit(prof)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors" title="Editar">
-                                                    <Edit size={16} />
-                                                </button>
-                                                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
-                                                    <button onClick={() => handleDeleteClick(prof.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors" title="Excluir">
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                )}
-                                            </>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-10">
+                {filteredProfessionals.length === 0 ? (
+                    <div className="col-span-full py-16 bg-white rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-500">
+                        <UserCog size={48} className="text-slate-200 mb-3" />
+                        <p className="text-lg font-medium">Nenhum profissional de apoio encontrado.</p>
+                        <p className="text-sm">Tente ajustar seus filtros ou cadastre um novo profissional.</p>
+                    </div>
+                ) : filteredProfessionals.map(prof => {
+                    const { studentStr, regentStr, isUnregistered } = renderStudentAndRegent(prof);
+                    
+                    return (
+                        <div key={prof.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-all group relative border-l-4 border-l-primary-500">
+                            {/* Header do Card */}
+                            <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
+                                        {prof.photoUrl ? (
+                                            <img src={prof.photoUrl} alt={prof.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <UserCog size={22} className="text-slate-400" />
                                         )}
                                     </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                    <div>
+                                        <h3 className="font-bold text-slate-900 leading-tight group-hover:text-primary-600 transition-colors uppercase text-sm tracking-tight">{prof.name}</h3>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            {prof.workload && (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-50 text-primary-700 uppercase tracking-wider">
+                                                    {prof.workload}
+                                                </span>
+                                            )}
+                                            <span className="text-[11px] text-slate-400 font-mono italic">CPF: {prof.cpf || '---'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Ações Elegantes */}
+                                <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA') && (
+                                        <button 
+                                            onClick={() => handleEdit(prof)} 
+                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                            title="Editar"
+                                        >
+                                            <Edit size={16} />
+                                        </button>
+                                    )}
+                                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
+                                        <button 
+                                            onClick={() => handleDeleteClick(prof.id)} 
+                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Excluir"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Detalhes do Card */}
+                            <div className="space-y-2 text-sm">
+                                <div className="flex items-center gap-2 text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                    <SchoolIcon size={14} className="text-primary-500" />
+                                    <span className="truncate flex-1 font-medium">{getSchoolName(prof.schoolId)}</span>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 gap-1.5 px-1 py-0.5">
+                                    <div className="flex items-center gap-2 text-slate-600">
+                                        <User size={14} className={isUnregistered ? "text-amber-500" : "text-emerald-500"} />
+                                        <span className="text-[12px] truncate">
+                                            <span className="text-slate-400 mr-1">Aluno:</span>
+                                            <span className="font-semibold">{studentStr}</span>
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-slate-600">
+                                        <BookOpen size={14} className="text-blue-500" />
+                                        <span className="text-[12px] truncate">
+                                            <span className="text-slate-400 mr-1">Regente:</span>
+                                            {regentStr}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
