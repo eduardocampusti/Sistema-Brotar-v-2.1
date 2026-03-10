@@ -507,7 +507,7 @@ export class SupabaseService {
                 .from('students')
                 .select(`
                     id, full_name, birth_date, cpf, sus_card, grade, shift, status, created_at, unit,
-                    ethnicity, school_id,
+                    ethnicity, school_id, photo_url,
                     schools (name, district)
                 `)
                 .order('full_name');
