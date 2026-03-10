@@ -402,7 +402,11 @@ function App() {
       'social-interview', 'occupational-therapy', 'speech-therapy', 'physiotherapy', 'nutrition',
     ];
 
-    if (isEscola && (ESCOLA_BLOCKED_PAGES.includes(currentPage) || currentPage.includes('/new-session'))) {
+    if (isEscola && (ESCOLA_BLOCKED_PAGES.includes(currentPage) || currentPage.includes('/new-session') || currentPage === 'schools' || currentPage === 'settings')) {
+      // Força redirecionamento para list se tentar acessar página bloqueada ou as removidas do menu (schools, settings)
+      if (currentPage !== 'list') {
+        setTimeout(() => setCurrentPage('list'), 0);
+      }
       return <PatientList students={students} onSelectStudent={handleSelectStudent} onDelete={handleDeleteStudent} onRegister={() => setCurrentPage('register')} onEdit={handleEditStudent} currentUser={user} />;
     }
 

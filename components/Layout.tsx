@@ -191,8 +191,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
 
   // Menu restrito para role ESCOLA
   const getEscolaMenuItems = () => [
-    { id: 'list', label: 'Alunos', icon: <Users size={20} /> },
-    { id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> },
+    { id: 'list', label: 'Central de Prontuários', icon: <Users size={20} /> },
     { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
   ];
 
@@ -282,16 +281,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
             </>
           ) : isEscola ? (
             <>
-              {/* Banner de boas-vindas para escola */}
-              <div className="mx-2 mb-4 mt-2 p-3 bg-white/10 rounded-xl border border-white/20">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200 opacity-70 mb-1">Bem-vindo(a)</p>
-                <p className="text-sm font-bold text-white leading-tight">Sistema Brotar</p>
-                <p className="text-xs text-emerald-100 mt-1 leading-snug">Escola: {currentUser.name}</p>
+              <div className="mx-2 mb-4 mt-2 p-4 bg-white/10 rounded-xl border border-white/20 shadow-inner">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-200 opacity-70 mb-2">Unidade Logada</p>
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-emerald-500/20 rounded-lg">
+                    <School size={16} className="text-emerald-100" />
+                  </div>
+                  <p className="text-sm font-black text-white leading-tight uppercase tracking-tight truncate" title={currentUser.name}>
+                    {currentUser.name}
+                  </p>
+                </div>
                 {currentUser.schoolInep && (
-                  <p className="text-[10px] text-emerald-200/60 mt-0.5">INEP: {currentUser.schoolInep}</p>
+                  <p className="text-[10px] text-emerald-200/60 mt-2 font-mono ml-8">INEP: {currentUser.schoolInep}</p>
                 )}
               </div>
-              <SectionHeader title="Acesso Escolar" />
+              <SectionHeader title="Gestão da Unidade" />
               {escolaMenuItems.map(item => <MenuButton key={item.id} item={item} />)}
             </>
           ) : (
