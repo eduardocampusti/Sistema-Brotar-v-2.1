@@ -516,16 +516,15 @@ export class SupabaseService {
         if (cached) return cached;
 
         return safeCall(async () => {
-            console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'})...`);
+            console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'}) com Projeção Estrita...`);
             
-            // Otimização: Apenas os campos necessários do join para evitar carga excessiva.
-            // TEMPORÁRIO: Alterado para .select('*') para restaurar conectividade básica.
+            // Otimização Definitiva: Apenas os campos necessários para a listagem.
             let query = supabase
                 .from('students')
-                .select('*')
+                .select('id, full_name, birth_date, cpf, school_id, photo_url, status, unit')
                 .order('full_name');
 
-            // Filtragem no Lado do Servidor (Server-Side)
+            // Filtragem no Lado do Servidor (Server-Side) por Unidade
             if (unit) {
                 query = query.eq('unit', unit);
             }
@@ -536,7 +535,7 @@ export class SupabaseService {
             const students = (data || []).map(s => mapStudentFromDB(s));
             this.setInCache(cacheKey, students);
             return students;
-        }, 1, 300, 'getStudents');
+        }, 0, 300, 'getStudents'); // Retries: 0 para listagem
     }
 
     static async getStudentSessions(studentId: string): Promise<Session[]> {
@@ -855,10 +854,10 @@ export class SupabaseService {
         if (cached) return cached;
 
         try {
-            // TEMPORÁRIO: Alterado para .select('*') para restaurar conectividade básica.
+            // Projeção Estrita: Apenas campos necessários para a lista de escolas.
             const { data, error } = await supabase
                 .from('schools')
-                .select('*')
+                .select('id, name, inep, director, phone, district, is_active')
                 .order('name');
 
             if (error) throw error;
@@ -870,17 +869,7 @@ export class SupabaseService {
                 director: s.director || '',
                 phone: s.phone || '',
                 district: s.district || s.address?.district || 'Sede',
-                isActive: s.is_active === true,
-                address: {
-                    street: '',
-                    number: '',
-                    district: s.district || '',
-                    city: 'Brotas',
-                    state: 'BA',
-                    zipCode: ''
-                },
-                hasInternet: s.has_internet === true,
-                internetType: s.internet_type || ''
+                isActive: s.is_active === true
             }));
 
             this.setInCache(cacheKey, schools);
@@ -1620,38 +1609,42 @@ export class SupabaseService {
 
     static async getSupportProfessionals(unit?: Unit): Promise<SupportProfessional[]> {
         return safeCall(async () => {
-            // TEMPORÁRIO: Alterado para .select('*') para restaurar conectividade básica.
+            console.log(`[SupabaseService] Buscando profissionais de apoio (${unit || 'Global'}) com Projeção Estrita...`);
+            
+            // Colunas Obrigatórias conforme solicitado + colunas existentes confirmadas
+            // NOTA: 'unit' removido pois não existe nesta tabela
             let query = supabase
                 .from('support_professionals')
-                .select('*')
+                .select('id, name, cpf, phone, school_id, photo_url, education, workload, regent_teacher')
                 .order('name');
             
-            // Possível futura filtragem por unidade, análoga aos alunos (se houver campo unit na tabela ou address->unit)
-            // if (unit) {
-            //     query = query.eq('unit', unit);
-            // }
+            // A filtragem por Unidade foi removida para evitar o erro 'Erro ao aceder dados' 
+            // já que a coluna 'unit' não existe nesta tabela.
 
             const { data, error } = await query;
             if (error) {
                 console.error('Erro ao buscar profissionais de apoio:', error);
                 throw error;
             }
-            return data.map((p: any) => ({
+
+            return (data || []).map((p: any) => ({
                 id: p.id,
                 name: p.name,
                 cpf: p.cpf,
                 phone: p.phone,
-                email: p.email,
-                education: p.education,
-                contractStartDate: p.contract_start_date,
-                workload: p.workload,
-                address: p.address,
                 schoolId: p.school_id,
-                regentTeacher: p.regent_teacher,
-                studentId: p.student_id,
-                createdAt: p.created_at
+                photoUrl: p.photo_url,
+                // Mapeamento com fallbacks para campos que podem ser nulos ou não selecionados
+                education: p.education || '',
+                workload: p.workload || '',
+                regentTeacher: p.regent_teacher || '',
+                // Campos obrigatórios da interface SupportProfessional com fallbacks seguros
+                email: p.email || '',
+                contractStartDate: p.contract_start_date || '',
+                studentId: p.student_id || '',
+                createdAt: p.created_at || new Date().toISOString()
             }));
-        }, 1, 300, 'getSupportProfessionals');
+        }, 0, 300, 'getSupportProfessionals'); // Retries: 0 para debug real
     }
 
     static async saveSupportProfessional(prof: SupportProfessional): Promise<void> {
