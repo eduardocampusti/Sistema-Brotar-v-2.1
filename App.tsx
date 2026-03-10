@@ -169,18 +169,38 @@ function App() {
   }, []);
 
   const handleRegisterSuccess = useCallback(async () => {
+    // 1. Atualiza a lista geral (com projeção estrita para performance)
     const updatedStudents = await SupabaseService.getStudents();
     setStudents(updatedStudents);
-    setSelectedStudent(prev => {
-      if (!prev) return null;
-      return updatedStudents.find(s => s.id === prev.id) || prev;
-    });
-    setCurrentPage(prev => (prev === 'edit-student' ? 'profile' : 'list'));
-  }, []);
+    
+    // 2. Se houver um aluno selecionado, busca os dados COMPLETOS dele
+    // Isso garante que documentos e clinical_info não sejam perdidos no perfil pós-save
+    if (selectedStudent?.id) {
+      const fullStudent = await SupabaseService.getStudentById(selectedStudent.id);
+      if (fullStudent) {
+        setSelectedStudent(fullStudent);
+      }
+    } else {
+      // Fallback para novos registros ou situações onde o ID não está no estado
+      setSelectedStudent(prev => {
+        if (!prev) return null;
+        return updatedStudents.find(s => s.id === prev.id) || prev;
+      });
+    }
 
-  const handleSelectStudent = useCallback((student: Student) => {
+    setCurrentPage(prev => (prev === 'edit-student' ? 'profile' : 'list'));
+  }, [selectedStudent]);
+
+  const handleSelectStudent = useCallback(async (student: Student) => {
+    // Feedback imediato com os dados básicos da lista
     setSelectedStudent(student);
     setCurrentPage('profile');
+    
+    // Busca os dados COMPLETOS (documentos, clínico, etc) para enriquecer o perfil
+    const fullStudent = await SupabaseService.getStudentById(student.id);
+    if (fullStudent) {
+      setSelectedStudent(fullStudent);
+    }
   }, []);
 
   const handleEditStudent = useCallback((student: Student) => {

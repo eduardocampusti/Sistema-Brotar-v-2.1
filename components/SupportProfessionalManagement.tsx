@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { SupportProfessional, School, Student, User as UserType, AuditAction } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 import { CSVImporter } from './CSVImporter';
 import SearchableSelect from './SearchableSelect';
@@ -49,6 +49,15 @@ const sanitizeCPF = (cpf: string | undefined | null): string => {
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+const maskCPF = (value: string) => {
+    return value
+        .replace(/\D/g, '')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+        .replace(/(-\d{2})\d+?$/, '$1');
+};
+
 interface SupportProfessionalManagementProps {
     currentUser?: UserType;
 }
@@ -64,6 +73,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
     const [showImporter, setShowImporter] = useState(false);
     const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('ALL');
+    const [nameSearchTerm, setNameSearchTerm] = useState('');
+    const [cpfSearchTerm, setCpfSearchTerm] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const isEscola = currentUser?.role === 'ESCOLA';
 
@@ -408,12 +419,32 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             const mySchoolId = schools.find(s => s.inep === currentUser?.schoolInep)?.id;
             result = result.filter(p => p.schoolId === mySchoolId);
         } else if (selectedSchoolFilter !== 'ALL') {
-            // 2. Filtro Manual (Para Admin/Secretaria)
+            // 2. Filtro Manual de Escola (Para Admin/Secretaria)
             result = result.filter(p => p.schoolId === selectedSchoolFilter);
         }
 
+        // 3. Filtro por Nome (Normalizado)
+        if (nameSearchTerm.trim()) {
+            const search = normalizeString(nameSearchTerm);
+            result = result.filter(p => normalizeString(p.name).includes(search));
+        }
+
+        // 4. Filtro por CPF (Sanitizado)
+        if (cpfSearchTerm.trim()) {
+            const search = sanitizeCPF(cpfSearchTerm);
+            result = result.filter(p => sanitizeCPF(p.cpf).includes(search));
+        }
+
         return result;
-    }, [professionals, isEscola, currentUser, schools, selectedSchoolFilter]);
+    }, [professionals, isEscola, currentUser, schools, selectedSchoolFilter, nameSearchTerm, cpfSearchTerm]);
+
+    const hasActiveFilters = selectedSchoolFilter !== 'ALL' || nameSearchTerm.trim() !== '' || cpfSearchTerm.trim() !== '';
+
+    const clearAllFilters = () => {
+        if (!isEscola) setSelectedSchoolFilter('ALL');
+        setNameSearchTerm('');
+        setCpfSearchTerm('');
+    };
 
     const getSchoolName = (id: string) => schools.find(s => s.id === id)?.name || 'Desconhecida';
     const getStudentName = (id: string) => students.find(s => s.id === id)?.fullName || 'Desconhecido';
@@ -846,12 +877,43 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                 </div>
             )}
 
-            {/* FILTROS E CONTROLES DE LISTAGEM */}
-            <div className="flex flex-col md:flex-row items-end gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 animate-fadeIn">
-                <div className="w-full md:w-80">
+            {/* BARRA DE BUSCA INTELIGENTE */}
+            <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 animate-fadeIn relative z-20">
+                {/* Nome */}
+                <div className="flex-1 min-w-[200px]">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
+                        <Search size={12} className="text-primary-500" />
+                        Busca por Nome
+                    </label>
+                    <input 
+                        type="text"
+                        value={nameSearchTerm}
+                        onChange={(e) => setNameSearchTerm(e.target.value)}
+                        placeholder="Ex: João Silva..."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-100 focus:border-primary-500 transition-all font-medium"
+                    />
+                </div>
+
+                {/* CPF */}
+                <div className="w-full md:w-48">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
+                        <Fingerprint size={12} className="text-primary-500" />
+                        Busca por CPF
+                    </label>
+                    <input 
+                        type="text"
+                        value={cpfSearchTerm}
+                        onChange={(e) => setCpfSearchTerm(maskCPF(e.target.value))}
+                        placeholder="000.000.000-00"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary-100 focus:border-primary-500 transition-all"
+                    />
+                </div>
+
+                {/* Escola */}
+                <div className="w-full md:w-72">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
                         <SchoolIcon size={12} className="text-primary-500" />
-                        Filtrar por Unidade Escolar
+                        Unidade Escolar
                     </label>
                     <SearchableSelect
                         options={schoolFilterOptions}
@@ -862,20 +924,20 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     />
                 </div>
                 
-                {!isEscola && selectedSchoolFilter !== 'ALL' && (
-                    <button 
-                        onClick={() => setSelectedSchoolFilter('ALL')}
-                        className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all font-bold text-[10px] uppercase tracking-wider mb-0.5"
-                    >
-                        <X size={14} /> Limpar Filtro
-                    </button>
-                )}
-                
-                <div className="flex-1 flex justify-end items-center mb-1">
+                {/* Limpeza e Contador */}
+                <div className="flex items-center gap-2 mb-1 ml-auto">
+                    {hasActiveFilters && (
+                        <button 
+                            onClick={clearAllFilters}
+                            className="flex items-center gap-2 px-3 py-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all font-bold text-[10px] uppercase tracking-wider"
+                        >
+                            <X size={14} /> Limpar
+                        </button>
+                    )}
                     <div className="bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 flex items-center gap-2 shadow-sm">
                          <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
-                            Exibindo {filteredProfessionals.length} profissionais
+                            {filteredProfessionals.length} resultados
                          </span>
                     </div>
                 </div>

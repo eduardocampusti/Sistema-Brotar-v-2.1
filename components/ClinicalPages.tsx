@@ -1,4 +1,4 @@
-﻿import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 import React, { useState, useEffect, useMemo } from 'react';
 
 import type { Student, Session, User, PapelTimbradoConfig, School, Appointment } from '../types';
@@ -1720,11 +1720,20 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         }
     }, [selectedStudent, isPP, autoOpenSession]);
 
-    const handleStudentSelect = (id: string) => {
+    const handleStudentSelect = async (id: string) => {
+        setLoading(true);
+        // Busca imediata na lista local para transição visual
         const s = students.find(st => st.id === id);
-        setSelectedStudent(s || null);
-        // O useEffect acima cuidará de atualizar o ppData
+        if (s) setSelectedStudent(s);
+
+        // Busca profunda dos dados para o prontuário (clinical_info, documentos, etc)
+        const fullStudent = await SupabaseService.getStudentById(id);
+        if (fullStudent) {
+            setSelectedStudent(fullStudent);
+        }
+        
         setIpoEditMode(false);
+        setLoading(false);
     };
 
     const handleSaveGeneral = async () => {

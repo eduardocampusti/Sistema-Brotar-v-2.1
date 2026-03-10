@@ -538,6 +538,24 @@ export class SupabaseService {
         }, 0, 300, 'getStudents'); // Retries: 0 para listagem
     }
 
+    static async getStudentById(id: string): Promise<Student | null> {
+        return safeCall(async () => {
+            console.log(`[SupabaseService] Buscando detalhes completos do aluno: ${id}`);
+            const { data, error } = await supabase
+                .from('students')
+                .select('*, schools(name, district)')
+                .eq('id', id)
+                .single();
+
+            if (error) {
+                if (error.code === 'PGRST116') return null;
+                throw error;
+            }
+
+            return mapStudentFromDB(data);
+        }, 0, 300, 'getStudentById');
+    }
+
     static async getStudentSessions(studentId: string): Promise<Session[]> {
         const { data, error } = await supabase
             .from('clinical_sessions')
