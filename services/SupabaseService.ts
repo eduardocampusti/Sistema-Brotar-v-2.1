@@ -636,16 +636,11 @@ export class SupabaseService {
                 }
             }
             
-            // Campos essenciais + join com schools para resolver nome e distrito da escola
+            // Consulta mais simplificada (estado mais básico possível)
             let query = supabase
                 .from('students')
-                .select('id, full_name, birth_date, cpf, school_id, photo_url, status, unit, schools(name, district)')
+                .select('*')
                 .order('full_name');
-
-            // Filtragem no Lado do Servidor (Server-Side) por Unidade
-            if (unit) {
-                query = query.eq('unit', unit);
-            }
             
             // Filtragem por Escola (removida: agora tratada via RLS)
             // if (forcedSchoolId) {
@@ -774,15 +769,15 @@ export class SupabaseService {
             school_id: forcedSchoolId,
             ethnicity: sanitizeField(student.ethnicity),
             unit: student.unit || null,
-            // JSONB: endereço completo (rua, número, bairro, cidade, UF, CEP)
-            address: {
-                street: student.address?.street || '',
-                number: student.address?.number || '',
-                district: student.address?.district || '',
-                city: student.address?.city || '',
-                state: student.address?.state || '',
-                zipCode: student.address?.zipCode || ''
-            },
+            // JSONB: endereço completo - Garantido como JSON {}, nunca string vazia
+            address: (typeof student.address === 'object' && student.address !== null && Object.keys(student.address).length > 0) ? {
+                street: student.address.street || '',
+                number: student.address.number || '',
+                district: student.address.district || '',
+                city: student.address.city || '',
+                state: student.address.state || '',
+                zipCode: student.address.zipCode || ''
+            } : {},
             // JSONB: responsáveis
             guardians: student.guardians || [],
             photo_url: finalPhotoUrl || null,
@@ -1924,9 +1919,10 @@ export class SupabaseService {
                 }
             }
             
+            // Consulta mais simplificada (estado mais básico possível)
             let query = supabase
                 .from('support_professionals')
-                .select('id, name, cpf, phone, photo_url, education, school_id, student_id, regent_teacher, contract_start_date, workload')
+                .select('*')
                 .order('name');
             
             // 🔒 Filtro server-side: ESCOLA só vê profissionais da sua unidade (removido via RLS)
