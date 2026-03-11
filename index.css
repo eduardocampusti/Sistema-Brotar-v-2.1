@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Default Teal Theme (Fallback) */
+  --color-primary-50: #f0fdfa;
+  --color-primary-100: #ccfbf1;
+  --color-primary-200: #99f6e4;
+  --color-primary-300: #5eead4;
+  --color-primary-400: #2dd4bf;
+  --color-primary-500: #14b8a6;
+  --color-primary-600: #0d9488;
+  --color-primary-700: #0f766e;
+  --color-primary-800: #115e59;
+  --color-primary-900: #134e4a;
+  --color-primary-950: #042f2e;
+  --color-primary-500-rgb: 20, 184, 166;
+}
+
+/* Solução Definitiva: Sobrescreve classes de fundo para a cor solicitada (#D1D9E6) */
+body, 
+.bg-slate-50, 
+.bg-\[\#F1F5F9\], 
+main.flex-1 {
+  background-color: #D1D9E6 !important;
+}
+
+body {
+  @apply bg-[#EEF2F8] text-slate-800 antialiased selection:bg-primary-200 selection:text-primary-900;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
