@@ -823,6 +823,14 @@ export class SupabaseService {
         }
 
 
+        // Formato JSONB: Garantindo envio como objetos limpos para o banco
+        // Usa JSON.stringify e parse para remover chaves vazias ou undefined ocultas.
+        if (dbPayload.address) dbPayload.address = JSON.parse(JSON.stringify(dbPayload.address));
+        if (dbPayload.documents) dbPayload.documents = JSON.parse(JSON.stringify(dbPayload.documents));
+        if (dbPayload.clinical_info) dbPayload.clinical_info = JSON.parse(JSON.stringify(dbPayload.clinical_info));
+        if (dbPayload.social_info) dbPayload.social_info = JSON.parse(JSON.stringify(dbPayload.social_info));
+        if (dbPayload.guardians) dbPayload.guardians = JSON.parse(JSON.stringify(dbPayload.guardians));
+
         // Estratégia de salvamento:
         // INSERT (aluno novo sem UUID): usa insert() puro se sem CPF, ou upsert por CPF para deduplicar
         // UPDATE (aluno existente com UUID válido): upsert por CPF (se tiver) ou por id
@@ -836,8 +844,7 @@ export class SupabaseService {
                 const result = await supabase
                     .from('students')
                     .upsert(dbPayload, { onConflict: 'cpf' })
-                    .select('id')
-                    .single();
+                    .select('id');
                 data = result.data;
                 error = result.error;
                 console.log('RESPOSTA_SUPABASE:', { data, error });
@@ -847,8 +854,7 @@ export class SupabaseService {
                 const result = await supabase
                     .from('students')
                     .insert(dbPayload)
-                    .select('id')
-                    .single();
+                    .select('id');
                 data = result.data;
                 error = result.error;
                 console.log('RESPOSTA_SUPABASE:', { data, error });
@@ -860,8 +866,7 @@ export class SupabaseService {
             const result = await supabase
                 .from('students')
                 .upsert(dbPayload, { onConflict: conflictTarget })
-                .select('id')
-                .single();
+                .select('id');
             data = result.data;
             error = result.error;
             console.log('RESPOSTA_SUPABASE:', { data, error });
@@ -876,9 +881,12 @@ export class SupabaseService {
             throw new Error(`Erro ao salvar dados: ${error.message}`);
         }
 
-        if (!data) throw new Error('Erro ao salvar aluno: Operação não retornou dados.');
+        // Validação de Linhas Afetadas: verifica se o retorno contém dados
+        if (!data || data.length === 0) {
+            throw new Error('Erro: Permissão negada para atualizar este registro');
+        }
 
-        return data.id;
+        return Array.isArray(data) ? data[0].id : data.id;
     }
 
     static async deleteStudent(id: string): Promise<void> {
