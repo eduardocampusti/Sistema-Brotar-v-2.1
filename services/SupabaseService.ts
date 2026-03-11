@@ -894,6 +894,9 @@ export class SupabaseService {
             throw new Error('Erro: Permissão negada para atualizar este registro');
         }
 
+        // Invalida o cache para refletir as edições na listagem e visualização do aluno
+        this.invalidateCache('students_');
+
         return Array.isArray(data) ? data[0].id : data.id;
     }
 

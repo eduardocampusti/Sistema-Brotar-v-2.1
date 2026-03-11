@@ -427,7 +427,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
         // 1. Restrição por Perfil (ESCOLA só vê a sua unidade)
         if (isEscola) {
-            const mySchoolId = schools.find(s => s.inep === currentUser?.schoolInep)?.id;
+            const mySchoolId = schools.find(s => String(s.inep) === String(currentUser?.schoolInep))?.id;
             result = result.filter(p => p.schoolId === mySchoolId);
         } else if (selectedSchoolFilter !== 'ALL') {
             // 2. Filtro Manual de Escola (Para Admin/Secretaria)
