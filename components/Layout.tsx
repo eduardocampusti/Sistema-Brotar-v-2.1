@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -35,15 +36,26 @@ import { User, Specialty, SystemSettings, hasPermission } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
-  activePage: string;
-  onNavigate: (page: string) => void;
   currentUser: User;
   onLogout: () => void;
-  systemSettings?: SystemSettings; // Optional to not break tests if not passed immediately
+  systemSettings?: SystemSettings;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate, currentUser, onLogout, systemSettings }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout, systemSettings }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
+  const activePage = location.pathname.split('/').pop() || 'dashboard';
+
+  const onNavigate = (page: string) => {
+    if (page.startsWith('http')) {
+      window.open(page, '_blank');
+      return;
+    }
+    navigate(`/app/${page}`);
+    setIsMobileMenuOpen(false);
+  };
 
   // Defaults if not provided
   const systemName = systemSettings?.systemName || 'Brotar';

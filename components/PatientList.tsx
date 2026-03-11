@@ -32,6 +32,7 @@ import { useToast } from '../contexts/ToastContext';
 
 interface StudentListProps {
   students: Student[];
+  schools: School[];
   onSelectStudent: (student: Student) => void;
   onDelete: (id: string) => void;
   onRegister: () => void;
@@ -63,7 +64,7 @@ const getStudentStatus = (student: Student) => {
   return { label: 'Sem Registro Recente', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: Clock };
 };
 
-export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStudent, onDelete, onRegister, onEdit, currentUser, onRefresh }) => {
+export const PatientList: React.FC<StudentListProps> = ({ students, schools, onSelectStudent, onDelete, onRegister, onEdit, currentUser, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
   const [showImporter, setShowImporter] = useState(false);
@@ -238,7 +239,11 @@ export const PatientList: React.FC<StudentListProps> = ({ students, onSelectStud
           {/* Filtros */}
           <div className="w-full sm:w-64 z-20">
             <SearchableSelect
-              options={schoolOptions}
+              options={[
+                { value: 'ALL', label: 'Todas as Escolas' },
+                ...schools.map(s => ({ value: s.id, label: s.name || '' }))
+                  .sort((a, b) => a.label.localeCompare(b.label))
+              ]}
               value={selectedSchoolId}
               onChange={setSelectedSchoolId}
               placeholder="Filtrar por escola..."

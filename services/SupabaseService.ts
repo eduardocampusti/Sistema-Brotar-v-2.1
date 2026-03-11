@@ -117,6 +117,16 @@ export class SupabaseService {
     private static dataCache: Map<string, { data: any, timestamp: number }> = new Map();
     private static readonly DEFAULT_TTL = 30 * 1000; // 30 segundos (reduzido para maior precisão)
 
+    /**
+     * Verifica se as chaves do Supabase estão configuradas corretamente.
+     * Esta é a trava de segurança solicitada para evitar falhas silenciosas.
+     */
+    static isConfigValid(): boolean {
+        const url = import.meta.env.VITE_SUPABASE_URL;
+        const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        return !!(url && key && url !== '' && key !== '');
+    }
+
     private static setInCache(key: string, data: any): void {
         this.dataCache.set(key, { data, timestamp: Date.now() });
     }

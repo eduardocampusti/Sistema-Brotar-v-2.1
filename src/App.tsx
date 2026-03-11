@@ -1,0 +1,281 @@
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { SupabaseService } from '../services/SupabaseService';
+import { useToast } from '../contexts/ToastContext';
+import { Student, User, Specialty, SystemSettings, Appointment, School } from '../types';
+import { Loader2 } from 'lucide-react';
+import { NotificationProvider } from '../contexts/NotificationContext';
+
+// --- Layouts and Pages (inside src/) ---
+import { PublicLayout } from './layouts/PublicLayout';
+import { AppLayout } from './layouts/AppLayout';
+import { ProtectedRoute } from './routes/ProtectedRoute';
+import { LandingPage } from './pages/landing/LandingPage';
+import { LoginPage } from './pages/auth/LoginPage';
+
+// --- Lazy Loaded Components (Authenticated Area - in root components/) ---
+const Dashboard = React.lazy(() => import('../components/Dashboard').then(m => ({ default: m.Dashboard })));
+const RegistrationForm = React.lazy(() => import('../components/RegistrationForm').then(m => ({ default: m.RegistrationForm })));
+const PatientList = React.lazy(() => import('../components/PatientList').then(m => ({ default: m.PatientList })));
+const PatientProfile = React.lazy(() => import('../components/PatientProfile').then(m => ({ default: m.PatientProfile })));
+const UserManagement = React.lazy(() => import('../components/UserManagement').then(m => ({ default: m.UserManagement })));
+const SchoolManagement = React.lazy(() => import('../components/SchoolManagement').then(m => ({ default: m.SchoolManagement })));
+const SupportProfessionalManagement = React.lazy(() => import('../components/SupportProfessionalManagement').then(m => ({ default: m.SupportProfessionalManagement })));
+const Agenda = React.lazy(() => import('../components/Agenda').then(m => ({ default: m.Agenda })));
+const BackupSystem = React.lazy(() => import('../components/BackupSystem').then(m => ({ default: m.BackupSystem })));
+const SystemSettingsPanel = React.lazy(() => import('../components/SystemSettings').then(m => ({ default: m.SystemSettingsPanel })));
+const PapelTimbradoConfigPanel = React.lazy(() => import('../components/PapelTimbradoConfig').then(m => ({ default: m.PapelTimbradoConfigPanel })));
+const AboutSystem = React.lazy(() => import('../components/AboutSystem').then(m => ({ default: m.AboutSystem })));
+const DocumentGenerator = React.lazy(() => import('../components/DocumentGenerator').then(m => ({ default: m.DocumentGenerator })));
+const SchedulingCenter = React.lazy(() => import('../components/SchedulingCenter').then(m => ({ default: m.SchedulingCenter })));
+const AppointmentForm = React.lazy(() => import('../components/AppointmentForm').then(m => ({ default: m.AppointmentForm })));
+const DocumentVault = React.lazy(() => import('../components/DocumentVault').then(m => ({ default: m.DocumentVault })));
+const MyAccess = React.lazy(() => import('../components/MyAccess').then(m => ({ default: m.MyAccess })));
+const ChangePassword = React.lazy(() => import('../components/ChangePassword').then(m => ({ default: m.ChangePassword })));
+
+// Clinical Pages
+const PsychologyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PsychologyDashboardPage })));
+const PsychologySessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PsychologySessionFormPage })));
+const PsychopedagogyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PsychopedagogyDashboardPage })));
+const PsychopedagogySessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PsychopedagogySessionFormPage })));
+const SocialServiceOperationalPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.SocialServiceOperationalPage })));
+const SocialServiceInterviewHub = React.lazy(() => import('../components/SocialServiceInterviewHub'));
+const SocialServiceHubComp = React.lazy(() => import('../components/SocialServiceHub').then(m => ({ default: m.SocialServiceHub })));
+const SocialWorkerAgenda = React.lazy(() => import('../components/SocialWorkerAgenda').then(m => ({ default: m.SocialWorkerAgenda })));
+const SocialWorkerDashboard = React.lazy(() => import('../components/SocialWorkerDashboard').then(m => ({ default: m.SocialWorkerDashboard })));
+const SocialServiceSessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.SocialServiceSessionFormPage })));
+const OccupationalTherapyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.OccupationalTherapyDashboardPage })));
+const OccupationalTherapySessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.OccupationalTherapySessionFormPage })));
+const SpeechTherapyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.SpeechTherapyDashboardPage })));
+const SpeechTherapySessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.SpeechTherapySessionFormPage })));
+const PhysiotherapyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PhysiotherapyDashboardPage })));
+const PhysiotherapySessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PhysiotherapySessionFormPage })));
+const NutritionDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.NutritionDashboardPage })));
+const NutritionSessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.NutritionSessionFormPage })));
+
+// Dashboards
+const AdminDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.AdminDashboard })));
+const EducationSecretaryDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.EducationSecretaryDashboard })));
+const PsychologyDashboard = React.lazy(() => import('../components/PsychologyDashboard').then(m => ({ default: m.PsychologyDashboard })));
+const PsychopedagogyDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.PsychopedagogyDashboard })));
+
+// Loading Component
+const PageLoading = () => (
+  <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-slate-400 animate-pulse">
+    <Loader2 size={48} className="animate-spin mb-4 text-primary-500" />
+    <p className="font-medium text-sm">Carregando módulo...</p>
+  </div>
+);
+
+// Aux Function
+const hexToRgb = (hex: string) => {
+  if (!hex || typeof hex !== 'string') return '20, 184, 166';
+  const cleanHex = hex.replace('#', '').trim();
+  if (cleanHex.length === 3) {
+    const r = parseInt(cleanHex[0] + cleanHex[0], 16);
+    const g = parseInt(cleanHex[1] + cleanHex[1], 16);
+    const b = parseInt(cleanHex[2] + cleanHex[2], 16);
+    return `${r}, ${g}, ${b}`;
+  }
+  if (cleanHex.length === 6) {
+    const r = parseInt(cleanHex.substring(0, 2), 16);
+    const g = parseInt(cleanHex.substring(2, 4), 16);
+    const b = parseInt(cleanHex.substring(4, 6), 16);
+    return `${r}, ${g}, ${b}`;
+  }
+  return '20, 184, 166';
+};
+
+function AppContent() {
+  const [user, setUser] = useState<User | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [rescheduleData, setRescheduleData] = useState<Appointment | null>(null);
+  const { error: showError } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => SupabaseService.getSystemSettingsSync());
+
+  const applyTheme = () => {
+    try {
+      const activeTheme = SupabaseService.getActiveTheme();
+      const root = document.documentElement;
+      if (!activeTheme || !activeTheme.colors) return;
+      Object.entries(activeTheme.colors).forEach(([shade, value]) => {
+        if (value) root.style.setProperty(`--color-primary-${shade}`, value as string);
+      });
+      const primary500 = activeTheme.colors[500] || '#14b8a6';
+      root.style.setProperty('--color-primary-500-rgb', hexToRgb(primary500));
+    } catch (error) {
+      console.error("Erro crítico ao aplicar tema:", error);
+    }
+  };
+
+  useLayoutEffect(() => {
+    applyTheme();
+    if (systemSettings.systemName) {
+      document.title = `${systemSettings.systemName} - Gestão Multidisciplinar`;
+    }
+  }, [systemSettings]);
+
+  useEffect(() => {
+    async function loadData() {
+      const settings = await SupabaseService.getSystemSettings();
+      setSystemSettings(settings);
+      const [studentsData, schoolsData] = await Promise.all([
+        SupabaseService.getStudents(),
+        SupabaseService.getSchools()
+      ]);
+      setStudents(studentsData);
+      setSchools(schoolsData);
+    }
+    loadData();
+  }, []);
+
+  const refreshData = async () => {
+    setStudents(await SupabaseService.getStudents());
+  };
+
+  const handleNavigate = (page: string) => {
+    navigate(`/app/${page}`);
+  };
+
+  const handleLogin = (loggedInUser: User) => {
+    setUser(loggedInUser);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    navigate('/');
+  };
+
+  // Helper for Student Selection in Profile
+  const handleSelectStudent = (student: Student) => {
+    setSelectedStudent(student);
+    navigate('/app/profile');
+  };
+
+  // Verificação de configuração do Supabase (Trava de Segurança)
+  if (!SupabaseService.isConfigValid()) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-rose-50 p-6 text-center">
+        <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6 animate-pulse">
+          <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-black text-rose-900 mb-2">Erro de Configuração</h1>
+        <p className="text-rose-700 font-bold text-lg mb-4">Configuração de Banco de Dados ausente no Servidor</p>
+        <div className="max-w-md bg-white p-4 rounded-2xl border border-rose-200 shadow-sm text-left">
+          <p className="text-sm text-rose-600 leading-relaxed font-medium">
+            O sistema não conseguiu localizar as variáveis de ambiente necessárias para conectar ao banco de dados. 
+            Verifique as chaves <b>VITE_SUPABASE_URL</b> e <b>VITE_SUPABASE_ANON_KEY</b> no servidor de hospedagem.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user?.mustChangePassword) {
+    return (
+      <React.Suspense fallback={<PageLoading />}>
+        <ChangePassword
+          userId={user.id}
+          onSuccess={async () => setUser({ ...user, mustChangePassword: false })}
+        />
+      </React.Suspense>
+    );
+  }
+
+  return (
+    <NotificationProvider currentUser={user}>
+      <Routes>
+        {/* Rotas Públicas */}
+        <Route element={<PublicLayout><Outlet /></PublicLayout>}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage onLogin={handleLogin} systemSettings={systemSettings} />} />
+        </Route>
+
+        {/* Rotas Privadas */}
+        <Route path="/app" element={
+          <ProtectedRoute user={user}>
+            <AppLayout user={user!} onLogout={handleLogout} systemSettings={systemSettings} />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={
+            <React.Suspense fallback={<PageLoading />}>
+              {user?.role === 'ADMIN' && <AdminDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
+              {user?.role === 'EDUCATION_SECRETARY' && <EducationSecretaryDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
+              {user?.role === 'SPECIALIST' && user.specialty === Specialty.PSYCHOLOGY && <PsychologyDashboard onNavigate={handleNavigate} currentUser={user} />}
+              {user?.role === 'SPECIALIST' && user.specialty === Specialty.SOCIAL_WORK && <SocialWorkerDashboard students={students} currentUser={user} onNavigate={handleNavigate} onNavigateNew={() => handleNavigate('social-service-hub')} onNavigateToCase={(id) => handleSelectStudent(students.find(s => s.id === id)!)} />}
+              {user?.role === 'SPECIALIST' && user.specialty === Specialty.PSYCHOPEDAGOGY && <PsychopedagogyDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
+              {(!user?.role || (user.role === 'SPECIALIST' && ![Specialty.PSYCHOLOGY, Specialty.SOCIAL_WORK, Specialty.PSYCHOPEDAGOGY].includes(user.specialty!))) && <Dashboard students={students} />}
+            </React.Suspense>
+          } />
+
+          <Route path="list" element={<React.Suspense fallback={<PageLoading />}><PatientList students={students} schools={schools} onSelectStudent={handleSelectStudent} onDelete={refreshData} onRegister={() => handleNavigate('register')} onEdit={(s) => { setSelectedStudent(s); handleNavigate('edit-student'); }} currentUser={user!} /></React.Suspense>} />
+          <Route path="register" element={<React.Suspense fallback={<PageLoading />}><RegistrationForm onSuccess={refreshData} onCancel={() => handleNavigate('list')} currentUser={user!} /></React.Suspense>} />
+          <Route path="profile" element={<React.Suspense fallback={<PageLoading />}><PatientProfile student={selectedStudent!} onBack={() => handleNavigate('list')} currentUser={user!} onEdit={() => handleNavigate('edit-student')} onNavigate={handleNavigate} /></React.Suspense>} />
+          <Route path="edit-student" element={<React.Suspense fallback={<PageLoading />}><RegistrationForm initialData={selectedStudent!} onSuccess={refreshData} onCancel={() => handleNavigate('profile')} currentUser={user!} /></React.Suspense>} />
+
+          <Route path="psychology" element={<React.Suspense fallback={<PageLoading />}><PsychologyDashboard onNavigate={handleNavigate} currentUser={user!} /></React.Suspense>} />
+          <Route path="psychology/new-session" element={<React.Suspense fallback={<PageLoading />}><PsychologySessionFormPage onCancel={() => handleNavigate('psychology')} currentUser={user!} /></React.Suspense>} />
+
+          {/* Serviço Social */}
+          <Route path="social-service-hub" element={<React.Suspense fallback={<PageLoading />}><SocialServiceHubComp currentUser={user!} onNavigate={handleNavigate} /></React.Suspense>} />
+          <Route path="social-service-list" element={<React.Suspense fallback={<PageLoading />}><SocialServiceOperationalPage onNavigateNew={() => handleNavigate('social-service/new-session')} currentUser={user!} allStudents={students} /></React.Suspense>} />
+          <Route path="social-interview" element={<React.Suspense fallback={<PageLoading />}><SocialServiceInterviewHub currentUser={user!} allStudents={students} onNavigate={handleNavigate} /></React.Suspense>} />
+          <Route path="social-service/new-session" element={<React.Suspense fallback={<PageLoading />}><SocialServiceSessionFormPage onCancel={() => handleNavigate('social-service-list')} currentUser={user!} /></React.Suspense>} />
+
+          {/* Outras Especialidades */}
+          <Route path="psychopedagogy" element={<React.Suspense fallback={<PageLoading />}><PsychopedagogyDashboardPage onNavigateNew={() => handleNavigate('psychopedagogy/new-session')} currentUser={user!} /></React.Suspense>} />
+          <Route path="psychopedagogy/new-session" element={<React.Suspense fallback={<PageLoading />}><PsychopedagogySessionFormPage onCancel={() => handleNavigate('psychopedagogy')} currentUser={user!} /></React.Suspense>} />
+
+          <Route path="occupational-therapy" element={<React.Suspense fallback={<PageLoading />}><OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} currentUser={user!} /></React.Suspense>} />
+          <Route path="occupational-therapy/new-session" element={<React.Suspense fallback={<PageLoading />}><OccupationalTherapySessionFormPage onCancel={() => handleNavigate('occupational-therapy')} currentUser={user!} /></React.Suspense>} />
+
+          <Route path="speech-therapy" element={<React.Suspense fallback={<PageLoading />}><SpeechTherapyDashboardPage onNavigateNew={() => handleNavigate('speech-therapy/new-session')} currentUser={user!} /></React.Suspense>} />
+          <Route path="speech-therapy/new-session" element={<React.Suspense fallback={<PageLoading />}><SpeechTherapySessionFormPage onCancel={() => handleNavigate('speech-therapy')} currentUser={user!} /></React.Suspense>} />
+
+          <Route path="physiotherapy" element={<React.Suspense fallback={<PageLoading />}><PhysiotherapyDashboardPage onNavigateNew={() => handleNavigate('physiotherapy/new-session')} currentUser={user!} /></React.Suspense>} />
+          <Route path="physiotherapy/new-session" element={<React.Suspense fallback={<PageLoading />}><PhysiotherapySessionFormPage onCancel={() => handleNavigate('physiotherapy')} currentUser={user!} /></React.Suspense>} />
+
+          <Route path="nutrition" element={<React.Suspense fallback={<PageLoading />}><NutritionDashboardPage onNavigateNew={() => handleNavigate('nutrition/new-session')} currentUser={user!} /></React.Suspense>} />
+          <Route path="nutrition/new-session" element={<React.Suspense fallback={<PageLoading />}><NutritionSessionFormPage onCancel={() => handleNavigate('nutrition')} currentUser={user!} /></React.Suspense>} />
+
+          <Route path="scheduling" element={<React.Suspense fallback={<PageLoading />}>
+            {user?.specialty === Specialty.SOCIAL_WORK
+              ? <SocialWorkerAgenda currentUser={user!} students={students} onNavigate={handleNavigate} onNavigateToCase={(id) => handleSelectStudent(students.find(s => s.id === id)!)} />
+              : <SchedulingCenter students={students} currentUser={user!} onNavigate={handleNavigate} onReschedule={(apt) => { setRescheduleData(apt); handleNavigate('new-appointment'); }} />}
+          </React.Suspense>} />
+
+          <Route path="new-appointment" element={<React.Suspense fallback={<PageLoading />}><AppointmentForm students={students} currentUser={user!} initialData={rescheduleData} onCancel={() => handleNavigate('scheduling')} onSuccess={() => handleNavigate('scheduling')} /></React.Suspense>} />
+
+          <Route path="documents" element={<React.Suspense fallback={<PageLoading />}><DocumentGenerator currentUser={user!} /></React.Suspense>} />
+          <Route path="vault" element={<React.Suspense fallback={<PageLoading />}><DocumentVault currentUser={user!} students={students} onModelSelect={() => handleNavigate('documents')} /></React.Suspense>} />
+          <Route path="schools" element={<React.Suspense fallback={<PageLoading />}><SchoolManagement /></React.Suspense>} />
+          <Route path="support-professionals" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement /></React.Suspense>} />
+          <Route path="admin" element={<React.Suspense fallback={<PageLoading />}><UserManagement /></React.Suspense>} />
+          <Route path="settings" element={<React.Suspense fallback={<PageLoading />}><SystemSettingsPanel /></React.Suspense>} />
+          <Route path="about" element={<React.Suspense fallback={<PageLoading />}><AboutSystem /></React.Suspense>} />
+          <Route path="my-access" element={<React.Suspense fallback={<PageLoading />}><MyAccess currentUser={user!} /></React.Suspense>} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </NotificationProvider>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  );
+}
+
+export default App;
