@@ -163,10 +163,14 @@ export class SupabaseService {
 
     /**
      * Sanitiza objetos antes de enviar ao Supabase.
-     * 1. Converte "" para null.
+     * 1. Converte "" para null (apenas em campos escalares de nível raiz).
      * 2. Remove undefined.
      * 3. Se o campo termina em _id e não é UUID válido, vira null.
+     * ATENÇÃO: NÃO aplica recursividade em campos JSONB do banco (address, guardians,
+     * clinical_info, social_info, documents) para evitar perda de dados aninhados.
      */
+    private static readonly JSONB_FIELDS = new Set(['address', 'guardians', 'clinical_info', 'social_info', 'documents']);
+
     private static cleanDataForSupabase(data: any): any {
         if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
 
@@ -182,23 +186,25 @@ export class SupabaseService {
                 return; // Pula este campo — será omitido do payload final
             }
 
-            // 1. Strings vazias -> null
-            if (value === '') value = null;
-
             // 2. Undefined -> Ignorar (não adiciona ao objeto final)
             if (value === undefined) return;
 
+            // Campos JSONB: enviamos o objeto/array como está, SEM recursividade.
+            // Isso preserva campos aninhados como address.street, clinical_info.motherName etc.
+            if (this.JSONB_FIELDS.has(key)) {
+                clean[key] = value;
+                return;
+            }
+
+            // 1. Strings vazias -> null (apenas em campos escalares)
+            if (value === '') value = null;
+
             // 3. Critério Especial: campos _id devem ser UUIDs válidos ou null
-            if (key.endsWith('_id') && typeof value === 'string' && value.length > 0) {
+            if (key.endsWith('_id') && typeof value === 'string' && value !== null && value.length > 0) {
                 if (!uuidRegex.test(value)) {
                     console.warn(`[SupabaseService] UUID inválido detectado em ${key}: "${value}". Convertendo para null.`);
                     value = null;
                 }
-            }
-
-            // Recursividade para objetos aninhados
-            if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof File)) {
-                value = this.cleanDataForSupabase(value);
             }
 
             clean[key] = value;
@@ -684,29 +690,73 @@ export class SupabaseService {
             // Para UPDATE: inclui 'id' para localizar o registro
             ...(hasValidId ? { id: student.id } : {}),
             full_name: student.fullName,
-            birth_date: student.birthDate,
+            birth_date: student.birthDate || null,
             cpf: cleanCPF || null,
             sus_card: sanitizeField(student.susCard),
-            grade: student.school.grade,
-            shift: student.school.shift,
-            school_id: sanitizeField(student.school.schoolId) || null, // Vínculo da escola obrigatório
+            grade: student.school?.grade || null,
+            shift: student.school?.shift || null,
+            school_id: sanitizeField(student.school?.schoolId) || null,
             ethnicity: sanitizeField(student.ethnicity),
-            address: student.address,
-            guardians: student.guardians,
-            photo_url: finalPhotoUrl,
-            documents: student.documents || [],
-            clinical_info: {
-                ...student.clinical,
-                gender: student.gender,
-                rg: sanitizeField(student.rg),
-                fatherName: student.fatherName,
-                motherName: student.motherName,
-                nationality: student.nationality,
-                birthPlace: student.birthPlace
+            unit: student.unit || null,
+            // JSONB: endereço completo (rua, número, bairro, cidade, UF, CEP)
+            address: {
+                street: student.address?.street || '',
+                number: student.address?.number || '',
+                district: student.address?.district || '',
+                city: student.address?.city || '',
+                state: student.address?.state || '',
+                zipCode: student.address?.zipCode || ''
             },
-            social_info: student.socialInfo || {},
-            status: student.status
+            // JSONB: responsáveis
+            guardians: student.guardians || [],
+            photo_url: finalPhotoUrl || null,
+            documents: student.documents || [],
+            // JSONB: dados clínicos + dados pessoais expandidos
+            clinical_info: {
+                // Dados clínicos
+                diagnosis: student.clinical?.diagnosis || '',
+                cid: student.clinical?.cid || '',
+                medications: student.clinical?.medications || '',
+                allergies: student.clinical?.allergies || '',
+                therapiesHistory: student.clinical?.therapiesHistory || '',
+                weight: student.clinical?.weight || '',
+                height: student.clinical?.height || '',
+                specialNeeds: student.clinical?.specialNeeds || [],
+                // Dados pessoais expandidos (salvos no JSONB por não ter coluna própria)
+                gender: student.gender || '',
+                rg: student.rg || '',
+                motherName: student.motherName || '',
+                fatherName: student.fatherName || '',
+                nationality: student.nationality || '',
+                birthPlace: student.birthPlace || '',
+                // Dados clínicos especializados (preserva sub-JSONs de cada área)
+                pp_data: student.clinical?.pp_data,
+                psych_data: student.clinical?.psych_data,
+                social_data: student.clinical?.social_data,
+                social_interview: student.clinical?.social_interview,
+                ot_data: student.clinical?.ot_data,
+                st_data: student.clinical?.st_data,
+                pt_data: student.clinical?.pt_data,
+                nutrition_data: student.clinical?.nutrition_data,
+            },
+            // JSONB: dados sociais
+            social_info: {
+                nis: student.socialInfo?.nis || '',
+                bolsaFamilia: student.socialInfo?.bolsaFamilia ?? false,
+                bpc: student.socialInfo?.bpc ?? false
+            },
+            status: student.status || 'Active'
         };
+
+        console.log('[SupabaseService] ► PAYLOAD COMPLETO PARA O BANCO:');
+        console.log('  Campos raiz:', Object.keys(rawPayload).filter(k => !['address','guardians','clinical_info','social_info','documents'].includes(k)));
+        console.log('  address:', rawPayload.address);
+        console.log('  clinical_info (campos pessoais):', { gender: rawPayload.clinical_info.gender, rg: rawPayload.clinical_info.rg, motherName: rawPayload.clinical_info.motherName, fatherName: rawPayload.clinical_info.fatherName, nationality: rawPayload.clinical_info.nationality, birthPlace: rawPayload.clinical_info.birthPlace });
+        console.log('  clinical_info (clínico):', { diagnosis: rawPayload.clinical_info.diagnosis, cid: rawPayload.clinical_info.cid, medications: rawPayload.clinical_info.medications, specialNeeds: rawPayload.clinical_info.specialNeeds });
+        console.log('  social_info:', rawPayload.social_info);
+        console.log('  guardians count:', rawPayload.guardians?.length);
+        console.log('  documents count:', rawPayload.documents?.length);
+        console.log('  unit:', rawPayload.unit);
 
         const dbPayload = this.cleanDataForSupabase(rawPayload);
 
