@@ -310,6 +310,22 @@ export class SupabaseService {
             mustChangePassword: userData?.must_change_password
         };
 
+        // Lookup do UUID real da escola para o perfil ESCOLA
+        // Resolve o descompasso entre o código INEP (exibição) e o school_id UUID (FK dos alunos)
+        if (user.role === 'ESCOLA' && user.schoolInep) {
+            const { data: schoolRow } = await supabase
+                .from('schools')
+                .select('id')
+                .eq('inep', user.schoolInep)
+                .single();
+            if (schoolRow?.id) {
+                user.schoolId = schoolRow.id;
+                console.log(`[SupabaseService] Escola ${user.schoolInep} → UUID: ${user.schoolId}`);
+            } else {
+                console.warn(`[SupabaseService] Escola com INEP ${user.schoolInep} não encontrada na tabela schools.`);
+            }
+        }
+
         // Salva no cache
         this.userProfileCache.set(user.id, user);
 
@@ -371,6 +387,21 @@ export class SupabaseService {
             schoolInep: profile.school_inep || undefined,
             mustChangePassword: profile.must_change_password
         };
+
+        // Lookup do UUID real da escola para perfil ESCOLA (resolve descompasso INEP vs UUID)
+        if (user.role === 'ESCOLA' && user.schoolInep) {
+            const { data: schoolRow } = await supabase
+                .from('schools')
+                .select('id')
+                .eq('inep', user.schoolInep)
+                .single();
+            if (schoolRow?.id) {
+                user.schoolId = schoolRow.id;
+                console.log(`[SupabaseService] getUserProfile: Escola ${user.schoolInep} → UUID: ${user.schoolId}`);
+            } else {
+                console.warn(`[SupabaseService] getUserProfile: INEP ${user.schoolInep} não encontrado em schools.`);
+            }
+        }
 
         // Salva no cache
         this.userProfileCache.set(user.id, user);
@@ -580,10 +611,10 @@ export class SupabaseService {
         return safeCall(async () => {
             console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'}) com Projeção Estrita...`);
             
-            // Otimização Definitiva: Apenas os campos necessários para a listagem.
+            // Campos essenciais + join com schools para resolver nome e distrito da escola
             let query = supabase
                 .from('students')
-                .select('id, full_name, birth_date, cpf, school_id, photo_url, status, unit')
+                .select('id, full_name, birth_date, cpf, school_id, photo_url, status, unit, schools(name, district)')
                 .order('full_name');
 
             // Filtragem no Lado do Servidor (Server-Side) por Unidade
@@ -1792,15 +1823,19 @@ export class SupabaseService {
         }, 2, 300, `getSupportProfessionalsByStudent(${studentId})`);
     }
 
-    static async getSupportProfessionals(unit?: Unit): Promise<SupportProfessional[]> {
+    static async getSupportProfessionals(schoolId?: string): Promise<SupportProfessional[]> {
         return safeCall(async () => {
-            console.log(`[SupabaseService] Buscando profissionais de apoio (${unit || 'Global'}) com Projeção Estrita...`);
+            console.log(`[SupabaseService] Buscando profissionais de apoio${schoolId ? ` (escola: ${schoolId})` : ' (Global)'}...`);
             
-            // Colunas Específicas conforme solicitado: id, name, cpf, phone, photo_url, education, school_id, student_id, regent_teacher, contract_start_date, workload
             let query = supabase
                 .from('support_professionals')
                 .select('id, name, cpf, phone, photo_url, education, school_id, student_id, regent_teacher, contract_start_date, workload')
                 .order('name');
+            
+            // 🔒 Filtro server-side: ESCOLA só vê profissionais da sua unidade
+            if (schoolId) {
+                query = query.eq('school_id', schoolId);
+            }
             
             const { data, error } = await query;
             if (error) {
@@ -1820,7 +1855,6 @@ export class SupabaseService {
                 regentTeacher: p.regent_teacher || '-',
                 contractStartDate: p.contract_start_date || '',
                 workload: p.workload || '',
-                // Fallbacks para campos da interface que não estão na consulta otimizada
                 email: p.email || '',
                 address: p.address || {},
                 createdAt: p.created_at || new Date().toISOString()

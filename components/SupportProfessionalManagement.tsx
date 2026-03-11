@@ -200,7 +200,12 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const loadData = async () => {
         try {
             console.log('[SupportProf] Carregando dados...');
-            const profs = await SupabaseService.getSupportProfessionals();
+            
+            // 🔒 Se o usuário for ESCOLA, filtra server-side pelo UUID real da escola
+            // Isso garante que o banco retorne apenas os profissionais da unidade
+            const mySchoolId = currentUser?.role === 'ESCOLA' ? currentUser?.schoolId : undefined;
+            
+            const profs = await SupabaseService.getSupportProfessionals(mySchoolId);
             console.log('[SupportProf] Profissionais carregados:', profs.length, profs);
             const schoolsData = await SupabaseService.getSchools();
             const studentsData = await SupabaseService.getStudents();

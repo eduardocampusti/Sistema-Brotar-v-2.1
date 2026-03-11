@@ -43,6 +43,7 @@ export interface User {
   // Novos Campos
   scope?: UserScope; // Define se vê tudo (Sede) ou apenas regional (Cocal)
   schoolInep?: string; // INEP da escola (apenas para role ESCOLA)
+  schoolId?: string;   // UUID real da tabela schools (resolvido via lookup por INEP no login)
   photoUrl?: string; // Foto de perfil
   signatureUrl?: string; // Assinatura digital/Carimbo
   email?: string;

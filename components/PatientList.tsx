@@ -117,12 +117,12 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
       if (!schoolName.includes('cocal') && !district.includes('cocal')) return false;
     }
 
-    // 1b. School Specific Restriction
+    // 1b. School Specific Restriction — usa o UUID real (schoolId) resolvido no login
     if (isSchool) {
-      const mySchoolId = currentUser?.schoolInep;
-      const mySchoolName = currentUser?.name;
-      const isMyStudent = p.school?.schoolId === mySchoolId || p.school?.schoolName === mySchoolName;
-      if (!isMyStudent) return false;
+      // currentUser.schoolId é o UUID da tabela schools, resolvido via lookup por INEP no login
+      const mySchoolId = currentUser?.schoolId;
+      if (!mySchoolId) return false; // Segurança: sem UUID, escola não vê nada
+      if (p.school?.schoolId !== mySchoolId) return false;
     }
 
     // 2. Search Term Filter
