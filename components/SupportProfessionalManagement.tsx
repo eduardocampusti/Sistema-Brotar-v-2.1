@@ -213,7 +213,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             setSchools(schoolsData);
             setStudents(studentsData);
         } catch (error) {
-            console.error('Erro ao carregar dados:', error);
+            console.error('ERRO_PROFISSIONAIS:', error);
             console.dir(error);
             showNotification('Erro ao carregar dados.', 'error');
         }
@@ -320,17 +320,18 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     };
 
     useEffect(() => {
-        if (currentUser?.role === 'ESCOLA' && currentUser.schoolInep && schools.length > 0) {
-            const mySchool = schools.find(s => s.inep === currentUser.schoolInep);
-            if (mySchool) {
-                // Auto-seleção no formulário
-                if (!formData.schoolId) {
-                    setFormData(prev => ({ ...prev, schoolId: mySchool.id }));
+        if (currentUser?.role === 'ESCOLA' && currentUser.schoolId && schools.length > 0) {
+            const mySchool = schools.find(s => s.id === currentUser.schoolId);
+            
+            // Auto-seleção no formulário
+            if (!formData.schoolId) {
+                setFormData(prev => ({ ...prev, schoolId: currentUser.schoolId! }));
+                if (mySchool) {
                     setSchoolSearchTerm(mySchool.name);
                 }
-                // Travar o filtro na escola dela
-                setSelectedSchoolFilter(mySchool.id);
             }
+            // Travar o filtro na escola dela
+            setSelectedSchoolFilter(currentUser.schoolId);
         }
     }, [currentUser, schools, formData.schoolId]);
 

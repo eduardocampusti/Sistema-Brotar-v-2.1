@@ -795,12 +795,12 @@ export class SupabaseService {
                 height: student.clinical?.height || '',
                 specialNeeds: Array.isArray(student.clinical?.specialNeeds) && student.clinical.specialNeeds.length > 0 ? student.clinical.specialNeeds : null,
                 // Dados pessoais expandidos (salvos no JSONB por não ter coluna própria)
-                gender: student.gender || '',
-                rg: student.rg || '',
-                motherName: student.motherName || '',
-                fatherName: student.fatherName || '',
-                nationality: student.nationality || '',
-                birthPlace: student.birthPlace || '',
+                gender: student.gender || null,
+                rg: student.rg || null,
+                motherName: student.motherName || null,
+                fatherName: student.fatherName || null,
+                nationality: student.nationality || null,
+                birthPlace: student.birthPlace || null,
                 // Dados clínicos especializados (preserva sub-JSONs de cada área)
                 pp_data: student.clinical?.pp_data || null,
                 psych_data: student.clinical?.psych_data || null,
@@ -810,23 +810,28 @@ export class SupabaseService {
                 st_data: student.clinical?.st_data || null,
                 pt_data: student.clinical?.pt_data || null,
                 nutrition_data: student.clinical?.nutrition_data || null,
-            } : null,
-            // JSONB: dados sociais (renomeado para family_info)
+            } : {},
+            // JSONB: dados sociais (family_info e social_info, para fallback seguro)
             family_info: (student.socialInfo && Object.keys(student.socialInfo).length > 0) ? {
-                nis: student.socialInfo?.nis || '',
+                nis: student.socialInfo?.nis || null,
                 bolsaFamilia: student.socialInfo?.bolsaFamilia ?? false,
                 bpc: student.socialInfo?.bpc ?? false
-            } : null,
+            } : {},
+            social_info: (student.socialInfo && Object.keys(student.socialInfo).length > 0) ? {
+                nis: student.socialInfo?.nis || null,
+                bolsaFamilia: student.socialInfo?.bolsaFamilia ?? false,
+                bpc: student.socialInfo?.bpc ?? false
+            } : {},
             // JSONB: dados escolares (educational_info)
             educational_info: (student.school && Object.keys(student.school).length > 0) ? {
-                grade: student.school?.grade || '',
-                shift: student.school?.shift || '',
-                schedule: student.school?.schedule || '',
-                teachingType: student.school?.teachingType || '',
+                grade: student.school?.grade || null,
+                shift: student.school?.shift || null,
+                schedule: student.school?.schedule || null,
+                teachingType: student.school?.teachingType || null,
                 hasSpecialAide: student.school?.hasSpecialAide || false,
-                difficulties: student.school?.difficulties || '',
-                schoolName: student.school?.schoolName || ''
-            } : null,
+                difficulties: student.school?.difficulties || null,
+                schoolName: student.school?.schoolName || null
+            } : {},
             status: student.status || 'Active'
         };
 
