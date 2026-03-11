@@ -309,8 +309,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
             let finalSchoolName = formData.school?.schoolName;
 
             if (!finalSchoolId && currentUser?.schoolInep) {
-                // Tenta recuperar o ID pela lista de escolas carregada usando o INEP do usuário
-                const schoolByInep = schools.find(s => s.inep === currentUser.schoolInep);
+                // Tenta recuperar o ID pela lista de escolas carregada usando o INEP do usuário (Conversão de tipo forçada)
+                const schoolByInep = schools.find(s => String(s.inep) === String(currentUser.schoolInep));
                 if (schoolByInep) {
                     finalSchoolId = schoolByInep.id;
                     finalSchoolName = schoolByInep.name;
@@ -318,9 +318,17 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                 }
             }
 
-            // Se ainda nulo e não for uma escola "OUTRA" com nome preenchido, barra o envio
+            // Log de Emergência solicitado pelo usuário
+            console.log('DEBUG_CADASTRO:', { 
+                finalSchoolId, 
+                inep: currentUser?.schoolInep, 
+                schoolsCount: schools.length,
+                formDataSchoolId: formData.school?.schoolId 
+            });
+
+            // Bloqueio Total: Se ainda nulo e não for uma escola "OUTRA" com nome preenchido, barra o envio
             if (!finalSchoolId && (!finalSchoolName || finalSchoolName.trim() === '')) {
-                setSaveError('Erro: Não foi possível identificar o vínculo escolar automático. Por favor, selecione a escola manualmente na aba Dados Escolares.');
+                setSaveError('Impossível salvar: Vínculo escolar não localizado. Verifique se o INEP no seu perfil está correto.');
                 setIsSubmitting(false);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 return;
@@ -846,7 +854,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                                                 })),
                                                 { value: 'OUTRA', label: 'Outra (Não Listada / Digitar Nome)' }
                                             ]}
-                                            value={formData.school?.schoolId || (formData.school?.schoolName?.trim() ? 'OUTRA' : '')}
+                                            value={schools.length === 1 ? schools[0].id : (formData.school?.schoolId || (formData.school?.schoolName?.trim() ? 'OUTRA' : ''))}
                                             onChange={(selectedId) => {
                                                 if (selectedId === 'OUTRA') {
                                                     handleInputChange('school', 'schoolId', '');
