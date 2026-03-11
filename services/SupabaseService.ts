@@ -176,6 +176,12 @@ export class SupabaseService {
         Object.keys(data).forEach(key => {
             let value = data[key];
 
+            // CORREÇÃO CRÍTICA: o campo 'id' da raiz NUNCA deve ser convertido para null.
+            // Se for string vazia ou nulo, simplesmente ignoramos — o Supabase gera o UUID.
+            if (key === 'id' && (value === '' || value === null || value === undefined)) {
+                return; // Pula este campo — será omitido do payload final
+            }
+
             // 1. Strings vazias -> null
             if (value === '') value = null;
 
@@ -190,8 +196,7 @@ export class SupabaseService {
                 }
             }
 
-            // Recursividade para objetos aninhados (exceto se for clinical_info ou address que são JSONB estruturados)
-            // Mas para garantir a sanitização profunda em JSONB, podemos rodar de novo se não for nulo
+            // Recursividade para objetos aninhados
             if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof File)) {
                 value = this.cleanDataForSupabase(value);
             }
@@ -667,8 +672,17 @@ export class SupabaseService {
 
         const cleanCPF = student.cpf ? student.cpf.replace(/\D/g, '') : '';
 
+        // Detecta se é INSERT (aluno novo sem ID) ou UPDATE (aluno existente com UUID válido)
+        const isInsert = !student.id || student.id.trim() === '';
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const hasValidId = student.id && uuidRegex.test(student.id);
+
+        console.log(`[SupabaseService] Modo: ${isInsert ? 'INSERT (novo aluno, UUID gerado pelo banco)' : 'UPDATE/UPSERT (ID: ' + student.id + ')'}`);
+
         const rawPayload: any = {
-            id: student.id, // Garante que o ID esteja no payload para upserts por ID
+            // Para INSERT: omite 'id' (banco gera via gen_random_uuid())
+            // Para UPDATE: inclui 'id' para localizar o registro
+            ...(hasValidId ? { id: student.id } : {}),
             full_name: student.fullName,
             birth_date: student.birthDate,
             cpf: cleanCPF || null,
@@ -728,15 +742,46 @@ export class SupabaseService {
         }
 
 
-        const conflictTarget = dbPayload.cpf ? 'cpf' : 'id';
-        console.log(`[SupabaseService] Realizando upsert do aluno com conflito no ${conflictTarget}...`);
+        // Estratégia de salvamento:
+        // INSERT (aluno novo sem UUID): usa insert() puro se sem CPF, ou upsert por CPF para deduplicar
+        // UPDATE (aluno existente com UUID válido): upsert por CPF (se tiver) ou por id
+        let data: any;
+        let error: any;
 
-        // Salvamento atômico exclusivo via Upsert híbrido (CPF ou ID)
-        const { data, error } = await supabase
-            .from('students')
-            .upsert(dbPayload, { onConflict: conflictTarget })
-            .select('id')
-            .single();
+        if (isInsert) {
+            if (dbPayload.cpf) {
+                // Novo aluno COM CPF: upsert por CPF para evitar duplicata
+                console.log('[SupabaseService] INSERT com CPF: upsert via cpf para deduplicação...');
+                const result = await supabase
+                    .from('students')
+                    .upsert(dbPayload, { onConflict: 'cpf' })
+                    .select('id')
+                    .single();
+                data = result.data;
+                error = result.error;
+            } else {
+                // Novo aluno SEM CPF: insert puro → banco gera o UUID
+                console.log('[SupabaseService] INSERT puro (sem CPF): banco gerará o UUID...');
+                const result = await supabase
+                    .from('students')
+                    .insert(dbPayload)
+                    .select('id')
+                    .single();
+                data = result.data;
+                error = result.error;
+            }
+        } else {
+            // Aluno existente: upsert por CPF ou ID
+            const conflictTarget = dbPayload.cpf ? 'cpf' : 'id';
+            console.log(`[SupabaseService] UPDATE/UPSERT do aluno com conflito no ${conflictTarget}...`);
+            const result = await supabase
+                .from('students')
+                .upsert(dbPayload, { onConflict: conflictTarget })
+                .select('id')
+                .single();
+            data = result.data;
+            error = result.error;
+        }
 
         if (error) {
             console.error('Erro ao salvar aluno (Upsert):', error);

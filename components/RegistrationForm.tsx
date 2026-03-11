@@ -47,7 +47,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     // ... (States remain same) ...
     // Initial State
     const [formData, setFormData] = useState<Partial<Student>>({
-        id: '',
+        // id não inicializado: undefined para novos alunos (UUID gerado pelo banco no INSERT)
         status: 'Active',
         createdAt: new Date().toISOString(),
         photoUrl: '',
