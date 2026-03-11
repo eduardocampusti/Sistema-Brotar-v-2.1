@@ -205,13 +205,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
     const loadData = async () => {
         try {
-            console.log('[SupportProf] Carregando dados...');
-            
-            // 🔒 Se o usuário for ESCOLA, filtra server-side pelo UUID real da escola
-            // Isso garante que o banco retorne apenas os profissionais da unidade. Se UUID falhar, mandar id inexistente.
-            const mySchoolId = currentUser?.role === 'ESCOLA' ? (currentUser?.schoolId || '00000000-0000-0000-0000-000000000000') : undefined;
-            
-            const profs = await SupabaseService.getSupportProfessionals(mySchoolId);
+            const profs = await SupabaseService.getSupportProfessionals();
             console.log('[SupportProf] Profissionais carregados:', profs.length, profs);
             const schoolsData = await SupabaseService.getSchools();
             const studentsData = await SupabaseService.getStudents();
@@ -422,38 +416,31 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         return students.filter(s => s.school?.schoolId === formData.schoolId);
     }, [students, formData.schoolId]);
 
-    // Filtragem de profissionais por permissão (Escola só vê os dela) e filtro selecionado
+    // Filtragem simplificada
     const filteredProfessionals = useMemo(() => {
         let result = professionals;
 
-        // 1. Restrição por Perfil (ESCOLA só vê a sua unidade)
-        if (isEscola) {
-            const mySchoolId = schools.find(s => String(s.inep) === String(currentUser?.schoolInep))?.id;
-            result = result.filter(p => p.schoolId === mySchoolId);
-        } else if (selectedSchoolFilter !== 'ALL') {
-            // 2. Filtro Manual de Escola (Para Admin/Secretaria)
+        if (selectedSchoolFilter !== 'ALL') {
             result = result.filter(p => p.schoolId === selectedSchoolFilter);
         }
 
-        // 3. Filtro por Nome (Normalizado)
         if (nameSearchTerm.trim()) {
             const search = normalizeString(nameSearchTerm);
             result = result.filter(p => normalizeString(p.name).includes(search));
         }
 
-        // 4. Filtro por CPF (Sanitizado)
         if (cpfSearchTerm.trim()) {
             const search = sanitizeCPF(cpfSearchTerm);
             result = result.filter(p => sanitizeCPF(p.cpf).includes(search));
         }
 
         return result;
-    }, [professionals, isEscola, currentUser, schools, selectedSchoolFilter, nameSearchTerm, cpfSearchTerm]);
+    }, [professionals, selectedSchoolFilter, nameSearchTerm, cpfSearchTerm]);
 
     const hasActiveFilters = selectedSchoolFilter !== 'ALL' || nameSearchTerm.trim() !== '' || cpfSearchTerm.trim() !== '';
 
     const clearAllFilters = () => {
-        if (!isEscola) setSelectedSchoolFilter('ALL');
+        setSelectedSchoolFilter('ALL');
         setNameSearchTerm('');
         setCpfSearchTerm('');
     };

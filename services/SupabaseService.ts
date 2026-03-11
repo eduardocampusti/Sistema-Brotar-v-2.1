@@ -770,7 +770,7 @@ export class SupabaseService {
             ethnicity: sanitizeField(student.ethnicity),
             unit: student.unit || null,
             // JSONB: endereço completo - Garantido como JSON {}, nunca string vazia
-            address: (typeof student.address === 'object' && student.address !== null && Object.keys(student.address).length > 0) ? {
+            address: (student.address && Object.keys(student.address).length > 0) ? {
                 street: student.address.street || '',
                 number: student.address.number || '',
                 district: student.address.district || '',
@@ -781,9 +781,9 @@ export class SupabaseService {
             // JSONB: responsáveis
             guardians: student.guardians || [],
             photo_url: finalPhotoUrl || null,
-            documents: student.documents || [],
+            documents: (student.documents && student.documents.length > 0) ? student.documents : null,
             // JSONB: dados clínicos + dados pessoais expandidos
-            clinical_info: {
+            clinical_info: (student.clinical && Object.keys(student.clinical).length > 0) ? {
                 // Dados clínicos
                 diagnosis: student.clinical?.diagnosis || '',
                 cid: student.clinical?.cid || '',
@@ -792,7 +792,7 @@ export class SupabaseService {
                 therapiesHistory: student.clinical?.therapiesHistory || '',
                 weight: student.clinical?.weight || '',
                 height: student.clinical?.height || '',
-                specialNeeds: student.clinical?.specialNeeds || [],
+                specialNeeds: Array.isArray(student.clinical?.specialNeeds) && student.clinical.specialNeeds.length > 0 ? student.clinical.specialNeeds : null,
                 // Dados pessoais expandidos (salvos no JSONB por não ter coluna própria)
                 gender: student.gender || '',
                 rg: student.rg || '',
@@ -801,21 +801,21 @@ export class SupabaseService {
                 nationality: student.nationality || '',
                 birthPlace: student.birthPlace || '',
                 // Dados clínicos especializados (preserva sub-JSONs de cada área)
-                pp_data: student.clinical?.pp_data,
-                psych_data: student.clinical?.psych_data,
-                social_data: student.clinical?.social_data,
-                social_interview: student.clinical?.social_interview,
-                ot_data: student.clinical?.ot_data,
-                st_data: student.clinical?.st_data,
-                pt_data: student.clinical?.pt_data,
-                nutrition_data: student.clinical?.nutrition_data,
-            },
+                pp_data: student.clinical?.pp_data || null,
+                psych_data: student.clinical?.psych_data || null,
+                social_data: student.clinical?.social_data || null,
+                social_interview: student.clinical?.social_interview || null,
+                ot_data: student.clinical?.ot_data || null,
+                st_data: student.clinical?.st_data || null,
+                pt_data: student.clinical?.pt_data || null,
+                nutrition_data: student.clinical?.nutrition_data || null,
+            } : null,
             // JSONB: dados sociais
-            social_info: {
+            social_info: (student.socialInfo && Object.keys(student.socialInfo).length > 0) ? {
                 nis: student.socialInfo?.nis || '',
                 bolsaFamilia: student.socialInfo?.bolsaFamilia ?? false,
                 bpc: student.socialInfo?.bpc ?? false
-            },
+            } : null,
             status: student.status || 'Active'
         };
 
@@ -1899,45 +1899,16 @@ export class SupabaseService {
         return safeCall(async () => {
             console.log(`[SupabaseService] Buscando profissionais de apoio${schoolId ? ` (escola: ${schoolId})` : ' (Global)'}...`);
             
-            // NOVO: Busca do perfil em tempo real para forçar validação de escola
-            const { data: { session } } = await supabase.auth.getSession();
-            let forcedSchoolId = schoolId;
-            
-            if (session?.user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role, school_id')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                if (profile?.role === 'ESCOLA') {
-                    if (!profile.school_id) {
-                        alert('Erro: Escola não identificada no seu perfil');
-                        return [];
-                    }
-                    forcedSchoolId = profile.school_id;
-                }
-            }
-            
             // Consulta mais simplificada (estado mais básico possível)
             let query = supabase
                 .from('support_professionals')
                 .select('*')
                 .order('name');
             
-            // 🔒 Filtro server-side: ESCOLA só vê profissionais da sua unidade (removido via RLS)
-            // if (forcedSchoolId) {
-            //     query = query.eq('school_id', forcedSchoolId);
-            // }
-            
             const { data, error } = await query;
             if (error) {
-                console.error('Erro ao buscar profissionais de apoio:', error);
+                console.error('Erro ao buscar profissionais de apoio: Nomes de colunas mudaram?', error);
                 throw error;
-            }
-
-            if (forcedSchoolId && data && data.length > 10) {
-                throw new Error('Vazamento detectado: A lista retornou mais de 10 registros para a escola.');
             }
 
             return (data || []).map((p: any) => ({
