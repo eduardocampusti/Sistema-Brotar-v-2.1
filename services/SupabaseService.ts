@@ -70,12 +70,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => {
 // Função utilitária para retry em caso de AbortError ou falha de rede e monitoramento de performance
 const safeCall = async <T>(fn: () => Promise<T>, retries = 2, interval = 300, contextName = 'Operação'): Promise<T> => {
     try {
-        const start = performance.now();
         const result = await fn();
-        const duration = performance.now() - start;
-        if (duration > 1500) { // Loga se demorar mais que 1.5s
-            console.warn(`[SupabaseService] LENTIDÃO DETECTADA: ${contextName} demorou ${duration.toFixed(0)}ms`);
-        }
         return result;
     } catch (error: any) {
         if (retries > 0 && (error.name === 'AbortError' || error.message?.includes('AbortError') || !navigator.onLine || error.message?.includes('Failed to fetch'))) {
@@ -289,7 +284,7 @@ export class SupabaseService {
         // Busca perfil expandido
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('*')
+            .select('*, school_id')
             .eq('id', data.user.id)
             .single();
 
@@ -307,12 +302,12 @@ export class SupabaseService {
             photoUrl: userData?.photo_url,
             scope: userData?.scope,
             schoolInep: userData?.school_inep || undefined,
+            schoolId: userData?.school_id || undefined,
             mustChangePassword: userData?.must_change_password
         };
 
-        // Lookup do UUID real da escola para o perfil ESCOLA
-        // Resolve o descompasso entre o código INEP (exibição) e o school_id UUID (FK dos alunos)
-        if (user.role === 'ESCOLA' && user.schoolInep) {
+        // Se ainda não tiver schoolId, tenta fazer o lookup pelo INEP como fallback
+        if (user.role === 'ESCOLA' && user.schoolInep && !user.schoolId) {
             const { data: schoolRow } = await supabase
                 .from('schools')
                 .select('id')
@@ -348,7 +343,7 @@ export class SupabaseService {
 
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('*')
+            .select('*, school_id')
             .eq('id', userId)
             .single();
 
@@ -385,11 +380,12 @@ export class SupabaseService {
             photoUrl: profile.photo_url,
             scope: profile.scope,
             schoolInep: profile.school_inep || undefined,
+            schoolId: profile.school_id || undefined,
             mustChangePassword: profile.must_change_password
         };
 
-        // Lookup do UUID real da escola para perfil ESCOLA (resolve descompasso INEP vs UUID)
-        if (user.role === 'ESCOLA' && user.schoolInep) {
+        // Se ainda não tiver schoolId, tenta fazer o lookup pelo INEP como fallback
+        if (user.role === 'ESCOLA' && user.schoolInep && !user.schoolId) {
             const { data: schoolRow } = await supabase
                 .from('schools')
                 .select('id')
