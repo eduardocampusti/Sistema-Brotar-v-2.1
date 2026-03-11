@@ -43,14 +43,16 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => {
         },
         school: {
             schoolId: dbStudent.school_id, 
-            schoolName: getSchoolName(dbStudent.schools),
-            grade: dbStudent.grade,
-            shift: dbStudent.shift as any,
+            schoolName: getSchoolName(dbStudent.schools) || dbStudent.educational_info?.schoolName || 'Não vinculada',
+            grade: dbStudent.educational_info?.grade || dbStudent.grade,
+            shift: dbStudent.educational_info?.shift || dbStudent.shift as any,
+            schedule: dbStudent.educational_info?.schedule || '',
+            teachingType: dbStudent.educational_info?.teachingType || 'Regular',
             district: getSchoolDistrict(dbStudent.schools),
-            hasSpecialAide: false,
-            difficulties: ''
+            hasSpecialAide: dbStudent.educational_info?.hasSpecialAide || false,
+            difficulties: dbStudent.educational_info?.difficulties || ''
         },
-        socialInfo: dbStudent.social_info,
+        socialInfo: dbStudent.family_info || dbStudent.social_info,
         documents: dbStudent.documents || [],
         unit: dbStudent.unit, // Mapeamento da unidade (Sede/Cocal)
         history: (sessions || []).map(s => ({
@@ -164,7 +166,7 @@ export class SupabaseService {
      * ATENÇÃO: NÃO aplica recursividade em campos JSONB do banco (address, guardians,
      * clinical_info, social_info, documents) para evitar perda de dados aninhados.
      */
-    private static readonly JSONB_FIELDS = new Set(['address', 'guardians', 'clinical_info', 'social_info', 'documents']);
+    private static readonly JSONB_FIELDS = new Set(['address', 'guardians', 'clinical_info', 'social_info', 'family_info', 'educational_info', 'documents']);
 
     private static cleanDataForSupabase(data: any): any {
         if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
@@ -764,8 +766,7 @@ export class SupabaseService {
             birth_date: student.birthDate || null,
             cpf: cleanCPF || null,
             sus_card: sanitizeField(student.susCard),
-            grade: student.school?.grade || null,
-            shift: student.school?.shift || null,
+            // Campos removidos da raiz porque agora vão para educational_info
             school_id: forcedSchoolId,
             ethnicity: sanitizeField(student.ethnicity),
             unit: student.unit || null,
@@ -810,21 +811,31 @@ export class SupabaseService {
                 pt_data: student.clinical?.pt_data || null,
                 nutrition_data: student.clinical?.nutrition_data || null,
             } : null,
-            // JSONB: dados sociais
-            social_info: (student.socialInfo && Object.keys(student.socialInfo).length > 0) ? {
+            // JSONB: dados sociais (renomeado para family_info)
+            family_info: (student.socialInfo && Object.keys(student.socialInfo).length > 0) ? {
                 nis: student.socialInfo?.nis || '',
                 bolsaFamilia: student.socialInfo?.bolsaFamilia ?? false,
                 bpc: student.socialInfo?.bpc ?? false
             } : null,
+            // JSONB: dados escolares (educational_info)
+            educational_info: (student.school && Object.keys(student.school).length > 0) ? {
+                grade: student.school?.grade || '',
+                shift: student.school?.shift || '',
+                schedule: student.school?.schedule || '',
+                teachingType: student.school?.teachingType || '',
+                hasSpecialAide: student.school?.hasSpecialAide || false,
+                difficulties: student.school?.difficulties || '',
+                schoolName: student.school?.schoolName || ''
+            } : null,
             status: student.status || 'Active'
         };
 
-        console.log('[SupabaseService] ► PAYLOAD COMPLETO PARA O BANCO:');
-        console.log('  Campos raiz:', Object.keys(rawPayload).filter(k => !['address','guardians','clinical_info','social_info','documents'].includes(k)));
+        console.log('[SupabaseService] ► PAYLOAD COMPLETO PARA O BANCO (rawPayload):');
+        console.log('  Campos raiz:', Object.keys(rawPayload).filter(k => !['address','guardians','clinical_info','family_info','educational_info','documents'].includes(k)));
         console.log('  address:', rawPayload.address);
-        console.log('  clinical_info (campos pessoais):', { gender: rawPayload.clinical_info.gender, rg: rawPayload.clinical_info.rg, motherName: rawPayload.clinical_info.motherName, fatherName: rawPayload.clinical_info.fatherName, nationality: rawPayload.clinical_info.nationality, birthPlace: rawPayload.clinical_info.birthPlace });
-        console.log('  clinical_info (clínico):', { diagnosis: rawPayload.clinical_info.diagnosis, cid: rawPayload.clinical_info.cid, medications: rawPayload.clinical_info.medications, specialNeeds: rawPayload.clinical_info.specialNeeds });
-        console.log('  social_info:', rawPayload.social_info);
+        console.log('  clinical_info:', rawPayload.clinical_info);
+        console.log('  family_info:', rawPayload.family_info);
+        console.log('  educational_info:', rawPayload.educational_info);
         console.log('  guardians count:', rawPayload.guardians?.length);
         console.log('  documents count:', rawPayload.documents?.length);
         console.log('  unit:', rawPayload.unit);
@@ -868,7 +879,8 @@ export class SupabaseService {
         if (dbPayload.address) dbPayload.address = JSON.parse(JSON.stringify(dbPayload.address));
         if (dbPayload.documents) dbPayload.documents = JSON.parse(JSON.stringify(dbPayload.documents));
         if (dbPayload.clinical_info) dbPayload.clinical_info = JSON.parse(JSON.stringify(dbPayload.clinical_info));
-        if (dbPayload.social_info) dbPayload.social_info = JSON.parse(JSON.stringify(dbPayload.social_info));
+        if (dbPayload.family_info) dbPayload.family_info = JSON.parse(JSON.stringify(dbPayload.family_info));
+        if (dbPayload.educational_info) dbPayload.educational_info = JSON.parse(JSON.stringify(dbPayload.educational_info));
         if (dbPayload.guardians) dbPayload.guardians = JSON.parse(JSON.stringify(dbPayload.guardians));
 
         // INJEÇÃO MANUAL DO SCHOOL_ID ANTES DO UPSERT
@@ -904,7 +916,7 @@ export class SupabaseService {
                 const result = await supabase
                     .from('students')
                     .upsert(dbPayload, { onConflict: 'cpf' })
-                    .select('id');
+                    .select('*');
                 data = result.data;
                 error = result.error;
                 console.log('RESPOSTA_SUPABASE:', { data, error });
@@ -914,7 +926,7 @@ export class SupabaseService {
                 const result = await supabase
                     .from('students')
                     .insert(dbPayload)
-                    .select('id');
+                    .select('*');
                 data = result.data;
                 error = result.error;
                 console.log('RESPOSTA_SUPABASE:', { data, error });
@@ -926,7 +938,7 @@ export class SupabaseService {
             const result = await supabase
                 .from('students')
                 .upsert(dbPayload, { onConflict: conflictTarget })
-                .select('id');
+                .select('*');
             data = result.data;
             error = result.error;
             console.log('RESPOSTA_SUPABASE:', { data, error });
