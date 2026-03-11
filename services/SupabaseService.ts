@@ -161,6 +161,47 @@ export class SupabaseService {
         return this.REVERSE_SPECIALTY_MAP[dbValue] || (dbValue as any);
     }
 
+    /**
+     * Sanitiza objetos antes de enviar ao Supabase.
+     * 1. Converte "" para null.
+     * 2. Remove undefined.
+     * 3. Se o campo termina em _id e não é UUID válido, vira null.
+     */
+    private static cleanDataForSupabase(data: any): any {
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
+
+        const clean: any = {};
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+        Object.keys(data).forEach(key => {
+            let value = data[key];
+
+            // 1. Strings vazias -> null
+            if (value === '') value = null;
+
+            // 2. Undefined -> Ignorar (não adiciona ao objeto final)
+            if (value === undefined) return;
+
+            // 3. Critério Especial: campos _id devem ser UUIDs válidos ou null
+            if (key.endsWith('_id') && typeof value === 'string' && value.length > 0) {
+                if (!uuidRegex.test(value)) {
+                    console.warn(`[SupabaseService] UUID inválido detectado em ${key}: "${value}". Convertendo para null.`);
+                    value = null;
+                }
+            }
+
+            // Recursividade para objetos aninhados (exceto se for clinical_info ou address que são JSONB estruturados)
+            // Mas para garantir a sanitização profunda em JSONB, podemos rodar de novo se não for nulo
+            if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof File)) {
+                value = this.cleanDataForSupabase(value);
+            }
+
+            clean[key] = value;
+        });
+
+        return clean;
+    }
+
     // --- Auditoria ---
     static async getAuditLogs(filters?: { user?: string, date?: string, action?: string, module?: string }): Promise<AuditLog[]> {
         try {
@@ -626,8 +667,7 @@ export class SupabaseService {
 
         const cleanCPF = student.cpf ? student.cpf.replace(/\D/g, '') : '';
 
-        // dbPayload obrigatório com school_id para permitir atualização de vínculo via upsert
-        const dbPayload: any = {
+        const rawPayload: any = {
             id: student.id, // Garante que o ID esteja no payload para upserts por ID
             full_name: student.fullName,
             birth_date: student.birthDate,
@@ -653,6 +693,8 @@ export class SupabaseService {
             social_info: student.socialInfo || {},
             status: student.status
         };
+
+        const dbPayload = this.cleanDataForSupabase(rawPayload);
 
         // 2. Upload de Documentos
         if (documentFiles && documentFiles.length > 0) {
@@ -815,7 +857,9 @@ export class SupabaseService {
                 guardians: s.guardians || []
             }));
 
-            const { data, error } = await supabase.from('students').upsert(payloads, { onConflict: 'cpf' }).select('id, full_name');
+            const cleanedPayloads = payloads.map(p => this.cleanDataForSupabase(p));
+
+            const { data, error } = await supabase.from('students').upsert(cleanedPayloads, { onConflict: 'cpf' }).select('id, full_name');
 
             if (error) {
                 console.error('[SupabaseService] Erro no chunk de importação:', error);
@@ -873,7 +917,7 @@ export class SupabaseService {
 
     // --- Clinical Sessions (Evoluções) ---
     static async saveSession(session: Session, studentId: string, professionalId: string): Promise<void> {
-        await supabase.from('clinical_sessions').insert({
+        const payload = this.cleanDataForSupabase({
             student_id: studentId,
             professional_id: professionalId,
             specialty: session.specialty,
@@ -881,6 +925,7 @@ export class SupabaseService {
             content: session.content || { summary: session.notes }, // Usa o content completo se existir
             private_notes: session.privateNotes
         });
+        await supabase.from('clinical_sessions').insert(payload);
     }
 
     static async deleteSession(sessionId: string): Promise<void> {
@@ -940,7 +985,7 @@ export class SupabaseService {
             payload.id = school.id;
         }
 
-        const { error } = await supabase.from('schools').upsert(payload);
+        const { error } = await supabase.from('schools').upsert(this.cleanDataForSupabase(payload));
         if (error) {
             console.error('Erro ao salvar escola:', error);
             throw error;
@@ -1047,12 +1092,13 @@ export class SupabaseService {
         Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
 
         let error;
+        const dbPayload = this.cleanDataForSupabase(payload);
         if (user.id && user.id.length > 5) {
-            const { error: updateError } = await supabase.from('profiles').update(payload).eq('id', user.id);
+            const { error: updateError } = await supabase.from('profiles').update(dbPayload).eq('id', user.id);
             error = updateError;
         } else {
             console.warn('Criação de usuário via SupabaseService requer auth.signUp.');
-            const { error: insertError } = await supabase.from('profiles').insert(payload);
+            const { error: insertError } = await supabase.from('profiles').insert(dbPayload);
             error = insertError;
         }
 
@@ -1156,7 +1202,7 @@ export class SupabaseService {
 
         // Assumindo que existe apenas um registro de settings (id 1 ou similar)
         // Ou fazemos upsert baseado em uma chave fixa se a tabela for singleton
-        const { error } = await supabase.from('system_settings').upsert({ id: 1, ...payload });
+        const { error } = await supabase.from('system_settings').upsert(this.cleanDataForSupabase({ id: 1, ...payload }));
         if (error) throw error;
     }
 
@@ -1236,7 +1282,7 @@ export class SupabaseService {
             show_contact: config.showContato
         };
 
-        const { error } = await supabase.from('letterhead_config').upsert({ id: unitId, ...payload });
+        const { error } = await supabase.from('letterhead_config').upsert(this.cleanDataForSupabase({ id: unitId, ...payload }));
         if (error) {
             console.error('Erro ao salvar config papel timbrado:', error);
             throw error;
@@ -1313,14 +1359,14 @@ export class SupabaseService {
     static async sendSystemMessage(senderId: string, recipientId: string, title: string, content: string, priority: 'normal' | 'urgent' = 'normal', type: 'ALERT' | 'MESSAGE' = 'ALERT'): Promise<void> {
         const { error } = await supabase
             .from('system_messages')
-            .insert({
+            .insert(this.cleanDataForSupabase({
                 sender_id: senderId,
                 recipient_id: recipientId,
                 title,
                 content,
                 priority,
                 type
-            });
+            }));
 
         if (error) {
             console.error('Erro ao enviar mensagem:', error);
@@ -1439,7 +1485,7 @@ export class SupabaseService {
 
         const { data, error } = await supabase
             .from('appointments')
-            .upsert(payload)
+            .upsert(this.cleanDataForSupabase(payload))
             .select('id')
             .single();
 
@@ -1600,7 +1646,7 @@ export class SupabaseService {
     }
 
     static async saveDocument(doc: SavedDocument): Promise<void> {
-        await supabase.from('generated_documents').insert({
+        const payload = this.cleanDataForSupabase({
             student_id: doc.studentId,
             student_name: doc.studentName,
             doc_type: doc.docType,
@@ -1608,6 +1654,7 @@ export class SupabaseService {
             content: doc.content,
             professional_name: doc.professionalName
         });
+        await supabase.from('generated_documents').insert(payload);
     }
 
     static async deleteDocument(id: string): Promise<void> {
@@ -1712,9 +1759,7 @@ export class SupabaseService {
                 student_id: toNull(prof.studentId)
             };
 
-            // Sanitização final: remove chaves undefined
-            Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
-            return payload;
+            return this.cleanDataForSupabase(payload);
         });
 
         console.log(`[SupabaseService] Realizando bulk upsert de ${payloads.length} profissionais...`);
