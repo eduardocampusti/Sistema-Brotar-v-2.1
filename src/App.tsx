@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { SupabaseService } from '../services/SupabaseService';
+import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { Student, User, Specialty, SystemSettings, Appointment, School } from '../types';
 import { Loader2 } from 'lucide-react';
@@ -88,6 +89,7 @@ const hexToRgb = (hex: string) => {
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
   const [students, setStudents] = useState<Student[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -122,6 +124,22 @@ function AppContent() {
 
   useEffect(() => {
     async function loadData() {
+      try {
+        // 1. Session Recovery
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const profile = await SupabaseService.getUserProfile(session.user.id);
+          if (profile) {
+            setUser(profile);
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao recuperar sessão:", err);
+      } finally {
+        setIsLoadingSession(false);
+      }
+
+      // 2. Load system data
       const settings = await SupabaseService.getSystemSettings();
       setSystemSettings(settings);
       const [studentsData, schoolsData] = await Promise.all([
@@ -200,7 +218,7 @@ function AppContent() {
 
         {/* Rotas Privadas */}
         <Route path="/app" element={
-          <ProtectedRoute user={user}>
+          <ProtectedRoute user={user} isLoading={isLoadingSession}>
             <AppLayout user={user!} onLogout={handleLogout} systemSettings={systemSettings} />
           </ProtectedRoute>
         }>
