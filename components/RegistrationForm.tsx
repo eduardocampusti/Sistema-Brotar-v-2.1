@@ -305,7 +305,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
         try {
             // Validação Pré-envio: Garantir school_id
-            let finalSchoolId = formData.school?.schoolId;
+            let finalSchoolId = formData.school?.schoolId || (currentUser?.role === 'ESCOLA' ? currentUser?.schoolId : undefined);
             let finalSchoolName = formData.school?.schoolName;
 
             if (!finalSchoolId && currentUser?.schoolInep) {

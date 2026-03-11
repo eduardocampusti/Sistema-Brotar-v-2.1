@@ -840,6 +840,7 @@ export class SupabaseService {
                     .single();
                 data = result.data;
                 error = result.error;
+                console.log('RESPOSTA_SUPABASE:', { data, error });
             } else {
                 // Novo aluno SEM CPF: insert puro → banco gera o UUID
                 console.log('[SupabaseService] INSERT puro (sem CPF): banco gerará o UUID...');
@@ -850,6 +851,7 @@ export class SupabaseService {
                     .single();
                 data = result.data;
                 error = result.error;
+                console.log('RESPOSTA_SUPABASE:', { data, error });
             }
         } else {
             // Aluno existente: upsert por CPF ou ID
@@ -862,6 +864,7 @@ export class SupabaseService {
                 .single();
             data = result.data;
             error = result.error;
+            console.log('RESPOSTA_SUPABASE:', { data, error });
         }
 
         if (error) {

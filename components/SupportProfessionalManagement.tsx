@@ -202,8 +202,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             console.log('[SupportProf] Carregando dados...');
             
             // 🔒 Se o usuário for ESCOLA, filtra server-side pelo UUID real da escola
-            // Isso garante que o banco retorne apenas os profissionais da unidade
-            const mySchoolId = currentUser?.role === 'ESCOLA' ? currentUser?.schoolId : undefined;
+            // Isso garante que o banco retorne apenas os profissionais da unidade. Se UUID falhar, mandar id inexistente.
+            const mySchoolId = currentUser?.role === 'ESCOLA' ? (currentUser?.schoolId || '00000000-0000-0000-0000-000000000000') : undefined;
             
             const profs = await SupabaseService.getSupportProfessionals(mySchoolId);
             console.log('[SupportProf] Profissionais carregados:', profs.length, profs);
