@@ -616,6 +616,26 @@ export class SupabaseService {
         return safeCall(async () => {
             console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'}) com Projeção Estrita...`);
             
+            // NOVO: Busca do perfil em tempo real e bloqueio por school_id
+            const { data: { session } } = await supabase.auth.getSession();
+            let forcedSchoolId = null;
+            
+            if (session?.user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role, school_id')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (profile?.role === 'ESCOLA') {
+                    if (!profile.school_id) {
+                        alert('Erro: Escola não identificada no seu perfil');
+                        return [];
+                    }
+                    forcedSchoolId = profile.school_id;
+                }
+            }
+            
             // Campos essenciais + join com schools para resolver nome e distrito da escola
             let query = supabase
                 .from('students')
@@ -625,6 +645,11 @@ export class SupabaseService {
             // Filtragem no Lado do Servidor (Server-Side) por Unidade
             if (unit) {
                 query = query.eq('unit', unit);
+            }
+            
+            // Filtragem por Escola
+            if (forcedSchoolId) {
+                query = query.eq('school_id', forcedSchoolId);
             }
 
             const { data, error } = await query;
@@ -724,10 +749,18 @@ export class SupabaseService {
         // Se usuário for ESCOLA, forçar o school_id do perfil logado
         let forcedSchoolId = sanitizeField(student.school?.schoolId) || null;
         if (session?.user?.id) {
-            const userProfile = await SupabaseService.getUserProfile(session.user.id);
-            console.log('ID_DA_ESCOLA_NO_FRONT:', userProfile?.schoolId || student.school?.schoolId);
-            if (userProfile?.role === 'ESCOLA' && userProfile.schoolId) {
-                forcedSchoolId = userProfile.schoolId;
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role, school_id')
+                .eq('id', session.user.id)
+                .single();
+
+            if (profile?.role === 'ESCOLA') {
+                if (!profile.school_id) {
+                    alert('Erro: Escola não identificada no seu perfil');
+                    throw new Error('Erro: Escola não identificada no seu perfil');
+                }
+                forcedSchoolId = profile.school_id;
                 console.log(`[SupabaseService] Forçando school_id para escola logada no Upsert: ${forcedSchoolId}`);
             }
         }
@@ -1858,14 +1891,34 @@ export class SupabaseService {
         return safeCall(async () => {
             console.log(`[SupabaseService] Buscando profissionais de apoio${schoolId ? ` (escola: ${schoolId})` : ' (Global)'}...`);
             
+            // NOVO: Busca do perfil em tempo real para forçar validação de escola
+            const { data: { session } } = await supabase.auth.getSession();
+            let forcedSchoolId = schoolId;
+            
+            if (session?.user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role, school_id')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (profile?.role === 'ESCOLA') {
+                    if (!profile.school_id) {
+                        alert('Erro: Escola não identificada no seu perfil');
+                        return [];
+                    }
+                    forcedSchoolId = profile.school_id;
+                }
+            }
+            
             let query = supabase
                 .from('support_professionals')
                 .select('id, name, cpf, phone, photo_url, education, school_id, student_id, regent_teacher, contract_start_date, workload')
                 .order('name');
             
             // 🔒 Filtro server-side: ESCOLA só vê profissionais da sua unidade
-            if (schoolId) {
-                query = query.eq('school_id', schoolId);
+            if (forcedSchoolId) {
+                query = query.eq('school_id', forcedSchoolId);
             }
             
             const { data, error } = await query;
