@@ -724,6 +724,10 @@ export class SupabaseService {
             duplicate_student_id: duplicateId 
         });
         if (error) throw new Error(error.message);
+        
+        // Invalida o cache para que a lista seja atualizada na próxima consulta
+        this.invalidateCache('students_');
+        
         return true;
     }
 

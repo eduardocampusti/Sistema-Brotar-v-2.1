@@ -158,13 +158,27 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
 
   const confirmDelete = useCallback(async () => {
     if (studentToDelete) {
-      if (currentUser) {
-        await SupabaseService.logAction(currentUser, AuditAction.DELETE, 'ALUNOS', studentToDelete.fullName);
+      try {
+        if (currentUser) {
+          await SupabaseService.logAction(currentUser, AuditAction.DELETE, 'ALUNOS', studentToDelete.fullName);
+        }
+        
+        // Executa a exclusão no banco de dados primeiro
+        await SupabaseService.deleteStudent(studentToDelete.id);
+        
+        // Garante que a atualização da lista ocorra somente após a confirmação do banco
+        if (onRefresh) {
+          await onRefresh();
+        }
+        
+        addToast("Registro excluído com sucesso!", "success");
+      } catch (error: any) {
+        console.error("Erro ao excluir aluno:", error);
+        addToast("Erro ao excluir registro: " + error.message, "error");
       }
-      onDelete(studentToDelete.id);
       setStudentToDelete(null);
     }
-  }, [studentToDelete, currentUser, onDelete]);
+  }, [studentToDelete, currentUser, onRefresh, addToast]);
 
   const handleMergeRequest = () => {
     if (!mainStudentId || !duplicateStudentId || !hasConfirmedIrreversible) return;

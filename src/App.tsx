@@ -216,7 +216,7 @@ function AppContent() {
             </React.Suspense>
           } />
 
-          <Route path="list" element={<React.Suspense fallback={<PageLoading />}><PatientList students={students} schools={schools} onSelectStudent={handleSelectStudent} onDelete={refreshData} onRegister={() => handleNavigate('register')} onEdit={(s) => { setSelectedStudent(s); handleNavigate('edit-student'); }} currentUser={user!} /></React.Suspense>} />
+          <Route path="list" element={<React.Suspense fallback={<PageLoading />}><PatientList students={students} schools={schools} onSelectStudent={handleSelectStudent} onRefresh={refreshData} onDelete={refreshData} onRegister={() => handleNavigate('register')} onEdit={(s) => { setSelectedStudent(s); handleNavigate('edit-student'); }} currentUser={user!} /></React.Suspense>} />
           <Route path="register" element={<React.Suspense fallback={<PageLoading />}><RegistrationForm onSuccess={refreshData} onCancel={() => handleNavigate('list')} currentUser={user!} /></React.Suspense>} />
           <Route path="profile" element={<React.Suspense fallback={<PageLoading />}><PatientProfile student={selectedStudent!} onBack={() => handleNavigate('list')} currentUser={user!} onEdit={() => handleNavigate('edit-student')} onNavigate={handleNavigate} /></React.Suspense>} />
           <Route path="edit-student" element={<React.Suspense fallback={<PageLoading />}><RegistrationForm initialData={selectedStudent!} onSuccess={refreshData} onCancel={() => handleNavigate('profile')} currentUser={user!} /></React.Suspense>} />
