@@ -122,12 +122,26 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
                 const filtered = unit ? schoolsData.filter(s => s.district === unit) : schoolsData;
                 setSchools(filtered);
+
+                // Auto-preenchimento Inteligente: Se houver apenas uma escola (comum para usuários logados com INEP)
+                if (filtered.length === 1 && !initialData) {
+                    const singleSchool = filtered[0];
+                    console.log('[RegistrationForm] Auto-preenchendo escola única:', singleSchool.name);
+                    setFormData(prev => ({
+                        ...prev,
+                        school: {
+                            ...(prev.school || { grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' }),
+                            schoolId: singleSchool.id,
+                            schoolName: singleSchool.name
+                        }
+                    }));
+                }
             } catch (error) {
                 console.error("Erro ao carregar escolas:", error);
             }
         }
         loadSchools();
-    }, []);
+    }, [currentUser, initialData]);
 
     // Funções auxiliares internas removidas em favor dos utilitários centrais (../utils/formatters)
 
@@ -287,9 +301,30 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setSaveError(null);
 
         try {
-            setSaveError(null);
+            // Validação Pré-envio: Garantir school_id
+            let finalSchoolId = formData.school?.schoolId;
+            let finalSchoolName = formData.school?.schoolName;
+
+            if (!finalSchoolId && currentUser?.schoolInep) {
+                // Tenta recuperar o ID pela lista de escolas carregada usando o INEP do usuário
+                const schoolByInep = schools.find(s => s.inep === currentUser.schoolInep);
+                if (schoolByInep) {
+                    finalSchoolId = schoolByInep.id;
+                    finalSchoolName = schoolByInep.name;
+                    console.log('[RegistrationForm] ID da escola recuperado via INEP:', finalSchoolId);
+                }
+            }
+
+            // Se ainda nulo e não for uma escola "OUTRA" com nome preenchido, barra o envio
+            if (!finalSchoolId && (!finalSchoolName || finalSchoolName.trim() === '')) {
+                setSaveError('Erro: Não foi possível identificar o vínculo escolar automático. Por favor, selecione a escola manualmente na aba Dados Escolares.');
+                setIsSubmitting(false);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
 
             // Unir Naturalidade e Estado antes de salvar
             const combinedBirthPlace = (birthCity && birthState ? `${birthCity} / ${birthState}` : birthCity || birthState || '').trim();
@@ -301,6 +336,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                 motherName: formData.motherName ? formatarNomeBR(formData.motherName).replace(/\s+/g, ' ').trim() : '',
                 fatherName: formData.fatherName ? formatarNomeBR(formData.fatherName).replace(/\s+/g, ' ').trim() : '',
                 birthPlace: combinedBirthPlace,
+                school: {
+                    ...(formData.school || {}),
+                    schoolId: finalSchoolId,
+                    schoolName: finalSchoolName
+                },
                 guardians: formData.guardians?.map(g => ({
                     ...g,
                     name: g.name ? formatarNomeBR(g.name).replace(/\s+/g, ' ').trim() : ''
