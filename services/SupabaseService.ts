@@ -647,10 +647,10 @@ export class SupabaseService {
                 query = query.eq('unit', unit);
             }
             
-            // Filtragem por Escola
-            if (forcedSchoolId) {
-                query = query.eq('school_id', forcedSchoolId);
-            }
+            // Filtragem por Escola (removida: agora tratada via RLS)
+            // if (forcedSchoolId) {
+            //     query = query.eq('school_id', forcedSchoolId);
+            // }
 
             const { data, error } = await query;
             if (error) throw error;
@@ -749,18 +749,14 @@ export class SupabaseService {
         // Se usuário for ESCOLA, forçar o school_id do perfil logado
         let forcedSchoolId = sanitizeField(student.school?.schoolId) || null;
         if (session?.user?.id) {
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('role, school_id')
-                .eq('id', session.user.id)
-                .single();
+            const profile = await SupabaseService.getUserProfile(session.user.id);
 
             if (profile?.role === 'ESCOLA') {
-                if (!profile.school_id) {
+                if (!profile.schoolId) {
                     alert('Erro: Escola não identificada no seu perfil');
                     throw new Error('Erro: Escola não identificada no seu perfil');
                 }
-                forcedSchoolId = profile.school_id;
+                forcedSchoolId = profile.schoolId;
                 console.log(`[SupabaseService] Forçando school_id para escola logada no Upsert: ${forcedSchoolId}`);
             }
         }
@@ -873,25 +869,21 @@ export class SupabaseService {
 
 
         // Formato JSONB: Garantindo envio como objetos limpos para o banco
-        // Usa JSON.stringify e parse para remover chaves vazias ou undefined ocultas.
+        // O endereço precisa ser enviado como um objeto JSON
         if (dbPayload.address) dbPayload.address = JSON.parse(JSON.stringify(dbPayload.address));
         if (dbPayload.documents) dbPayload.documents = JSON.parse(JSON.stringify(dbPayload.documents));
         if (dbPayload.clinical_info) dbPayload.clinical_info = JSON.parse(JSON.stringify(dbPayload.clinical_info));
         if (dbPayload.social_info) dbPayload.social_info = JSON.parse(JSON.stringify(dbPayload.social_info));
         if (dbPayload.guardians) dbPayload.guardians = JSON.parse(JSON.stringify(dbPayload.guardians));
 
-        // INJEÇÃO MANUAL BRUTAL DO SCHOOL_ID ANTES DO UPSERT
+        // INJEÇÃO MANUAL DO SCHOOL_ID ANTES DO UPSERT
         if (session?.user?.id) {
-            const { data: myProfile } = await supabase
-                .from('profiles')
-                .select('school_id, role')
-                .eq('id', session.user.id)
-                .single();
+            const myProfile = await SupabaseService.getUserProfile(session.user.id);
 
             if (myProfile?.role === 'ESCOLA') {
-                if (myProfile.school_id) {
-                    dbPayload.school_id = myProfile.school_id;
-                    console.log("[DEBUG BRUTAL] Injeção forçada do school_id no dbPayload", myProfile.school_id);
+                if (myProfile.schoolId) {
+                    dbPayload.school_id = myProfile.schoolId;
+                    console.log("[DEBUG BRUTAL] Injeção forçada do school_id no dbPayload", myProfile.schoolId);
                 } else {
                     window.alert("ERRO: Sua conta de escola não possui um school_id vinculado no perfil.");
                 }
@@ -940,7 +932,7 @@ export class SupabaseService {
         }
 
         if (error) {
-            console.error('Erro ao salvar aluno (Upsert):', error);
+            console.error('ERRO_SUPABASE:', error);
             window.alert('ERRO DO BANCO: ' + error.message);
             throw new Error(`Erro ao salvar dados: ${error.message}`);
         }
@@ -1931,10 +1923,10 @@ export class SupabaseService {
                 .select('id, name, cpf, phone, photo_url, education, school_id, student_id, regent_teacher, contract_start_date, workload')
                 .order('name');
             
-            // 🔒 Filtro server-side: ESCOLA só vê profissionais da sua unidade
-            if (forcedSchoolId) {
-                query = query.eq('school_id', forcedSchoolId);
-            }
+            // 🔒 Filtro server-side: ESCOLA só vê profissionais da sua unidade (removido via RLS)
+            // if (forcedSchoolId) {
+            //     query = query.eq('school_id', forcedSchoolId);
+            // }
             
             const { data, error } = await query;
             if (error) {
