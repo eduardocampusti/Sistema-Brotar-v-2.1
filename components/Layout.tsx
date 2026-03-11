@@ -203,7 +203,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
   // Menu restrito para role ESCOLA
   const getEscolaMenuItems = () => [
-    { id: 'list', label: 'Central de Prontuários', icon: <Users size={20} /> },
+    { id: 'dashboard', label: 'Visão Geral', icon: <LayoutDashboard size={20} /> },
+    { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
     { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
   ];
 

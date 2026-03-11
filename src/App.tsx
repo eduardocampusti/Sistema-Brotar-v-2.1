@@ -56,6 +56,7 @@ const NutritionSessionFormPage = React.lazy(() => import('../components/Clinical
 
 // Dashboards
 const AdminDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.AdminDashboard })));
+const SchoolDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.SchoolDashboard })));
 const EducationSecretaryDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.EducationSecretaryDashboard })));
 const PsychologyDashboard = React.lazy(() => import('../components/PsychologyDashboard').then(m => ({ default: m.PsychologyDashboard })));
 const PsychopedagogyDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.PsychopedagogyDashboard })));
@@ -226,6 +227,7 @@ function AppContent() {
           <Route path="dashboard" element={
             <React.Suspense fallback={<PageLoading />}>
               {user?.role === 'ADMIN' && <AdminDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
+              {user?.role === 'ESCOLA' && <SchoolDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
               {user?.role === 'EDUCATION_SECRETARY' && <EducationSecretaryDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
               {user?.role === 'SPECIALIST' && user.specialty === Specialty.PSYCHOLOGY && <PsychologyDashboard onNavigate={handleNavigate} currentUser={user} />}
               {user?.role === 'SPECIALIST' && user.specialty === Specialty.SOCIAL_WORK && <SocialWorkerDashboard students={students} currentUser={user} onNavigate={handleNavigate} onNavigateNew={() => handleNavigate('social-service-hub')} onNavigateToCase={(id) => handleSelectStudent(students.find(s => s.id === id)!)} />}
