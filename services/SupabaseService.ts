@@ -880,6 +880,24 @@ export class SupabaseService {
         if (dbPayload.social_info) dbPayload.social_info = JSON.parse(JSON.stringify(dbPayload.social_info));
         if (dbPayload.guardians) dbPayload.guardians = JSON.parse(JSON.stringify(dbPayload.guardians));
 
+        // INJEÇÃO MANUAL BRUTAL DO SCHOOL_ID ANTES DO UPSERT
+        if (session?.user?.id) {
+            const { data: myProfile } = await supabase
+                .from('profiles')
+                .select('school_id, role')
+                .eq('id', session.user.id)
+                .single();
+
+            if (myProfile?.role === 'ESCOLA') {
+                if (myProfile.school_id) {
+                    dbPayload.school_id = myProfile.school_id;
+                    console.log("[DEBUG BRUTAL] Injeção forçada do school_id no dbPayload", myProfile.school_id);
+                } else {
+                    window.alert("ERRO: Sua conta de escola não possui um school_id vinculado no perfil.");
+                }
+            }
+        }
+
         // Estratégia de salvamento:
         // INSERT (aluno novo sem UUID): usa insert() puro se sem CPF, ou upsert por CPF para deduplicar
         // UPDATE (aluno existente com UUID válido): upsert por CPF (se tiver) ou por id
@@ -923,10 +941,7 @@ export class SupabaseService {
 
         if (error) {
             console.error('Erro ao salvar aluno (Upsert):', error);
-            // Mensagem clara para o usuário sobre a impossibilidade de salvar ou erro de RLS
-            if (error.code === '42501' || error.message.includes('RLS') || error.message.includes('permission denied')) {
-                 throw new Error('Acesso negado: Não foi possível salvar ou transferir o registro. Verifique as permissões da escola ou se o CPF pertence a outra unidade restrita.');
-            }
+            window.alert('ERRO DO BANCO: ' + error.message);
             throw new Error(`Erro ao salvar dados: ${error.message}`);
         }
 
@@ -1925,6 +1940,10 @@ export class SupabaseService {
             if (error) {
                 console.error('Erro ao buscar profissionais de apoio:', error);
                 throw error;
+            }
+
+            if (forcedSchoolId && data && data.length > 10) {
+                throw new Error('Vazamento detectado: A lista retornou mais de 10 registros para a escola.');
             }
 
             return (data || []).map((p: any) => ({
