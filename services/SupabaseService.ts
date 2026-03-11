@@ -399,6 +399,15 @@ export class SupabaseService {
             }
         }
 
+        // --- NOVO: Força atualização da sessão JWT se o perfil tiver school_id mas a sessão atual não ---
+        if (user.schoolId) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user && session.user.user_metadata?.school_id !== user.schoolId) {
+                console.log(`[SupabaseService] Token desatualizado (ausência ou conflito do school_id = ${user.schoolId}). Forçando refreshSession...`);
+                await supabase.auth.refreshSession();
+            }
+        }
+
         // Salva no cache
         this.userProfileCache.set(user.id, user);
 
