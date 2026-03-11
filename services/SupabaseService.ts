@@ -880,6 +880,12 @@ export class SupabaseService {
         if (session?.user?.id) {
             const myProfile = await SupabaseService.getUserProfile(session.user.id);
 
+            // Vínculo Automático: Injeta `school_id` do perfil logado, caso o aluno esteja sem e haja um no perfil
+            if (myProfile?.schoolId && !dbPayload.school_id) {
+                dbPayload.school_id = myProfile.schoolId;
+                console.log("[Vínculo Automático] Injetando school_id do perfil logado:", myProfile.schoolId);
+            }
+
             if (myProfile?.role === 'ESCOLA') {
                 if (myProfile.schoolId) {
                     dbPayload.school_id = myProfile.schoolId;
@@ -933,14 +939,14 @@ export class SupabaseService {
 
         if (error) {
             console.error('ERRO_SUPABASE:', error);
-            window.alert('ERRO DO BANCO: ' + error.message);
-            throw new Error(`Erro ao salvar dados: ${error.message}`);
+            window.alert("ERRO DO SUPABASE: " + error.message);
+            return Promise.reject(new Error("ERRO DO SUPABASE: " + error.message)) as any;
         }
 
         // Validação de Linhas Afetadas: verifica se o retorno contém dados
         if (!data || data.length === 0) {
-            alert('Erro: Registro não foi salvo. Permissão negada ou restrição de RLS (school_id diferente).');
-            throw new Error('Erro: Permissão negada para atualizar este registro');
+            window.alert('ERRO DO SUPABASE: O banco não respondeu com o objeto salvo.');
+            return Promise.reject(new Error("ERRO DO SUPABASE: O banco não retornou resposta do aluno salvo")) as any;
         }
 
         // Invalida o cache para refletir as edições na listagem e visualização do aluno

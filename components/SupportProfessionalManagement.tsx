@@ -220,6 +220,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             setStudents(studentsData);
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
+            console.dir(error);
             showNotification('Erro ao carregar dados.', 'error');
         }
     };
