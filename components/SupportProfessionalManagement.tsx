@@ -155,8 +155,14 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     ];
 
     useEffect(() => {
+        // Se o usuário for ESCOLA, só carrega os dados quando o schoolId estiver disponível
+        if (currentUser?.role === 'ESCOLA' && !currentUser.schoolId) {
+            return;
+        }
         loadData();
+    }, [currentUser]);
 
+    useEffect(() => {
         // Fechar sugestões ao clicar fora
         const handleClickOutside = (event: MouseEvent) => {
             if (schoolInputRef.current && !schoolInputRef.current.contains(event.target as Node)) {

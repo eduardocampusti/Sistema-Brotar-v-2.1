@@ -716,6 +716,16 @@ export class SupabaseService {
 
         console.log(`[SupabaseService] Modo: ${isInsert ? 'INSERT (novo aluno, UUID gerado pelo banco)' : 'UPDATE/UPSERT (ID: ' + student.id + ')'}`);
 
+        // Se usuário for ESCOLA, forçar o school_id do perfil logado
+        let forcedSchoolId = sanitizeField(student.school?.schoolId) || null;
+        if (session?.user?.id) {
+            const userProfile = await SupabaseService.getUserProfile(session.user.id);
+            if (userProfile?.role === 'ESCOLA' && userProfile.schoolId) {
+                forcedSchoolId = userProfile.schoolId;
+                console.log(`[SupabaseService] Forçando school_id para escola logada no Upsert: ${forcedSchoolId}`);
+            }
+        }
+
         const rawPayload: any = {
             // Para INSERT: omite 'id' (banco gera via gen_random_uuid())
             // Para UPDATE: inclui 'id' para localizar o registro
@@ -726,7 +736,7 @@ export class SupabaseService {
             sus_card: sanitizeField(student.susCard),
             grade: student.school?.grade || null,
             shift: student.school?.shift || null,
-            school_id: sanitizeField(student.school?.schoolId) || null,
+            school_id: forcedSchoolId,
             ethnicity: sanitizeField(student.ethnicity),
             unit: student.unit || null,
             // JSONB: endereço completo (rua, número, bairro, cidade, UF, CEP)
@@ -883,6 +893,7 @@ export class SupabaseService {
 
         // Validação de Linhas Afetadas: verifica se o retorno contém dados
         if (!data || data.length === 0) {
+            alert('Erro: Registro não foi salvo. Permissão negada ou restrição de RLS (school_id diferente).');
             throw new Error('Erro: Permissão negada para atualizar este registro');
         }
 
