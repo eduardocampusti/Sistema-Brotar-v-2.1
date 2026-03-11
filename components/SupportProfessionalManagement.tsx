@@ -536,6 +536,16 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         setShowImporter(true);
     };
 
+    if (isEscola && !currentUser?.schoolId) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-slate-200 mt-6 min-h-[400px]">
+                <Loader2 className="w-12 h-12 text-primary-500 animate-spin mb-4" />
+                <h3 className="text-xl font-bold text-slate-700">Carregando perfil da escola...</h3>
+                <p className="text-slate-500">Aguarde enquanto identificamos sua unidade de lotação.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-6xl mx-auto space-y-6">
             {notification && (

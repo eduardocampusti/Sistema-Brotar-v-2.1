@@ -716,6 +716,7 @@ export class SupabaseService {
         let forcedSchoolId = sanitizeField(student.school?.schoolId) || null;
         if (session?.user?.id) {
             const userProfile = await SupabaseService.getUserProfile(session.user.id);
+            console.log('ID_DA_ESCOLA_NO_FRONT:', userProfile?.schoolId || student.school?.schoolId);
             if (userProfile?.role === 'ESCOLA' && userProfile.schoolId) {
                 forcedSchoolId = userProfile.schoolId;
                 console.log(`[SupabaseService] Forçando school_id para escola logada no Upsert: ${forcedSchoolId}`);
