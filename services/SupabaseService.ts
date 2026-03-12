@@ -1952,11 +1952,16 @@ export class SupabaseService {
         return safeCall(async () => {
             const { error } = await supabase
                 .from('support_professionals')
-                .upsert(payloads, { onConflict: 'cpf' });
+                .upsert(payloads);
 
             if (error) {
                 console.error('Erro no UPSERT de profissionais:', error);
-                // Tratamento amigável solicitado
+                
+                // Tratamento amigável para erro de violação de unicidade (ex: CPF já existe)
+                if (error.code === '23505') {
+                    throw new Error('Já existe um profissional cadastrado com este CPF.');
+                }
+
                 if (error.code === '42501' || error.message.includes('RLS') || error.message.includes('permission denied')) {
                      throw new Error('Acesso negado: Este Profissional já está vinculado a outra unidade. Solicite a transferência.');
                 }

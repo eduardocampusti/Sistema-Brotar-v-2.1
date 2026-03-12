@@ -78,10 +78,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const fileInputRef = useRef<HTMLInputElement>(null);
     const isEscola = currentUser?.role === 'ESCOLA';
 
-    // Estados para o autocomplete de escola
-    const [schoolSearchTerm, setSchoolSearchTerm] = useState('');
-    const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
-    const schoolInputRef = useRef<HTMLDivElement>(null);
+    // Estados para formulário
     const numberInputRef = useRef<HTMLInputElement>(null);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -162,16 +159,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         loadData();
     }, [currentUser]);
 
-    useEffect(() => {
-        // Fechar sugestões ao clicar fora
-        const handleClickOutside = (event: MouseEvent) => {
-            if (schoolInputRef.current && !schoolInputRef.current.contains(event.target as Node)) {
-                setShowSchoolSuggestions(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+
 
     // Efeito para busca automática de CEP
     useEffect(() => {
@@ -231,17 +219,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         setNotification({ message, type });
     };
 
-    // Atualizar o termo de busca quando o schoolId mudar (edição ou reset)
-    useEffect(() => {
-        if (formData.schoolId) {
-            const school = schools.find(s => s.id === formData.schoolId);
-            if (school) {
-                setSchoolSearchTerm(school.name);
-            }
-        } else {
-            setSchoolSearchTerm('');
-        }
-    }, [formData.schoolId, schools]);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -324,7 +302,6 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             regentTeacher: '',
             studentId: ''
         });
-        setSchoolSearchTerm('');
     };
 
     useEffect(() => {
@@ -334,9 +311,6 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             // Auto-seleção no formulário
             if (!formData.schoolId) {
                 setFormData(prev => ({ ...prev, schoolId: currentUser.schoolId! }));
-                if (mySchool) {
-                    setSchoolSearchTerm(mySchool.name);
-                }
             }
             // Travar o filtro na escola dela
             setSelectedSchoolFilter(currentUser.schoolId);
@@ -406,18 +380,17 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         }
     };
 
-    // Lógica para filtrar escolas
-    const filteredSchools = useMemo(() => {
-        if (!schoolSearchTerm) return schools;
-        return schools.filter(s => s.name.toLowerCase().includes(schoolSearchTerm.toLowerCase()));
-    }, [schools, schoolSearchTerm]);
+    // Opções de escola para o formulário
+    const schoolOptions = useMemo(() => 
+        schools.map(s => ({ value: s.id, label: s.name }))
+               .sort((a, b) => a.label.localeCompare(b.label))
+    , [schools]);
 
     // Opções de escola para o filtro de listagem
     const schoolFilterOptions = useMemo(() => [
         { value: 'ALL', label: 'Todas as Escolas' },
-        ...schools.map(s => ({ value: s.id, label: s.name }))
-            .sort((a, b) => a.label.localeCompare(b.label))
-    ], [schools]);
+        ...schoolOptions
+    ], [schoolOptions]);
 
     // Lógica para filtrar alunos baseada na escola selecionada
     const filteredStudents = useMemo(() => {
@@ -428,6 +401,12 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         if (!formData.schoolId) return [];
         return students.filter(s => s.school?.schoolId === formData.schoolId);
     }, [students, formData.schoolId, currentUser]);
+
+    // Opções de alunos para o formulário
+    const studentOptions = useMemo(() => 
+        filteredStudents.map(s => ({ value: s.id, label: s.fullName }))
+                        .sort((a, b) => a.label.localeCompare(b.label))
+    , [filteredStudents]);
 
     // Filtragem simplificada
     const filteredProfessionals = useMemo(() => {
@@ -725,113 +704,60 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                     </div>
                                 </div>
 
-                                {/* Dados Contratuais e Lotação */}
-                                <div className="space-y-4">
-                                    <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2">Contrato e Lotação</h4>
+                                    {/* Dados Contratuais e Lotação */}
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2">Contrato e Lotação</h4>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Início do Contrato</label>
-                                            <div className="relative">
-                                                <input type="date" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                    name="contractStartDate"
-                                                    value={formData.contractStartDate} onChange={handleInputChange} />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Início do Contrato</label>
+                                                <div className="relative">
+                                                    <input type="date" className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                                        name="contractStartDate"
+                                                        value={formData.contractStartDate} onChange={handleInputChange} />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Carga Horária</label>
+                                                <div className="relative">
+                                                    <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border pl-9"
+                                                        name="workload"
+                                                        value={formData.workload} onChange={handleInputChange} placeholder="Ex: 40h" />
+                                                    <Briefcase className="absolute left-3 top-3 text-slate-400" size={16} />
+                                                </div>
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Carga Horária</label>
-                                            <div className="relative">
-                                                <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border pl-9"
-                                                    name="workload"
-                                                    value={formData.workload} onChange={handleInputChange} placeholder="Ex: 40h" />
-                                                <Briefcase className="absolute left-3 top-3 text-slate-400" size={16} />
-                                            </div>
-                                        </div>
-                                    </div>
 
-                                    {/* Autocomplete de Escola */}
-                                    <div className="relative" ref={schoolInputRef}>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Escola de Lotação *</label>
+                                        {/* Unidade Escolar (Escola de Lotação) */}
                                         <div className="relative">
-                                            <input
-                                                type="text"
-                                                required={!formData.schoolId}
-                                                className="w-full rounded-lg border-slate-300 p-2.5 border pl-9 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none disabled:bg-slate-50 disabled:text-slate-500"
-                                                placeholder="Digite o nome da escola..."
-                                                value={schoolSearchTerm}
-                                                onFocus={() => !isEscola && setShowSchoolSuggestions(true)}
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Escola de Lotação *</label>
+                                            <SearchableSelect
+                                                options={schoolOptions}
+                                                value={formData.schoolId}
                                                 disabled={isEscola}
-                                                onChange={e => {
-                                                    setSchoolSearchTerm(e.target.value);
-                                                    setShowSchoolSuggestions(true);
-                                                    // Limpar ID se o usuário alterar o texto (para forçar nova seleção)
-                                                    if (formData.schoolId) {
-                                                        setFormData(prev => ({ ...prev, schoolId: '', studentId: '' }));
-                                                    }
+                                                placeholder="Selecione a Unidade Escolar..."
+                                                onChange={(val) => {
+                                                    setFormData(prev => ({ 
+                                                        ...prev, 
+                                                        schoolId: val,
+                                                        studentId: '' // Limpa o aluno ao mudar a escola
+                                                    }));
                                                 }}
                                             />
-                                            <Search className="absolute left-3 top-3 text-slate-400" size={16} />
-
-                                            {/* Indicador visual se selecionado validamente */}
-                                            {formData.schoolId && (
-                                                <div className="absolute right-3 top-3 text-green-500">
-                                                    <SchoolIcon size={16} />
-                                                </div>
-                                            )}
                                         </div>
 
-                                        {/* Lista de Sugestões de Escola */}
-                                        {showSchoolSuggestions && filteredSchools.length > 0 && (
-                                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                                {filteredSchools.map(school => (
-                                                    <button
-                                                        key={school.id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setFormData({ ...formData, schoolId: school.id, studentId: '' }); // Reset student selection too
-                                                            setSchoolSearchTerm(school.name);
-                                                            setShowSchoolSuggestions(false);
-                                                        }}
-                                                        className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700"
-                                                    >
-                                                        <SchoolIcon size={14} className="text-slate-400" />
-                                                        {school.name}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {showSchoolSuggestions && filteredSchools.length === 0 && schoolSearchTerm && (
-                                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-4 text-center text-slate-500 text-sm">
-                                                Nenhuma escola encontrada.
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Removido campo de Professor Regente (Entrada Manual) conforme solicitação */}
-
+                                    {/* Aluno Assistido */}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Aluno Assistido *</label>
-                                        <div className="relative">
-                                            <select
-                                                required
-                                                className="w-full rounded-lg border-slate-300 p-2.5 border bg-white appearance-none disabled:bg-slate-100 disabled:text-slate-400"
-                                                value={formData.studentId}
-                                                name="studentId"
-                                                onChange={handleInputChange}
-                                                disabled={!formData.schoolId}
-                                            >
-                                                <option value="">
-                                                    {!formData.schoolId
-                                                        ? 'Selecione uma escola primeiro...'
-                                                        : filteredStudents.length === 0
-                                                            ? 'Nenhum aluno nesta escola'
-                                                            : 'Selecione um aluno...'
-                                                    }
-                                                </option>
-                                                {filteredStudents.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-                                            </select>
-                                            <User className="absolute right-3 top-3 text-slate-400 pointer-events-none" size={16} />
-                                        </div>
+                                        <SearchableSelect
+                                            options={studentOptions}
+                                            value={formData.studentId}
+                                            disabled={!formData.schoolId}
+                                            placeholder={!formData.schoolId ? "Selecione a escola primeiro..." : "Selecione o Aluno..."}
+                                            onChange={(val) => {
+                                                setFormData(prev => ({ ...prev, studentId: val }));
+                                            }}
+                                        />
                                         {formData.schoolId && filteredStudents.length === 0 && (
                                             <p className="text-xs text-amber-600 mt-1">
                                                 Atenção: Não há alunos vinculados a esta escola no sistema.
@@ -839,52 +765,52 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                         )}
                                     </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        {/* Endereço */}
-                        <div className="pt-4">
-                            <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
-                                <MapPin size={16} /> Endereço Residencial
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
-                                <div>
-                                    <label className="block text-xs text-slate-500 mb-1">CEP</label>
-                                    <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        name="zipCode"
-                                        placeholder="00000-000"
-                                        value={formData.address?.zipCode} onChange={handleAddressInputChange} />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-xs text-slate-500 mb-1">Rua / Logradouro</label>
-                                    <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        name="street"
-                                        value={formData.address?.street} onChange={handleAddressInputChange} />
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-slate-500 mb-1">Número</label>
-                                    <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        ref={numberInputRef}
-                                        name="number"
-                                        value={formData.address?.number} onChange={handleAddressInputChange} />
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-slate-500 mb-1">Bairro</label>
-                                    <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        name="district"
-                                        value={formData.address?.district} onChange={handleAddressInputChange} />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-xs text-slate-500 mb-1">Cidade</label>
-                                    <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        name="city"
-                                        value={formData.address?.city} onChange={handleAddressInputChange} />
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-slate-500 mb-1">Estado</label>
-                                    <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                        name="state"
-                                        value={formData.address?.state} onChange={handleAddressInputChange} />
+                                {/* Endereço */}
+                                <div className="pt-4">
+                                    <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
+                                        <MapPin size={16} /> Endereço Residencial
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                        <div>
+                                            <label className="block text-xs text-slate-500 mb-1">CEP</label>
+                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                                name="zipCode"
+                                                placeholder="00000-000"
+                                                value={formData.address?.zipCode} onChange={handleAddressInputChange} />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-xs text-slate-500 mb-1">Rua / Logradouro</label>
+                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                                name="street"
+                                                value={formData.address?.street} onChange={handleAddressInputChange} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-500 mb-1">Número</label>
+                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                                ref={numberInputRef}
+                                                name="number"
+                                                value={formData.address?.number} onChange={handleAddressInputChange} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-500 mb-1">Bairro</label>
+                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                                name="district"
+                                                value={formData.address?.district} onChange={handleAddressInputChange} />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-xs text-slate-500 mb-1">Cidade</label>
+                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                                name="city"
+                                                value={formData.address?.city} onChange={handleAddressInputChange} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-500 mb-1">Estado</label>
+                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
+                                                name="state"
+                                                value={formData.address?.state} onChange={handleAddressInputChange} />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
