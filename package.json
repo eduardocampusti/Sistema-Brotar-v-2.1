@@ -7,9 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "start": "node server.mjs"
   },
   "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "@google/genai": "^1.30.0",
     "@supabase/supabase-js": "^2.91.0",
     "jspdf": "^4.0.0",
