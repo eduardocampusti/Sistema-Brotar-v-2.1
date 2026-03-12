@@ -644,10 +644,10 @@ export class SupabaseService {
                 .select('*')
                 .order('full_name');
             
-            // Filtragem por Escola (removida: agora tratada via RLS)
-            // if (forcedSchoolId) {
-            //     query = query.eq('school_id', forcedSchoolId);
-            // }
+            // Restaurando filtragem por Escola via código para garantir consistência
+            if (forcedSchoolId) {
+                query = query.eq('school_id', forcedSchoolId);
+            }
 
             const { data, error } = await query;
             if (error) throw error;
@@ -901,6 +901,11 @@ export class SupabaseService {
             if (myProfile?.role === 'ESCOLA') {
                 if (myProfile.schoolId) {
                     dbPayload.school_id = myProfile.schoolId;
+                    // REGRA CRÍTICA: Se for escola, removemos qualquer tentativa de enviar school_id no educational_info
+                    // para evitar conflitos ou redundâncias que podem causar UNIQUE CONSTRAINT errors se o banco estiver sensível
+                    if (dbPayload.educational_info) {
+                        delete dbPayload.educational_info.schoolId;
+                    }
                     console.log("[DEBUG BRUTAL] Injeção forçada do school_id no dbPayload", myProfile.schoolId);
                 } else {
                     window.alert("ERRO: Sua conta de escola não possui um school_id vinculado no perfil.");
@@ -1916,11 +1921,15 @@ export class SupabaseService {
         return safeCall(async () => {
             console.log(`[SupabaseService] Buscando profissionais de apoio${schoolId ? ` (escola: ${schoolId})` : ' (Global)'}...`);
             
-            // Consulta mais simplificada (estado mais básico possível)
+            // Consulta com filtro de school_id quando fornecido
             let query = supabase
                 .from('support_professionals')
                 .select('*')
                 .order('name');
+            
+            if (schoolId) {
+                query = query.eq('school_id', schoolId);
+            }
             
             const { data, error } = await query;
             if (error) {
