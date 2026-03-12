@@ -616,46 +616,29 @@ export class SupabaseService {
         if (cached) return cached;
 
         return safeCall(async () => {
-            console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'}) com Projeção Estrita...`);
+            console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'}) via RLS...`);
             
-            // NOVO: Busca do perfil em tempo real e bloqueio por school_id
+            // Diagnóstico: Alerta se o perfil de escola estiver incompleto, mas NÃO bloqueia a busca
             const { data: { session } } = await supabase.auth.getSession();
-            let forcedSchoolId = null;
-            
             if (session?.user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role, school_id')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                if (profile?.role === 'ESCOLA') {
-                    if (!profile.school_id) {
-                        alert('Erro: Escola não identificada no seu perfil');
-                        return [];
-                    }
-                    forcedSchoolId = profile.school_id;
+                const profile = await SupabaseService.getUserProfile(session.user.id);
+                if (profile?.role === 'ESCOLA' && !profile.schoolId) {
+                    console.warn("[SupabaseService] School ID ausente no filtro de alunos (Refresh detectado).");
                 }
             }
-            
-            // Consulta mais simplificada (estado mais básico possível)
+
             let query = supabase
                 .from('students')
                 .select('*')
                 .order('full_name');
             
-            // Restaurando filtragem por Escola via código para garantir consistência
-            if (forcedSchoolId) {
-                query = query.eq('school_id', forcedSchoolId);
-            }
-
             const { data, error } = await query;
             if (error) throw error;
 
             const students = (data || []).map(s => mapStudentFromDB(s));
             this.setInCache(cacheKey, students);
             return students;
-        }, 0, 300, 'getStudents'); // Retries: 0 para listagem
+        }, 0, 300, 'getStudents');
     }
 
     static async getStudentById(id: string): Promise<Student | null> {
@@ -1924,31 +1907,24 @@ export class SupabaseService {
 
     static async getSupportProfessionals(inputSchoolId?: string): Promise<SupportProfessional[]> {
         return safeCall(async () => {
-            // [NOVO] Detecção automática de school_id para usuários 'ESCOLA'
-            let schoolId = inputSchoolId;
+            console.log(`[SupabaseService] Buscando profissionais de apoio via RLS...`);
             
-            if (!schoolId) {
+            // Diagnóstico: Alerta se o perfil de escola estiver incompleto
+            if (!inputSchoolId) {
                 const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user?.id) {
+                if (session?.user) {
                     const profile = await SupabaseService.getUserProfile(session.user.id);
-                    if (profile?.role === 'ESCOLA' && profile.schoolId) {
-                        schoolId = profile.schoolId;
+                    if (profile?.role === 'ESCOLA' && !profile.schoolId) {
+                        console.warn("[SupabaseService] School ID ausente no filtro de profissionais (Refresh detectado).");
                     }
                 }
             }
-
-            console.log(`[SupabaseService] Buscando profissionais de apoio${schoolId ? ` (Filtro Escola: ${schoolId})` : ' (Global)'}...`);
             
-            let query = supabase
+            const { data, error } = await supabase
                 .from('support_professionals')
                 .select('*')
                 .order('name');
-            
-            if (schoolId) {
-                query = query.eq('school_id', schoolId);
-            }
-            
-            const { data, error } = await query;
+
             if (error) {
                 console.error('Erro ao buscar profissionais de apoio:', error);
                 throw error;
