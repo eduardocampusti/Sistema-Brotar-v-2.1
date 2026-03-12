@@ -205,16 +205,24 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
     const loadData = async () => {
         try {
-            const profs = await SupabaseService.getSupportProfessionals();
-            console.log('[SupportProf] Profissionais carregados:', profs.length, profs);
+            // Se for escola, busca apenas os profissionais e alunos daquela escola
+            const schoolFilter = currentUser?.role === 'ESCOLA' ? currentUser.schoolId : undefined;
+            
+            console.log(`[SupportProf] Carregando dados para role: ${currentUser?.role}, filtro_escola: ${schoolFilter || 'Nenhum'}`);
+            
+            const profs = await SupabaseService.getSupportProfessionals(schoolFilter);
             const schoolsData = await SupabaseService.getSchools();
+            
+            // [DETALHE] getStudents() já tem lógica interna para filtrar pela escola do usuário logado se for ESCOLA
             const studentsData = await SupabaseService.getStudents();
+            
             setProfessionals(profs);
             setSchools(schoolsData);
             setStudents(studentsData);
+            
+            console.log(`[SupportProf] Sucesso! ${profs.length} profissionais e ${studentsData.length} alunos carregados.`);
         } catch (error) {
             console.error('ERRO_PROFISSIONAIS:', error);
-            console.dir(error);
             showNotification('Erro ao carregar dados.', 'error');
         }
     };
@@ -413,9 +421,13 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
     // Lógica para filtrar alunos baseada na escola selecionada
     const filteredStudents = useMemo(() => {
-        if (!formData.schoolId) return []; // Retorna vazio se nenhuma escola selecionada
+        // Se já for escola, exibe todos os alunos que vieram (pois o SupabaseService já os filtra)
+        // Se for ADMIN, filtra pela escola selecionada no formulário
+        if (currentUser?.role === 'ESCOLA') return students;
+        
+        if (!formData.schoolId) return [];
         return students.filter(s => s.school?.schoolId === formData.schoolId);
-    }, [students, formData.schoolId]);
+    }, [students, formData.schoolId, currentUser]);
 
     // Filtragem simplificada
     const filteredProfessionals = useMemo(() => {

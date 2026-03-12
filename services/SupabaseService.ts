@@ -744,7 +744,13 @@ export class SupabaseService {
         console.log(`[SupabaseService] Modo: ${isInsert ? 'INSERT (novo aluno, UUID gerado pelo banco)' : 'UPDATE/UPSERT (ID: ' + student.id + ')'}`);
 
         // Se usuário for ESCOLA, forçar o school_id do perfil logado
-        let forcedSchoolId = sanitizeField(student.school?.schoolId) || null;
+        // [FIX] Garante que school_id seja uma string simples (UUID), não um objeto
+        let forcedSchoolId: string | null = null;
+        
+        if (typeof student.school?.schoolId === 'string' && student.school.schoolId.trim() !== '') {
+            forcedSchoolId = student.school.schoolId;
+        }
+
         if (session?.user?.id) {
             const profile = await SupabaseService.getUserProfile(session.user.id);
 
@@ -754,7 +760,7 @@ export class SupabaseService {
                     throw new Error('Erro: Escola não identificada no seu perfil');
                 }
                 forcedSchoolId = profile.schoolId;
-                console.log(`[SupabaseService] Forçando school_id para escola logada no Upsert: ${forcedSchoolId}`);
+                console.log(`[SupabaseService] Forçando school_id (UUID string) para escola logada: ${forcedSchoolId}`);
             }
         }
 
@@ -895,18 +901,17 @@ export class SupabaseService {
             // Vínculo Automático: Injeta `school_id` do perfil logado, caso o aluno esteja sem e haja um no perfil
             if (myProfile?.schoolId && !dbPayload.school_id) {
                 dbPayload.school_id = myProfile.schoolId;
-                console.log("[Vínculo Automático] Injetando school_id do perfil logado:", myProfile.schoolId);
+                console.log("[Vínculo Automático] Injetando school_id (UUID string) do perfil logado:", myProfile.schoolId);
             }
 
             if (myProfile?.role === 'ESCOLA') {
                 if (myProfile.schoolId) {
                     dbPayload.school_id = myProfile.schoolId;
                     // REGRA CRÍTICA: Se for escola, removemos qualquer tentativa de enviar school_id no educational_info
-                    // para evitar conflitos ou redundâncias que podem causar UNIQUE CONSTRAINT errors se o banco estiver sensível
                     if (dbPayload.educational_info) {
                         delete dbPayload.educational_info.schoolId;
                     }
-                    console.log("[DEBUG BRUTAL] Injeção forçada do school_id no dbPayload", myProfile.schoolId);
+                    console.log("[DEBUG BRUTAL] Injeção forçada do school_id (UUID string) no dbPayload", myProfile.schoolId);
                 } else {
                     window.alert("ERRO: Sua conta de escola não possui um school_id vinculado no perfil.");
                 }
@@ -1917,11 +1922,23 @@ export class SupabaseService {
         }, 2, 300, `getSupportProfessionalsByStudent(${studentId})`);
     }
 
-    static async getSupportProfessionals(schoolId?: string): Promise<SupportProfessional[]> {
+    static async getSupportProfessionals(inputSchoolId?: string): Promise<SupportProfessional[]> {
         return safeCall(async () => {
-            console.log(`[SupabaseService] Buscando profissionais de apoio${schoolId ? ` (escola: ${schoolId})` : ' (Global)'}...`);
+            // [NOVO] Detecção automática de school_id para usuários 'ESCOLA'
+            let schoolId = inputSchoolId;
             
-            // Consulta com filtro de school_id quando fornecido
+            if (!schoolId) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user?.id) {
+                    const profile = await SupabaseService.getUserProfile(session.user.id);
+                    if (profile?.role === 'ESCOLA' && profile.schoolId) {
+                        schoolId = profile.schoolId;
+                    }
+                }
+            }
+
+            console.log(`[SupabaseService] Buscando profissionais de apoio${schoolId ? ` (Filtro Escola: ${schoolId})` : ' (Global)'}...`);
+            
             let query = supabase
                 .from('support_professionals')
                 .select('*')
@@ -1933,7 +1950,7 @@ export class SupabaseService {
             
             const { data, error } = await query;
             if (error) {
-                console.error('Erro ao buscar profissionais de apoio: Nomes de colunas mudaram?', error);
+                console.error('Erro ao buscar profissionais de apoio:', error);
                 throw error;
             }
 
@@ -1944,7 +1961,7 @@ export class SupabaseService {
                 phone: p.phone || '',
                 photoUrl: p.photo_url || '',
                 education: p.education || '',
-                schoolId: p.school_id || '',
+                schoolId: p.school_id || '', // UUID Puro
                 studentId: p.student_id || '',
                 regentTeacher: p.regent_teacher || '-',
                 contractStartDate: p.contract_start_date || '',
