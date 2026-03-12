@@ -338,11 +338,14 @@ export class SupabaseService {
      * Busca o perfil do usuário pelo ID sem precisar autenticar (útil para sessões já ativas como Recovery)
      */
     static async getUserProfile(userId: string): Promise<User | null> {
-        // Verifica cache primeiro - DESATIVADO TEMPORARIAMENTE para garantir leitura em tempo real
-        // if (this.userProfileCache.has(userId)) {
-        //     return this.userProfileCache.get(userId) || null;
-        // }
+        // [CACHE CHECK] Tenta buscar no cache primeiro se já tiver school_id
+        const cached = this.userProfileCache.get(userId);
+        if (cached && cached.schoolId) {
+            return cached;
+        }
 
+        // [REFRESH FORÇADO] Se não estiver no cache ou o school_id estiver vindo vazio, lemos do banco
+        console.log(`[SupabaseService] Buscando perfil do usuário ${userId} no banco...`);
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*, school_id')
@@ -356,16 +359,19 @@ export class SupabaseService {
 
             if (session?.user && session.user.id === userId) {
                 console.log('[SupabaseService] Fallback de perfil bem-sucedido via JWT.');
-                return {
+                const userFromJewt: User = {
                     id: session.user.id,
                     name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuário',
                     username: session.user.email?.split('@')[0] || 'user',
-                    role: (session.user.user_metadata?.role as UserRole) || 'ASSISTANT',
-                    scope: session.user.user_metadata?.scope as any || 'GLOBAL',
+                    role: (session.user.user_metadata?.role as UserRole) || 'SPECIALIST',
+                    scope: (session.user.user_metadata?.scope as any) || 'GLOBAL',
                     isActive: true,
                     mustChangePassword: false,
-                    email: session.user.email || undefined
+                    email: session.user.email || undefined,
+                    schoolId: session.user.user_metadata?.school_id // Tenta pegar do JWT se o banco falhar
                 };
+                this.userProfileCache.set(userId, userFromJewt);
+                return userFromJewt;
             }
             console.error('[SupabaseService] Falha crítica: Perfil ausente no banco e sem sessão JWT ativa.');
             return null;
@@ -380,7 +386,7 @@ export class SupabaseService {
             specialty: this.mapSpecialtyFromDB(profile.specialty),
             email: profile.email,
             photoUrl: profile.photo_url,
-            scope: profile.scope?.toUpperCase() as any,
+            scope: (profile.scope?.toUpperCase() as any) || 'GLOBAL',
             schoolInep: profile.school_inep || undefined,
             schoolId: profile.school_id || undefined,
             mustChangePassword: profile.must_change_password
@@ -395,24 +401,15 @@ export class SupabaseService {
                 .single();
             if (schoolRow?.id) {
                 user.schoolId = schoolRow.id;
-                console.log(`[SupabaseService] getUserProfile: Escola ${user.schoolInep} → UUID: ${user.schoolId}`);
-            } else {
-                console.warn(`[SupabaseService] getUserProfile: INEP ${user.schoolInep} não encontrado em schools.`);
+                console.log(`[SupabaseService] getUserProfile REFRESH: Escola ${user.schoolInep} → UUID: ${user.schoolId}`);
+                
+                // Atualiza o perfil no banco para não precisar repetir o lookup
+                await supabase.from('profiles').update({ school_id: user.schoolId }).eq('id', user.id);
             }
         }
 
-        // --- NOVO: Força atualização da sessão JWT se o perfil tiver school_id mas a sessão atual não ---
-        if (user.schoolId) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user && session.user.user_metadata?.school_id !== user.schoolId) {
-                console.log(`[SupabaseService] Token desatualizado (ausência ou conflito do school_id = ${user.schoolId}). Forçando refreshSession...`);
-                await supabase.auth.refreshSession();
-            }
-        }
-
-        // Salva no cache
+        // Cache local
         this.userProfileCache.set(user.id, user);
-
         return user;
     }
 
@@ -629,8 +626,18 @@ export class SupabaseService {
 
             let query = supabase
                 .from('students')
-                .select('*')
-                .order('full_name');
+                .select('*');
+
+            // [AÇÃO OBRIGATÓRIA] Filtro por school_id baseado no perfil do usuário logado
+            if (session?.user) {
+                const profile = await SupabaseService.getUserProfile(session.user.id);
+                if (profile?.role === 'ESCOLA' && profile?.schoolId) {
+                    query = query.eq('school_id', profile.schoolId);
+                    console.log(`[SupabaseService] ESCOLA detectada. Forçando filtro ALUNOS: .eq('school_id', '${profile.schoolId}')`);
+                }
+            }
+
+            query = query.order('full_name');
             
             const { data, error } = await query;
             if (error) throw error;
@@ -686,6 +693,12 @@ export class SupabaseService {
         const { data: { session } } = await supabase.auth.getSession();
         console.log('[SupabaseService] Tentando salvar como usuário:', session?.user?.id);
 
+        // Busca o perfil do usuário logado uma única vez
+        let currentUserProfile: User | null = null;
+        if (session?.user?.id) {
+            currentUserProfile = await SupabaseService.getUserProfile(session.user.id);
+        }
+
         let finalPhotoUrl = student.photoUrl;
 
         // 1. Upload da foto se houver
@@ -726,93 +739,71 @@ export class SupabaseService {
 
         console.log(`[SupabaseService] Modo: ${isInsert ? 'INSERT (novo aluno, UUID gerado pelo banco)' : 'UPDATE/UPSERT (ID: ' + student.id + ')'}`);
 
-        // Se usuário for ESCOLA, forçar o school_id do perfil logado
-        // [FIX] Garante que school_id seja uma string simples (UUID), não um objeto
+        // REGRA DE OURO: Se o usuário é Escola, o school_id VEM do perfil, não da tela
         let forcedSchoolId: string | null = null;
-        
-        if (typeof student.school?.schoolId === 'string' && student.school.schoolId.trim() !== '') {
-            forcedSchoolId = student.school.schoolId;
-        }
-
-        if (session?.user?.id) {
-            const profile = await SupabaseService.getUserProfile(session.user.id);
-
-            if (profile?.role === 'ESCOLA') {
-                if (!profile.schoolId) {
-                    alert('Erro: Escola não identificada no seu perfil');
-                    throw new Error('Erro: Escola não identificada no seu perfil');
-                }
-                forcedSchoolId = profile.schoolId;
-                console.log(`[SupabaseService] Forçando school_id (UUID string) para escola logada: ${forcedSchoolId}`);
+        if (currentUserProfile?.schoolId) {
+            forcedSchoolId = currentUserProfile.schoolId;
+            if (currentUserProfile.role === 'ESCOLA') {
+                console.log(`[SupabaseService] AÇÃO OBRIGATÓRIA: Forçando school_id do perfil da escola: ${forcedSchoolId}`);
             }
         }
 
+        // Fallback se não for escola mas já tiver um ID vinculado (ou se for ADMIN editando)
+        if (!forcedSchoolId && typeof student.school?.schoolId === 'string' && student.school.schoolId.trim() !== '') {
+            forcedSchoolId = student.school.schoolId;
+        }
+
         const rawPayload: any = {
-            // Para INSERT: omite 'id' (banco gera via gen_random_uuid())
-            // Para UPDATE: inclui 'id' para localizar o registro
             ...(hasValidId ? { id: student.id } : {}),
             full_name: student.fullName,
             birth_date: student.birthDate || null,
             cpf: cleanCPF || null,
             sus_card: sanitizeField(student.susCard),
-            // Campos removidos da raiz porque agora vão para educational_info
             school_id: forcedSchoolId,
             ethnicity: sanitizeField(student.ethnicity),
             unit: student.unit || null,
-            // JSONB: endereço completo - Garantido como JSON {}, nunca string vazia
-            address: (student.address && Object.keys(student.address).length > 0) ? {
+            
+            // JSONB: endereço completo - Garantido como null se vazio para evitar erro de sintaxe
+            address: (student.address && Object.values(student.address).some(v => v !== '' && v !== null && v !== undefined)) ? {
                 street: student.address.street || '',
                 number: student.address.number || '',
                 district: student.address.district || '',
                 city: student.address.city || '',
                 state: student.address.state || '',
                 zipCode: student.address.zipCode || ''
-            } : {},
-            // JSONB: responsáveis
-            guardians: student.guardians || [],
+            } : null,
+
+            guardians: (student.guardians && student.guardians.length > 0) ? student.guardians : null,
             photo_url: finalPhotoUrl || null,
             documents: (student.documents && student.documents.length > 0) ? student.documents : null,
-            // JSONB: dados clínicos + dados pessoais expandidos
-            clinical_info: (student.clinical && Object.keys(student.clinical).length > 0) ? {
-                // Dados clínicos
+
+            // JSONB: dados clínicos
+            clinical_info: (student.clinical && Object.values(student.clinical).some(v => v !== '' && v !== null && v !== undefined)) ? {
                 diagnosis: student.clinical?.diagnosis || '',
                 cid: student.clinical?.cid || '',
                 medications: student.clinical?.medications || '',
                 allergies: student.clinical?.allergies || '',
                 therapiesHistory: student.clinical?.therapiesHistory || '',
-                weight: student.clinical?.weight || '',
-                height: student.clinical?.height || '',
-                specialNeeds: Array.isArray(student.clinical?.specialNeeds) && student.clinical.specialNeeds.length > 0 ? student.clinical.specialNeeds : null,
-                // Dados pessoais expandidos (salvos no JSONB por não ter coluna própria)
                 gender: student.gender || null,
                 rg: student.rg || null,
                 motherName: student.motherName || null,
                 fatherName: student.fatherName || null,
                 nationality: student.nationality || null,
                 birthPlace: student.birthPlace || null,
-                // Dados clínicos especializados (preserva sub-JSONs de cada área)
                 pp_data: student.clinical?.pp_data || null,
                 psych_data: student.clinical?.psych_data || null,
-                social_data: student.clinical?.social_data || null,
-                social_interview: student.clinical?.social_interview || null,
-                ot_data: student.clinical?.ot_data || null,
-                st_data: student.clinical?.st_data || null,
-                pt_data: student.clinical?.pt_data || null,
-                nutrition_data: student.clinical?.nutrition_data || null,
-            } : {},
-            // JSONB: dados sociais (family_info e social_info, para fallback seguro)
-            family_info: (student.socialInfo && Object.keys(student.socialInfo).length > 0) ? {
+                social_data: student.clinical?.social_data || null
+            } : null,
+
+            // JSONB: dados sociais
+            family_info: (student.socialInfo && (student.socialInfo.nis || student.socialInfo.bolsaFamilia || student.socialInfo.bpc)) ? {
                 nis: student.socialInfo?.nis || null,
                 bolsaFamilia: student.socialInfo?.bolsaFamilia ?? false,
                 bpc: student.socialInfo?.bpc ?? false
-            } : {},
-            social_info: (student.socialInfo && Object.keys(student.socialInfo).length > 0) ? {
-                nis: student.socialInfo?.nis || null,
-                bolsaFamilia: student.socialInfo?.bolsaFamilia ?? false,
-                bpc: student.socialInfo?.bpc ?? false
-            } : {},
-            // JSONB: dados escolares (educational_info)
-            educational_info: (student.school && Object.keys(student.school).length > 0) ? {
+            } : null,
+
+            // JSONB: dados escolares
+            educational_info: (student.school && (student.school.grade || student.school.schoolName)) ? {
                 grade: student.school?.grade || null,
                 shift: student.school?.shift || null,
                 schedule: student.school?.schedule || null,
@@ -820,7 +811,7 @@ export class SupabaseService {
                 hasSpecialAide: student.school?.hasSpecialAide || false,
                 difficulties: student.school?.difficulties || null,
                 schoolName: student.school?.schoolName || null
-            } : {},
+            } : null,
             status: student.status || 'Active'
         };
 
@@ -830,8 +821,8 @@ export class SupabaseService {
         console.log('  clinical_info:', rawPayload.clinical_info);
         console.log('  family_info:', rawPayload.family_info);
         console.log('  educational_info:', rawPayload.educational_info);
-        console.log('  guardians count:', rawPayload.guardians?.length);
-        console.log('  documents count:', rawPayload.documents?.length);
+        console.log('  guardians count:', rawPayload.guardians?.length || 0);
+        console.log('  documents count:', rawPayload.documents?.length || 0);
         console.log('  unit:', rawPayload.unit);
 
         const dbPayload = this.cleanDataForSupabase(rawPayload);
@@ -867,96 +858,67 @@ export class SupabaseService {
             dbPayload.documents = [...(student.documents || []), ...uploadedDocs];
         }
 
-
         // Formato JSONB: Garantindo envio como objetos limpos para o banco
-        // O endereço precisa ser enviado como um objeto JSON
-        if (dbPayload.address) dbPayload.address = JSON.parse(JSON.stringify(dbPayload.address));
-        if (dbPayload.documents) dbPayload.documents = JSON.parse(JSON.stringify(dbPayload.documents));
-        if (dbPayload.clinical_info) dbPayload.clinical_info = JSON.parse(JSON.stringify(dbPayload.clinical_info));
-        if (dbPayload.family_info) dbPayload.family_info = JSON.parse(JSON.stringify(dbPayload.family_info));
-        if (dbPayload.educational_info) dbPayload.educational_info = JSON.parse(JSON.stringify(dbPayload.educational_info));
-        if (dbPayload.guardians) dbPayload.guardians = JSON.parse(JSON.stringify(dbPayload.guardians));
-
-        // INJEÇÃO MANUAL DO SCHOOL_ID ANTES DO UPSERT
-        if (session?.user?.id) {
-            const myProfile = await SupabaseService.getUserProfile(session.user.id);
-
-            // Vínculo Automático: Injeta `school_id` do perfil logado, caso o aluno esteja sem e haja um no perfil
-            if (myProfile?.schoolId && !dbPayload.school_id) {
-                dbPayload.school_id = myProfile.schoolId;
-                console.log("[Vínculo Automático] Injetando school_id (UUID string) do perfil logado:", myProfile.schoolId);
+        const jsonbFields = ['address', 'documents', 'clinical_info', 'family_info', 'educational_info', 'guardians'];
+        jsonbFields.forEach(field => {
+            if (dbPayload[field]) {
+                dbPayload[field] = JSON.parse(JSON.stringify(dbPayload[field]));
             }
+        });
 
-            if (myProfile?.role === 'ESCOLA') {
-                if (myProfile.schoolId) {
-                    dbPayload.school_id = myProfile.schoolId;
-                    // REGRA CRÍTICA: Se for escola, removemos qualquer tentativa de enviar school_id no educational_info
-                    if (dbPayload.educational_info) {
-                        delete dbPayload.educational_info.schoolId;
-                    }
-                    console.log("[DEBUG BRUTAL] Injeção forçada do school_id (UUID string) no dbPayload", myProfile.schoolId);
-                } else {
-                    window.alert("ERRO: Sua conta de escola não possui um school_id vinculado no perfil.");
-                }
-            }
+        // RE-INJEÇÃO DE SEGURANÇA PARA ESCOLA
+        if (currentUserProfile?.role === 'ESCOLA' && forcedSchoolId) {
+            dbPayload.school_id = forcedSchoolId;
+            // Remove school_id redundante de dentro do JSON se existir
+            if (dbPayload.educational_info) delete dbPayload.educational_info.schoolId;
+            console.log("[DEBUG] Re-injeção de segurança school_id para ESCOLA:", forcedSchoolId);
         }
 
-        // Estratégia de salvamento:
-        // INSERT (aluno novo sem UUID): usa insert() puro se sem CPF, ou upsert por CPF para deduplicar
-        // UPDATE (aluno existente com UUID válido): upsert por CPF (se tiver) ou por id
+        // Estratégia de salvamento
         let data: any;
         let error: any;
 
         if (isInsert) {
             if (dbPayload.cpf) {
-                // Novo aluno COM CPF: upsert por CPF para evitar duplicata
-                console.log('[SupabaseService] INSERT com CPF: upsert via cpf para deduplicação...');
+                console.log('[SupabaseService] INSERT com CPF: upsert via cpf...');
                 const result = await supabase
                     .from('students')
                     .upsert(dbPayload, { onConflict: 'cpf' })
                     .select('*');
                 data = result.data;
                 error = result.error;
-                console.log('RESPOSTA_SUPABASE:', { data, error });
             } else {
-                // Novo aluno SEM CPF: insert puro → banco gera o UUID
-                console.log('[SupabaseService] INSERT puro (sem CPF): banco gerará o UUID...');
+                console.log('[SupabaseService] INSERT puro (sem CPF)...');
                 const result = await supabase
                     .from('students')
                     .insert(dbPayload)
                     .select('*');
                 data = result.data;
                 error = result.error;
-                console.log('RESPOSTA_SUPABASE:', { data, error });
             }
         } else {
-            // Aluno existente: upsert por CPF ou ID
             const conflictTarget = dbPayload.cpf ? 'cpf' : 'id';
-            console.log(`[SupabaseService] UPDATE/UPSERT do aluno com conflito no ${conflictTarget}...`);
+            console.log(`[SupabaseService] UPDATE/UPSERT via ${conflictTarget}...`);
             const result = await supabase
                 .from('students')
                 .upsert(dbPayload, { onConflict: conflictTarget })
                 .select('*');
             data = result.data;
             error = result.error;
-            console.log('RESPOSTA_SUPABASE:', { data, error });
         }
 
         if (error) {
             console.error('ERRO_SUPABASE:', error);
             window.alert("ERRO DO SUPABASE: " + error.message);
-            return Promise.reject(new Error("ERRO DO SUPABASE: " + error.message)) as any;
+            throw new Error("ERRO DO SUPABASE: " + error.message);
         }
 
-        // Validação de Linhas Afetadas: verifica se o retorno contém dados
         if (!data || data.length === 0) {
-            window.alert('ERRO DO SUPABASE: O banco não respondeu com o objeto salvo.');
-            return Promise.reject(new Error("ERRO DO SUPABASE: O banco não retornou resposta do aluno salvo")) as any;
+            window.alert('ERRO DO SUPABASE: O banco não respondeu com o objeto salvo (possível permissão negada RLS).');
+            throw new Error("ERRO DO SUPABASE: O banco não retornou resposta do aluno salvo");
         }
 
-        // Invalida o cache para refletir as edições na listagem e visualização do aluno
         this.invalidateCache('students_');
-
         return Array.isArray(data) ? data[0].id : data.id;
     }
 
@@ -1920,10 +1882,26 @@ export class SupabaseService {
                 }
             }
             
-            const { data, error } = await supabase
+            let query = supabase
                 .from('support_professionals')
-                .select('*')
-                .order('name');
+                .select('*');
+
+            // [AÇÃO OBRIGATÓRIA] Filtro por school_id baseado no perfil do usuário logado
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const profile = await SupabaseService.getUserProfile(session.user.id);
+                if (profile?.role === 'ESCOLA' && profile?.schoolId) {
+                    query = query.eq('school_id', profile.schoolId);
+                    console.log(`[SupabaseService] ESCOLA detectada. Forçando filtro AT: .eq('school_id', '${profile.schoolId}')`);
+                } else if (inputSchoolId && inputSchoolId !== 'all') {
+                    // Se não for escola, usa o filtro vindo por parâmetro
+                    query = query.eq('school_id', inputSchoolId);
+                }
+            } else if (inputSchoolId && inputSchoolId !== 'all') {
+                query = query.eq('school_id', inputSchoolId);
+            }
+
+            const { data, error } = await query.order('name');
 
             if (error) {
                 console.error('Erro ao buscar profissionais de apoio:', error);
