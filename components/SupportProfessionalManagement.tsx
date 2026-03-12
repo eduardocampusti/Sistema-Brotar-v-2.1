@@ -318,9 +318,23 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     }, [currentUser, schools, formData.schoolId]);
 
     const handleEdit = (prof: SupportProfessional) => {
+        console.log('[SupportProfessionalManagement] Carregando profissional para edição:', prof);
         const address = prof.address || { street: '', number: '', district: '', city: '', state: '', zipCode: '' };
-        setFormData({ ...prof, address });
+        
+        // Diagnóstico de IDs
+        const schoolMatch = schools.find(s => s.id === prof.schoolId || s.name === prof.schoolId);
+        const studentMatch = students.find(s => s.id === prof.studentId || s.fullName === prof.studentId);
+        
+        setFormData({ 
+            ...prof, 
+            address,
+            schoolId: schoolMatch?.id || prof.schoolId, // Tenta normalizar para UUID se for nome
+            studentId: studentMatch?.id || prof.studentId
+        });
+        
         setIsAdding(true);
+        // Scroll suave para o topo para garantir que o usuário veja o formulário
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleDeleteClick = (id: string) => {
@@ -437,8 +451,17 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         setCpfSearchTerm('');
     };
 
-    const getSchoolName = (id: string) => schools.find(s => s.id === id)?.name || 'Desconhecida';
-    const getStudentName = (id: string) => students.find(s => s.id === id)?.fullName || 'Desconhecido';
+    const getSchoolName = (idOrName: string) => {
+        if (!idOrName) return 'Desconhecida';
+        const school = schools.find(s => s.id === idOrName || s.name === idOrName);
+        return school?.name || 'Desconhecida';
+    };
+
+    const getStudentName = (idOrName: string) => {
+        if (!idOrName) return 'Desconhecido';
+        const student = students.find(s => s.id === idOrName || s.fullName === idOrName);
+        return student?.fullName || 'Desconhecido';
+    };
 
     const renderStudentAndRegent = (prof: SupportProfessional) => {
         let studentStr = getStudentName(prof.studentId);
@@ -902,7 +925,11 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     const { studentStr, regentStr, isUnregistered } = renderStudentAndRegent(prof);
                     
                     return (
-                        <div key={prof.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-all group relative border-l-4 border-l-primary-500">
+                        <div 
+                            key={prof.id} 
+                            onClick={() => handleEdit(prof)}
+                            className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-all group relative border-l-4 border-l-primary-500 cursor-pointer active:scale-[0.98]"
+                        >
                             {/* Header do Card */}
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
