@@ -878,34 +878,16 @@ export class SupabaseService {
         let data: any;
         let error: any;
 
-        if (isInsert) {
-            if (dbPayload.cpf) {
-                console.log('[SupabaseService] INSERT com CPF: upsert via cpf...');
-                const result = await supabase
-                    .from('students')
-                    .upsert(dbPayload, { onConflict: 'cpf' })
-                    .select('*');
-                data = result.data;
-                error = result.error;
-            } else {
-                console.log('[SupabaseService] INSERT puro (sem CPF)...');
-                const result = await supabase
-                    .from('students')
-                    .insert(dbPayload)
-                    .select('*');
-                data = result.data;
-                error = result.error;
-            }
-        } else {
-            const conflictTarget = dbPayload.cpf ? 'cpf' : 'id';
-            console.log(`[SupabaseService] UPDATE/UPSERT via ${conflictTarget}...`);
-            const result = await supabase
-                .from('students')
-                .upsert(dbPayload, { onConflict: conflictTarget })
-                .select('*');
-            data = result.data;
-            error = result.error;
-        }
+        // [CORREÇÃO] O school_id NÃO É CHAVE ÚNICA. O conflito deve ser apenas ID ou CPF.
+        const conflictTarget = dbPayload.cpf ? 'cpf' : 'id';
+        console.log(`[SupabaseService] UPSERT via ${conflictTarget} (school_id é metadado, não chave)...`);
+        
+        const result = await supabase
+            .from('students')
+            .upsert(dbPayload, { onConflict: conflictTarget })
+            .select('*');
+        data = result.data;
+        error = result.error;
 
         if (error) {
             console.error('ERRO_SUPABASE:', error);
@@ -1888,17 +1870,26 @@ export class SupabaseService {
 
             // [AÇÃO OBRIGATÓRIA] Filtro por school_id baseado no perfil do usuário logado
             const { data: { session } } = await supabase.auth.getSession();
+            let effectiveSchoolId = inputSchoolId;
+
             if (session?.user) {
-                const profile = await SupabaseService.getUserProfile(session.user.id);
-                if (profile?.role === 'ESCOLA' && profile?.schoolId) {
-                    query = query.eq('school_id', profile.schoolId);
-                    console.log(`[SupabaseService] ESCOLA detectada. Forçando filtro AT: .eq('school_id', '${profile.schoolId}')`);
-                } else if (inputSchoolId && inputSchoolId !== 'all') {
-                    // Se não for escola, usa o filtro vindo por parâmetro
-                    query = query.eq('school_id', inputSchoolId);
+                let profile = await SupabaseService.getUserProfile(session.user.id);
+                
+                // PROTEÇÃO: Se for escola e o ID estiver vazio, tenta buscar de novo (refresh profile)
+                if (profile?.role === 'ESCOLA' && !profile.schoolId) {
+                    console.log("[SupabaseService] School ID ausente no perfil, tentando re-fetch forçado...");
+                    this.userProfileCache.delete(session.user.id); // Limpa cache para forçar banco
+                    profile = await SupabaseService.getUserProfile(session.user.id);
                 }
-            } else if (inputSchoolId && inputSchoolId !== 'all') {
-                query = query.eq('school_id', inputSchoolId);
+
+                if (profile?.role === 'ESCOLA' && profile?.schoolId) {
+                    effectiveSchoolId = profile.schoolId;
+                    console.log(`[SupabaseService] ESCOLA detectada. Forçando filtro AT: child_id -> school_id = '${effectiveSchoolId}'`);
+                }
+            }
+
+            if (effectiveSchoolId && effectiveSchoolId !== 'all') {
+                query = query.eq('school_id', effectiveSchoolId);
             }
 
             const { data, error } = await query.order('name');

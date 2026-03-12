@@ -126,29 +126,35 @@ function AppContent() {
   useEffect(() => {
     async function loadData() {
       try {
-        // 1. Session Recovery
+        // 1. Session Recovery e Perfil (Mandatório primeiro para garantir school_id)
         const { data: { session } } = await supabase.auth.getSession();
+        let currentProfile = null;
+        
         if (session?.user) {
-          const profile = await SupabaseService.getUserProfile(session.user.id);
-          if (profile) {
-            setUser(profile);
+          currentProfile = await SupabaseService.getUserProfile(session.user.id);
+          if (currentProfile) {
+            setUser(currentProfile);
           }
         }
+        
+        // 2. Carregar configurações de sistema
+        const settings = await SupabaseService.getSystemSettings();
+        setSystemSettings(settings);
+
+        // 3. Carregar dados dependentes do perfil (só depois que o perfil/user está pronto)
+        const [studentsData, schoolsData] = await Promise.all([
+          SupabaseService.getStudents(),
+          SupabaseService.getSchools()
+        ]);
+        
+        setStudents(studentsData);
+        setSchools(schoolsData);
+
       } catch (err) {
-        console.error("Erro ao recuperar sessão:", err);
+        console.error("Erro ao carregar dados iniciais:", err);
       } finally {
         setIsLoadingSession(false);
       }
-
-      // 2. Load system data
-      const settings = await SupabaseService.getSystemSettings();
-      setSystemSettings(settings);
-      const [studentsData, schoolsData] = await Promise.all([
-        SupabaseService.getStudents(),
-        SupabaseService.getSchools()
-      ]);
-      setStudents(studentsData);
-      setSchools(schoolsData);
     }
     loadData();
   }, []);
