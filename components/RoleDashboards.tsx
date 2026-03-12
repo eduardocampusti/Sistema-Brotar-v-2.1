@@ -998,10 +998,9 @@ export const NutritionDashboard: React.FC<DashboardProps> = ({ students, current
 // --- 9. ESCOLA ---
 export const SchoolDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
     const stats = useMemo(() => {
-        // Filtra alunos da escola do usuário logado baseado no schoolInep
+        // Filtra alunos da escola do usuário logado baseado no schoolId (UUID)
         const myStudents = students.filter(s =>
-            s.school.schoolId === currentUser.schoolInep ||
-            s.school.schoolName === currentUser.name
+            s.school.schoolId === currentUser.schoolId
         );
         const total = myStudents.length;
 

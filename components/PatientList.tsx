@@ -101,7 +101,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
 
   const isRestricted = (currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'SECRETARIA_SEDE') && currentUser?.scope === 'COCAL';
   const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'ESCOLA';
-  const canViewClinical = currentUser?.role === 'ADMIN' || currentUser?.role === 'SPECIALIST';
+  const canViewClinical = currentUser?.role === 'ADMIN' || currentUser?.role === 'SPECIALIST' || currentUser?.role === 'ESCOLA';
 
   // Permissões Específicas
   const isSocialWorker = currentUser?.specialty === Specialty.SOCIAL_WORK;
