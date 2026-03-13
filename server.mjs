@@ -15,9 +15,15 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Configuração Supabase
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+
+if (!supabaseUrl || !supabaseServiceKey) {
+    console.warn('[Aviso] SUPABASE_URL ou SERVICE_ROLE_KEY não configurados corretamente.');
+}
+
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 
 // Middlewares
 app.use(cors());
@@ -149,12 +155,14 @@ app.post('/api/whatsapp/send', async (req, res) => {
         formattedPhone = `55${formattedPhone}`;
     }
 
-    const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-    const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || process.env.VITE_WHATSAPP_TOKEN;
+    const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.VITE_WHATSAPP_PHONE_NUMBER_ID;
 
     if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
+        console.error('[Env] Erro: WHATSAPP_TOKEN ou PHONE_NUMBER_ID ausentes.');
         return res.status(500).json({ error: 'Configurações do WhatsApp ausentes no servidor.' });
     }
+
 
     const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
 
@@ -228,5 +236,11 @@ app.get('*', (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`[Servidor] Sistema Brotar rodando na porta ${port}`);
+    console.log('==============================================');
+    console.log(`[Servidor] Sistema Brotar v2.1 Ativo`);
+    console.log(`[Porta] ${port}`);
+    console.log(`[Supabase URL] ${supabaseUrl ? 'Configurada' : 'AUSENTE'}`);
+    console.log(`[Webhook Token] ${process.env.WHATSAPP_VERIFY_TOKEN ? 'Personalizado' : 'Usando Padrão'}`);
+    console.log('==============================================');
 });
+
