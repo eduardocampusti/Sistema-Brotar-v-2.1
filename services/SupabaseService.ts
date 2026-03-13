@@ -2052,7 +2052,9 @@ export class SupabaseService {
     }) {
         console.log('[SupabaseService] Enviando WhatsApp via API local...', details);
 
-        const url = `${window.location.origin}/api/whatsapp/send`;
+        // [FIX] URL da API corrigida para o domínio do backend
+        const API_BASE_URL = 'https://api-brotar.smebrotas.com.br';
+        const url = `${API_BASE_URL}/api/whatsapp/send`;
 
         try {
             const response = await fetch(url, {
@@ -2070,13 +2072,21 @@ export class SupabaseService {
                 })
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('[SupabaseService] Erro na Edge Function:', response.status, errorData);
-                throw new Error(errorData.error || `Erro do servidor: ${response.status}`);
+            // [DEFENSIVE] Verifica se o conteúdo é JSON antes de tentar o parse
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const text = await response.text();
+                console.error('[SupabaseService] Resposta não-JSON recebida:', text.substring(0, 100));
+                throw new Error('O servidor de WhatsApp retornou uma resposta inválida (HTML em vez de JSON). Verifique se o backend está ativo.');
             }
 
             const data = await response.json();
+
+            if (!response.ok) {
+                console.error('[SupabaseService] Erro no backend WhatsApp:', response.status, data);
+                throw new Error(data.error || `Erro do servidor: ${response.status}`);
+            }
+
             console.log('[SupabaseService] Sucesso no envio:', data);
             return data;
         } catch (err: any) {
