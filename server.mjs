@@ -232,6 +232,60 @@ app.post('/api/whatsapp/send', async (req, res) => {
     }
 });
 
+// 3. Endpoint de Teste (Envio Simples)
+app.post('/api/whatsapp/send-test', async (req, res) => {
+    const { phone } = req.body;
+
+    if (!phone) {
+        return res.status(400).json({ error: 'O campo "phone" é obrigatório.' });
+    }
+
+    let formattedPhone = phone.replace(/\D/g, '');
+    if (formattedPhone.length === 10 || formattedPhone.length === 11) {
+        formattedPhone = `55${formattedPhone}`;
+    }
+
+    const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || process.env.VITE_WHATSAPP_TOKEN;
+    const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.VITE_WHATSAPP_PHONE_NUMBER_ID;
+
+    if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
+        return res.status(500).json({ error: 'Configurações do WhatsApp ausentes no servidor.' });
+    }
+
+    const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
+
+    const messageBody = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: formattedPhone,
+        type: "text",
+        text: {
+            preview_url: false,
+            body: "Sistema Brotar conectado com sucesso."
+        }
+    };
+
+    console.log(`[WhatsApp Test] Enviando para ${formattedPhone}...`);
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(messageBody),
+        });
+
+        const result = await response.json();
+        console.log('[WhatsApp Test] Resposta da Meta:', JSON.stringify(result));
+        return res.status(response.status).json(result);
+    } catch (error) {
+        console.error('[WhatsApp Test] Erro:', error);
+        return res.status(500).json({ error: 'Erro ao conectar com a API da Meta.' });
+    }
+});
+
 // --- SERVIR FRONTEND (dist) ---
 // 1. Servir arquivos estáticos explicitamente
 app.use(express.static(path.join(__dirname, 'dist')));
