@@ -14,6 +14,17 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
+// --- CAMADA DE DIAGNÓSTICO AGRESSIVA ---
+app.use((req, res, next) => {
+    console.log(`[HIT] ${new Date().toISOString()} | ${req.method} ${req.url}`);
+    next();
+});
+
+app.get('/debug-ping', (req, res) => {
+    res.status(200).send('PONG - SISTEMA BROTAR V2.1.3 ATIVO');
+});
+
+
 // Configuração Supabase
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
