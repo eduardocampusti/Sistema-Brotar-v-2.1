@@ -2040,7 +2040,7 @@ export class SupabaseService {
     }
     // --- WhatsApp Notifications ---
     /**
-     * Envia notificação de WhatsApp via Supabase Edge Function
+     * Envia notificação de WhatsApp via Servidor Local (Hostinger)
      */
     static async sendWhatsAppNotification(details: {
         student: string,
@@ -2050,18 +2050,15 @@ export class SupabaseService {
         phone: string,
         appointmentId: string
     }) {
-        console.log('[SupabaseService] Enviando WhatsApp chamando Edge Function diretamente...', details);
+        console.log('[SupabaseService] Enviando WhatsApp via API local...', details);
 
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-send`;
-        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        const url = `${window.location.origin}/api/whatsapp/send`;
 
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${anonKey}`,
-                    'apikey': anonKey
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     telefone: details.phone.replace(/\D/g, ''),

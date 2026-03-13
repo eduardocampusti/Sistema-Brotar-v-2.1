@@ -6,6 +6,51 @@ const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// --- FUNÇÕES AUXILIARES WHATSAPP ---
+
+function normalizeText(text: any): string {
+    if (!text) return '';
+    return text.toString()
+        .normalize('NFD') // Decompõe caracteres acentuados
+        .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+        .trim()
+        .toLowerCase();
+}
+
+async function sendWhatsAppMessage(to: string, message: string) {
+    const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+    const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    
+    if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
+        console.error('[WhatsApp] Configurações ausentes para envio.');
+        return;
+    }
+
+    const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
+    const messageBody = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: to,
+        type: "text",
+        text: { body: message }
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(messageBody),
+        });
+        const result = await response.json();
+        console.log(`[WhatsApp] Resposta envio para ${to}:`, result.messages?.[0]?.id ? 'Sucesso' : 'Falha');
+    } catch (error) {
+        console.error('[WhatsApp] Erro ao enviar mensagem:', error);
+    }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'BROTAR_VERIFY_2026';
 
@@ -32,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // --- RECEBIMENTO POST (Eventos Meta) ---
     if (req.method === 'POST') {
         const body = req.body;
-        console.log('[Webhook] Body bruto recebido:', JSON.stringify(body, null, 2));
+        console.log('[Webhook] Body completo recebido:', JSON.stringify(body, null, 2));
 
         if (body.object === 'whatsapp_business_account') {
             try {
@@ -42,118 +87,152 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const message = value?.messages?.[0];
 
                 if (!message) {
-                    console.log('[Webhook] Nenhuma mensagem encontrada no payload (pode ser um status update)');
+                    if (value?.statuses?.[0]) {
+                        const status = value.statuses[0];
+                        console.log(`[Webhook] Status da mensagem: ${status.status} para ${status.recipient_id}`);
+                    } else {
+                        console.log('[Webhook] Update sem mensagem ou status.');
+                    }
                     return res.status(200).send('EVENT_RECEIVED');
                 }
 
-                console.log('[Webhook] Mensagem recebida:', {
-                    from: message.from,
-                    id: message.id,
-                    type: message.type
-                });
+                const from = message.from;
+                const msgType = message.type;
+                const msgId = message.id;
+                console.log(`[Webhook] Nova Mensagem | ID: ${msgId} | De: ${from} | Tipo: ${msgType}`);
 
                 let newStatus = '';
                 let appointmentId = '';
+                let rawText = '';
+                let actionType = ''; // CONFIRM, CANCEL, RESCHEDULE
 
-                // 1. Lógica para BOTÕES DE TEMPLATE (button)
-                if (message.type === 'button' && message.button?.payload) {
-                    const payload = message.button.payload;
-                    console.log('[Webhook] Tipo: BUTTON (Template). Payload:', payload);
-
-                    if (payload.startsWith('CONFIRM_')) {
-                        newStatus = 'CONFIRMADO';
-                        appointmentId = payload.replace('CONFIRM_', '');
-                    } else if (payload.startsWith('RESCHEDULE_')) {
-                        newStatus = 'REMARCAR';
-                        appointmentId = payload.replace('RESCHEDULE_', '');
-                    } else if (payload.startsWith('CANCEL_')) {
-                        newStatus = 'CANCELADO';
-                        appointmentId = payload.replace('CANCEL_', '');
-                    }
-                }
-                // 2. Lógica para BOTÕES INTERATIVOS (button_reply dentro de interactive)
-                else if (message.type === 'interactive' && message.interactive?.button_reply) {
+                // 1. Identificação da Ação (Botões Interativos)
+                if (msgType === 'interactive' && message.interactive?.button_reply) {
                     const reply = message.interactive.button_reply;
-                    console.log('[Webhook] Tipo: INTERACTIVE (button_reply). ID:', reply.id, 'Texto:', reply.title);
-
                     const replyId = reply.id;
+                    rawText = reply.title;
+                    console.log(`[Webhook] Botão Interativo Clicado: "${rawText}" (ID: ${replyId})`);
+
                     if (replyId.startsWith('CONFIRM_')) {
+                        actionType = 'CONFIRM';
                         newStatus = 'CONFIRMADO';
                         appointmentId = replyId.replace('CONFIRM_', '');
-                    } else if (replyId.startsWith('RESCHEDULE_')) {
-                        newStatus = 'REMARCAR';
-                        appointmentId = replyId.replace('RESCHEDULE_', '');
                     } else if (replyId.startsWith('CANCEL_')) {
+                        actionType = 'CANCEL';
                         newStatus = 'CANCELADO';
                         appointmentId = replyId.replace('CANCEL_', '');
+                    } else if (replyId.startsWith('RESCHEDULE_')) {
+                        actionType = 'RESCHEDULE';
+                        newStatus = 'REMARCAR';
+                        appointmentId = replyId.replace('RESCHEDULE_', '');
+                    }
+                } 
+                // 2. Identificação da Ação (Botões de Template)
+                else if (msgType === 'button' && message.button?.payload) {
+                    const payload = message.button.payload;
+                    rawText = message.button.text;
+                    console.log(`[Webhook] Botão Template Clicado: "${rawText}" (Payload: ${payload})`);
+
+                    if (payload.startsWith('CONFIRM_')) {
+                        actionType = 'CONFIRM';
+                        newStatus = 'CONFIRMADO';
+                        appointmentId = payload.replace('CONFIRM_', '');
+                    } else if (payload.startsWith('CANCEL_')) {
+                        actionType = 'CANCEL';
+                        newStatus = 'CANCELADO';
+                        appointmentId = payload.replace('CANCEL_', '');
+                    } else if (payload.startsWith('RESCHEDULE_')) {
+                        actionType = 'RESCHEDULE';
+                        newStatus = 'REMARCAR';
+                        appointmentId = payload.replace('RESCHEDULE_', '');
                     }
                 }
-                // 3. Lógica para TEXTO
-                else if (message.type === 'text') {
-                    const textBody = (message.text?.body || "").toUpperCase();
-                    console.log('[Webhook] Tipo: TEXT. Conteúdo:', textBody);
+                // 3. Identificação da Ação (Texto Livre)
+                else if (msgType === 'text') {
+                    rawText = message.text?.body || '';
+                    const text = normalizeText(rawText);
+                    console.log(`[Webhook] Texto Recebido: "${rawText}" (Normalizado: "${text}")`);
 
-                    if (textBody.includes('CONFIRMAR')) newStatus = 'CONFIRMADO';
-                    else if (textBody.includes('CANCELAR')) newStatus = 'CANCELADO';
-                } else {
-                    console.log('[Webhook] Tipo de mensagem não tratado:', message.type);
+                    if (text === 'confirmar' || text === 'confirmado' || text === 'sim' || text === '1') {
+                        actionType = 'CONFIRM';
+                        newStatus = 'CONFIRMADO';
+                    } else if (text === 'cancelar' || text === 'cancelado' || text === 'nao' || text === '2') {
+                        actionType = 'CANCEL';
+                        newStatus = 'CANCELADO';
+                    } else if (text === 'remarcar' || text === 'reagendar' || text === '3') {
+                        actionType = 'RESCHEDULE';
+                        newStatus = 'REMARCAR';
+                    }
                 }
 
+                // 4. Execução das Ações no Supabase
                 if (newStatus) {
-                    console.log('[Webhook] Mudança detectada:', { newStatus, appointmentId });
+                    console.log(`[Webhook] Processando Ação: ${actionType} | Novo Status: ${newStatus}`);
                     
-                    if (appointmentId) {
-                        console.log(`[Webhook] Tentando atualizar Supabase ID: ${appointmentId} -> ${newStatus}`);
-
-                        const { data, error, count } = await supabase
+                    let targetId = appointmentId;
+                    
+                    if (!targetId) {
+                        console.log(`[Webhook] Buscando agendamento pendente para o telefone: ${from}`);
+                        const { data: pending } = await supabase
                             .from('appointments')
-                            .update({ status_confirmacao: newStatus })
-                            .eq('id', appointmentId)
-                            .select();
-
-                        if (error) {
-                            console.error('[Webhook] ERRO Supabase Update:', error);
-                        } else {
-                            console.log('[Webhook] SUCESSO Supabase Update:', {
-                                rowsAffected: data?.length || 0,
-                                data: data
-                            });
-                        }
-                    } else {
-                        // Fallback para o telefone se o payload ID não estiver presente
-                        const from = message.from;
-                        console.log(`[Webhook] Fallback: Atualizando por telefone ${from} para ${newStatus}`);
-                        
-                        const { data, error } = await supabase
-                            .from('appointments')
-                            .update({ status_confirmacao: newStatus })
+                            .select('id, student_name')
                             .eq('telefone_responsavel', from)
                             .eq('status_confirmacao', 'PENDENTE')
-                            .select();
+                            .order('date', { ascending: true })
+                            .limit(1);
 
-                        if (error) {
-                            console.error('[Webhook] ERRO Supabase Fallback Update:', error);
-                        } else {
-                            console.log('[Webhook] SUCESSO Supabase Fallback Update:', {
-                                rowsAffected: data?.length || 0
-                            });
+                        if (pending?.[0]) {
+                            targetId = pending[0].id;
+                            console.log(`[Webhook] Agendamento encontrado: ${targetId} (${pending[0].student_name})`);
                         }
                     }
-                } else {
-                    console.log('[Webhook] Nenhuma ação definida para esta mensagem.');
+
+                    if (!targetId) {
+                        console.log('[Webhook] Nenhum agendamento pendente localizado.');
+                        await sendWhatsAppMessage(from, "Não localizamos agendamentos pendentes para confirmação neste número.");
+                        return res.status(200).send('EVENT_RECEIVED');
+                    }
+
+                    const updateData = { 
+                        status_confirmacao: newStatus,
+                        confirmado_em: new Date().toISOString()
+                    };
+
+                    const { data, error } = await supabase
+                        .from('appointments')
+                        .update(updateData)
+                        .eq('id', targetId)
+                        .select();
+
+                    if (error) {
+                        console.error('[Webhook] Erro ao atualizar Supabase:', error);
+                        await sendWhatsAppMessage(from, "Desculpe, ocorreu um erro técnico ao processar sua solicitação. Por favor, tente novamente mais tarde.");
+                    } else if (data && data.length > 0) {
+                        console.log(`[Webhook] Sucesso! Agendamento ${targetId} atualizado para ${newStatus}`);
+                        
+                        let feedbackMsg = "";
+                        if (newStatus === 'CONFIRMADO') {
+                            feedbackMsg = "✅ Seu atendimento foi confirmado com sucesso. Obrigado!";
+                        } else if (newStatus === 'CANCELADO') {
+                            feedbackMsg = "❌ Seu atendimento foi cancelado conforme solicitado.";
+                        } else if (newStatus === 'REMARCAR') {
+                            feedbackMsg = "⏳ Recebemos seu pedido de reagendamento. Nossa equipe entrará em contato em breve para combinar um novo horário.";
+                        }
+
+                        await sendWhatsAppMessage(from, feedbackMsg);
+                    } else {
+                        console.log(`[Webhook] Falha na atualização: ID ${targetId} não encontrado.`);
+                        await sendWhatsAppMessage(from, "Não foi possível atualizar o agendamento. Ele pode ter sido alterado recentemente.");
+                    }
+                } else if (msgType === 'text') {
+                    console.log('[Webhook] Texto não reconhecido como comando.');
                 }
 
                 return res.status(200).send('EVENT_RECEIVED');
             } catch (err: any) {
-                console.error('[Webhook] CATCH ERROR:', {
-                    message: err.message,
-                    stack: err.stack
-                });
-                return res.status(200).send('EVENT_RECEIVED'); // Sempre retornar 200 para a Meta evitar retentativas infinitas
+                console.error('[Webhook] Erro Crítico:', err);
+                return res.status(200).send('EVENT_RECEIVED');
             }
-        } else {
-            console.log('[Webhook] Objeto não identificado:', body.object);
-            return res.status(404).send('Not Found');
         }
     }
 
