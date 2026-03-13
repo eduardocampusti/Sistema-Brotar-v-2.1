@@ -2048,7 +2048,8 @@ export class SupabaseService {
         date: string,
         time: string,
         phone: string,
-        appointmentId: string
+        appointmentId: string,
+        unit: string
     }) {
         console.log('[SupabaseService] Enviando WhatsApp via API local...', details);
 
@@ -2068,7 +2069,8 @@ export class SupabaseService {
                     data: details.date,
                     hora: details.time,
                     professional: details.professional,
-                    appointmentId: details.appointmentId
+                    appointmentId: details.appointmentId,
+                    unit: details.unit
                 })
             });
 

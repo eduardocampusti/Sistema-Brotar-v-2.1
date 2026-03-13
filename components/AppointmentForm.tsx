@@ -213,7 +213,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                     date: newApt.date!.split('-').reverse().join('/'),
                     time: newApt.startTime!,
                     phone: guardianPhone,
-                    appointmentId: savedId
+                    appointmentId: savedId,
+                    unit: newApt.unit || 'SEDE'
                 });
             } else {
                 // Avisa que o agendamento foi salvo, mas o WhatsApp não pode ser enviado
@@ -231,7 +232,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
         }
     };
 
-    const sendWhatsAppNotification = async (details: { student: string, professional: string, date: string, time: string, phone: string, appointmentId: string }) => {
+    const sendWhatsAppNotification = async (details: { student: string, professional: string, date: string, time: string, phone: string, appointmentId: string, unit: string }) => {
         try {
             await SupabaseService.sendWhatsAppNotification(details);
             success("Confirmação de WhatsApp enviada automaticamente!");

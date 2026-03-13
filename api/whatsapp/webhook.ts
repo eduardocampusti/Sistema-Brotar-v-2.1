@@ -172,11 +172,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     let targetId = appointmentId;
                     
                     if (!targetId) {
-                        console.log(`[Webhook] Buscando agendamento pendente para o telefone: ${from}`);
+                        const phoneClean = from.replace(/\D/g, '');
+                        // Busca tanto com 55 quanto sem 55 para garantir compatibilidade com diferentes cadastros
+                        const phoneShort = phoneClean.startsWith('55') ? phoneClean.substring(2) : phoneClean;
+                        const phoneWith55 = phoneClean.startsWith('55') ? phoneClean : `55${phoneClean}`;
+
+                        console.log(`[Webhook] Buscando agendamento pendente para: ${phoneClean} / ${phoneShort}`);
+
                         const { data: pending } = await supabase
                             .from('appointments')
                             .select('id, student_name')
-                            .eq('telefone_responsavel', from)
+                            .or(`telefone_responsavel.ilike.%${phoneShort}%,telefone_responsavel.eq.${phoneClean},telefone_responsavel.eq.${phoneWith55}`)
                             .eq('status_confirmacao', 'PENDENTE')
                             .order('date', { ascending: true })
                             .limit(1);

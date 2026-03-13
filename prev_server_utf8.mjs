@@ -1,11 +1,11 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
-// Carrega variáveis de ambiente (localmente usa .env ou .env.local)
+// Carrega vari├íveis de ambiente (localmente usa .env ou .env.local)
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
-// --- CAMADA DE DIAGNÓSTICO AGRESSIVA ---
+// --- CAMADA DE DIAGN├ôSTICO AGRESSIVA ---
 app.use((req, res, next) => {
     console.log(`[HIT] ${new Date().toISOString()} | ${req.method} ${req.url}`);
     next();
@@ -25,12 +25,12 @@ app.get('/debug-ping', (req, res) => {
 });
 
 
-// Configuração Supabase
+// Configura├º├úo Supabase
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
 
 if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn('[Aviso] SUPABASE_URL ou SERVICE_ROLE_KEY não configurados corretamente.');
+    console.warn('[Aviso] SUPABASE_URL ou SERVICE_ROLE_KEY n├úo configurados corretamente.');
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -42,7 +42,7 @@ app.use(express.json());
 
 // --- ROTAS DO WHATSAPP ---
 
-// 1. Webhook (GET para Verificação, POST para Eventos)
+// 1. Webhook (GET para Verifica├º├úo, POST para Eventos)
 app.get('/api/whatsapp/webhook', (req, res) => {
     const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'BROTAR_VERIFY_2026';
     
@@ -50,27 +50,27 @@ app.get('/api/whatsapp/webhook', (req, res) => {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    // Se houver parâmetros da Meta, procede com a verificação
+    // Se houver par├ómetros da Meta, procede com a verifica├º├úo
     if (mode && token) {
         if (mode === 'subscribe' && token === WHATSAPP_VERIFY_TOKEN) {
-            console.log('[Webhook] Verificação da Meta bem-sucedida!');
+            console.log('[Webhook] Verifica├º├úo da Meta bem-sucedida!');
             return res.status(200).send(challenge);
         } else {
-            console.log('[Webhook] Falha na verificação da Meta. Token ou modo incorreto.');
+            console.log('[Webhook] Falha na verifica├º├úo da Meta. Token ou modo incorreto.');
             return res.status(403).send('Forbidden');
         }
     }
 
-    // Se NÃO for uma verificação da Meta (acesso direto via navegador), retorna status ativo
+    // Se N├âO for uma verifica├º├úo da Meta (acesso direto via navegador), retorna status ativo
     return res.status(200).send('WhatsApp webhook endpoint active');
 });
 
-// --- FUNÇÕES AUXILIARES WHATSAPP ---
+// --- FUN├ç├òES AUXILIARES WHATSAPP ---
 
 function normalizeText(text) {
     if (!text) return '';
     return text.toString()
-        .normalize('NFD') // Decompõe caracteres acentuados
+        .normalize('NFD') // Decomp├Áe caracteres acentuados
         .replace(/[\u0300-\u036f]/g, '') // Remove acentos
         .trim()
         .toLowerCase();
@@ -81,7 +81,7 @@ async function sendWhatsAppMessage(to, message) {
     const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.VITE_WHATSAPP_PHONE_NUMBER_ID;
     
     if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
-        console.error('[WhatsApp] Configurações ausentes para envio.');
+        console.error('[WhatsApp] Configura├º├Áes ausentes para envio.');
         return;
     }
 
@@ -113,7 +113,7 @@ async function sendWhatsAppMessage(to, message) {
 app.post('/api/whatsapp/webhook', async (req, res) => {
     const body = req.body;
     
-    // Log detalhado para diagnóstico em produção
+    // Log detalhado para diagn├│stico em produ├º├úo
     console.log('[Webhook] Payload completo:', JSON.stringify(body, null, 2));
 
     if (body.object === 'whatsapp_business_account') {
@@ -144,12 +144,12 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
             let rawText = '';
             let actionType = ''; // CONFIRM, CANCEL, RESCHEDULE
 
-            // 1. Identificação da Ação (Botões Interativos)
+            // 1. Identifica├º├úo da A├º├úo (Bot├Áes Interativos)
             if (msgType === 'interactive' && message.interactive?.button_reply) {
                 const reply = message.interactive.button_reply;
                 const replyId = reply.id;
                 rawText = reply.title;
-                console.log(`[Webhook] Botão Interativo Clicado: "${rawText}" (ID: ${replyId})`);
+                console.log(`[Webhook] Bot├úo Interativo Clicado: "${rawText}" (ID: ${replyId})`);
 
                 if (replyId.startsWith('CONFIRM_')) {
                     actionType = 'CONFIRM';
@@ -165,11 +165,11 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
                     appointmentId = replyId.replace('RESCHEDULE_', '');
                 }
             } 
-            // 2. Identificação da Ação (Botões de Template)
+            // 2. Identifica├º├úo da A├º├úo (Bot├Áes de Template)
             else if (msgType === 'button' && message.button?.payload) {
                 const payload = message.button.payload;
                 rawText = message.button.text;
-                console.log(`[Webhook] Botão Template Clicado: "${rawText}" (Payload: ${payload})`);
+                console.log(`[Webhook] Bot├úo Template Clicado: "${rawText}" (Payload: ${payload})`);
 
                 if (payload.startsWith('CONFIRM_')) {
                     actionType = 'CONFIRM';
@@ -185,7 +185,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
                     appointmentId = payload.replace('RESCHEDULE_', '');
                 }
             }
-            // 3. Identificação da Ação (Texto Livre)
+            // 3. Identifica├º├úo da A├º├úo (Texto Livre)
             else if (msgType === 'text') {
                 rawText = message.text?.body || '';
                 const text = normalizeText(rawText);
@@ -203,32 +203,22 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
                 }
             }
 
-            // 4. Execução das Ações no Supabase
+            // 4. Execu├º├úo das A├º├Áes no Supabase
             if (newStatus) {
-                console.log(`[Webhook] Processando Ação: ${actionType} | Novo Status: ${newStatus}`);
+                console.log(`[Webhook] Processando A├º├úo: ${actionType} | Novo Status: ${newStatus}`);
                 
                 // Busca o agendamento antes para saber o que estamos alterando (Auditoria/Log)
                 let targetId = appointmentId;
                 
                 if (!targetId) {
-                    const phoneClean = from.replace(/\D/g, '');
-                    // Busca tanto com 55 quanto sem 55 para garantir compatibilidade com diferentes cadastros
-                    const phoneShort = phoneClean.startsWith('55') ? phoneClean.substring(2) : phoneClean;
-                    const phoneWith55 = phoneClean.startsWith('55') ? phoneClean : `55${phoneClean}`;
-
-                    console.log(`[Webhook] Buscando agendamento pendente para: ${phoneClean} / ${phoneShort}`);
-
+                    console.log(`[Webhook] Buscando agendamento pendente para o telefone: ${from}`);
                     const { data: pending, error: searchError } = await supabase
                         .from('appointments')
                         .select('id, student_name')
-                        .or(`telefone_responsavel.ilike.%${phoneShort}%,telefone_responsavel.eq.${phoneClean},telefone_responsavel.eq.${phoneWith55}`)
+                        .eq('telefone_responsavel', from)
                         .eq('status_confirmacao', 'PENDENTE')
                         .order('date', { ascending: true })
                         .limit(1);
-
-                    if (searchError) {
-                        console.error('[Webhook] Erro ao buscar agendamento pendente:', searchError);
-                    }
 
                     if (pending?.[0]) {
                         targetId = pending[0].id;
@@ -238,7 +228,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
 
                 if (!targetId) {
                     console.log('[Webhook] Nenhum agendamento pendente localizado.');
-                    await sendWhatsAppMessage(from, "Não localizamos agendamentos pendentes para confirmação neste número.");
+                    await sendWhatsAppMessage(from, "N├úo localizamos agendamentos pendentes para confirma├º├úo neste n├║mero.");
                     return res.status(200).send('EVENT_RECEIVED');
                 }
 
@@ -255,33 +245,33 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
 
                 if (error) {
                     console.error('[Webhook] Erro ao atualizar Supabase:', error);
-                    await sendWhatsAppMessage(from, "Desculpe, ocorreu um erro técnico ao processar sua solicitação. Por favor, tente novamente mais tarde.");
+                    await sendWhatsAppMessage(from, "Desculpe, ocorreu um erro t├®cnico ao processar sua solicita├º├úo. Por favor, tente novamente mais tarde.");
                 } else if (data && data.length > 0) {
                     console.log(`[Webhook] Sucesso! Agendamento ${targetId} atualizado para ${newStatus}`);
                     
                     let feedbackMsg = "";
                     if (newStatus === 'CONFIRMADO') {
-                        feedbackMsg = "✅ Seu atendimento foi confirmado com sucesso. Obrigado!";
+                        feedbackMsg = "Ô£à Seu atendimento foi confirmado com sucesso. Obrigado!";
                     } else if (newStatus === 'CANCELADO') {
-                        feedbackMsg = "❌ Seu atendimento foi cancelado conforme solicitado.";
+                        feedbackMsg = "ÔØî Seu atendimento foi cancelado conforme solicitado.";
                     } else if (newStatus === 'REMARCAR') {
-                        feedbackMsg = "⏳ Recebemos seu pedido de reagendamento. Nossa equipe entrará em contato em breve para combinar um novo horário.";
+                        feedbackMsg = "ÔÅ│ Recebemos seu pedido de reagendamento. Nossa equipe entrar├í em contato em breve para combinar um novo hor├írio.";
                     }
 
                     await sendWhatsAppMessage(from, feedbackMsg);
                 } else {
-                    console.log(`[Webhook] Falha na atualização: ID ${targetId} não encontrado ou sem permissão.`);
-                    await sendWhatsAppMessage(from, "Não foi possível atualizar o agendamento. Ele pode ter sido alterado recentemente.");
+                    console.log(`[Webhook] Falha na atualiza├º├úo: ID ${targetId} n├úo encontrado ou sem permiss├úo.`);
+                    await sendWhatsAppMessage(from, "N├úo foi poss├¡vel atualizar o agendamento. Ele pode ter sido alterado recentemente.");
                 }
             } else if (msgType === 'text') {
-                console.log('[Webhook] Resposta de texto ignorada (não é comando).');
-                // Opcional: Responder apenas se for a primeira vez ou se parecer uma dúvida
-                // await sendWhatsAppMessage(from, "Olá! Para confirmar use os botões acima ou responda CONFIRMAR ou CANCELAR.");
+                console.log('[Webhook] Resposta de texto ignorada (n├úo ├® comando).');
+                // Opcional: Responder apenas se for a primeira vez ou se parecer uma d├║vida
+                // await sendWhatsAppMessage(from, "Ol├í! Para confirmar use os bot├Áes acima ou responda CONFIRMAR ou CANCELAR.");
             }
 
             return res.status(200).send('EVENT_RECEIVED');
         } catch (err) {
-            console.error('[Webhook] Erro Crítico:', err);
+            console.error('[Webhook] Erro Cr├¡tico:', err);
             return res.status(200).send('EVENT_RECEIVED');
         }
     }
@@ -294,7 +284,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
     const { telefone, nome, data, hora, appointmentId, professional, unit } = req.body;
 
     if (!telefone || !nome || !data || !hora || !appointmentId) {
-        return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
+        return res.status(400).json({ error: 'Campos obrigat├│rios ausentes.' });
     }
 
     console.log(`[API Send] Preparando envio para ${nome} (${telefone}) - ID: ${appointmentId}`);
@@ -308,7 +298,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
 
     if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
         console.error('[Env] Erro: WHATSAPP_TOKEN ou PHONE_NUMBER_ID ausentes.');
-        return res.status(500).json({ error: 'Configurações do WhatsApp ausentes no servidor.' });
+        return res.status(500).json({ error: 'Configura├º├Áes do WhatsApp ausentes no servidor.' });
     }
 
 
@@ -327,9 +317,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
                     parameters: [
                         { type: "text", text: nome },
                         { type: "text", text: data },
-                        { type: "text", text: hora },
-                        { type: "text", text: professional || 'Profissional' },
-                        { type: "text", text: unit || 'Unidade' }
+                        { type: "text", text: hora }
                     ]
                 },
                 {
@@ -376,7 +364,7 @@ app.post('/api/whatsapp/send-test', async (req, res) => {
     const { phone } = req.body;
 
     if (!phone) {
-        return res.status(400).json({ error: 'O campo "phone" é obrigatório.' });
+        return res.status(400).json({ error: 'O campo "phone" ├® obrigat├│rio.' });
     }
 
     let formattedPhone = phone.replace(/\D/g, '');
@@ -388,7 +376,7 @@ app.post('/api/whatsapp/send-test', async (req, res) => {
     const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.VITE_WHATSAPP_PHONE_NUMBER_ID;
 
     if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
-        return res.status(500).json({ error: 'Configurações do WhatsApp ausentes no servidor.' });
+        return res.status(500).json({ error: 'Configura├º├Áes do WhatsApp ausentes no servidor.' });
     }
 
     const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
@@ -426,16 +414,16 @@ app.post('/api/whatsapp/send-test', async (req, res) => {
 });
 
 // --- SERVIR FRONTEND (dist) ---
-// 1. Servir arquivos estáticos explicitamente
+// 1. Servir arquivos est├íticos explicitamente
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// 2. Fallback do React (SPA) - PROTEGIDO para não capturar rotas /api
+// 2. Fallback do React (SPA) - PROTEGIDO para n├úo capturar rotas /api
 app.get('*', (req, res) => {
-    // Se a rota começar com /api e chegou aqui, é porque não bateu em nenhuma rota acima (404 Real)
+    // Se a rota come├ºar com /api e chegou aqui, ├® porque n├úo bateu em nenhuma rota acima (404 Real)
     if (req.path.startsWith('/api')) {
         return res.status(404).json({ error: 'API route not found' });
     }
-    // Caso contrário, serve o frontend para permitir roteamento interno do React
+    // Caso contr├írio, serve o frontend para permitir roteamento interno do React
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
@@ -444,7 +432,7 @@ app.listen(port, () => {
     console.log(`[Servidor] Sistema Brotar v2.1 Ativo`);
     console.log(`[Porta] ${port}`);
     console.log(`[Supabase URL] ${supabaseUrl ? 'Configurada' : 'AUSENTE'}`);
-    console.log(`[Webhook Token] ${process.env.WHATSAPP_VERIFY_TOKEN ? 'Personalizado' : 'Usando Padrão'}`);
+    console.log(`[Webhook Token] ${process.env.WHATSAPP_VERIFY_TOKEN ? 'Personalizado' : 'Usando Padr├úo'}`);
     console.log('==============================================');
 });
 
