@@ -142,13 +142,18 @@ function AppContent() {
         setSystemSettings(settings);
 
         // 3. Carregar dados dependentes do perfil (só depois que o perfil/user está pronto)
-        const [studentsData, schoolsData] = await Promise.all([
-          SupabaseService.getStudents(),
-          SupabaseService.getSchools()
-        ]);
-        
-        setStudents(studentsData);
+        const schoolsData = await SupabaseService.getSchools();
         setSchools(schoolsData);
+
+        let studentsData: Student[] = [];
+        try {
+          studentsData = await SupabaseService.getStudents();
+          console.log('[DEBUG] Total alunos retornados:', studentsData?.length);
+          setStudents(studentsData);
+        } catch (err) {
+          console.error('[ERRO getStudents]', err);
+          setStudents([]);
+        }
 
       } catch (err) {
         console.error("Erro ao carregar dados iniciais:", err);
@@ -160,7 +165,13 @@ function AppContent() {
   }, []);
 
   const refreshData = async () => {
-    setStudents(await SupabaseService.getStudents());
+    try {
+      const students = await SupabaseService.getStudents();
+      console.log('[DEBUG] Total alunos retornados (refresh):', students?.length);
+      setStudents(students);
+    } catch (err) {
+      console.error('[ERRO getStudents]', err);
+    }
   };
 
   const handleNavigate = (page: string) => {

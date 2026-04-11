@@ -2,6 +2,44 @@ import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { Student, User, School, SupportProfessional, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog } from '../types';
 
+/** Retry em timeout (57014 / statement timeout) para plano Supabase com limite rígido. */
+async function withRetry<T>(
+    fn: () => Promise<T>,
+    maxAttempts = 3,
+    delayMs = 1500
+): Promise<T> {
+    const CLIENT_TIMEOUT_MS = 7000; // margem antes do timeout do Supabase FREE (8s)
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        try {
+            // Corrida: a query deve responder em até 7s ou lança timeout no cliente
+            const result = await Promise.race([
+                fn(),
+                new Promise<never>((_, reject) => {
+                    timeoutId = setTimeout(
+                        () => reject({ code: '57014', message: 'client timeout' }),
+                        CLIENT_TIMEOUT_MS
+                    );
+                }),
+            ]);
+            clearTimeout(timeoutId);
+            return result as T;
+        } catch (error: any) {
+            clearTimeout(timeoutId);
+            const isTimeout =
+                error?.code === '57014' ||
+                error?.message?.includes('timeout');
+            console.warn(
+                `[withRetry] Tentativa ${attempt}/${maxAttempts} | code: ${error?.code}`
+            );
+            if (!isTimeout || attempt === maxAttempts) throw error;
+            await new Promise(res => setTimeout(res, delayMs * attempt));
+        }
+    }
+    throw new Error('withRetry: máximo de tentativas atingido');
+}
+
 // Mapeamento de campos snake_case do banco para camelCase do frontend
 const sanitizeCPF = (cpf: string | undefined | null): string => {
     if (!cpf) return '';
@@ -24,7 +62,7 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => {
 
     return {
         id: dbStudent.id,
-        fullName: dbStudent.full_name,
+        fullName: dbStudent.full_name || dbStudent.name || 'Sem nome',
         birthDate: dbStudent.birth_date,
         gender: (dbStudent.clinical_info?.gender || 'Outro') as any, // Fallback se não tiver na coluna
         photoUrl: dbStudent.photo_url || dbStudent.clinical_info?.photoUrl,
@@ -113,6 +151,7 @@ export class SupabaseService {
     // Cache genérico com TTL para reduzir latência em consultas frequentes
     private static dataCache: Map<string, { data: any, timestamp: number }> = new Map();
     private static readonly DEFAULT_TTL = 30 * 1000; // 30 segundos (reduzido para maior precisão)
+    private static readonly CACHE_BYPASS_FLAG = 'brotar_debug_bypass_cache';
 
     /**
      * Verifica se as chaves do Supabase estão configuradas corretamente.
@@ -150,6 +189,30 @@ export class SupabaseService {
             if (key.startsWith(keyPrefix)) {
                 this.dataCache.delete(key);
             }
+        }
+    }
+
+    /**
+     * Útil para debug em tela: limpa cache de dados + perfil.
+     * Pode ser chamado a partir da UI para forçar nova leitura do banco.
+     */
+    static clearAllCachesForDebug(): void {
+        this.invalidateCache();
+        this.userProfileCache.clear();
+        console.log('[SupabaseService][DEBUG] Cache limpo manualmente (dataCache + userProfileCache).');
+    }
+
+    /**
+     * Toggle de bypass temporário de cache via localStorage.
+     * No console do navegador:
+     * localStorage.setItem('brotar_debug_bypass_cache', '1') // ativa
+     * localStorage.removeItem('brotar_debug_bypass_cache')   // desativa
+     */
+    private static isCacheBypassEnabled(): boolean {
+        try {
+            return localStorage.getItem(this.CACHE_BYPASS_FLAG) === '1';
+        } catch {
+            return false;
         }
     }
 
@@ -338,10 +401,15 @@ export class SupabaseService {
      * Busca o perfil do usuário pelo ID sem precisar autenticar (útil para sessões já ativas como Recovery)
      */
     static async getUserProfile(userId: string): Promise<User | null> {
-        // [CACHE CHECK] Tenta buscar no cache primeiro se já tiver school_id
+        // Cache: reutiliza perfil já carregado. Exceção: ESCOLA ainda sem school_id mas com INEP
+        // (precisa de novo fetch para resolver UUID da escola). ADMIN com schoolId null usa cache normalmente.
         const cached = this.userProfileCache.get(userId);
-        if (cached && cached.schoolId) {
-            return cached;
+        if (cached) {
+            const escolaPrecisaResolverEscola =
+                cached.role === 'ESCOLA' && !cached.schoolId && !!cached.schoolInep;
+            if (!escolaPrecisaResolverEscola) {
+                return cached;
+            }
         }
 
         // [REFRESH FORÇADO] Se não estiver no cache ou o school_id estiver vindo vazio, lemos do banco
@@ -607,44 +675,53 @@ export class SupabaseService {
         }
     }
 
-    static async getStudents(unit?: Unit): Promise<Student[]> {
-        const cacheKey = `students_${unit || 'all'}`;
-        const cached = this.getFromCache<Student[]>(cacheKey);
-        if (cached) return cached;
-
+    static async getStudents(_unit?: Unit): Promise<Student[]> {
         return safeCall(async () => {
-            console.log(`[SupabaseService] Buscando alunos (${unit || 'Global'}) via RLS...`);
-            
-            // Diagnóstico: Alerta se o perfil de escola estiver incompleto, mas NÃO bloqueia a busca
             const { data: { session } } = await supabase.auth.getSession();
+            let profile: User | null = null;
             if (session?.user) {
-                const profile = await SupabaseService.getUserProfile(session.user.id);
+                profile = await SupabaseService.getUserProfile(session.user.id);
                 if (profile?.role === 'ESCOLA' && !profile.schoolId) {
-                    console.warn("[SupabaseService] School ID ausente no filtro de alunos (Refresh detectado).");
+                    console.warn('[SupabaseService][getStudents] Perfil ESCOLA sem school_id: lista pode vir vazia até corrigir o cadastro.');
                 }
             }
 
-            let query = supabase
-                .from('students')
-                .select('*');
+            const role = (profile?.role || '').toUpperCase();
+            const profileSchoolId = profile?.schoolId ?? null;
+            // ADMIN vê todos (sem filtro). Demais papéis: filtra por escola do perfil quando houver vínculo.
+            const filtrarPorEscolaDoPerfil = role !== 'ADMIN' && !!profileSchoolId;
 
-            // [AÇÃO OBRIGATÓRIA] Filtro por school_id baseado no perfil do usuário logado
-            if (session?.user) {
-                const profile = await SupabaseService.getUserProfile(session.user.id);
-                if (profile?.role === 'ESCOLA' && profile?.schoolId) {
-                    query = query.eq('school_id', profile.schoolId);
-                    console.log(`[SupabaseService] ESCOLA detectada. Forçando filtro ALUNOS: .eq('school_id', '${profile.schoolId}')`);
+            console.log('[getStudents] role:', role, '| filtrarPorEscolaDoPerfil:', filtrarPorEscolaDoPerfil);
+
+            const fetchPages = async (orderCol: 'full_name' | 'name') => {
+                const { data, error } = await supabase
+                    .from('students')
+                    .select('*')
+                    .order(orderCol, { ascending: true })
+                    .limit(50);
+                if (error) throw error;
+                return data ?? [];
+            };
+
+            let raw: any[] = [];
+            try {
+                raw = await withRetry(() => fetchPages('full_name'));
+            } catch (e: any) {
+                if (e?.message?.includes('full_name') || e?.code === '42703') {
+                    console.warn('[SupabaseService][getStudents] Coluna full_name indisponível; usando name.', e?.message);
+                    raw = await withRetry(() => fetchPages('name'));
+                } else {
+                    throw e;
                 }
             }
 
-            query = query.order('full_name');
-            
-            const { data, error } = await query;
-            if (error) throw error;
+            if (!raw.length) {
+                console.warn(
+                    '[SupabaseService][getStudents] Nenhuma linha retornada (RLS pode estar bloqueando com o JWT atual ou não há alunos).'
+                );
+            }
 
-            const students = (data || []).map(s => mapStudentFromDB(s));
-            this.setInCache(cacheKey, students);
-            return students;
+            return raw.map(s => mapStudentFromDB(s));
         }, 0, 300, 'getStudents');
     }
 
@@ -959,7 +1036,7 @@ export class SupabaseService {
         const names = identifiers.map(i => i.name).filter(Boolean) as string[];
         const cpfs = identifiers.map(i => sanitizeCPF(i.cpf)).filter(Boolean) as string[];
 
-        let query = supabase.from('students').select('id, full_name, cpf');
+        let query = supabase.from('students').select('id, full_name, name, cpf');
 
         if (names.length > 0 && cpfs.length > 0) {
             query = query.or(`full_name.in.(${names.map(n => `"${n}"`).join(',')}),cpf.in.(${cpfs.join(',')})`);
@@ -979,7 +1056,8 @@ export class SupabaseService {
 
         const map: Record<string, string> = {};
         (data || []).forEach((s: any) => {
-            if (s.full_name) map[s.full_name] = s.id;
+            const normalizedName = s.full_name || s.name;
+            if (normalizedName) map[normalizedName] = s.id;
             if (s.cpf) map[s.cpf] = s.id;
         });
         return map;
@@ -1816,7 +1894,7 @@ export class SupabaseService {
     // --- Support Professionals ---
     static async getSupportProfessionalsByStudent(studentId: string): Promise<SupportProfessional[]> {
         return safeCall(async () => {
-            const { data, error } = await supabase
+            let { data, error } = await supabase
                 .from('support_professionals')
                 .select(`
                     id, name, cpf, phone, email, education,
@@ -1826,6 +1904,18 @@ export class SupabaseService {
                 .eq('student_id', studentId)
                 .order('name');
 
+            if (error && (error.message?.includes('name') || error.code === '42703')) {
+                ({ data, error } = await supabase
+                    .from('support_professionals')
+                    .select(`
+                        id, full_name, cpf, phone, email, education,
+                        contract_start_date, workload, address, school_id,
+                        regent_teacher, student_id, created_at
+                    `)
+                    .eq('student_id', studentId)
+                    .order('full_name'));
+            }
+
             if (error) {
                 console.error(`Erro ao buscar ATs para o aluno ${studentId}:`, error);
                 throw error;
@@ -1833,7 +1923,7 @@ export class SupabaseService {
 
             return data.map((p: any) => ({
                 id: p.id,
-                name: p.name,
+                name: p.name || p.full_name || 'Sem nome',
                 cpf: p.cpf,
                 phone: p.phone,
                 email: p.email,
@@ -1851,57 +1941,81 @@ export class SupabaseService {
 
     static async getSupportProfessionals(inputSchoolId?: string): Promise<SupportProfessional[]> {
         return safeCall(async () => {
-            console.log(`[SupabaseService] Buscando profissionais de apoio via RLS...`);
-            
-            // Diagnóstico: Alerta se o perfil de escola estiver incompleto
-            if (!inputSchoolId) {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
-                    const profile = await SupabaseService.getUserProfile(session.user.id);
-                    if (profile?.role === 'ESCOLA' && !profile.schoolId) {
-                        console.warn("[SupabaseService] School ID ausente no filtro de profissionais (Refresh detectado).");
-                    }
-                }
-            }
-            
-            let query = supabase
-                .from('support_professionals')
-                .select('*');
-
-            // [AÇÃO OBRIGATÓRIA] Filtro por school_id baseado no perfil do usuário logado
             const { data: { session } } = await supabase.auth.getSession();
-            let effectiveSchoolId = inputSchoolId;
 
+            let profile: User | null = null;
             if (session?.user) {
-                let profile = await SupabaseService.getUserProfile(session.user.id);
-                
-                // PROTEÇÃO: Se for escola e o ID estiver vazio, tenta buscar de novo (refresh profile)
+                profile = await SupabaseService.getUserProfile(session.user.id);
                 if (profile?.role === 'ESCOLA' && !profile.schoolId) {
-                    console.log("[SupabaseService] School ID ausente no perfil, tentando re-fetch forçado...");
-                    this.userProfileCache.delete(session.user.id); // Limpa cache para forçar banco
+                    console.warn('[SupabaseService][getSupportProfessionals] ESCOLA sem school_id; re-fetch do perfil.');
+                    this.userProfileCache.delete(session.user.id);
                     profile = await SupabaseService.getUserProfile(session.user.id);
                 }
+            }
 
-                if (profile?.role === 'ESCOLA' && profile?.schoolId) {
-                    effectiveSchoolId = profile.schoolId;
-                    console.log(`[SupabaseService] ESCOLA detectada. Forçando filtro AT: child_id -> school_id = '${effectiveSchoolId}'`);
+            const role = (profile?.role || '').toUpperCase();
+            const profileSchoolId = profile?.schoolId ?? null;
+
+            // ADMIN: busca global; filtro por escola só com UUID explícito (nunca '', 'all'/'ALL').
+            // Outros papéis: filtram por school_id do perfil quando existir.
+            const trimmedSchoolInput = (inputSchoolId ?? '').trim();
+            const isAllSchoolsToken = trimmedSchoolInput.length === 0 || /^all$/i.test(trimmedSchoolInput);
+
+            let schoolIdForFilter: string | undefined;
+            if (role === 'ADMIN') {
+                if (!isAllSchoolsToken) {
+                    schoolIdForFilter = trimmedSchoolInput;
                 }
+            } else if (profileSchoolId) {
+                schoolIdForFilter = profileSchoolId;
             }
 
-            if (effectiveSchoolId && effectiveSchoolId !== 'all') {
-                query = query.eq('school_id', effectiveSchoolId);
-            }
+            console.log('[getSupportProfessionals] role:', role, '| schoolIdForFilter:', schoolIdForFilter ?? '(none)');
 
-            const { data, error } = await query.order('name');
+            const filtrarPorEscola = !!schoolIdForFilter;
 
-            if (error) {
-                console.error('Erro ao buscar profissionais de apoio:', error);
-                throw error;
+            const PAGE = 50;
+            const buildQuery = () => {
+                let q = supabase.from('support_professionals').select('*');
+                if (filtrarPorEscola) {
+                    q = q.eq('school_id', schoolIdForFilter as string);
+                }
+                return q;
+            };
+            const fetchPages = async (orderCol: 'name' | 'full_name') => {
+                const acc: any[] = [];
+                for (let from = 0; ; from += PAGE) {
+                    const to = from + PAGE - 1;
+                    const { data, error } = await buildQuery()
+                        .order(orderCol, { ascending: true })
+                        .range(from, to)
+                        .limit(PAGE);
+                    if (error) throw error;
+                    if (!data?.length) break;
+                    acc.push(...data);
+                    if (data.length < PAGE) break;
+                }
+                return acc;
+            };
+
+            // Coluna de nome no Postgres: `name` (ver information_schema / V13 idx_support_professionals_name)
+            let data: any[] = [];
+            try {
+                data = await withRetry(() => fetchPages('name'));
+            } catch (e: any) {
+                const msg = String(e?.message || '');
+                // Não usar includes('name'): mensagens com full_name também contêm "name".
+                if (e?.code === '42703' && /support_professionals\.name\b/i.test(msg)) {
+                    console.warn('[SupabaseService][getSupportProfessionals] Coluna name indisponível; tentando full_name.', msg);
+                    data = await withRetry(() => fetchPages('full_name'));
+                } else {
+                    throw e;
+                }
             }
 
             return (data || []).map((p: any) => ({
                 id: p.id,
-                name: p.name || 'Sem nome',
+                name: p.name || p.full_name || 'Sem nome',
                 cpf: p.cpf || '',
                 phone: p.phone || '',
                 photoUrl: p.photo_url || '',
