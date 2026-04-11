@@ -16,6 +16,9 @@ dist-ssr
 .env.staging
 .env.test
 
+# MCP local (referência de projeto / chaves); use mcp_config.example.json como modelo
+.agent/mcp_config.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
