@@ -124,44 +124,62 @@ function AppContent() {
   }, [systemSettings]);
 
   useEffect(() => {
-    async function loadData() {
+    let cancelled = false;
+
+    async function bootSession() {
       try {
-        // 1. Session Recovery e Perfil (Mandatório primeiro para garantir school_id)
         const { data: { session } } = await supabase.auth.getSession();
-        let currentProfile = null;
-        
+        if (cancelled) return;
+
         if (session?.user) {
-          currentProfile = await SupabaseService.getUserProfile(session.user.id);
-          if (currentProfile) {
-            setUser(currentProfile);
+          try {
+            const currentProfile = await SupabaseService.getUserProfile(session.user.id);
+            if (!cancelled && currentProfile) {
+              setUser(currentProfile);
+            }
+          } catch (e) {
+            console.error('[App] Erro ao carregar perfil:', e);
           }
         }
-        
-        // 2. Carregar configurações de sistema
-        const settings = await SupabaseService.getSystemSettings();
-        setSystemSettings(settings);
-
-        // 3. Carregar dados dependentes do perfil (só depois que o perfil/user está pronto)
-        const schoolsData = await SupabaseService.getSchools();
-        setSchools(schoolsData);
-
-        let studentsData: Student[] = [];
-        try {
-          studentsData = await SupabaseService.getStudents();
-          console.log('[DEBUG] Total alunos retornados:', studentsData?.length);
-          setStudents(studentsData);
-        } catch (err) {
-          console.error('[ERRO getStudents]', err);
-          setStudents([]);
-        }
-
       } catch (err) {
-        console.error("Erro ao carregar dados iniciais:", err);
+        console.error('[App] Erro ao recuperar sessão:', err);
       } finally {
-        setIsLoadingSession(false);
+        if (!cancelled) {
+          setIsLoadingSession(false);
+        }
       }
     }
-    loadData();
+
+    async function loadSecondaryData() {
+      try {
+        const settings = await SupabaseService.getSystemSettings();
+        if (!cancelled) setSystemSettings(settings);
+
+        const schoolsData = await SupabaseService.getSchools();
+        if (!cancelled) setSchools(schoolsData);
+
+        try {
+          const studentsData = await SupabaseService.getStudents(undefined, { compactList: true });
+          if (!cancelled) {
+            console.log('[DEBUG] Total alunos retornados:', studentsData?.length);
+            setStudents(studentsData);
+          }
+        } catch (err) {
+          console.error('[ERRO getStudents]', err);
+          if (!cancelled) setStudents([]);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados iniciais (escolas/config/alunos):', err);
+      }
+    }
+
+    void bootSession().then(() => {
+      if (!cancelled) void loadSecondaryData();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const refreshData = async () => {
@@ -294,7 +312,7 @@ function AppContent() {
           <Route path="documents" element={<React.Suspense fallback={<PageLoading />}><DocumentGenerator currentUser={user!} /></React.Suspense>} />
           <Route path="vault" element={<React.Suspense fallback={<PageLoading />}><DocumentVault currentUser={user!} students={students} onModelSelect={() => handleNavigate('documents')} /></React.Suspense>} />
           <Route path="schools" element={<React.Suspense fallback={<PageLoading />}><SchoolManagement /></React.Suspense>} />
-          <Route path="support-professionals" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement /></React.Suspense>} />
+          <Route path="support-professionals" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
           <Route path="admin" element={<React.Suspense fallback={<PageLoading />}><UserManagement /></React.Suspense>} />
           <Route path="settings" element={<React.Suspense fallback={<PageLoading />}><SystemSettingsPanel /></React.Suspense>} />
           <Route path="about" element={<React.Suspense fallback={<PageLoading />}><AboutSystem /></React.Suspense>} />

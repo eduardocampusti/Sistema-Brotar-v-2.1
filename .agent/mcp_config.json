@@ -15,10 +15,9 @@
                 "shadcn@latest",
                 "mcp"
             ]
+        },
+        "supabase": {
+            "url": "https://mcp.supabase.com/mcp?project_ref=indshiztdvjgvgnzigqd"
         }
-        //other mcp servers
     }
 }
-
-// setup mcp server in  ~/.gemini\antigravity\mcp_config.json
-

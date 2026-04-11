@@ -8,12 +8,13 @@ async function withRetry<T>(
     maxAttempts = 3,
     delayMs = 1500
 ): Promise<T> {
-    const CLIENT_TIMEOUT_MS = 7000; // margem antes do timeout do Supabase FREE (8s)
+    // Margem abaixo do limite típico do PostgREST/instância; consultas pesadas ainda devem ser aliviadas (select, índices, V12/V13).
+    const CLIENT_TIMEOUT_MS = 12000;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
         try {
-            // Corrida: a query deve responder em até 7s ou lança timeout no cliente
+            // Corrida: a query deve responder em até CLIENT_TIMEOUT_MS ou lança timeout no cliente
             const result = await Promise.race([
                 fn(),
                 new Promise<never>((_, reject) => {
@@ -675,7 +676,11 @@ export class SupabaseService {
         }
     }
 
-    static async getStudents(_unit?: Unit): Promise<Student[]> {
+    /** Listagens (dropdowns, grids leves): evita clinical_info/educational_info grandes no fio. */
+    static async getStudents(
+        _unit?: Unit,
+        options?: { compactList?: boolean }
+    ): Promise<Student[]> {
         return safeCall(async () => {
             const { data: { session } } = await supabase.auth.getSession();
             let profile: User | null = null;
@@ -693,23 +698,50 @@ export class SupabaseService {
 
             console.log('[getStudents] role:', role, '| filtrarPorEscolaDoPerfil:', filtrarPorEscolaDoPerfil);
 
-            const fetchPages = async (orderCol: 'full_name' | 'name') => {
-                const { data, error } = await supabase
+            // Schema oficial: `full_name` (não existe coluna `name` em students).
+            const studentSelect = options?.compactList
+                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,schools(name,district)'
+                : '*';
+
+            const PAGE = 50;
+
+            const runStudentsQuery = (orderCol: 'full_name' | 'name', from: number, to: number) => {
+                let q = supabase
                     .from('students')
-                    .select('*')
+                    .select(studentSelect)
                     .order(orderCol, { ascending: true })
-                    .limit(50);
-                if (error) throw error;
-                return data ?? [];
+                    .range(from, to);
+                if (filtrarPorEscolaDoPerfil && profileSchoolId) {
+                    q = q.eq('school_id', profileSchoolId);
+                }
+                return q;
+            };
+
+            const fetchAllStudents = async (orderCol: 'full_name' | 'name') => {
+                const acc: any[] = [];
+                for (let from = 0; ; from += PAGE) {
+                    const to = from + PAGE - 1;
+                    const page = await withRetry(async () => {
+                        const { data, error } = await runStudentsQuery(orderCol, from, to);
+                        if (error) throw error;
+                        return data ?? [];
+                    });
+                    if (!page.length) break;
+                    acc.push(...page);
+                    if (page.length < PAGE) break;
+                }
+                return acc;
             };
 
             let raw: any[] = [];
             try {
-                raw = await withRetry(() => fetchPages('full_name'));
+                raw = await fetchAllStudents('full_name');
             } catch (e: any) {
-                if (e?.message?.includes('full_name') || e?.code === '42703') {
-                    console.warn('[SupabaseService][getStudents] Coluna full_name indisponível; usando name.', e?.message);
-                    raw = await withRetry(() => fetchPages('name'));
+                const msg = String(e?.message || '');
+                // Base antiga sem full_name: tenta ordenar por name (select compacto não pede essa coluna).
+                if (e?.code === '42703' && /\bstudents\.full_name\b/i.test(msg)) {
+                    console.warn('[SupabaseService][getStudents] Coluna full_name indisponível; tentando ordenar por name.', msg);
+                    raw = await fetchAllStudents('name');
                 } else {
                     throw e;
                 }
@@ -1036,7 +1068,7 @@ export class SupabaseService {
         const names = identifiers.map(i => i.name).filter(Boolean) as string[];
         const cpfs = identifiers.map(i => sanitizeCPF(i.cpf)).filter(Boolean) as string[];
 
-        let query = supabase.from('students').select('id, full_name, name, cpf');
+        let query = supabase.from('students').select('id, full_name, cpf');
 
         if (names.length > 0 && cpfs.length > 0) {
             query = query.or(`full_name.in.(${names.map(n => `"${n}"`).join(',')}),cpf.in.(${cpfs.join(',')})`);
@@ -1894,7 +1926,10 @@ export class SupabaseService {
     // --- Support Professionals ---
     static async getSupportProfessionalsByStudent(studentId: string): Promise<SupportProfessional[]> {
         return safeCall(async () => {
-            let { data, error } = await supabase
+            let data: any[] | null = null;
+            let error: any = null;
+
+            const resName = await supabase
                 .from('support_professionals')
                 .select(`
                     id, name, cpf, phone, email, education,
@@ -1903,9 +1938,11 @@ export class SupabaseService {
                 `)
                 .eq('student_id', studentId)
                 .order('name');
+            data = resName.data;
+            error = resName.error;
 
             if (error && (error.message?.includes('name') || error.code === '42703')) {
-                ({ data, error } = await supabase
+                const resFull = await supabase
                     .from('support_professionals')
                     .select(`
                         id, full_name, cpf, phone, email, education,
@@ -1913,7 +1950,9 @@ export class SupabaseService {
                         regent_teacher, student_id, created_at
                     `)
                     .eq('student_id', studentId)
-                    .order('full_name'));
+                    .order('full_name');
+                data = resFull.data;
+                error = resFull.error;
             }
 
             if (error) {
@@ -1921,7 +1960,7 @@ export class SupabaseService {
                 throw error;
             }
 
-            return data.map((p: any) => ({
+            return (data ?? []).map((p: any) => ({
                 id: p.id,
                 name: p.name || p.full_name || 'Sem nome',
                 cpf: p.cpf,
@@ -1975,8 +2014,10 @@ export class SupabaseService {
             const filtrarPorEscola = !!schoolIdForFilter;
 
             const PAGE = 50;
+            const supportProListSelect =
+                'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at';
             const buildQuery = () => {
-                let q = supabase.from('support_professionals').select('*');
+                let q = supabase.from('support_professionals').select(supportProListSelect);
                 if (filtrarPorEscola) {
                     q = q.eq('school_id', schoolIdForFilter as string);
                 }

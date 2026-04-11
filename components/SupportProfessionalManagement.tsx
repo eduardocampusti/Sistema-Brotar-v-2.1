@@ -152,8 +152,10 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     ];
 
     useEffect(() => {
+        // Rota deve passar currentUser (App.tsx). Sem perfil, não dispara carga duplicada/errada.
+        if (!currentUser) return;
         // Se o usuário for ESCOLA, só carrega os dados quando o schoolId estiver disponível
-        if (currentUser?.role === 'ESCOLA' && !currentUser.schoolId) {
+        if (currentUser.role === 'ESCOLA' && !currentUser.schoolId) {
             return;
         }
         loadData();
@@ -192,17 +194,19 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     }, [formData.address?.zipCode]);
 
     const loadData = async () => {
+        if (!currentUser) return;
         try {
             // Se for escola, busca apenas os profissionais e alunos daquela escola
-            const schoolFilter = currentUser?.role === 'ESCOLA' ? currentUser.schoolId : undefined;
+            const schoolFilter = currentUser.role === 'ESCOLA' ? currentUser.schoolId : undefined;
             
-            console.log(`[SupportProf] Carregando dados para role: ${currentUser?.role}, filtro_escola: ${schoolFilter || 'Nenhum'}`);
+            console.log(`[SupportProf] Carregando dados para role: ${currentUser.role}, filtro_escola: ${schoolFilter || 'Nenhum'}`);
             
-            const profs = await SupabaseService.getSupportProfessionals(schoolFilter);
-            const schoolsData = await SupabaseService.getSchools();
-            
-            // [DETALHE] getStudents() já tem lógica interna para filtrar pela escola do usuário logado se for ESCOLA
-            const studentsData = await SupabaseService.getStudents();
+            const [profs, schoolsData, studentsData] = await Promise.all([
+                SupabaseService.getSupportProfessionals(schoolFilter),
+                SupabaseService.getSchools(),
+                // Lista compacta: suficiente para vínculo escola/aluno e bem mais leve que select('*')
+                SupabaseService.getStudents(undefined, { compactList: true }),
+            ]);
             
             setProfessionals(profs);
             setSchools(schoolsData);
