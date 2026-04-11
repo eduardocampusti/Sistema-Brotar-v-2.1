@@ -32,6 +32,7 @@ const SchedulingCenter = React.lazy(() => import('../components/SchedulingCenter
 const AppointmentForm = React.lazy(() => import('../components/AppointmentForm').then(m => ({ default: m.AppointmentForm })));
 const DocumentVault = React.lazy(() => import('../components/DocumentVault').then(m => ({ default: m.DocumentVault })));
 const MyAccess = React.lazy(() => import('../components/MyAccess').then(m => ({ default: m.MyAccess })));
+const AuditLogs = React.lazy(() => import('../components/AuditLogs').then(m => ({ default: m.AuditLogs })));
 const ChangePassword = React.lazy(() => import('../components/ChangePassword').then(m => ({ default: m.ChangePassword })));
 
 // Clinical Pages
@@ -60,6 +61,9 @@ const SchoolDashboard = React.lazy(() => import('../components/RoleDashboards').
 const EducationSecretaryDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.EducationSecretaryDashboard })));
 const PsychologyDashboard = React.lazy(() => import('../components/PsychologyDashboard').then(m => ({ default: m.PsychologyDashboard })));
 const PsychopedagogyDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.PsychopedagogyDashboard })));
+const AssistantDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.AssistantDashboard })));
+const SecretariaSedeDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.SecretariaSedeDashboard })));
+const SecretariaCocalDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.SecretariaCocalDashboard })));
 
 // Loading Component
 const PageLoading = () => (
@@ -264,10 +268,60 @@ function AppContent() {
               {user?.role === 'ADMIN' && <AdminDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
               {user?.role === 'ESCOLA' && <SchoolDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
               {user?.role === 'EDUCATION_SECRETARY' && <EducationSecretaryDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
-              {user?.role === 'SPECIALIST' && user.specialty === Specialty.PSYCHOLOGY && <PsychologyDashboard onNavigate={handleNavigate} currentUser={user} />}
+              {user?.role === 'SECRETARIA_SEDE' && (
+                <SecretariaSedeDashboard students={students} currentUser={user} onNavigate={handleNavigate} />
+              )}
+              {user?.role === 'SECRETARIA_COCAL' && (
+                <SecretariaCocalDashboard students={students} currentUser={user} onNavigate={handleNavigate} />
+              )}
+              {user?.role === 'ASSISTANT' && (
+                <AssistantDashboard
+                  students={students}
+                  currentUser={user}
+                  onNavigate={handleNavigate}
+                  onOpenPatient={id => {
+                    const st = students.find(s => s.id === id);
+                    if (st) handleSelectStudent(st);
+                  }}
+                />
+              )}
+              {user?.role === 'SPECIALIST' && user.specialty === Specialty.PSYCHOLOGY && (
+                <PsychologyDashboard
+                  onNavigate={handleNavigate}
+                  currentUser={user}
+                  onOpenPatient={(id) => {
+                    const st = students.find(s => s.id === id);
+                    if (st) handleSelectStudent(st);
+                  }}
+                />
+              )}
               {user?.role === 'SPECIALIST' && user.specialty === Specialty.SOCIAL_WORK && <SocialWorkerDashboard students={students} currentUser={user} onNavigate={handleNavigate} onNavigateNew={() => handleNavigate('social-service-hub')} onNavigateToCase={(id) => handleSelectStudent(students.find(s => s.id === id)!)} />}
-              {user?.role === 'SPECIALIST' && user.specialty === Specialty.PSYCHOPEDAGOGY && <PsychopedagogyDashboard students={students} currentUser={user} onNavigate={handleNavigate} />}
-              {(!user?.role || (user.role === 'SPECIALIST' && ![Specialty.PSYCHOLOGY, Specialty.SOCIAL_WORK, Specialty.PSYCHOPEDAGOGY].includes(user.specialty!))) && <Dashboard students={students} />}
+              {user?.role === 'SPECIALIST' && user.specialty === Specialty.PSYCHOPEDAGOGY && (
+                <PsychopedagogyDashboard
+                  students={students}
+                  currentUser={user}
+                  onNavigate={handleNavigate}
+                  onOpenPatient={(id) => {
+                    const st = students.find(s => s.id === id);
+                    if (st) handleSelectStudent(st);
+                  }}
+                />
+              )}
+              {(!user?.role || (user.role === 'SPECIALIST' && ![Specialty.PSYCHOLOGY, Specialty.SOCIAL_WORK, Specialty.PSYCHOPEDAGOGY].includes(user.specialty!))) && (
+                <Dashboard
+                  students={students}
+                  currentUser={user ?? undefined}
+                  onNavigate={user ? handleNavigate : undefined}
+                  onOpenPatient={
+                    user
+                      ? (id) => {
+                          const st = students.find(s => s.id === id);
+                          if (st) handleSelectStudent(st);
+                        }
+                      : undefined
+                  }
+                />
+              )}
             </React.Suspense>
           } />
 
@@ -276,7 +330,7 @@ function AppContent() {
           <Route path="profile" element={<React.Suspense fallback={<PageLoading />}><PatientProfile student={selectedStudent!} onBack={() => handleNavigate('list')} currentUser={user!} onEdit={() => handleNavigate('edit-student')} onNavigate={handleNavigate} /></React.Suspense>} />
           <Route path="edit-student" element={<React.Suspense fallback={<PageLoading />}><RegistrationForm initialData={selectedStudent!} onSuccess={refreshData} onCancel={() => handleNavigate('profile')} currentUser={user!} /></React.Suspense>} />
 
-          <Route path="psychology" element={<React.Suspense fallback={<PageLoading />}><PsychologyDashboard onNavigate={handleNavigate} currentUser={user!} /></React.Suspense>} />
+          <Route path="psychology" element={<React.Suspense fallback={<PageLoading />}><PsychologyDashboard onNavigate={handleNavigate} currentUser={user!} onOpenPatient={(id) => { const st = students.find(s => s.id === id); if (st) handleSelectStudent(st); }} /></React.Suspense>} />
           <Route path="psychology/new-session" element={<React.Suspense fallback={<PageLoading />}><PsychologySessionFormPage onCancel={() => handleNavigate('psychology')} currentUser={user!} /></React.Suspense>} />
 
           {/* Serviço Social */}
@@ -312,6 +366,7 @@ function AppContent() {
           <Route path="documents" element={<React.Suspense fallback={<PageLoading />}><DocumentGenerator currentUser={user!} /></React.Suspense>} />
           <Route path="vault" element={<React.Suspense fallback={<PageLoading />}><DocumentVault currentUser={user!} students={students} onModelSelect={() => handleNavigate('documents')} /></React.Suspense>} />
           <Route path="schools" element={<React.Suspense fallback={<PageLoading />}><SchoolManagement /></React.Suspense>} />
+          <Route path="reports" element={<Navigate to="/app/support-professionals?tab=relatorios" replace />} />
           <Route path="support-professionals/new" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
           <Route path="support-professionals/edit/:profId" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
           <Route path="support-professionals" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
@@ -319,6 +374,7 @@ function AppContent() {
           <Route path="settings" element={<React.Suspense fallback={<PageLoading />}><SystemSettingsPanel /></React.Suspense>} />
           <Route path="about" element={<React.Suspense fallback={<PageLoading />}><AboutSystem /></React.Suspense>} />
           <Route path="my-access" element={<React.Suspense fallback={<PageLoading />}><MyAccess currentUser={user!} /></React.Suspense>} />
+          <Route path="audit-logs" element={<React.Suspense fallback={<PageLoading />}><AuditLogs currentUser={user!} /></React.Suspense>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

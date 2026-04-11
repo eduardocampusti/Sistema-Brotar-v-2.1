@@ -1582,6 +1582,24 @@ export class SupabaseService {
         return data || [];
     }
 
+    /** Inbox: mensagens diretas ao usuário + broadcast (recipient_id nulo). */
+    static async getNotificationsInbox(userId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('system_messages')
+            .select(`
+                *,
+                sender:profiles!fk_sender (full_name, role)
+            `)
+            .or(`recipient_id.eq.${userId},recipient_id.is.null`)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Erro ao buscar inbox de notificações:', error);
+            return [];
+        }
+        return data || [];
+    }
+
     static async getSentMessages(userId: string): Promise<any[]> {
         const { data, error } = await supabase
             .from('system_messages')

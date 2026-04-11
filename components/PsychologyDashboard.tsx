@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Student, Specialty, Session, User, Appointment, hasPermission } from '../types';
+import { Student, Specialty, Session, User, hasPermission } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
+import { SpecialistClinicalHomeDashboard } from './RoleDashboards';
 import {
     Brain, Calendar, Users, FileText, History, TrendingUp,
-    Shield, FolderLock, LayoutDashboard, Clock, CheckCircle,
-    AlertCircle, Printer, Search, PlusCircle, ArrowRight,
+    Shield, FolderLock, LayoutDashboard, Clock,
+    Printer, Search, PlusCircle, ArrowRight,
     Download, Lock, Eye, EyeOff, MessageSquare, BookOpen,
     ClipboardList, PieChart as PieIcon, Activity
 } from 'lucide-react';
@@ -16,35 +17,13 @@ import {
 
 const COLORS = ['#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe', '#ede9fe'];
 
-// Componentes Auxiliares
-const StatCard = ({ title, value, icon: Icon, gradient, subtext }: any) => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-        <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{title}</p>
-            <h3 className="text-2xl font-black text-slate-800 mt-1">{value}</h3>
-            {subtext && <p className="text-xs text-slate-400 mt-1">{subtext}</p>}
-        </div>
-        <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient} text-white shadow-lg`}>
-            <Icon size={20} />
-        </div>
-    </div>
-);
-
 export const PsychologyDashboard: React.FC<{
     currentUser: User,
-    onNavigate: (page: string) => void
-}> = ({ currentUser, onNavigate }) => {
+    onNavigate: (page: string) => void,
+    onOpenPatient?: (studentId: string) => void,
+}> = ({ currentUser, onNavigate, onOpenPatient }) => {
     const [activeTab, setActiveTab] = useState('resumo');
     const [students, setStudents] = useState<Student[]>([]);
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [stats, setStats] = useState({
-        totalStudents: 0,
-        activeCases: 0,
-        todayCount: 0,
-        weekCount: 0,
-        monthCount: 0,
-        absences: 0
-    });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -52,35 +31,7 @@ export const PsychologyDashboard: React.FC<{
             setLoading(true);
             try {
                 const allStudents = await SupabaseService.getStudents();
-                const allAppointments = await SupabaseService.getAppointments({ professionalId: currentUser.id });
-
                 setStudents(allStudents);
-                setAppointments(allAppointments);
-
-                const now = new Date();
-                const todayStr = now.toISOString().split('T')[0];
-                const monthStr = now.toISOString().slice(0, 7);
-
-                const myStudents = allStudents.filter(s => s.history?.some(h => h.specialty === Specialty.PSYCHOLOGY));
-
-                const todayCount = allAppointments.filter(a => a.date === todayStr).length;
-                const weekCount = allAppointments.filter(a => {
-                    const d = new Date(a.date);
-                    const weekAhead = new Date();
-                    weekAhead.setDate(now.getDate() + 7);
-                    return d >= now && d <= weekAhead;
-                }).length;
-                const monthCount = allAppointments.filter(a => a.date.startsWith(monthStr)).length;
-                const absences = allAppointments.filter(a => a.status === 'FALTOU').length;
-
-                setStats({
-                    totalStudents: myStudents.length,
-                    activeCases: myStudents.length,
-                    todayCount,
-                    weekCount,
-                    monthCount,
-                    absences
-                });
             } catch (error) {
                 console.error('Erro ao carregar dados do dashboard:', error);
             } finally {
@@ -121,55 +72,20 @@ export const PsychologyDashboard: React.FC<{
 
     const renderResumo = () => (
         <div className="space-y-6 animate-fadeIn">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="Alunos Vinculados" value={stats.totalStudents} icon={Users} gradient="from-purple-500 to-indigo-600" subtext="No seu CRP" />
-                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-emerald-500 to-teal-600" subtext="Atendimentos hoje" />
-                <StatCard title="Faltas" value={stats.absences} icon={AlertCircle} gradient="from-amber-400 to-orange-500" subtext="Absenteísmo recorrente" />
-                <StatCard title="Sessões/Mês" value={stats.monthCount} icon={CheckCircle} gradient="from-blue-500 to-cyan-600" subtext="Produtividade" />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <History size={18} className="text-purple-600" /> Atividades Recentes
-                    </h3>
-                    <div className="space-y-4">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl hover:bg-purple-50 transition-colors border border-transparent hover:border-purple-100 group">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-purple-600 shadow-sm">
-                                        <Brain size={20} />
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-slate-800 text-sm">Aluno Exemplo {i}</p>
-                                        <p className="text-xs text-slate-500">Sessão #12 • Há {i} hora(s)</p>
-                                    </div>
-                                </div>
-                                <ArrowRight size={16} className="text-slate-300 group-hover:text-purple-600 transition-colors" />
-                            </div>
-                        ))}
-                    </div>
+            {loading ? (
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm text-slate-500">
+                    Carregando alunos…
                 </div>
-
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-3 bg-amber-500 text-white rounded-bl-2xl">
-                        <AlertCircle size={16} />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        Alertas de Continuidade
-                    </h3>
-                    <div className="space-y-4">
-                        <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
-                            <p className="text-xs font-bold text-amber-800 uppercase tracking-widest">Atenção Ética</p>
-                            <p className="text-sm text-amber-700 mt-1">Você tem 3 rascunhos pendentes há mais de 48h. A finalização é necessária para conformidade LGPD.</p>
-                        </div>
-                        <div className="p-4 bg-purple-50 border border-purple-100 rounded-2xl">
-                            <p className="text-xs font-bold text-purple-800 uppercase tracking-widest">Estudo de Caso</p>
-                            <p className="text-sm text-purple-700 mt-1">2 alunos aguardam triagem para ativação de prontuário clínico.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            ) : (
+                <SpecialistClinicalHomeDashboard
+                    students={students}
+                    currentUser={currentUser}
+                    onNavigate={onNavigate}
+                    onOpenPatient={onOpenPatient}
+                    registerSessionRoute="psychology/new-session"
+                    extraAction={{ label: 'Aplicar avaliação psicológica', route: 'psychology' }}
+                />
+            )}
         </div>
     );
 

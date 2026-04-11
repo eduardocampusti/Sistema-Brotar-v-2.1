@@ -227,6 +227,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     switch (currentUser.role) {
       case 'ADMIN': return 'Administração';
       case 'EDUCATION_SECRETARY':
+        return 'Secretário(a) de Educação';
       case 'SECRETARIA_SEDE':
         return 'Secretária Sede';
       case 'SECRETARIA_COCAL':

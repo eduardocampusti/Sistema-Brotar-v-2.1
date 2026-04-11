@@ -3,17 +3,69 @@ import { Student, Specialty, User } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Users, AlertCircle, CheckCircle } from 'lucide-react';
 import { WelcomeHeader } from './WelcomeHeader';
+import { SpecialistClinicalHomeDashboard } from './RoleDashboards';
 
 interface DashboardProps {
   students: Student[];
   currentUser?: User;
+  onNavigate?: (page: string) => void;
+  onOpenPatient?: (studentId: string) => void;
 }
 
 const COLORS = ['#0ea5e9', '#6366f1', '#10b981', '#f59e0b'];
 
-export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser }) => {
+const SPECIALIST_FALLBACK_SPECIALTIES: Specialty[] = [
+  Specialty.OCCUPATIONAL_THERAPY,
+  Specialty.SPEECH_THERAPY,
+  Specialty.PHYSIOTHERAPY,
+  Specialty.NUTRITION,
+];
+
+const specialistRegisterRoute: Partial<Record<Specialty, string>> = {
+  [Specialty.OCCUPATIONAL_THERAPY]: 'occupational-therapy/new-session',
+  [Specialty.SPEECH_THERAPY]: 'speech-therapy/new-session',
+  [Specialty.PHYSIOTHERAPY]: 'physiotherapy/new-session',
+  [Specialty.NUTRITION]: 'nutrition/new-session',
+};
+
+const specialistModuleRoute: Partial<Record<Specialty, string>> = {
+  [Specialty.OCCUPATIONAL_THERAPY]: 'occupational-therapy',
+  [Specialty.SPEECH_THERAPY]: 'speech-therapy',
+  [Specialty.PHYSIOTHERAPY]: 'physiotherapy',
+  [Specialty.NUTRITION]: 'nutrition',
+};
+
+const specialistModuleLabel: Partial<Record<Specialty, string>> = {
+  [Specialty.OCCUPATIONAL_THERAPY]: 'Módulo Terapia Ocupacional',
+  [Specialty.SPEECH_THERAPY]: 'Módulo Fonoaudiologia',
+  [Specialty.PHYSIOTHERAPY]: 'Módulo Fisioterapia',
+  [Specialty.NUTRITION]: 'Módulo Nutrição',
+};
+
+export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate, onOpenPatient }) => {
+  const sp = currentUser?.specialty;
+  if (
+    currentUser?.role === 'SPECIALIST' &&
+    sp &&
+    onNavigate &&
+    SPECIALIST_FALLBACK_SPECIALTIES.includes(sp)
+  ) {
+    const reg = specialistRegisterRoute[sp]!;
+    const mod = specialistModuleRoute[sp]!;
+    const lab = specialistModuleLabel[sp] ?? 'Módulo da especialidade';
+    return (
+      <SpecialistClinicalHomeDashboard
+        students={students}
+        currentUser={currentUser}
+        onNavigate={onNavigate}
+        onOpenPatient={onOpenPatient}
+        registerSessionRoute={reg}
+        extraAction={{ label: lab, route: mod }}
+      />
+    );
+  }
+
   const stats = useMemo(() => {
-    console.log('[Dashboard] Students received:', students?.length || 0);
     const total = students?.length || 0;
     const active = (students || []).filter(p => p.status === 'Active').length;
 

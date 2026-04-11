@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Student, User, Specialty, Session, Appointment } from '../types';
+import { Student, User, Specialty, Session, Appointment, SupportProfessional, SavedDocument, AuditLog, hasPermission, School as SchoolEntity, Unit } from '../types';
 import { StorageService } from '../services/storageService';
 import { SupabaseService } from '../services/SupabaseService';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer } from 'lucide-react';
+import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer, ShieldAlert, Bell, ClipboardList, MessageSquare, UserCheck, Phone, Loader2, Send, Building2, Link2, Wifi, WifiOff, Info } from 'lucide-react';
 import { PatientList } from './PatientList';
 import { WelcomeHeader } from './WelcomeHeader';
 
@@ -13,6 +13,8 @@ interface DashboardProps {
     students: Student[];
     currentUser: User;
     onNavigate: (page: string) => void;
+    /** Abre o prontuário do aluno (ex.: a partir da agenda). Opcional para não exigir mudanças em todos os painéis. */
+    onOpenPatient?: (studentId: string) => void;
 }
 
 // --- COMPONENTES VISUAIS (ESTILO DA IMAGEM) ---
@@ -53,107 +55,743 @@ const StatCard = ({ title, value, icon: Icon, gradient, subtext, trend }: any) =
     </div>
 );
 
-// --- 1. ADMINISTRADOR GERAL ---
-export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
-    const stats = useMemo(() => {
-        const total = students.length;
-        const teaStudents = students.filter(s => {
-            const diag = (s.clinical?.diagnosis || '').toUpperCase();
-            const needs = (s.clinical?.specialNeeds || []).map(n => n.toUpperCase());
-            return diag.includes('TEA') || diag.includes('AUTISMO') || needs.includes('AUTISMO') || needs.includes('TEA');
+const formatRelativePt = (iso: string): string => {
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return '—';
+    let diffMs = Date.now() - t;
+    if (diffMs < 0) diffMs = 0;
+    const s = Math.floor(diffMs / 1000);
+    if (s < 45) return 'agora';
+    const m = Math.floor(s / 60);
+    if (m < 60) return `há ${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `há ${h}h`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `há ${d} dia${d > 1 ? 's' : ''}`;
+    return new Date(iso).toLocaleDateString('pt-BR');
+};
+
+// --- Shared: painel clínico do especialista (home) ---
+function ymdLocal(d = new Date()): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function addDaysToYmd(ymd: string, deltaDays: number): string {
+    const [y, mo, da] = ymd.split('-').map(Number);
+    const dt = new Date(y, mo - 1, da + deltaDays);
+    return ymdLocal(dt);
+}
+
+function matchesSpecialistUnit(a: Appointment, scope: User['scope']): boolean {
+    if (!scope || scope === 'GLOBAL') return true;
+    if (scope === 'SEDE') return a.unit === 'SEDE';
+    if (scope === 'COCAL') return a.unit === 'COCAL';
+    return true;
+}
+
+function studentInAssistantScope(s: Student, scope: User['scope']): boolean {
+    if (!scope || scope === 'GLOBAL') return true;
+    const u = s.unit ?? 'SEDE';
+    if (scope === 'SEDE') return u === 'SEDE';
+    if (scope === 'COCAL') return u === 'COCAL';
+    return true;
+}
+
+export function specialistAppointmentsMine(all: Appointment[], user: User): Appointment[] {
+    return all.filter(a => a.professionalId === user.id && matchesSpecialistUnit(a, user.scope));
+}
+
+function appointmentStatusBadgeClass(status: Appointment['status']): string {
+    switch (status) {
+        case 'CONFIRMADO':
+            return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        case 'AGENDADO':
+            return 'bg-amber-100 text-amber-900 border border-amber-200';
+        case 'ATENDIDO':
+            return 'bg-slate-200 text-slate-700 border border-slate-300';
+        case 'FALTOU':
+            return 'bg-red-100 text-red-800 border border-red-200';
+        case 'CANCELADO':
+            return 'bg-rose-100 text-rose-800 border border-rose-200';
+        case 'REMARCAR':
+            return 'bg-orange-50 text-orange-800 border border-orange-200';
+        default:
+            return 'bg-slate-100 text-slate-600 border border-slate-200';
+    }
+}
+
+function scopeUnitLabel(scope: User['scope']): string {
+    if (scope === 'SEDE') return 'SEDE';
+    if (scope === 'COCAL') return 'COCAL';
+    return 'Todas as unidades';
+}
+
+function studentDiagnosisLine(s: Student): string {
+    const cid = (s.clinical?.cid || '').trim();
+    const d = (s.clinical?.diagnosis || '').trim();
+    if (cid && d) return `${cid} · ${d}`.slice(0, 72);
+    return cid || d || '—';
+}
+
+function sortAppointmentsByStart(a: Appointment, b: Appointment): number {
+    const ta = (a.startTime || '00:00').slice(0, 5);
+    const tb = (b.startTime || '00:00').slice(0, 5);
+    if (ta !== tb) return ta.localeCompare(tb);
+    return (a.createdAt || '').localeCompare(b.createdAt || '');
+}
+
+export interface SpecialistClinicalHomeProps {
+    students: Student[];
+    currentUser: User;
+    onNavigate: (page: string) => void;
+    onOpenPatient?: (studentId: string) => void;
+    registerSessionRoute: string;
+    extraAction?: { label: string; route: string };
+}
+
+export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomeProps> = ({
+    students,
+    currentUser,
+    onNavigate,
+    onOpenPatient,
+    registerSessionRoute,
+    extraAction,
+}) => {
+    const [rawAppointments, setRawAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            setLoading(true);
+            try {
+                const data = await SupabaseService.getAppointments({});
+                if (!cancelled) setRawAppointments(data || []);
+            } catch (error) {
+                console.error('Erro ao carregar agenda:', error);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser.id, currentUser.scope]);
+
+    const myAppointments = useMemo(
+        () => specialistAppointmentsMine(rawAppointments, currentUser),
+        [rawAppointments, currentUser]
+    );
+
+    const todayY = ymdLocal();
+
+    const metrics = useMemo(() => {
+        const monthStr = todayY.slice(0, 7);
+        const weekEnd = addDaysToYmd(todayY, 6);
+
+        const studentIdsFromAppts = new Set(myAppointments.map(a => a.studentId).filter(Boolean));
+        const myPatientIds = new Set<string>();
+        students.forEach(s => {
+            const fromSessions = (s.history || []).some(sess => sess.professionalName === currentUser.name);
+            const fromAppt = studentIdsFromAppts.has(s.id);
+            if (fromSessions || fromAppt) myPatientIds.add(s.id);
         });
+        const myPatientsActive = students.filter(s => myPatientIds.has(s.id) && s.status === 'Active').length;
 
-        const withSupport = students.filter(s => s.school?.hasSpecialAide === true).length;
-        const pendingEval = students.filter(s => s.status === 'Pending').length;
+        const todayApts = myAppointments.filter(a => a.date === todayY);
+        const todayConfirmed = todayApts.filter(a => a.status === 'CONFIRMADO').length;
+        const todayScheduled = todayApts.filter(a => a.status === 'AGENDADO').length;
+        const todayAbsent = todayApts.filter(a => a.status === 'FALTOU').length;
 
-        // Distribuição TEA por Escola
-        const teaBySchool = teaStudents.reduce((acc: any[], s) => {
-            const school = s.school.schoolName || 'Não Informada';
-            const existing = acc.find(i => i.name === school);
-            if (existing) existing.value++;
-            else acc.push({ name: school, value: 1 });
-            return acc;
-        }, []).sort((a, b) => b.value - a.value).slice(0, 5);
+        const weekApts = myAppointments.filter(a => a.date >= todayY && a.date <= weekEnd);
+        const weekTotal = weekApts.length;
 
-        // Distribuição TEA por Idade
-        const teaByAge = teaStudents.reduce((acc: any[], s) => {
-            if (!s.birthDate) return acc;
-            const birth = new Date(s.birthDate);
-            const today = new Date();
-            let age = today.getFullYear() - birth.getFullYear();
-            const m = today.getMonth() - birth.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-
-            const ageGroup = `${age} anos`;
-            const existing = acc.find(i => i.name === ageGroup);
-            if (existing) existing.value++;
-            else acc.push({ name: ageGroup, age, value: 1 });
-            return acc;
-        }, []).sort((a, b) => a.age - b.age);
+        const monthAttended = myAppointments.filter(
+            a => a.date.startsWith(monthStr) && a.status === 'ATENDIDO'
+        ).length;
 
         return {
-            total,
-            teaCount: teaStudents.length,
-            withSupport,
-            withoutSupport: total - withSupport,
-            pendingEval,
-            teaBySchool,
-            teaByAge
+            myPatientsActive,
+            todayTotal: todayApts.length,
+            todayConfirmed,
+            todayScheduled,
+            todayAbsent,
+            weekTotal,
+            monthAttended,
+            todaySub: `CONFIRMADO ${todayConfirmed} · AGENDADO ${todayScheduled} · FALTOU ${todayAbsent}`,
         };
-    }, [students]);
+    }, [students, myAppointments, currentUser.name, todayY]);
+
+    const agendaToday = useMemo(() => {
+        return myAppointments.filter(a => a.date === todayY).sort(sortAppointmentsByStart);
+    }, [myAppointments, todayY]);
+
+    const upcomingWindow = useMemo(() => {
+        const start = addDaysToYmd(todayY, 1);
+        const end = addDaysToYmd(todayY, 3);
+        return myAppointments
+            .filter(a => a.date >= start && a.date <= end)
+            .sort((a, b) => {
+                if (a.date !== b.date) return a.date.localeCompare(b.date);
+                return sortAppointmentsByStart(a, b);
+            })
+            .slice(0, 5);
+    }, [myAppointments, todayY]);
+
+    const recentPatients = useMemo(() => {
+        const byStudent = new Map<string, { student: Student; lastMs: number }>();
+        myAppointments.forEach(a => {
+            const st = students.find(s => s.id === a.studentId);
+            if (!st) return;
+            const ms = new Date(a.createdAt || `${a.date}T00:00:00`).getTime();
+            const prev = byStudent.get(st.id);
+            if (!prev || ms > prev.lastMs) byStudent.set(st.id, { student: st, lastMs: ms });
+        });
+        return [...byStudent.values()]
+            .sort((x, y) => y.lastMs - x.lastMs)
+            .slice(0, 5)
+            .map(({ student, lastMs }) => ({
+                student,
+                lastLabel: Number.isNaN(lastMs) ? '—' : new Date(lastMs).toLocaleDateString('pt-BR'),
+            }));
+    }, [myAppointments, students]);
+
+    const openProntuario = (studentId: string) => {
+        if (onOpenPatient) onOpenPatient(studentId);
+        else onNavigate('list');
+    };
+
+    return (
+        <div className="space-y-8 animate-slideUp">
+            <div className="rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                <p className="text-sm font-semibold text-slate-500">Olá,</p>
+                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{currentUser.name}</h1>
+                <p className="mt-1 text-sm text-slate-600">Sua agenda e seus pacientes</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-bold text-teal-900">
+                        {currentUser.specialty ?? 'Especialista'}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700">
+                        {scopeUnitLabel(currentUser.scope)}
+                    </span>
+                </div>
+            </div>
+
+            {loading && (
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm text-slate-500">
+                    Carregando sua agenda…
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <StatCard
+                    title="Meus pacientes"
+                    value={metrics.myPatientsActive}
+                    icon={Users}
+                    gradient="from-teal-500 to-emerald-600"
+                    subtext="Ativos vinculados a você (sessões ou agenda)"
+                />
+                <StatCard
+                    title="Agenda hoje"
+                    value={metrics.todayTotal}
+                    icon={Calendar}
+                    gradient="from-sky-500 to-cyan-600"
+                    subtext={metrics.todaySub}
+                />
+                <StatCard
+                    title="Esta semana"
+                    value={metrics.weekTotal}
+                    icon={Activity}
+                    gradient="from-amber-500 to-orange-600"
+                    subtext="Hoje até +6 dias"
+                />
+                <StatCard
+                    title="Sessões este mês"
+                    value={metrics.monthAttended}
+                    icon={CheckCircle}
+                    gradient="from-slate-600 to-slate-800"
+                    subtext="Agendamentos ATENDIDO no mês"
+                />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <Clock size={20} className="text-teal-600" />
+                            Agenda de hoje
+                        </h3>
+                        <span className="text-xs font-semibold text-slate-400">{todayY}</span>
+                    </div>
+                    {agendaToday.length === 0 ? (
+                        <p className="text-sm text-slate-400">Sem agendamentos para hoje.</p>
+                    ) : (
+                        <ul className="space-y-3">
+                            {agendaToday.map(apt => (
+                                <li
+                                    key={apt.id}
+                                    className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-slate-800">
+                                            {(apt.startTime || '—').slice(0, 5)} – {(apt.endTime || '—').slice(0, 5)}
+                                        </p>
+                                        <p className="truncate text-sm font-semibold text-slate-700">{apt.studentName}</p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span
+                                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${appointmentStatusBadgeClass(apt.status)}`}
+                                        >
+                                            {apt.status}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => openProntuario(apt.studentId)}
+                                            className="rounded-xl border border-teal-200 bg-white px-3 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50"
+                                        >
+                                            Ver prontuário
+                                        </button>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                    <h3 className="mb-4 font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <Calendar size={20} className="text-amber-600" />
+                        Próximos agendamentos
+                    </h3>
+                    <p className="mb-3 text-xs font-semibold text-slate-500">Amanhã até +3 dias · até 5 itens</p>
+                    {upcomingWindow.length === 0 ? (
+                        <p className="text-sm text-slate-400">Nenhum agendamento neste período.</p>
+                    ) : (
+                        <ul className="space-y-2 text-sm">
+                            {upcomingWindow.map(apt => (
+                                <li key={apt.id} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 last:border-0">
+                                    <span className="font-semibold text-slate-700">
+                                        {new Date(apt.date + 'T12:00:00').toLocaleDateString('pt-BR', {
+                                            day: '2-digit',
+                                            month: '2-digit',
+                                        })}{' '}
+                                        · {(apt.startTime || '').slice(0, 5)} ·{' '}
+                                        <span className="text-slate-600">{apt.studentName}</span>
+                                    </span>
+                                    <span
+                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${appointmentStatusBadgeClass(apt.status)}`}
+                                    >
+                                        {apt.status}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => onNavigate('scheduling')}
+                        className="mt-4 text-xs font-bold text-teal-700 hover:underline"
+                    >
+                        Ver agenda completa
+                    </button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                    <h3 className="mb-4 font-bold text-lg text-slate-800">Ações rápidas</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => onNavigate(registerSessionRoute)}
+                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                        >
+                            Registrar atendimento
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onNavigate('documents')}
+                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                        >
+                            Gerar documento
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onNavigate('scheduling')}
+                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                        >
+                            Ver agenda completa
+                        </button>
+                        {extraAction && (
+                            <button
+                                type="button"
+                                onClick={() => onNavigate(extraAction.route)}
+                                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                            >
+                                {extraAction.label}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                        <h3 className="font-bold text-lg text-slate-800">Meus pacientes recentes</h3>
+                        <button
+                            type="button"
+                            onClick={() => onNavigate('list')}
+                            className="text-xs font-bold text-teal-700 hover:underline"
+                        >
+                            Ver todos
+                        </button>
+                    </div>
+                    {recentPatients.length === 0 ? (
+                        <p className="text-sm text-slate-400">Nenhum paciente com agendamento recente.</p>
+                    ) : (
+                        <ul className="space-y-3">
+                            {recentPatients.map(({ student, lastLabel }) => (
+                                <li key={student.id} className="border-b border-slate-100 pb-3 last:border-0">
+                                    <p className="font-bold text-slate-800">{student.fullName}</p>
+                                    <p className="text-xs text-slate-500 line-clamp-2">{studentDiagnosisLine(student)}</p>
+                                    <p className="mt-1 text-[11px] font-semibold text-slate-400">Último agendamento: {lastLabel}</p>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ADMIN_ROLE_LABELS: Record<string, string> = {
+    SPECIALIST: 'Especialista clínico',
+    ESCOLA: 'Escola',
+    ASSISTANT: 'Assistente',
+    SECRETARIA_SEDE: 'Secretaria (Sede)',
+    SECRETARIA_COCAL: 'Secretaria (Cocal)',
+};
+
+// --- 1. ADMINISTRADOR GERAL ---
+export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const [loading, setLoading] = useState(true);
+    const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [documents, setDocuments] = useState<SavedDocument[]>([]);
+    const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+    const [notificationRows, setNotificationRows] = useState<any[]>([]);
+
+    const monthStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            setLoading(true);
+            try {
+                const [pros, users, apts, docs, logs, notifs] = await Promise.all([
+                    SupabaseService.getSupportProfessionals(),
+                    SupabaseService.getUsers(),
+                    SupabaseService.getAppointments({}),
+                    SupabaseService.getDocuments(),
+                    SupabaseService.getAuditLogs(),
+                    SupabaseService.getNotifications(currentUser.id),
+                ]);
+                if (!cancelled) {
+                    setSupportProfessionals(pros);
+                    setAllUsers(users);
+                    setAppointments(apts);
+                    setDocuments(docs);
+                    setAuditLogs((logs || []).slice(0, 5));
+                    setNotificationRows(notifs || []);
+                }
+            } catch (e) {
+                console.error('[AdminDashboard] Erro ao carregar painel:', e);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser.id]);
+
+    const metrics = useMemo(() => {
+        const totalStudents = students.length;
+        const spWithStudent = supportProfessionals.filter(
+            p => p.studentId && String(p.studentId).trim() !== ''
+        ).length;
+        const spWithoutStudent = supportProfessionals.length - spWithStudent;
+
+        const specialists = allUsers.filter(u => u.role === 'SPECIALIST');
+        const specialtyAreas = new Set(
+            specialists.map(u =>
+                u.specialty != null && String(u.specialty).trim() !== '' ? String(u.specialty) : '__sem__'
+            )
+        ).size;
+
+        const monthApts = appointments.filter(a => a.date && a.date.startsWith(monthStr));
+        const apAttended = monthApts.filter(a => a.status === 'ATENDIDO').length;
+        const apAbsent = monthApts.filter(a => a.status === 'FALTOU').length;
+        const apCancelled = monthApts.filter(a => a.status === 'CANCELADO').length;
+
+        const activeProfiles = allUsers.filter(u => u.isActive === true).length;
+
+        const [y, m] = monthStr.split('-').map(Number);
+        const startMs = new Date(y, m - 1, 1).getTime();
+        const endMs = new Date(y, m, 1).getTime();
+        const docsThisMonth = documents.filter(d => {
+            if (!d.createdAt) return false;
+            const t = new Date(d.createdAt).getTime();
+            return !Number.isNaN(t) && t >= startMs && t < endMs;
+        }).length;
+
+        return {
+            totalStudents,
+            supportTotal: supportProfessionals.length,
+            spWithStudent,
+            spWithoutStudent,
+            specialistCount: specialists.length,
+            specialtyAreas,
+            monthAptsTotal: monthApts.length,
+            apAttended,
+            apAbsent,
+            apCancelled,
+            activeProfiles,
+            docsThisMonth,
+        };
+    }, [students, supportProfessionals, allUsers, appointments, documents, monthStr]);
+
+    const alerts = useMemo(() => {
+        const linkedStudentIds = new Set(
+            supportProfessionals
+                .map(p => p.studentId)
+                .filter(id => id && String(id).trim() !== '')
+        );
+        const studentsWithoutSupportPro = students.filter(s => !linkedStudentIds.has(s.id)).length;
+        const usersMustChangePassword = allUsers.filter(u => u.mustChangePassword === true).length;
+        const supportProsUnlinked = supportProfessionals.filter(
+            p => !p.studentId || String(p.studentId).trim() === ''
+        ).length;
+        const studentsNoCid = students.filter(
+            s => !s.clinical?.cid || String(s.clinical.cid).trim() === ''
+        ).length;
+        const urgentUnread = notificationRows.filter((n: any) => {
+            const pr = n.priority;
+            const read = n.is_read;
+            return pr === 'urgent' && read === false;
+        }).length;
+
+        return {
+            studentsWithoutSupportPro,
+            usersMustChangePassword,
+            supportProsUnlinked,
+            studentsNoCid,
+            urgentUnread,
+        };
+    }, [students, supportProfessionals, allUsers, notificationRows]);
+
+    const roleDistribution = useMemo(() => {
+        const keys = ['SPECIALIST', 'ESCOLA', 'ASSISTANT', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL'] as const;
+        const rows = keys.map(role => ({
+            role,
+            count: allUsers.filter(u => u.role === role).length,
+        }));
+        const max = Math.max(1, ...rows.map(r => r.count));
+        return { rows, max };
+    }, [allUsers]);
+
+    const auditPresentation = (action: string) => {
+        const a = (action || '').toUpperCase();
+        if (a === 'CRIAR' || a === 'CREATE')
+            return { Icon: PlusCircle, box: 'bg-emerald-100 text-emerald-700' };
+        if (a === 'EDITAR' || a === 'UPDATE')
+            return { Icon: Activity, box: 'bg-blue-100 text-blue-700' };
+        if (a === 'EXCLUIR' || a === 'DELETE')
+            return { Icon: AlertTriangle, box: 'bg-red-100 text-red-700' };
+        if (a === 'LOGIN')
+            return { Icon: Shield, box: 'bg-slate-100 text-slate-600' };
+        return { Icon: FileText, box: 'bg-slate-100 text-slate-500' };
+    };
+
+    const handleSendSystemAlert = async () => {
+        const recipientId = window.prompt('UUID do usuário destinatário:');
+        if (!recipientId?.trim()) return;
+        const title = window.prompt('Título do alerta:') || 'Alerta do sistema';
+        const content = window.prompt('Mensagem:') || '';
+        try {
+            await SupabaseService.sendSystemAlert(recipientId.trim(), title, content, 'urgent');
+            window.alert('Alerta enviado com sucesso.');
+        } catch (err) {
+            console.error('[AdminDashboard] sendSystemAlert:', err);
+            window.alert('Não foi possível enviar o alerta.');
+        }
+    };
 
     return (
         <div className="space-y-8 animate-slideUp">
             <WelcomeHeader name={currentUser.name.split(' ')[0]} />
 
-            {/* Indicadores de Educação Inclusiva */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard title="Total Alunos" value={stats.total} icon={Users} gradient="from-blue-500 to-indigo-600" />
-                <StatCard title="Alunos TEA" value={stats.teaCount} icon={Brain} gradient="from-purple-500 to-indigo-600" />
-                <StatCard title="Com Apoio" value={stats.withSupport} icon={HeartPulse} gradient="from-emerald-500 to-teal-600" />
-                <StatCard title="Sem Apoio" value={stats.withoutSupport} icon={AlertTriangle} gradient="from-orange-400 to-red-500" />
-                <StatCard title="Aguar. Avaliação" value={stats.pendingEval} icon={Clock} gradient="from-slate-600 to-slate-800" />
+            {loading && (
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm text-slate-500">
+                    Carregando métricas administrativas…
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                <StatCard title="Total de alunos" value={metrics.totalStudents} icon={Users} gradient="from-sky-500 to-blue-600" />
+                <StatCard
+                    title="Profissionais de apoio"
+                    value={metrics.supportTotal}
+                    icon={HeartPulse}
+                    gradient="from-teal-500 to-emerald-600"
+                    subtext={`${metrics.spWithStudent} com aluno · ${metrics.spWithoutStudent} sem aluno`}
+                />
+                <StatCard
+                    title="Especialistas clínicos"
+                    value={metrics.specialistCount}
+                    icon={Stethoscope}
+                    gradient="from-cyan-500 to-teal-600"
+                    subtext={`${metrics.specialistCount} especialistas · ${metrics.specialtyAreas} áreas`}
+                />
+                <StatCard
+                    title="Agendamentos do mês"
+                    value={metrics.monthAptsTotal}
+                    icon={Calendar}
+                    gradient="from-amber-500 to-orange-600"
+                    subtext={`ATENDIDO ${metrics.apAttended} · FALTOU ${metrics.apAbsent} · CANCELADO ${metrics.apCancelled}`}
+                />
+                <StatCard title="Usuários ativos" value={metrics.activeProfiles} icon={UserCheck} gradient="from-emerald-500 to-green-600" />
+                <StatCard
+                    title="Documentos gerados (mês)"
+                    value={metrics.docsThisMonth}
+                    icon={FileText}
+                    gradient="from-slate-600 to-slate-800"
+                    subtext="generated_documents · createdAt"
+                />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Gráfico 1: TEA por Escola */}
-                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
-                        <School size={20} className="text-primary-600" /> Distribuição TEA por Escola
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-6 space-y-3">
+                    <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <Bell size={20} className="text-amber-600" /> Alertas prioritários
                     </h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.teaBySchool} layout="vertical">
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" width={150} fontSize={11} tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
-                                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px' }} />
-                                <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={20} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                    {alerts.studentsWithoutSupportPro > 0 && (
+                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+                            {alerts.studentsWithoutSupportPro} alunos sem profissional de apoio
+                        </div>
+                    )}
+                    {alerts.usersMustChangePassword > 0 && (
+                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+                            {alerts.usersMustChangePassword} usuários precisam trocar a senha
+                        </div>
+                    )}
+                    {alerts.supportProsUnlinked > 0 && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                            {alerts.supportProsUnlinked} profissionais sem aluno vinculado
+                        </div>
+                    )}
+                    {alerts.studentsNoCid > 0 && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                            {alerts.studentsNoCid} alunos sem CID informado
+                        </div>
+                    )}
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">
+                        {alerts.urgentUnread} mensagens urgentes não lidas — system_messages
                     </div>
                 </div>
 
-                {/* Gráfico 2: TEA por Idade */}
-                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
-                        <Activity size={20} className="text-primary-600" /> Alunos TEA por Idade
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-6">
+                    <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2 mb-4">
+                        <ClipboardList size={20} className="text-primary-600" /> Auditoria recente
                     </h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={stats.teaByAge}>
-                                <defs>
-                                    <linearGradient id="colorTea" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                                <YAxis hide />
-                                <Tooltip contentStyle={{ borderRadius: '12px' }} />
-                                <Area type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorTea)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                    <ul className="space-y-3">
+                        {auditLogs.length === 0 && !loading && (
+                            <li className="text-sm text-slate-400">Nenhum registro de auditoria.</li>
+                        )}
+                        {auditLogs.map(log => {
+                            const { Icon, box } = auditPresentation(String(log.action));
+                            return (
+                                <li key={log.id} className="flex gap-3 border-b border-slate-100 pb-3 text-sm last:border-0 last:pb-0">
+                                    <div className={`shrink-0 rounded-lg p-2 ${box}`}>
+                                        <Icon size={16} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate font-semibold text-slate-800">{log.user}</p>
+                                        <p className="text-xs text-slate-500">
+                                            {log.module} · <span className="text-slate-600">{log.affected_record ?? '—'}</span>
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">{formatRelativePt(log.timestamp)}</p>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-6 flex flex-col">
+                    <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2 mb-4">
+                        <Users size={20} className="text-primary-600" /> Distribuição por role
+                    </h3>
+                    <div className="space-y-4">
+                        {roleDistribution.rows.map(r => (
+                            <div key={r.role}>
+                                <div className="mb-1 flex justify-between text-xs font-semibold text-slate-600">
+                                    <span>{ADMIN_ROLE_LABELS[r.role] ?? r.role}</span>
+                                    <span>{r.count}</span>
+                                </div>
+                                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                        className="h-full rounded-full bg-primary-500 transition-all"
+                                        style={{ width: `${(r.count / roleDistribution.max) * 100}%` }}
+                                    />
+                                </div>
+                            </div>
+                        ))}
                     </div>
+                    <p className="mt-6 border-t border-slate-100 pt-4 text-xs leading-relaxed text-slate-500">
+                        Acesso exclusivo ADMIN: Segurança + Backup
+                        {hasPermission(currentUser, 'can_access_security_data') ? ' · permissões de segurança ativas.' : ''}
+                    </p>
+                </div>
+            </div>
+
+            <div>
+                <h3 className="font-bold text-lg text-slate-800 mb-4">Ações rápidas (ADMIN)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <ActionCard
+                        title="Gestão de Usuários"
+                        description="Contas, papéis e escopos"
+                        icon={Shield}
+                        onClick={() => onNavigate('admin')}
+                        colorClass="bg-sky-50 text-sky-700"
+                    />
+                    <ActionCard
+                        title="Auditoria do Sistema"
+                        description="Histórico de ações no sistema"
+                        icon={ShieldAlert}
+                        onClick={() => onNavigate('audit-logs')}
+                        colorClass="bg-rose-50 text-rose-700"
+                    />
+                    <ActionCard
+                        title="Configurações"
+                        description="Identidade visual e timbrado"
+                        icon={Settings}
+                        onClick={() => onNavigate('settings')}
+                        colorClass="bg-slate-50 text-slate-700"
+                    />
+                    <ActionCard
+                        title="Enviar Alerta"
+                        description="Alerta urgente (system_messages)"
+                        icon={MessageSquare}
+                        onClick={handleSendSystemAlert}
+                        colorClass="bg-orange-50 text-orange-700"
+                    />
                 </div>
             </div>
         </div>
@@ -161,122 +799,526 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
 };
 
 // --- 2. SECRETÁRIA DE EDUCAÇÃO ---
+const COV_OK = '#1D9E75';
+const COV_MID = '#BA7517';
+const COV_LOW = '#E24B4A';
+
+function coverageColor(pct: number): string {
+    if (pct >= 70) return COV_OK;
+    if (pct >= 50) return COV_MID;
+    return COV_LOW;
+}
+
+function normalizeWorkload(w: string | undefined): string {
+    const t = (w || '').toLowerCase().replace(/\s/g, '');
+    if (t.includes('40')) return '40h';
+    if (t.includes('20')) return '20h';
+    return 'Outras / não informado';
+}
+
+function categorizeSecretaryDiagnosis(s: Student): string {
+    const cid = (s.clinical?.cid || '').toUpperCase();
+    const needsLower = (s.clinical?.specialNeeds || []).map(x => String(x).toLowerCase());
+    const needsJoined = needsLower.join(' ');
+    if (cid.includes('F84') || needsJoined.includes('tea') || needsJoined.includes('autismo')) return 'TEA/Autismo';
+    if (cid.includes('F7') || needsJoined.includes('intelectual')) return 'Deficiência Intelectual';
+    if (needsJoined.includes('altas habilidades')) return 'Altas Habilidades';
+    if (cid.trim().length > 0) return 'Outros diagnósticos';
+    return 'Sem CID informado';
+}
+
 export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
     const isCocal = currentUser.scope === 'COCAL';
+    const scope = currentUser.scope ?? 'GLOBAL';
 
-    const stats = useMemo(() => {
-        const filteredStudents = isCocal
-            ? students.filter(s => {
+    const [loading, setLoading] = useState(true);
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
+    const [schoolsList, setSchoolsList] = useState<SchoolEntity[]>([]);
+    const [generatedLaudoDocs, setGeneratedLaudoDocs] = useState<SavedDocument[]>([]);
+
+    const monthStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            setLoading(true);
+            try {
+                const [pros, sch, docsAll] = await Promise.all([
+                    SupabaseService.getSupportProfessionals(),
+                    SupabaseService.getSchools(),
+                    SupabaseService.getDocuments(),
+                ]);
+                let apts: Appointment[] = [];
+                if (scope === 'GLOBAL') {
+                    const [aSede, aCocal] = await Promise.all([
+                        SupabaseService.getAppointments({ unit: 'SEDE' }),
+                        SupabaseService.getAppointments({ unit: 'COCAL' }),
+                    ]);
+                    const byId = new Map<string, Appointment>();
+                    [...aSede, ...aCocal].forEach(a => byId.set(a.id, a));
+                    apts = [...byId.values()];
+                } else if (scope === 'SEDE') {
+                    apts = await SupabaseService.getAppointments({ unit: 'SEDE' });
+                } else if (scope === 'COCAL') {
+                    apts = await SupabaseService.getAppointments({ unit: 'COCAL' });
+                }
+                if (!cancelled) {
+                    setSupportProfessionals(pros);
+                    setSchoolsList(sch);
+                    setGeneratedLaudoDocs((docsAll || []).filter(d => d.docType === 'Laudo Médico'));
+                    setAppointments(apts);
+                }
+            } catch (e) {
+                console.error('[EducationSecretaryDashboard] Erro ao carregar painel:', e);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [scope]);
+
+    const scopedStudents = useMemo(() => {
+        if (isCocal) {
+            return students.filter(s => {
                 const schoolName = (s.school.schoolName || '').toLowerCase();
                 const district = (s.school.district || '').toLowerCase();
                 return schoolName.includes('cocal') || district.includes('cocal');
-            })
-            : students;
+            });
+        }
+        if (currentUser.scope === 'SEDE') {
+            return students.filter(s => {
+                const schoolName = (s.school.schoolName || '').toLowerCase();
+                const district = (s.school.district || '').toLowerCase();
+                return !schoolName.includes('cocal') && !district.includes('cocal');
+            });
+        }
+        return students;
+    }, [students, isCocal, currentUser.scope]);
 
-        const total = filteredStudents.length;
-        const teaStudents = filteredStudents.filter(s => {
-            const diag = (s.clinical?.diagnosis || '').toUpperCase();
-            const needs = (s.clinical?.specialNeeds || []).map(n => n.toUpperCase());
-            return diag.includes('TEA') || diag.includes('AUTISMO') || needs.includes('AUTISMO') || needs.includes('TEA');
+    const scopedStudentIdSet = useMemo(() => new Set(scopedStudents.map(s => s.id)), [scopedStudents]);
+
+    const schoolMatchesCocalTerritory = (name: string, dist: string) => {
+        const n = (name || '').toLowerCase();
+        const d = (dist || '').toLowerCase();
+        return n.includes('cocal') || d.includes('cocal');
+    };
+
+    const scopedSchools = useMemo(() => {
+        if (scope === 'COCAL' || isCocal) {
+            return schoolsList.filter(sc => schoolMatchesCocalTerritory(sc.name, sc.district || ''));
+        }
+        if (scope === 'SEDE') {
+            return schoolsList.filter(sc => !schoolMatchesCocalTerritory(sc.name, sc.district || ''));
+        }
+        return schoolsList;
+    }, [schoolsList, scope, isCocal]);
+
+    const scopedSchoolIdSet = useMemo(() => new Set(scopedSchools.map(s => s.id).filter(Boolean)), [scopedSchools]);
+
+    const scopedSupportProfessionals = useMemo(() => {
+        return supportProfessionals.filter(p => {
+            if (p.schoolId && scopedSchoolIdSet.has(p.schoolId)) return true;
+            if (p.studentId && scopedStudentIdSet.has(p.studentId)) return true;
+            return false;
         });
+    }, [supportProfessionals, scopedSchoolIdSet, scopedStudentIdSet]);
 
-        const withSupport = filteredStudents.filter(s => s.school?.hasSpecialAide === true).length;
-        const pendingEval = filteredStudents.filter(s => s.status === 'Pending').length;
+    const linkedStudentIds = useMemo(() => {
+        return new Set(
+            scopedSupportProfessionals
+                .map(p => p.studentId)
+                .filter(id => id && String(id).trim() !== '' && scopedStudentIdSet.has(id as string))
+        );
+    }, [scopedSupportProfessionals, scopedStudentIdSet]);
 
-        // Distribuição TEA por Escola
-        const teaBySchool = teaStudents.reduce((acc: any[], s) => {
-            const school = s.school.schoolName || 'Não Informada';
-            const existing = acc.find(i => i.name === school);
-            if (existing) existing.value++;
-            else acc.push({ name: school, value: 1 });
-            return acc;
-        }, []).sort((a, b) => b.value - a.value).slice(0, 5);
-
-        // Distribuição TEA por Idade
-        const teaByAge = teaStudents.reduce((acc: any[], s) => {
-            if (!s.birthDate) return acc;
-            const birth = new Date(s.birthDate);
-            const today = new Date();
-            let age = today.getFullYear() - birth.getFullYear();
-            const m = today.getMonth() - birth.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-
-            const ageGroup = `${age} anos`;
-            const existing = acc.find(i => i.name === ageGroup);
-            if (existing) existing.value++;
-            else acc.push({ name: ageGroup, age, value: 1 });
-            return acc;
-        }, []).sort((a, b) => a.age - b.age);
-
+    const strategic = useMemo(() => {
+        const total = scopedStudents.length;
+        const [y, m] = monthStr.split('-').map(Number);
+        const startMs = new Date(y, m - 1, 1).getTime();
+        const endMsMonth = new Date(y, m, 1).getTime();
+        const newThisMonth = scopedStudents.filter(s => {
+            if (!s.createdAt) return false;
+            const t = new Date(s.createdAt).getTime();
+            return !Number.isNaN(t) && t >= startMs && t < endMsMonth;
+        }).length;
+        const withSupportLink = scopedStudents.filter(s => linkedStudentIds.has(s.id)).length;
+        const coveragePct = total > 0 ? Math.round((withSupportLink / total) * 1000) / 10 : 0;
+        const withoutSupport = total - withSupportLink;
+        const monthAptsTotal = appointments.filter(a => a.date && a.date.startsWith(monthStr)).length;
         return {
             total,
-            teaCount: teaStudents.length,
-            withSupport,
-            withoutSupport: total - withSupport,
-            pendingEval,
-            teaBySchool,
-            teaByAge
+            newThisMonth,
+            coveragePct,
+            withoutSupport,
+            monthAptsTotal,
+            covColor: coverageColor(coveragePct),
         };
-    }, [students, isCocal]);
+    }, [scopedStudents, monthStr, appointments, linkedStudentIds]);
+
+    const schoolCoverageRows = useMemo(() => {
+        return scopedSchools
+            .map(sc => {
+                const atSchool = scopedStudents.filter(s => {
+                    if (s.school.schoolId && sc.id) return s.school.schoolId === sc.id;
+                    const sn = (s.school.schoolName || '').trim().toLowerCase();
+                    const nn = (sc.name || '').trim().toLowerCase();
+                    return sn.length > 0 && sn === nn;
+                });
+                const total = atSchool.length;
+                const withP = atSchool.filter(s => linkedStudentIds.has(s.id)).length;
+                const pct = total > 0 ? Math.round((withP / total) * 1000) / 10 : 0;
+                return {
+                    id: sc.id,
+                    name: sc.name || 'Escola',
+                    withP,
+                    total,
+                    pct,
+                    fill: coverageColor(pct),
+                };
+            })
+            .filter(r => r.total > 0)
+            .sort((a, b) => a.pct - b.pct);
+    }, [scopedSchools, scopedStudents, linkedStudentIds]);
+
+    const diagnosisDonut = useMemo(() => {
+        const order = [
+            'TEA/Autismo',
+            'Deficiência Intelectual',
+            'Altas Habilidades',
+            'Outros diagnósticos',
+            'Sem CID informado',
+        ] as const;
+        const counts = new Map<string, number>();
+        order.forEach(k => counts.set(k, 0));
+        scopedStudents.forEach(s => {
+            const k = categorizeSecretaryDiagnosis(s);
+            counts.set(k, (counts.get(k) || 0) + 1);
+        });
+        const n = scopedStudents.length || 1;
+        return order.map(name => ({
+            name,
+            value: counts.get(name) || 0,
+            pct: Math.round(((counts.get(name) || 0) / n) * 1000) / 10,
+        }));
+    }, [scopedStudents]);
+
+    const workloadDist = useMemo(() => {
+        const bucket = new Map<string, number>();
+        scopedSupportProfessionals.forEach(p => {
+            const k = normalizeWorkload(p.workload);
+            bucket.set(k, (bucket.get(k) || 0) + 1);
+        });
+        const total = scopedSupportProfessionals.length || 1;
+        const order = ['20h', '40h', 'Outras / não informado'];
+        return order
+            .filter(k => (bucket.get(k) || 0) > 0 || k === '20h' || k === '40h')
+            .map(k => ({
+                name: k,
+                count: bucket.get(k) || 0,
+                pct: Math.round(((bucket.get(k) || 0) / total) * 1000) / 10,
+            }));
+    }, [scopedSupportProfessionals]);
+
+    const quality = useMemo(() => {
+        const criticalSchools = schoolCoverageRows.filter(r => r.pct < 50);
+        const noCid = scopedStudents.filter(
+            s => !s.clinical?.cid || String(s.clinical.cid).trim() === ''
+        ).length;
+        const prosNoStudent = scopedSupportProfessionals.filter(
+            p => !p.studentId || String(p.studentId).trim() === ''
+        ).length;
+        const generatedLaudosScoped = generatedLaudoDocs.filter(d => scopedStudentIdSet.has(d.studentId));
+        const laudoDates: { ms: number }[] = [];
+        scopedStudents.forEach(s => {
+            (s.documents || [])
+                .filter(d => d.type === 'Laudo Médico')
+                .forEach(d => {
+                    const ms = new Date(d.uploadedAt).getTime();
+                    if (!Number.isNaN(ms)) laudoDates.push({ ms });
+                });
+        });
+        generatedLaudosScoped.forEach(d => {
+            const ms = new Date(d.createdAt).getTime();
+            if (!Number.isNaN(ms)) laudoDates.push({ ms });
+        });
+        const twelveMs = 12 * 30.4375 * 24 * 60 * 60 * 1000;
+        const tenMs = 10 * 30.4375 * 24 * 60 * 60 * 1000;
+        let expired = 0;
+        let dueSoon = 0;
+        laudoDates.forEach(({ ms }) => {
+            const age = Date.now() - ms;
+            if (age >= twelveMs) expired++;
+            else if (age >= tenMs) dueSoon++;
+        });
+        const avgStudentsPerPro =
+            scopedSupportProfessionals.length > 0
+                ? Math.round((scopedStudents.length / scopedSupportProfessionals.length) * 10) / 10
+                : 0;
+        return {
+            criticalSchools,
+            noCid,
+            prosNoStudent,
+            laudoExpired: expired,
+            laudoDueSoon: dueSoon,
+            avgStudentsPerPro,
+        };
+    }, [
+        schoolCoverageRows,
+        scopedStudents,
+        scopedSupportProfessionals,
+        generatedLaudoDocs,
+        scopedStudentIdSet,
+    ]);
+
+    const diagPieColors = ['#0ea5e9', '#8b5cf6', '#f59e0b', '#64748b', '#cbd5e1'];
 
     return (
         <div className="space-y-8 animate-slideUp">
-            <div className="flex justify-between items-start">
-                <WelcomeHeader name={currentUser.name.split(' ')[0]} />
-                {isCocal && (
-                    <div className="hidden md:flex px-4 py-2 bg-orange-100 text-orange-800 rounded-xl text-sm font-bold border border-orange-200 items-center gap-2 shadow-sm">
-                        <Globe size={16} /> Distrito Cocal
-                    </div>
-                )}
+            <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-start">
+                <div>
+                    <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+                    <p className="mt-1 text-sm text-slate-600">
+                        Secretaria Municipal de Educação — Brotas de Macaúbas
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center">
+                    {isCocal && (
+                        <div className="px-3 py-1.5 bg-amber-100 text-amber-900 rounded-xl text-xs font-bold border border-amber-300 flex items-center gap-2">
+                            <Globe size={14} /> Distrito de Cocal
+                        </div>
+                    )}
+                    {scope === 'GLOBAL' && (
+                        <div className="px-3 py-1.5 bg-sky-100 text-sky-900 rounded-xl text-xs font-bold border border-sky-300 flex items-center gap-2">
+                            <Globe size={14} /> Visão Municipal Consolidada
+                        </div>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => onNavigate('list')}
+                        className="text-xs font-semibold text-primary-600 hover:underline"
+                    >
+                        Ver lista de alunos
+                    </button>
+                </div>
             </div>
 
-            {/* Indicadores de Educação Inclusiva */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard title="Total Alunos" value={stats.total} icon={Users} gradient="from-blue-500 to-indigo-600" />
-                <StatCard title="Alunos TEA" value={stats.teaCount} icon={Brain} gradient="from-purple-500 to-indigo-600" />
-                <StatCard title="Com Apoio" value={stats.withSupport} icon={HeartPulse} gradient="from-emerald-500 to-teal-600" />
-                <StatCard title="Sem Apoio" value={stats.withoutSupport} icon={AlertTriangle} gradient="from-orange-400 to-red-500" />
-                <StatCard title="Aguar. Avaliação" value={stats.pendingEval} icon={Clock} gradient="from-slate-600 to-slate-800" />
+            {loading && (
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm text-slate-500">
+                    Carregando indicadores estratégicos…
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <StatCard
+                    title="Total de alunos EEIA"
+                    value={strategic.total}
+                    icon={Users}
+                    gradient="from-blue-500 to-indigo-600"
+                    subtext={`${strategic.newThisMonth} novos este mês`}
+                />
+                <StatCard
+                    title="Cobertura de apoio"
+                    value={<span style={{ color: strategic.covColor }}>{strategic.coveragePct}%</span>}
+                    icon={HeartPulse}
+                    gradient="from-teal-500 to-emerald-600"
+                    subtext="Alunos com profissional vinculado / total"
+                />
+                <StatCard
+                    title="Alunos sem apoio"
+                    value={
+                        <span className={strategic.withoutSupport > 0 ? 'text-red-600' : ''}>{strategic.withoutSupport}</span>
+                    }
+                    icon={AlertTriangle}
+                    gradient="from-orange-400 to-red-500"
+                    subtext="Sem vínculo em profissionais de apoio (escopo)"
+                />
+                <StatCard
+                    title="Agendamentos do mês"
+                    value={strategic.monthAptsTotal}
+                    icon={Calendar}
+                    gradient="from-amber-500 to-orange-600"
+                    subtext={`Referência: ${monthStr}`}
+                />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Gráfico 1: TEA por Escola */}
-                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
-                        <School size={20} className="text-primary-600" /> Distribuição TEA por Escola
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
+                        <School size={20} className="text-primary-600" /> Cobertura por escola
                     </h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.teaBySchool} layout="vertical">
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" width={150} fontSize={11} tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
-                                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px' }} />
-                                <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={20} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                    {schoolCoverageRows.length === 0 ? (
+                        <p className="text-sm text-slate-400">Sem alunos por escola no escopo atual.</p>
+                    ) : (
+                        <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={schoolCoverageRows} layout="vertical" margin={{ left: 8, right: 16 }}>
+                                    <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} fontSize={11} />
+                                    <YAxis
+                                        type="category"
+                                        dataKey="name"
+                                        width={120}
+                                        tick={{ fontSize: 10, fill: '#64748b' }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+                                    <Tooltip
+                                        formatter={(value: number) => [`${value}%`, 'Cobertura']}
+                                        labelFormatter={(_l, payload: any[]) => {
+                                            const pl = payload?.[0]?.payload;
+                                            return pl ? `${pl.name} · ${pl.withP}/${pl.total} alunos` : '';
+                                        }}
+                                    />
+                                    <Bar dataKey="pct" radius={[0, 6, 6, 0]} barSize={18}>
+                                        {schoolCoverageRows.map((e, i) => (
+                                            <Cell key={e.id || String(i)} fill={e.fill} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+                    <p className="mt-2 text-xs text-slate-500">
+                        Legenda de cor: ≥70% verde · 50–69% amarelo · &lt;50% vermelho
+                    </p>
                 </div>
 
-                {/* Gráfico 2: TEA por Idade */}
-                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
-                        <Activity size={20} className="text-primary-600" /> Alunos TEA por Idade
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
+                        <Brain size={20} className="text-primary-600" /> Distribuição por diagnóstico
                     </h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={stats.teaByAge}>
-                                <defs>
-                                    <linearGradient id="colorTea" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                                <YAxis hide />
-                                <Tooltip contentStyle={{ borderRadius: '12px' }} />
-                                <Area type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorTea)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                    <div className="h-80 flex flex-col md:flex-row items-center gap-4">
+                        <div className="w-full h-56 md:h-full md:flex-1">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={diagnosisDonut}
+                                        dataKey="value"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={52}
+                                        outerRadius={78}
+                                        paddingAngle={2}
+                                    >
+                                        {diagnosisDonut.map((_, i) => (
+                                            <Cell key={i} fill={diagPieColors[i % diagPieColors.length]} stroke="none" />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        formatter={(v: number, _k, item: any) => [
+                                            `${v} (${item?.payload?.pct ?? 0}%)`,
+                                            'Alunos',
+                                        ]}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <ul className="w-full md:w-52 text-xs space-y-2 shrink-0">
+                            {diagnosisDonut.map((row, i) => (
+                                <li key={row.name} className="flex justify-between gap-2 border-b border-slate-100 pb-1">
+                                    <span className="flex items-center gap-2 text-slate-700">
+                                        <span
+                                            className="inline-block h-2 w-2 rounded-full"
+                                            style={{ background: diagPieColors[i % diagPieColors.length] }}
+                                        />
+                                        {row.name}
+                                    </span>
+                                    <span className="font-semibold text-slate-800">
+                                        {row.value} · {row.pct}%
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
+                        <Clock size={20} className="text-primary-600" /> Carga horária (profissionais de apoio)
+                    </h3>
+                    <div className="space-y-3">
+                        {workloadDist.map(row => (
+                            <div key={row.name}>
+                                <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+                                    <span>{row.name}</span>
+                                    <span>
+                                        {row.count} ({row.pct}%)
+                                    </span>
+                                </div>
+                                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full bg-primary-500 transition-all"
+                                        style={{ width: `${Math.min(100, row.pct)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="mt-4 text-xs text-slate-500 border-t border-slate-100 pt-3">
+                        Total: {scopedSupportProfessionals.length} profissionais · Média: {quality.avgStudentsPerPro}{' '}
+                        alunos/profissional
+                    </p>
+                </div>
+
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.08)] space-y-4">
+                    <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <ClipboardList size={20} className="text-primary-600" /> Indicadores de qualidade
+                    </h3>
+
+                    <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Escolas com cobertura &lt; 50%</p>
+                        {quality.criticalSchools.length === 0 ? (
+                            <p className="text-sm text-slate-400">Nenhuma escola crítica no escopo.</p>
+                        ) : (
+                            <ul className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                {quality.criticalSchools.map(s => (
+                                    <li
+                                        key={s.id}
+                                        className="flex items-center justify-between gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm"
+                                    >
+                                        <span className="font-medium text-slate-800 truncate">{s.name}</span>
+                                        <span className="flex items-center gap-2 shrink-0">
+                                            <span className="text-red-700 font-bold">{s.pct}%</span>
+                                            <span className="text-[10px] font-bold uppercase bg-red-200 text-red-900 px-1.5 py-0.5 rounded">
+                                                Crítico
+                                            </span>
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        {quality.noCid > 0 && (
+                            <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                                <span className="font-semibold">{quality.noCid} alunos sem CID</span>
+                                <span className="text-[10px] font-bold uppercase bg-amber-200 px-1.5 py-0.5 rounded">Preencher</span>
+                            </div>
+                        )}
+                        {quality.prosNoStudent > 0 && (
+                            <div className="inline-flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-950">
+                                <span className="font-semibold">{quality.prosNoStudent} prof. sem aluno</span>
+                                <span className="text-[10px] font-bold uppercase bg-orange-200 px-1.5 py-0.5 rounded">Atenção</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                        <p className="font-semibold text-slate-700 mb-1">Laudos médicos (escopo)</p>
+                        <p className="text-xs text-slate-600">
+                            Vencidos (&gt;12 meses): <strong>{quality.laudoExpired}</strong> · A vencer (10–12 meses):{' '}
+                            <strong>{quality.laudoDueSoon}</strong>
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                            Fontes: anexos do aluno (tipo &quot;Laudo Médico&quot;) e documentos gerados com o mesmo tipo.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -406,122 +1448,938 @@ export const SecretaryDashboard: React.FC<DashboardProps> = ({ students, current
     );
 };
 
-// --- 3. PSICOLOGIA ---
-export const PsychologyDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
+// --- Secretaria da Sede (SECRETARIA_SEDE): operacional, sem dados de Cocal ---
+function sedeExcludeCocal(district: string | undefined, name: string | undefined): boolean {
+    const d = (district || '').toLowerCase();
+    const n = (name || '').toLowerCase();
+    return !d.includes('cocal') && !n.includes('cocal');
+}
+
+function cocalIncludeTerritory(district: string | undefined, name: string | undefined): boolean {
+    const d = (district || '').toLowerCase();
+    const n = (name || '').toLowerCase();
+    return d.includes('cocal') || n.includes('cocal');
+}
+
+function mondayStartYmdFrom(todayYmd: string): string {
+    const [y, m, da] = todayYmd.split('-').map(Number);
+    const dt = new Date(y, m - 1, da);
+    const day = dt.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    dt.setDate(dt.getDate() + diff);
+    return ymdLocal(dt);
+}
+
+function capitalizePt(s: string): string {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function studentLooksTea(s: Student): boolean {
+    const cid = (s.clinical?.cid || '').toUpperCase();
+    if (cid.includes('F84')) return true;
+    const needs = s.clinical?.specialNeeds || [];
+    return needs.some(x => (x || '').toLowerCase().includes('tea'));
+}
+
+export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const [schools, setSchools] = useState<SchoolEntity[]>([]);
+    const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
+    const [sedeAppointments, setSedeAppointments] = useState<Appointment[]>([]);
+    const [documents, setDocuments] = useState<SavedDocument[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let cancelled = false;
         const load = async () => {
+            setLoading(true);
             try {
-                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
-                setAppointments(data);
-            } catch (error) {
-                console.error('Erro ao carregar agenda:', error);
+                const [sch, sp, ap, docs] = await Promise.all([
+                    SupabaseService.getSchools(),
+                    SupabaseService.getSupportProfessionals(),
+                    SupabaseService.getAppointments({ unit: 'SEDE' as Unit }),
+                    SupabaseService.getDocuments(),
+                ]);
+                if (!cancelled) {
+                    setSchools(sch || []);
+                    setSupportProfessionals(sp || []);
+                    setSedeAppointments((ap || []).filter(a => a.unit === 'SEDE'));
+                    setDocuments(docs || []);
+                }
+            } catch (e) {
+                console.error('[SecretariaSedeDashboard]', e);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
-        load();
+        void load();
+        return () => {
+            cancelled = true;
+        };
     }, [currentUser.id]);
 
-    const stats = useMemo(() => {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const monthStr = now.toISOString().slice(0, 7);
+    const todayY = ymdLocal();
 
-        const myStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.PSYCHOLOGY));
+    const sedeStudents = useMemo(
+        () => students.filter(s => sedeExcludeCocal(s.school?.district, s.school?.schoolName)),
+        [students]
+    );
 
-        const todayCount = appointments.filter(a => a.date === todayStr).length;
-        const weekCount = appointments.filter(a => {
-            const d = new Date(a.date);
-            const weekAhead = new Date();
-            weekAhead.setDate(now.getDate() + 7);
-            return d >= now && d <= weekAhead;
-        }).length;
-        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
-        const absences = appointments.filter(a => a.status === 'FALTOU').length;
+    const sedeSchools = useMemo(
+        () => schools.filter(s => sedeExcludeCocal(s.district, s.name)),
+        [schools]
+    );
 
-        const diagnosisData = myStudents.reduce((acc: any[], s) => {
-            const diag = (s.clinical?.diagnosis || '').split(' ')[0] || 'Outros';
-            const existing = acc.find(i => i.name === diag);
-            if (existing) existing.value++;
-            else acc.push({ name: diag, value: 1 });
-            return acc;
-        }, []);
+    const sedeSchoolIdSet = useMemo(() => new Set(sedeSchools.map(s => s.id)), [sedeSchools]);
 
-        return { activeCount: myStudents.length, diagnosisData, todayCount, weekCount, monthCount, absences };
-    }, [students, appointments]);
+    const sedeSupportProfessionals = useMemo(
+        () => supportProfessionals.filter(sp => sedeSchoolIdSet.has(sp.schoolId)),
+        [supportProfessionals, sedeSchoolIdSet]
+    );
+
+    const linkedStudentIds = useMemo(() => {
+        const set = new Set<string>();
+        for (const sp of sedeSupportProfessionals) {
+            const sid = (sp.studentId || '').trim();
+            if (sid) set.add(sid);
+        }
+        return set;
+    }, [sedeSupportProfessionals]);
+
+    const studentsSemApoio = useMemo(
+        () => sedeStudents.filter(s => !linkedStudentIds.has(s.id)),
+        [sedeStudents, linkedStudentIds]
+    );
+
+    const studentsComApoioCount = useMemo(
+        () => sedeStudents.filter(s => linkedStudentIds.has(s.id)).length,
+        [sedeStudents, linkedStudentIds]
+    );
+
+    const coberturaPct = useMemo(() => {
+        if (sedeStudents.length === 0) return 100;
+        return Math.round((studentsComApoioCount / sedeStudents.length) * 100);
+    }, [sedeStudents.length, studentsComApoioCount]);
+
+    const coberturaColorClass =
+        coberturaPct >= 70 ? 'text-emerald-700' : coberturaPct >= 50 ? 'text-amber-800' : 'text-red-700';
+
+    const apptsSedeHoje = useMemo(
+        () => sedeAppointments.filter(a => a.date === todayY && a.unit === 'SEDE'),
+        [sedeAppointments, todayY]
+    );
+
+    const profSemAluno = useMemo(
+        () =>
+            sedeSupportProfessionals.filter(sp => {
+                const sid = (sp.studentId || '').trim();
+                return !sid;
+            }),
+        [sedeSupportProfessionals]
+    );
+
+    const schoolCoverageRows = useMemo(
+        () =>
+            sedeSchools
+                .map(escola => {
+                    const totalAlunos = sedeStudents.filter(s => (s.school?.schoolId || '') === escola.id).length;
+                    const comApoio = sedeSupportProfessionals.filter(
+                        sp => sp.schoolId === escola.id && (sp.studentId || '').trim()
+                    ).length;
+                    const pct = totalAlunos === 0 ? 100 : Math.min(100, Math.round((comApoio / totalAlunos) * 100));
+                    return { escola, totalAlunos, comApoio, pct };
+                })
+                .sort((a, b) => a.pct - b.pct),
+        [sedeSchools, sedeStudents, sedeSupportProfessionals]
+    );
+
+    const schoolsUnder50 = useMemo(
+        () => schoolCoverageRows.filter(r => r.totalAlunos > 0 && r.pct < 50).map(r => r.escola.name),
+        [schoolCoverageRows]
+    );
+
+    const teaSemProf = useMemo(() => studentsSemApoio.filter(s => studentLooksTea(s)), [studentsSemApoio]);
+
+    const profContractStale = useMemo(() => {
+        const limit = new Date();
+        limit.setFullYear(limit.getFullYear() - 1);
+        return sedeSupportProfessionals.filter(sp => {
+            const raw = (sp.contractStartDate || '').trim();
+            if (!raw) return false;
+            const t = new Date(raw.includes('T') ? raw : `${raw}T12:00:00`).getTime();
+            if (Number.isNaN(t)) return false;
+            return t < limit.getTime();
+        });
+    }, [sedeSupportProfessionals]);
+
+    const alunosPendingSede = useMemo(() => sedeStudents.filter(s => s.status === 'Pending'), [sedeStudents]);
+
+    const weekStart = mondayStartYmdFrom(todayY);
+    const weekEnd = addDaysToYmd(weekStart, 6);
+    const apptsSedeSemana = useMemo(
+        () => sedeAppointments.filter(a => a.unit === 'SEDE' && a.date >= weekStart && a.date <= weekEnd),
+        [sedeAppointments, weekStart, weekEnd]
+    );
+
+    const sedeStudentIdSet = useMemo(() => new Set(sedeStudents.map(s => s.id)), [sedeStudents]);
+    const monthPrefix = todayY.slice(0, 7);
+    const docsSedeMes = useMemo(
+        () =>
+            documents.filter(
+                d => sedeStudentIdSet.has(d.studentId) && (d.createdAt || '').slice(0, 7) === monthPrefix
+            ),
+        [documents, sedeStudentIdSet, monthPrefix]
+    );
+
+    const headerDate = capitalizePt(
+        new Date().toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+        })
+    );
+
+    const alunosSemApoioSorted = useMemo(
+        () =>
+            [...studentsSemApoio].sort((a, b) =>
+                (a.school?.schoolName || '').localeCompare(b.school?.schoolName || '', 'pt-BR')
+            ),
+        [studentsSemApoio]
+    );
+
+    const diagResumo = (s: Student) => {
+        const cid = (s.clinical?.cid || '').trim();
+        const sn0 = (s.clinical?.specialNeeds && s.clinical.specialNeeds[0]) || '';
+        return cid || sn0 || '—';
+    };
+
+    if (loading) {
+        return (
+            <div className="flex min-h-[40vh] items-center justify-center gap-2 text-slate-500">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span className="font-medium">Carregando painel da Secretaria (Sede)…</span>
+            </div>
+        );
+    }
+
+    const firstName = (currentUser.name || '').trim().split(/\s+/)[0] || 'Secretaria';
 
     return (
-        <div className="space-y-8 animate-slideUp">
-            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+        <div className="relative mx-auto max-w-7xl space-y-8 p-6 animate-slideUp">
+            <header className="space-y-2">
+                <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-2xl font-black text-slate-900">Olá, {firstName}</h1>
+                    <span className="rounded-full border border-amber-400 bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-950">
+                        Secretaria — Sede
+                    </span>
+                </div>
+                <p className="text-slate-600">Gestão das escolas da unidade Sede</p>
+                <p className="text-sm font-medium text-slate-500">{headerDate}</p>
+            </header>
 
-            {/* Indicadores de Agenda */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-purple-500 to-indigo-600" />
-                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-indigo-500 to-blue-600" />
-                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-blue-500 to-cyan-600" />
-                <StatCard title="Pacientes Ativos" value={stats.activeCount} icon={Users} gradient="from-emerald-500 to-teal-600" />
-                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-orange-400 to-red-500" subtext="Faltas recorrentes" />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <ActionCard
-                            title="Nova sessão"
-                            description="Inicie o acompanhamento com um paciente"
-                            icon={Brain}
-                            onClick={() => onNavigate('psychology/new-session')}
-                            colorClass="bg-purple-50 text-purple-600"
-                        />
-                        <ActionCard
-                            title="Minha Agenda"
-                            description="Visualize seus atendimentos programados"
-                            icon={Calendar}
-                            onClick={() => onNavigate('agenda')}
-                            colorClass="bg-indigo-50 text-indigo-600"
-                        />
-                    </div>
-
-                    <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                        <h3 className="font-bold text-xl text-slate-800 mb-6">Diagnósticos Recorrentes</h3>
-                        <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie data={stats.diagnosisData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                        {stats.diagnosisData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip contentStyle={{ borderRadius: '12px' }} />
-                                    <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
-                                </PieChart>
-                            </ResponsiveContainer>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+                    <div className="relative z-10 flex justify-between items-start">
+                        <div>
+                            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Alunos EEIA — Sede</p>
+                            <h3 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-800">{sedeStudents.length}</h3>
+                            {studentsSemApoio.length > 0 ? (
+                                <p className="mt-2 text-xs font-semibold text-red-600">
+                                    {studentsSemApoio.length} sem apoio vinculado
+                                </p>
+                            ) : (
+                                <p className="mt-2 text-xs font-medium text-slate-400">Todos com apoio vinculado neste recorte</p>
+                            )}
+                        </div>
+                        <div className="rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 p-3 text-white shadow-lg">
+                            <Users size={20} />
                         </div>
                     </div>
                 </div>
-
-                <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-3xl shadow-card border border-slate-100">
-                        <h3 className="font-bold text-lg text-slate-800 mb-4">Acesso Rápido</h3>
-                        <div className="space-y-3">
-                            <button onClick={() => onNavigate('list')} className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition-colors">
-                                <span className="font-semibold flex items-center gap-2"><Activity size={18} /> Prontuários</span>
-                                <ArrowRight size={16} />
-                            </button>
-                            <button className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition-colors">
-                                <span className="font-semibold flex items-center gap-2"><FileText size={18} /> Modelos de Laudo</span>
-                                <ArrowRight size={16} />
-                            </button>
-                        </div>
+                <StatCard
+                    title="Profissionais de apoio — Sede"
+                    value={sedeSupportProfessionals.length}
+                    icon={UserCheck}
+                    gradient="from-sky-500 to-blue-600"
+                    subtext={`${profSemAluno.length} sem aluno vinculado`}
+                />
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Cobertura média — Sede</p>
+                    <h3 className={`mt-2 text-3xl font-extrabold tracking-tight ${coberturaColorClass}`}>{coberturaPct}%</h3>
+                    <p className="mt-2 text-xs font-medium text-slate-500">Meta: 100% de cobertura</p>
+                    <div className="absolute right-4 top-4 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-3 text-white shadow-lg">
+                        <Activity size={20} />
                     </div>
                 </div>
+                <StatCard
+                    title="Agendamentos Sede hoje"
+                    value={apptsSedeHoje.length}
+                    icon={Calendar}
+                    gradient="from-orange-400 to-amber-600"
+                    subtext={`${apptsSedeHoje.filter(a => a.status === 'CONFIRMADO').length} confirmados`}
+                />
             </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800">
+                        <Building2 className="h-5 w-5 text-slate-600" />
+                        Cobertura por escola (Sede)
+                    </h2>
+                    <ul className="max-h-[28rem] space-y-4 overflow-y-auto pr-1">
+                        {schoolCoverageRows.map(({ escola, totalAlunos, comApoio, pct }) => {
+                            const barColor = pct >= 70 ? '#1D9E75' : pct >= 50 ? '#BA7517' : '#E24B4A';
+                            return (
+                                <li key={escola.id} className="space-y-1">
+                                    <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                                        <span className="font-semibold text-slate-800">{escola.name}</span>
+                                        <span className="text-slate-600">
+                                            {comApoio}/{totalAlunos} alunos · {pct}%
+                                        </span>
+                                    </div>
+                                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                                        <div
+                                            className="h-full rounded-full transition-all"
+                                            style={{ width: `${pct}%`, backgroundColor: barColor }}
+                                        />
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800">
+                        <Link2 className="h-5 w-5 text-slate-600" />
+                        Profissionais sem aluno vinculado
+                    </h2>
+                    {profSemAluno.length === 0 ? (
+                        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
+                            Todos os profissionais estão vinculados
+                        </p>
+                    ) : (
+                        <ul className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+                            {profSemAluno.map(sp => {
+                                const esc = sedeSchools.find(x => x.id === sp.schoolId);
+                                return (
+                                    <li
+                                        key={sp.id}
+                                        className="flex flex-col gap-1 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                                    >
+                                        <div>
+                                            <p className="font-semibold text-slate-800">{sp.name}</p>
+                                            <p className="text-xs text-slate-600">
+                                                Carga horária: {sp.workload?.trim() || '—'} · Lotação: {esc?.name || '—'}
+                                            </p>
+                                        </div>
+                                        <span className="shrink-0 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-950">
+                                            Sem vínculo
+                                        </span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                    <button
+                        type="button"
+                        className="mt-4 w-full rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                        onClick={() => onNavigate('support-professionals')}
+                    >
+                        Gerenciar vínculos
+                    </button>
+                </section>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="mb-4 text-lg font-bold text-slate-800">Alunos sem profissional de apoio</h2>
+                    <p className="mb-3 text-xs font-medium text-slate-500">Total: {studentsSemApoio.length}</p>
+                    <ul className="space-y-3">
+                        {alunosSemApoioSorted.slice(0, 6).map(s => (
+                            <li
+                                key={s.id}
+                                className="flex flex-col gap-1 rounded-xl border border-red-100 bg-red-50/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <div>
+                                    <p className="font-semibold text-slate-800">{s.fullName}</p>
+                                    <p className="text-xs text-slate-600">
+                                        {s.school?.schoolName || '—'} · {diagResumo(s)}
+                                    </p>
+                                </div>
+                                <span className="shrink-0 rounded-full border border-red-200 bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-900">
+                                    Sem apoio
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <button
+                        type="button"
+                        className="mt-4 w-full rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                        onClick={() => onNavigate('list')}
+                    >
+                        Ver todos
+                    </button>
+                </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="mb-4 text-lg font-bold text-slate-800">Alertas operacionais da Sede</h2>
+                    <div className="space-y-4 text-sm">
+                        <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                            <p className="font-bold text-red-900">Crítico</p>
+                            {schoolsUnder50.length > 0 ? (
+                                <ul className="mt-2 list-inside list-disc text-red-950">
+                                    {schoolsUnder50.slice(0, 8).map(n => (
+                                        <li key={n}>{n}</li>
+                                    ))}
+                                    {schoolsUnder50.length > 8 && <li>+ {schoolsUnder50.length - 8} escola(s)</li>}
+                                </ul>
+                            ) : (
+                                <p className="mt-1 text-red-900/80">Nenhuma escola da Sede com cobertura abaixo de 50%.</p>
+                            )}
+                            <p className="mt-3 font-semibold text-red-900">Alunos TEA sem profissional</p>
+                            {teaSemProf.length > 0 ? (
+                                <ul className="mt-1 list-inside list-disc text-red-950">
+                                    {teaSemProf.slice(0, 6).map(s => (
+                                        <li key={s.id}>{s.fullName}</li>
+                                    ))}
+                                    {teaSemProf.length > 6 && <li>+ {teaSemProf.length - 6}</li>}
+                                </ul>
+                            ) : (
+                                <p className="mt-1 text-red-900/80">Nenhum caso neste recorte.</p>
+                            )}
+                        </div>
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                            <p className="font-bold text-amber-950">Atenção</p>
+                            <p className="mt-1 text-amber-950">
+                                Profissionais com contrato há mais de 12 meses (revisar):{' '}
+                                <strong>{profContractStale.length}</strong>
+                            </p>
+                            <p className="mt-2 text-amber-950">
+                                Alunos com status &quot;Pending&quot;: <strong>{alunosPendingSede.length}</strong>
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
+                            <p className="font-bold text-sky-950">Info</p>
+                            <p className="mt-1 text-sky-950">
+                                Agendamentos da Sede nesta semana: <strong>{apptsSedeSemana.length}</strong>
+                            </p>
+                            <p className="mt-2 text-sky-950">
+                                Documentos gerados este mês (alunos da Sede): <strong>{docsSedeMes.length}</strong>
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <section>
+                <h2 className="mb-4 text-lg font-bold text-slate-800">Ações rápidas da Sede</h2>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <ActionCard
+                        title="Novo profissional de apoio"
+                        description="Cadastro e vínculos na unidade"
+                        icon={UserPlus}
+                        onClick={() => onNavigate('support-professionals')}
+                        colorClass="bg-emerald-50 text-emerald-700"
+                    />
+                    <ActionCard
+                        title="Relatório da Sede (PDF)"
+                        description="Relatório de profissionais com timbrado da Sede"
+                        icon={FileText}
+                        onClick={() => onNavigate('reports')}
+                        colorClass="bg-slate-50 text-slate-800"
+                    />
+                    <ActionCard
+                        title="Gerenciar escolas"
+                        description="Unidades escolares e cadastros"
+                        icon={School}
+                        onClick={() => onNavigate('schools')}
+                        colorClass="bg-amber-50 text-amber-800"
+                    />
+                    <ActionCard
+                        title="Ver agendamentos Sede"
+                        description="Central de agendamentos (filtra por unidade no módulo)"
+                        icon={Calendar}
+                        onClick={() => onNavigate('scheduling')}
+                        colorClass="bg-sky-50 text-sky-700"
+                    />
+                </div>
+            </section>
         </div>
     );
 };
+
+export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+    const [schools, setSchools] = useState<SchoolEntity[]>([]);
+    const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
+    const [cocalAppointments, setCocalAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            setLoading(true);
+            try {
+                const packs = await Promise.all([
+                    SupabaseService.getSchools(),
+                    SupabaseService.getSupportProfessionals(),
+                    SupabaseService.getAppointments({ unit: 'COCAL' }),
+                    SupabaseService.getPapelTimbradoConfig('COCAL'),
+                ]);
+                if (!cancelled) {
+                    setSchools((packs[0] as SchoolEntity[]) || []);
+                    setSupportProfessionals((packs[1] as SupportProfessional[]) || []);
+                    setCocalAppointments(((packs[2] as Appointment[]) || []).filter(a => a.unit === 'COCAL'));
+                }
+            } catch (e) {
+                console.error('[SecretariaCocalDashboard]', e);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        void load();
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser.id]);
+
+    const todayY = ymdLocal();
+
+    const cocalStudents = useMemo(
+        () =>
+            students.filter(s => {
+                const district = (s.school?.district || '').toLowerCase();
+                const schoolName = (s.school?.schoolName || '').toLowerCase();
+                return district.includes('cocal') || schoolName.includes('cocal');
+            }),
+        [students]
+    );
+
+    const cocalSchools = useMemo(
+        () => schools.filter(s => cocalIncludeTerritory(s.district, s.name)),
+        [schools]
+    );
+
+    const cocalSchoolIdSet = useMemo(() => new Set(cocalSchools.map(s => s.id).filter(Boolean)), [cocalSchools]);
+
+    const cocalSupportProfessionals = useMemo(
+        () => supportProfessionals.filter(sp => cocalSchoolIdSet.has(sp.schoolId)),
+        [supportProfessionals, cocalSchoolIdSet]
+    );
+
+    const cocalStudentIdSet = useMemo(() => new Set(cocalStudents.map(s => s.id)), [cocalStudents]);
+
+    const linkedStudentIds = useMemo(() => {
+        const set = new Set<string>();
+        for (const sp of cocalSupportProfessionals) {
+            const sid = (sp.studentId || '').trim();
+            if (sid && cocalStudentIdSet.has(sid)) set.add(sid);
+        }
+        return set;
+    }, [cocalSupportProfessionals, cocalStudentIdSet]);
+
+    const studentsSemApoio = useMemo(
+        () => cocalStudents.filter(s => !linkedStudentIds.has(s.id)),
+        [cocalStudents, linkedStudentIds]
+    );
+
+    const studentsComApoioCount = useMemo(
+        () => cocalStudents.filter(s => linkedStudentIds.has(s.id)).length,
+        [cocalStudents, linkedStudentIds]
+    );
+
+    const coberturaPct = useMemo(() => {
+        if (cocalStudents.length === 0) return 100;
+        return Math.round((studentsComApoioCount / cocalStudents.length) * 100);
+    }, [cocalStudents.length, studentsComApoioCount]);
+
+    const coberturaBaixa = coberturaPct < 50;
+
+    const coberturaColorClass =
+        coberturaPct >= 70 ? 'text-emerald-700' : coberturaPct >= 50 ? 'text-amber-800' : 'text-red-700';
+
+    const profSemAluno = useMemo(
+        () =>
+            cocalSupportProfessionals.filter(sp => {
+                const sid = (sp.studentId || '').trim();
+                return !sid;
+            }),
+        [cocalSupportProfessionals]
+    );
+
+    const apptsCocalHoje = useMemo(
+        () => cocalAppointments.filter(a => a.date === todayY && a.unit === 'COCAL'),
+        [cocalAppointments, todayY]
+    );
+
+    const schoolCoverageRows = useMemo(
+        () =>
+            cocalSchools
+                .map(escola => {
+                    const totalAlunos = cocalStudents.filter(s => (s.school?.schoolId || '') === escola.id).length;
+                    const comApoio = cocalSupportProfessionals.filter(
+                        sp => sp.schoolId === escola.id && (sp.studentId || '').trim()
+                    ).length;
+                    const pct = totalAlunos === 0 ? 100 : Math.min(100, Math.round((comApoio / totalAlunos) * 100));
+                    return { escola, totalAlunos, comApoio, pct };
+                })
+                .filter(r => r.totalAlunos > 0)
+                .sort((a, b) => a.pct - b.pct),
+        [cocalSchools, cocalStudents, cocalSupportProfessionals]
+    );
+
+    const teaSemProf = useMemo(() => studentsSemApoio.filter(s => studentLooksTea(s)), [studentsSemApoio]);
+
+    const profContractStale = useMemo(() => {
+        const limit = new Date();
+        limit.setFullYear(limit.getFullYear() - 1);
+        return cocalSupportProfessionals.filter(sp => {
+            const raw = (sp.contractStartDate || '').trim();
+            if (!raw) return false;
+            const t = new Date(raw.includes('T') ? raw : `${raw}T12:00:00`).getTime();
+            if (Number.isNaN(t)) return false;
+            return t < limit.getTime();
+        });
+    }, [cocalSupportProfessionals]);
+
+    const alunosPendingCocal = useMemo(() => cocalStudents.filter(s => s.status === 'Pending'), [cocalStudents]);
+
+    const weekStart = mondayStartYmdFrom(todayY);
+    const weekEnd = addDaysToYmd(weekStart, 6);
+    const apptsCocalSemana = useMemo(
+        () => cocalAppointments.filter(a => a.unit === 'COCAL' && a.date >= weekStart && a.date <= weekEnd),
+        [cocalAppointments, weekStart, weekEnd]
+    );
+
+    const escolasSemInternet = useMemo(
+        () => cocalSchools.filter(s => s.hasInternet === false),
+        [cocalSchools]
+    );
+
+    const sedeSchools = useMemo(() => schools.filter(s => sedeExcludeCocal(s.district, s.name)), [schools]);
+    const sedeSchoolIdSet = useMemo(() => new Set(sedeSchools.map(s => s.id).filter(Boolean)), [sedeSchools]);
+    const sedeStudents = useMemo(
+        () => students.filter(s => sedeExcludeCocal(s.school?.district, s.school?.schoolName)),
+        [students]
+    );
+    const sedeStudentIdSet = useMemo(() => new Set(sedeStudents.map(s => s.id)), [sedeStudents]);
+    const sedeSupportProfessionals = useMemo(
+        () => supportProfessionals.filter(sp => sedeSchoolIdSet.has(sp.schoolId)),
+        [supportProfessionals, sedeSchoolIdSet]
+    );
+    const sedeLinkedIds = useMemo(() => {
+        const set = new Set<string>();
+        for (const sp of sedeSupportProfessionals) {
+            const sid = (sp.studentId || '').trim();
+            if (sid && sedeStudentIdSet.has(sid)) set.add(sid);
+        }
+        return set;
+    }, [sedeSupportProfessionals, sedeStudentIdSet]);
+    const sedeCoberturaPct = useMemo(() => {
+        if (sedeStudents.length === 0) return 100;
+        return Math.round((sedeStudents.filter(s => sedeLinkedIds.has(s.id)).length / sedeStudents.length) * 100);
+    }, [sedeStudents, sedeLinkedIds]);
+
+    const headerDate = capitalizePt(
+        new Date().toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+        })
+    );
+
+    const alunosSemApoioSorted = useMemo(
+        () =>
+            [...studentsSemApoio].sort((a, b) =>
+                (a.school?.schoolName || '').localeCompare(b.school?.schoolName || '', 'pt-BR')
+            ),
+        [studentsSemApoio]
+    );
+
+    const diagResumo = (s: Student) => {
+        const cid = (s.clinical?.cid || '').trim();
+        const sn0 = (s.clinical?.specialNeeds && s.clinical.specialNeeds[0]) || '';
+        return cid || sn0 || '—';
+    };
+
+    if (loading) {
+        return (
+            <div className="flex min-h-[40vh] items-center justify-center gap-2 text-slate-500">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span className="font-medium">Carregando painel da Secretaria (Cocal)…</span>
+            </div>
+        );
+    }
+
+    const displayName = (currentUser.name || '').trim() || 'Secretaria';
+
+    return (
+        <div className="relative mx-auto max-w-7xl space-y-8 p-6 animate-slideUp">
+            <header className="space-y-2">
+                <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-2xl font-black text-slate-900">Olá, {displayName}</h1>
+                    <span className="rounded-full border border-teal-600 bg-teal-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-teal-900">
+                        Secretaria — Distrito de Cocal
+                    </span>
+                </div>
+                <p className="text-slate-600">Gestão das escolas do Distrito de Cocal</p>
+                <p className="text-sm font-medium text-slate-500">{headerDate}</p>
+            </header>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+                    <div className="relative z-10 flex justify-between items-start">
+                        <div>
+                            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Alunos EEIA — Cocal</p>
+                            <h3 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-800">{cocalStudents.length}</h3>
+                            {studentsSemApoio.length > 0 ? (
+                                <p className="mt-2 text-xs font-semibold text-red-600">
+                                    {studentsSemApoio.length} sem apoio vinculado
+                                </p>
+                            ) : (
+                                <p className="mt-2 text-xs font-medium text-slate-400">Todos com apoio vinculado neste recorte</p>
+                            )}
+                        </div>
+                        <div className="rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 p-3 text-white shadow-lg">
+                            <Users size={20} />
+                        </div>
+                    </div>
+                </div>
+                <StatCard
+                    title="Profissionais de apoio — Cocal"
+                    value={cocalSupportProfessionals.length}
+                    icon={UserCheck}
+                    gradient="from-sky-500 to-blue-600"
+                    subtext={`${profSemAluno.length} sem aluno vinculado`}
+                />
+                <div
+                    className={`relative overflow-hidden rounded-2xl border bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${
+                        coberturaBaixa ? 'border-2 border-red-500 ring-2 ring-red-200' : 'border border-slate-200'
+                    }`}
+                >
+                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Cobertura — Cocal</p>
+                    <h3 className={`mt-2 text-3xl font-extrabold tracking-tight ${coberturaColorClass}`}>{coberturaPct}%</h3>
+                    <p className="mt-2 text-xs font-medium text-slate-500">Meta: 100% de cobertura</p>
+                    {coberturaBaixa && (
+                        <p className="mt-2 text-xs font-bold text-red-600">Cobertura abaixo de 50% — priorize vínculos e vagas.</p>
+                    )}
+                    <div className="absolute right-4 top-4 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-3 text-white shadow-lg">
+                        <Activity size={20} />
+                    </div>
+                </div>
+                <StatCard
+                    title="Agendamentos Cocal hoje"
+                    value={apptsCocalHoje.length}
+                    icon={Calendar}
+                    gradient="from-orange-400 to-amber-600"
+                    subtext={`${apptsCocalHoje.filter(a => a.status === 'CONFIRMADO').length} confirmados`}
+                />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800">
+                        <Building2 className="h-5 w-5 text-slate-600" />
+                        Cobertura por escola (Cocal)
+                    </h2>
+                    <ul className="max-h-[28rem] space-y-4 overflow-y-auto pr-1">
+                        {schoolCoverageRows.map(({ escola, totalAlunos, comApoio, pct }) => {
+                            const barColor = pct >= 70 ? '#1D9E75' : pct >= 50 ? '#BA7517' : '#E24B4A';
+                            return (
+                                <li key={escola.id} className="space-y-1">
+                                    <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                                        <span className="font-semibold text-slate-800">{escola.name}</span>
+                                        <span className="text-slate-600">
+                                            {comApoio}/{totalAlunos} alunos · {pct}%
+                                        </span>
+                                    </div>
+                                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                                        <div
+                                            className="h-full rounded-full transition-all"
+                                            style={{ width: `${pct}%`, backgroundColor: barColor }}
+                                        />
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800">
+                        <Link2 className="h-5 w-5 text-slate-600" />
+                        Profissionais sem aluno vinculado (Cocal)
+                    </h2>
+                    {profSemAluno.length === 0 ? (
+                        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
+                            Todos os profissionais estão vinculados
+                        </p>
+                    ) : (
+                        <ul className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+                            {profSemAluno.map(sp => {
+                                const esc = cocalSchools.find(x => x.id === sp.schoolId);
+                                return (
+                                    <li
+                                        key={sp.id}
+                                        className="flex flex-col gap-1 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                                    >
+                                        <div>
+                                            <p className="font-semibold text-slate-800">{sp.name}</p>
+                                            <p className="text-xs text-slate-600">
+                                                Carga horária: {sp.workload?.trim() || '—'} · Lotação: {esc?.name || '—'}
+                                            </p>
+                                        </div>
+                                        <span className="shrink-0 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-950">
+                                            Sem vínculo
+                                        </span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                    <button
+                        type="button"
+                        className="mt-4 w-full rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                        onClick={() => onNavigate('support-professionals')}
+                    >
+                        Gerenciar vínculos
+                    </button>
+                </section>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="mb-4 text-lg font-bold text-slate-800">Alunos sem profissional de apoio (Cocal)</h2>
+                    <p className="mb-3 text-xs font-medium text-slate-500">Total: {studentsSemApoio.length}</p>
+                    <ul className="space-y-3">
+                        {alunosSemApoioSorted.slice(0, 6).map(s => (
+                            <li
+                                key={s.id}
+                                className="flex flex-col gap-1 rounded-xl border border-red-100 bg-red-50/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <div>
+                                    <p className="font-semibold text-slate-800">{s.fullName}</p>
+                                    <p className="text-xs text-slate-600">
+                                        {s.school?.schoolName || '—'} · {diagResumo(s)}
+                                    </p>
+                                </div>
+                                <span className="shrink-0 rounded-full border border-red-200 bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-900">
+                                    Sem apoio
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <button
+                        type="button"
+                        className="mt-4 w-full rounded-xl border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+                        onClick={() => onNavigate('list')}
+                    >
+                        Ver todos
+                    </button>
+                </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="mb-4 text-lg font-bold text-slate-800">Alertas operacionais de Cocal</h2>
+                    <div className="space-y-4 text-sm">
+                        <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                            <p className="font-bold text-red-900">Crítico</p>
+                            {coberturaBaixa ? (
+                                <p className="mt-1 font-semibold text-red-950">
+                                    Cobertura geral em Cocal: <strong>{coberturaPct}%</strong> (abaixo de 50%).
+                                </p>
+                            ) : (
+                                <p className="mt-1 text-red-900/80">Cobertura geral em Cocal acima ou igual a 50%.</p>
+                            )}
+                            <p className="mt-3 font-semibold text-red-900">Alunos TEA sem profissional</p>
+                            {teaSemProf.length > 0 ? (
+                                <ul className="mt-1 list-inside list-disc text-red-950">
+                                    {teaSemProf.slice(0, 6).map(s => (
+                                        <li key={s.id}>{s.fullName}</li>
+                                    ))}
+                                    {teaSemProf.length > 6 && <li>+ {teaSemProf.length - 6}</li>}
+                                </ul>
+                            ) : (
+                                <p className="mt-1 text-red-900/80">Nenhum caso neste recorte.</p>
+                            )}
+                        </div>
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                            <p className="font-bold text-amber-950">Atenção</p>
+                            <p className="mt-1 text-amber-950">
+                                {escolasSemInternet.length > 0
+                                    ? `${escolasSemInternet.length} escola(s) sem conectividade verificada`
+                                    : 'Todas as escolas de Cocal com conectividade verificada ou não informada.'}
+                            </p>
+                            <p className="mt-2 text-amber-950">
+                                Alunos com status &quot;Pending&quot; em Cocal: <strong>{alunosPendingCocal.length}</strong>
+                            </p>
+                            <p className="mt-2 text-amber-950">
+                                Profissionais com contrato há mais de 12 meses (revisar):{' '}
+                                <strong>{profContractStale.length}</strong>
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
+                            <p className="font-bold text-sky-950">Info</p>
+                            <p className="mt-1 text-sky-950">
+                                Agendamentos de Cocal nesta semana: <strong>{apptsCocalSemana.length}</strong>
+                            </p>
+                            <p className="mt-2 text-sky-950">
+                                Comparativo de cobertura (alunos com apoio):{' '}
+                                <strong>
+                                    Cocal {coberturaPct}% · Sede {sedeCoberturaPct}%
+                                </strong>
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <section>
+                <h2 className="mb-4 text-lg font-bold text-slate-800">Ações rápidas de Cocal</h2>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <ActionCard
+                        title="Novo profissional de apoio"
+                        description="Cadastro e vínculos na unidade"
+                        icon={UserPlus}
+                        onClick={() => onNavigate('support-professionals')}
+                        colorClass="bg-emerald-50 text-emerald-700"
+                    />
+                    <ActionCard
+                        title="Relatório de Cocal (PDF)"
+                        description="Relatório com timbrado da unidade Cocal"
+                        icon={FileText}
+                        onClick={() => onNavigate('support-professionals?tab=relatorios&unit=COCAL')}
+                        colorClass="bg-slate-50 text-slate-800"
+                    />
+                    <ActionCard
+                        title="Gerenciar escolas"
+                        description="Unidades escolares e cadastros"
+                        icon={School}
+                        onClick={() => onNavigate('schools')}
+                        colorClass="bg-amber-50 text-amber-800"
+                    />
+                    <ActionCard
+                        title="Ver agendamentos Cocal"
+                        description="Central de agendamentos (filtra por unidade no módulo)"
+                        icon={Calendar}
+                        onClick={() => onNavigate('scheduling')}
+                        colorClass="bg-sky-50 text-sky-700"
+                    />
+                </div>
+            </section>
+        </div>
+    );
+};
+
+// --- 3. PSICOLOGIA (painel home reutilizável; rota dedicada continua em PsychologyDashboard.tsx) ---
+export const PsychologyDashboard: React.FC<DashboardProps> = props => (
+    <SpecialistClinicalHomeDashboard
+        {...props}
+        registerSessionRoute="psychology/new-session"
+        extraAction={{ label: 'Aplicar avaliação psicológica', route: 'psychology' }}
+    />
+);
 
 // --- 4. SERVIÇO SOCIAL ---
 export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
@@ -625,502 +2483,985 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
 };
 
 // --- 5. TERAPIA OCUPACIONAL ---
-export const OccupationalTherapyDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
-                setAppointments(data);
-            } catch (error) {
-                console.error('Erro ao carregar agenda:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
-    }, [currentUser.id]);
-
-    const stats = useMemo(() => {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const monthStr = now.toISOString().slice(0, 7);
-
-        const myStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.OCCUPATIONAL_THERAPY));
-
-        const todayCount = appointments.filter(a => a.date === todayStr).length;
-        const weekCount = appointments.filter(a => {
-            const d = new Date(a.date);
-            const weekAhead = new Date();
-            weekAhead.setDate(now.getDate() + 7);
-            return d >= now && d <= weekAhead;
-        }).length;
-        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
-        const absences = appointments.filter(a => a.status === 'FALTOU').length;
-
-        return { activeCases: myStudents.length, todayCount, weekCount, monthCount, absences };
-    }, [students, appointments]);
-
-    return (
-        <div className="space-y-8 animate-slideUp">
-            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
-
-            {/* Indicadores de Agenda */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-indigo-500 to-violet-600" />
-                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-violet-500 to-purple-600" />
-                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-purple-500 to-fuchsia-600" />
-                <StatCard title="Pacientes Ativos" value={stats.activeCases} icon={Users} gradient="from-blue-500 to-indigo-600" />
-                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-red-400 to-rose-500" subtext="Faltas recorrentes" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <ActionCard
-                    title="Sessão T.O."
-                    description="Registrar evolução de terapia ocupacional"
-                    icon={Puzzle}
-                    onClick={() => onNavigate('occupational-therapy/new-session')}
-                    colorClass="bg-indigo-50 text-indigo-600"
-                />
-                <ActionCard
-                    title="Agenda"
-                    description="Verificar pacientes do dia"
-                    icon={Calendar}
-                    onClick={() => onNavigate('agenda')}
-                    colorClass="bg-violet-50 text-violet-600"
-                />
-            </div>
-        </div>
-    );
-};
+export const OccupationalTherapyDashboard: React.FC<DashboardProps> = props => (
+    <SpecialistClinicalHomeDashboard
+        {...props}
+        registerSessionRoute="occupational-therapy/new-session"
+        extraAction={{ label: 'Módulo Terapia Ocupacional', route: 'occupational-therapy' }}
+    />
+);
 
 // --- 6. PSICOPEDAGOGIA ---
-export const PsychopedagogyDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
+export const PsychopedagogyDashboard: React.FC<DashboardProps> = props => (
+    <SpecialistClinicalHomeDashboard
+        {...props}
+        registerSessionRoute="psychopedagogy/new-session"
+        extraAction={{ label: 'Aplicar Portage IPO', route: 'psychopedagogy' }}
+    />
+);
+
+// --- 7. FONOAUDIOLOGIA ---
+export const SpeechTherapyDashboard: React.FC<DashboardProps> = props => (
+    <SpecialistClinicalHomeDashboard
+        {...props}
+        registerSessionRoute="speech-therapy/new-session"
+        extraAction={{ label: 'Módulo Fonoaudiologia', route: 'speech-therapy' }}
+    />
+);
+
+// --- 8. NUTRIÇÃO ---
+export const NutritionDashboard: React.FC<DashboardProps> = props => (
+    <SpecialistClinicalHomeDashboard
+        {...props}
+        registerSessionRoute="nutrition/new-session"
+        extraAction={{ label: 'Módulo Nutrição', route: 'nutrition' }}
+    />
+);
+
+// --- ASSISTENTE (visão operacional, sem dados clínicos detalhados) ---
+export const AssistantDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate, onOpenPatient }) => {
+    const [rawAppointments, setRawAppointments] = useState<Appointment[]>([]);
+    const [documents, setDocuments] = useState<SavedDocument[]>([]);
+    const [inbox, setInbox] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [silentRefresh, setSilentRefresh] = useState(false);
+    const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+    const loadData = React.useCallback(
+        async (silent: boolean) => {
+            if (silent) setSilentRefresh(true);
+            else setLoading(true);
+            try {
+                const [apts, docs, msgs] = await Promise.all([
+                    SupabaseService.getAppointments({}),
+                    SupabaseService.getDocuments(),
+                    SupabaseService.getNotificationsInbox(currentUser.id),
+                ]);
+                setRawAppointments(apts || []);
+                setDocuments(docs || []);
+                setInbox(msgs || []);
+            } catch (e) {
+                console.error('[AssistantDashboard] Erro ao carregar:', e);
+            } finally {
+                if (silent) setSilentRefresh(false);
+                else setLoading(false);
+            }
+        },
+        [currentUser.id]
+    );
 
     useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
-                setAppointments(data);
-            } catch (error) {
-                console.error('Erro ao carregar agenda:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
-    }, [currentUser.id]);
+        void loadData(false);
+    }, [loadData, currentUser.scope]);
+
+    const todayY = ymdLocal();
+
+    const scopedAppts = useMemo(
+        () => rawAppointments.filter(a => matchesSpecialistUnit(a, currentUser.scope)),
+        [rawAppointments, currentUser.scope]
+    );
+
+    const scopedStudents = useMemo(
+        () => students.filter(s => studentInAssistantScope(s, currentUser.scope)),
+        [students, currentUser.scope]
+    );
+
+    const scopedStudentIds = useMemo(() => new Set(scopedStudents.map(s => s.id)), [scopedStudents]);
+
+    const documentsScoped = useMemo(
+        () => documents.filter(d => scopedStudentIds.has(d.studentId)),
+        [documents, scopedStudentIds]
+    );
+
+    const apptsToday = useMemo(
+        () => scopedAppts.filter(a => a.date === todayY).sort(sortAppointmentsByStart),
+        [scopedAppts, todayY]
+    );
+
+    const apptsNext3Days = useMemo(() => {
+        const start = addDaysToYmd(todayY, 1);
+        const end = addDaysToYmd(todayY, 3);
+        return scopedAppts
+            .filter(a => a.date >= start && a.date <= end)
+            .sort((a, b) => (a.date !== b.date ? a.date.localeCompare(b.date) : sortAppointmentsByStart(a, b)));
+    }, [scopedAppts, todayY]);
+
+    const agendaByProfessional = useMemo(() => {
+        const map = new Map<string, Appointment[]>();
+        for (const a of apptsToday) {
+            const key = (a.professionalName || '').trim() || 'Profissional';
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(a);
+        }
+        for (const [, list] of map) list.sort(sortAppointmentsByStart);
+        return Array.from(map.entries()).sort(([, aa], [, bb]) => sortAppointmentsByStart(aa[0], bb[0]));
+    }, [apptsToday]);
+
+    const unreadInbox = useMemo(() => inbox.filter(m => !m.is_read), [inbox]);
+
+    const headerSubtitle = useMemo(() => {
+        const hour = new Date().getHours();
+        const attended = apptsToday.filter(a => a.status === 'ATENDIDO').length;
+        const pending = apptsToday.filter(a => a.status === 'AGENDADO').length;
+        const unit = scopeUnitLabel(currentUser.scope);
+        if (hour < 12)
+            return `${apptsToday.length} horário(s) hoje (${unit}) · ${pending} aguardando confirmação`;
+        if (hour < 18) return `${apptsToday.length} horário(s) hoje · ${pending} ainda como AGENDADO`;
+        return `Encerrando o dia: ${attended} atendimento(s) marcado(s) como ATENDIDO na agenda.`;
+    }, [apptsToday, currentUser.scope]);
 
     const stats = useMemo(() => {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const monthStr = now.toISOString().slice(0, 7);
+        const weekEnd = addDaysToYmd(todayY, 6);
+        const weekScoped = scopedAppts.filter(a => a.date >= todayY && a.date <= weekEnd);
+        const sevenDaysAgo = addDaysToYmd(todayY, -7);
+        const docsWeek = documentsScoped.filter(d => (d.createdAt || '').slice(0, 10) >= sevenDaysAgo);
+        return {
+            todayCount: apptsToday.length,
+            pendingConfirm: apptsToday.filter(a => a.status === 'AGENDADO').length,
+            activeStudents: scopedStudents.filter(s => s.status === 'Active').length,
+            weekAppts: weekScoped.length,
+            docsRecent: docsWeek.length,
+            unread: unreadInbox.length,
+        };
+    }, [apptsToday, scopedAppts, scopedStudents, documentsScoped, todayY, unreadInbox.length]);
 
-        const ppStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.PSYCHOPEDAGOGY) || (s.clinical.pp_data && s.clinical.pp_data.diagnosis));
+    const handleConfirm = async (id: string) => {
+        setConfirmingId(id);
+        try {
+            await SupabaseService.updateAppointmentStatus(id, 'CONFIRMADO');
+            await loadData(true);
+        } catch (e) {
+            console.error(e);
+            window.alert('Não foi possível confirmar o agendamento.');
+        } finally {
+            setConfirmingId(null);
+        }
+    };
 
-        const todayCount = appointments.filter(a => a.date === todayStr).length;
-        const weekCount = appointments.filter(a => {
-            const d = new Date(a.date);
-            const weekAhead = new Date();
-            weekAhead.setDate(now.getDate() + 7);
-            return d >= now && d <= weekAhead;
-        }).length;
-        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
-        const absences = appointments.filter(a => a.status === 'FALTOU').length;
+    const handleSendQuickMessage = async () => {
+        const recipientId = window.prompt('ID do destinatário (UUID do usuário no sistema):');
+        if (!recipientId?.trim()) return;
+        const title = window.prompt('Assunto:') || 'Mensagem';
+        const content = window.prompt('Mensagem:') || '';
+        if (!content.trim()) return;
+        try {
+            await SupabaseService.sendSystemMessage(
+                currentUser.id,
+                recipientId.trim(),
+                title.trim(),
+                content.trim(),
+                'normal',
+                'MESSAGE'
+            );
+            window.alert('Mensagem enviada.');
+        } catch (e) {
+            console.error(e);
+            window.alert('Falha ao enviar a mensagem.');
+        }
+    };
 
-        // Diagnosis Logic
-        const diagnosisMap = new Map<string, number>();
-        ppStudents.forEach(student => {
-            const rawPP = student.clinical.pp_data || {};
-            if (rawPP.diagnosis && rawPP.diagnosis.hipoteseDiagnostica) {
-                const diag = rawPP.diagnosis.hipoteseDiagnostica.split(' ')[0] || 'Em Avaliação';
-                diagnosisMap.set(diag, (diagnosisMap.get(diag) || 0) + 1);
-            } else {
-                diagnosisMap.set('Em Avaliação', (diagnosisMap.get('Em Avaliação') || 0) + 1);
-            }
-        });
+    const scrollToPending = () => {
+        document.getElementById('assistant-pending-confirm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
 
-        const diagnosisData = Array.from(diagnosisMap.entries()).map(([name, value]) => ({ name, value }));
-        const upcoming = appointments.filter(a => a.date === todayStr).map(a => ({ session: a, studentName: a.studentName }));
+    /** Abre a rota de perfil (/app/profile) só se o aluno existir e estiver no mesmo escopo de unidade do assistente. */
+    const openStudentFicha = (studentId: string | undefined) => {
+        if (!onOpenPatient || !studentId) return;
+        const st = students.find(s => s.id === studentId);
+        if (!st) {
+            window.alert('Cadastro não encontrado na lista carregada. Use a lista de alunos para localizar.');
+            return;
+        }
+        if (!studentInAssistantScope(st, currentUser.scope)) {
+            window.alert('Este cadastro está fora do escopo da sua unidade.');
+            return;
+        }
+        onOpenPatient(studentId);
+    };
 
-        return { activeCases: ppStudents.length, diagnosisData, todayCount, weekCount, monthCount, absences, upcoming };
-    }, [students, appointments]);
+    if (loading) {
+        return (
+            <div className="flex min-h-[40vh] items-center justify-center gap-2 text-slate-500">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span className="font-medium">Carregando painel do assistente…</span>
+            </div>
+        );
+    }
+
+    const firstName = (currentUser.name || 'Assistente').split(/\s+/)[0];
 
     return (
-        <div className="space-y-8 animate-slideUp">
-            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+        <div className="relative mx-auto max-w-7xl space-y-8 p-6">
+            {silentRefresh && (
+                <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-2 text-xs font-semibold text-slate-400">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Atualizando…
+                </div>
+            )}
 
-            {/* Indicadores de Agenda */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-pink-500 to-rose-600" />
-                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-rose-500 to-orange-600" />
-                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-orange-500 to-amber-600" />
-                <StatCard title="Pacientes Ativos" value={stats.activeCases} icon={Users} gradient="from-emerald-500 to-teal-600" />
-                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-red-400 to-rose-500" subtext="Faltas recorrentes" />
+            <WelcomeHeader name={firstName} subtitle={headerSubtitle} />
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <StatCard
+                    title="Agenda hoje (unidade)"
+                    value={stats.todayCount}
+                    icon={Calendar}
+                    gradient="from-sky-500 to-blue-600"
+                    subtext={`${stats.pendingConfirm} pendente(s) de confirmação`}
+                />
+                <StatCard
+                    title="Alunos ativos (escopo)"
+                    value={stats.activeStudents}
+                    icon={Users}
+                    gradient="from-emerald-500 to-teal-600"
+                    subtext={scopeUnitLabel(currentUser.scope)}
+                />
+                <StatCard
+                    title="Mensagens não lidas"
+                    value={stats.unread}
+                    icon={Bell}
+                    gradient="from-amber-500 to-orange-600"
+                    subtext="Diretas e avisos gerais"
+                />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <ActionCard
-                            title="Nova Avaliação"
-                            description="Iniciar nova bateria de testes ou sessão"
-                            icon={Puzzle}
-                            onClick={() => onNavigate('psychopedagogy/new-session')}
-                            colorClass="bg-pink-50 text-pink-600"
-                        />
-                        <ActionCard
-                            title="Central de Laudos"
-                            description="Acesse modelos e documentos emitidos"
-                            icon={Printer}
-                            onClick={() => onNavigate('documents')}
-                            colorClass="bg-rose-50 text-rose-600"
-                        />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="space-y-6 lg:col-span-2">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                            <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800">
+                                <Clock size={20} className="text-teal-600" />
+                                Agenda de hoje — por especialista
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => onNavigate('scheduling')}
+                                className="text-xs font-bold text-teal-700 hover:underline"
+                            >
+                                Ver agenda completa
+                            </button>
+                        </div>
+                        {agendaByProfessional.length === 0 ? (
+                            <p className="text-sm text-slate-400">Nenhum agendamento hoje no seu escopo.</p>
+                        ) : (
+                            <div className="space-y-6">
+                                {agendaByProfessional.map(([proName, list]) => (
+                                    <div key={proName}>
+                                        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{proName}</p>
+                                        <ul className="space-y-2">
+                                            {list.map(apt => (
+                                                <li
+                                                    key={apt.id}
+                                                    className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:flex-row sm:items-center sm:justify-between"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-bold text-slate-800">
+                                                            {(apt.startTime || '—').slice(0, 5)} – {(apt.endTime || '—').slice(0, 5)}
+                                                        </p>
+                                                        <p className="truncate text-sm font-semibold text-slate-700">{apt.studentName}</p>
+                                                        <p className="text-xs text-slate-500">
+                                                            {apt.specialty ? String(apt.specialty) : '—'} · {apt.unit || '—'}
+                                                        </p>
+                                                        {apt.telefoneResponsavel ? (
+                                                            <p className="mt-1 flex items-center gap-1 text-xs text-slate-600">
+                                                                <Phone size={12} className="shrink-0" />
+                                                                {apt.telefoneResponsavel}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span
+                                                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${appointmentStatusBadgeClass(apt.status)}`}
+                                                        >
+                                                            {apt.status}
+                                                        </span>
+                                                        {onOpenPatient && apt.studentId ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openStudentFicha(apt.studentId)}
+                                                                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-teal-300 hover:bg-teal-50/60"
+                                                            >
+                                                                <FileText size={14} />
+                                                                Ficha do aluno
+                                                            </button>
+                                                        ) : null}
+                                                        {apt.status === 'AGENDADO' && (
+                                                            <button
+                                                                type="button"
+                                                                disabled={confirmingId === apt.id}
+                                                                onClick={() => void handleConfirm(apt.id)}
+                                                                className="rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                                                            >
+                                                                {confirmingId === apt.id ? '…' : 'Confirmar'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                            <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
-                                <Activity size={18} className="text-pink-500" /> Diagnósticos
-                            </h3>
-                            <div className="h-48">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={stats.diagnosisData.length > 0 ? stats.diagnosisData : [{ name: 'Sem dados', value: 1 }]}
-                                            cx="50%" cy="50%"
-                                            innerRadius={40} outerRadius={60}
-                                            paddingAngle={5}
-                                            dataKey="value"
+                    <div
+                        id="assistant-pending-confirm"
+                        className="rounded-3xl border border-amber-200 bg-amber-50/40 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+                    >
+                        <h3 className="mb-3 text-lg font-bold text-slate-800">Confirmações pendentes (hoje)</h3>
+                        <p className="mb-4 text-sm text-slate-600">
+                            Agendamentos em <span className="font-semibold">AGENDADO</span> que você pode confirmar com um clique.
+                        </p>
+                        {apptsToday.filter(a => a.status === 'AGENDADO').length === 0 ? (
+                            <p className="text-sm text-slate-500">Nenhuma pendência de confirmação para hoje.</p>
+                        ) : (
+                            <ul className="space-y-2">
+                                {apptsToday
+                                    .filter(a => a.status === 'AGENDADO')
+                                    .sort(sortAppointmentsByStart)
+                                    .map(apt => (
+                                        <li
+                                            key={`pend-${apt.id}`}
+                                            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-100 bg-white px-4 py-3 text-sm"
                                         >
-                                            {stats.diagnosisData.length > 0 ? stats.diagnosisData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
-                                            )) : <Cell fill="#e2e8f0" />}
-                                        </Pie>
-                                        <Tooltip contentStyle={{ borderRadius: '12px' }} />
-                                        <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        <div className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                            <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
-                                <TrendingUp size={18} className="text-pink-500" /> Evolução (Atendimentos Mês)
-                            </h3>
-                            <div className="h-48 flex items-center justify-center">
-                                <span className="text-4xl font-black text-pink-600">{stats.monthCount}</span>
-                                <span className="text-slate-400 ml-2 font-bold uppercase text-xs">Sessões em Março</span>
-                            </div>
-                        </div>
+                                            <span className="font-semibold text-slate-700">
+                                                {(apt.startTime || '').slice(0, 5)} · {apt.studentName} · {apt.professionalName || '—'}
+                                            </span>
+                                            <span className="flex flex-wrap items-center gap-2">
+                                                {onOpenPatient && apt.studentId ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openStudentFicha(apt.studentId)}
+                                                        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                                                    >
+                                                        Ficha
+                                                    </button>
+                                                ) : null}
+                                                <button
+                                                    type="button"
+                                                    disabled={confirmingId === apt.id}
+                                                    onClick={() => void handleConfirm(apt.id)}
+                                                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                                                >
+                                                    {confirmingId === apt.id ? 'Confirmando…' : 'Confirmar presença'}
+                                                </button>
+                                            </span>
+                                        </li>
+                                    ))}
+                            </ul>
+                        )}
                     </div>
                 </div>
 
                 <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                        <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center justify-between">
-                            <span className="flex items-center gap-2"><Calendar size={16} className="text-pink-600" /> Agenda (Hoje)</span>
-                        </h4>
-
-                        {stats.upcoming.length > 0 ? (
-                            <div className="space-y-3">
-                                {stats.upcoming.map((item: any, idx: number) => (
-                                    <div key={idx} className="flex items-center gap-3 p-3 bg-pink-50 rounded-xl border border-pink-100">
-                                        <div className="font-bold text-pink-700 bg-white px-2 py-1 rounded text-xs shadow-sm">
-                                            {(item.session.startTime || '00:00').substring(0, 5)}
-                                        </div>
-                                        <p className="text-sm font-bold text-slate-700 truncate">{item.studentName}</p>
-                                    </div>
-                                ))}
-                            </div>
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                        <h3 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-800">
+                            <Calendar size={20} className="text-amber-600" />
+                            Próximos 3 dias
+                        </h3>
+                        {apptsNext3Days.length === 0 ? (
+                            <p className="text-sm text-slate-400">Nenhum agendamento neste período.</p>
                         ) : (
-                            <p className="text-center text-slate-400 text-sm py-4 italic">Sem agendamentos para hoje.</p>
+                            <ul className="max-h-72 space-y-2 overflow-y-auto text-sm">
+                                {apptsNext3Days.slice(0, 24).map(apt => (
+                                    <li
+                                        key={apt.id}
+                                        className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 last:border-0"
+                                    >
+                                        <span className="font-semibold text-slate-700">
+                                            {new Date(apt.date + 'T12:00:00').toLocaleDateString('pt-BR', {
+                                                weekday: 'short',
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                            })}{' '}
+                                            · {(apt.startTime || '').slice(0, 5)} · {apt.studentName}
+                                        </span>
+                                        <span className="text-xs text-slate-500">{apt.professionalName || ''}</span>
+                                    </li>
+                                ))}
+                            </ul>
                         )}
+                    </div>
 
-                        <button onClick={() => onNavigate('agenda')} className="w-full mt-4 py-2 text-xs font-bold text-pink-600 uppercase tracking-wider hover:bg-pink-50 rounded-lg transition-colors">
-                            Ver Agenda Completa
-                        </button>
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                            <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800">
+                                <Bell size={20} className="text-rose-500" />
+                                Caixa de mensagens
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => onNavigate('my-access')}
+                                className="text-xs font-bold text-teal-700 hover:underline"
+                            >
+                                Ver todas
+                            </button>
+                        </div>
+                        {unreadInbox.length === 0 ? (
+                            <p className="text-sm text-slate-400">Nenhuma mensagem não lida.</p>
+                        ) : (
+                            <ul className="max-h-64 space-y-3 overflow-y-auto">
+                                {unreadInbox.slice(0, 6).map((n: any) => (
+                                    <li key={n.id} className="border-b border-slate-100 pb-3 last:border-0">
+                                        <p className="text-sm font-bold text-slate-800">{n.title || 'Mensagem'}</p>
+                                        <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">
+                                            {String(n.content || '').slice(0, 120)}
+                                            {String(n.content || '').length > 120 ? '…' : ''}
+                                        </p>
+                                        <p className="mt-1 text-[11px] text-slate-400">
+                                            {n.sender?.full_name || 'Sistema'}
+                                            {n.priority === 'urgent' ? ' · urgente' : ''} · {formatRelativePt(n.created_at)}
+                                        </p>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resumo rápido</p>
+                        <p className="mt-2 text-sm text-slate-600">
+                            <span className="font-bold text-slate-800">{stats.weekAppts}</span> agendamentos na semana (escopo) ·{' '}
+                            <span className="font-bold text-slate-800">{stats.docsRecent}</span> documento(s) gerados nos últimos 7 dias
+                            (alunos do escopo)
+                        </p>
                     </div>
                 </div>
             </div>
-        </div>
-    );
-};
 
-// --- 7. FONOAUDIOLOGIA ---
-export const SpeechTherapyDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
-                setAppointments(data);
-            } catch (error) {
-                console.error('Erro ao carregar agenda:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
-    }, [currentUser.id]);
-
-    const stats = useMemo(() => {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const monthStr = now.toISOString().slice(0, 7);
-
-        const myStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.SPEECH_THERAPY));
-
-        const todayCount = appointments.filter(a => a.date === todayStr).length;
-        const weekCount = appointments.filter(a => {
-            const d = new Date(a.date);
-            const weekAhead = new Date();
-            weekAhead.setDate(now.getDate() + 7);
-            return d >= now && d <= weekAhead;
-        }).length;
-        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
-        const absences = appointments.filter(a => a.status === 'FALTOU').length;
-
-        return { activeCases: myStudents.length, todayCount, weekCount, monthCount, absences };
-    }, [students, appointments]);
-
-    return (
-        <div className="space-y-8 animate-slideUp">
-            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
-
-            {/* Indicadores de Agenda */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-teal-500 to-emerald-600" />
-                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-emerald-500 to-green-600" />
-                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-green-500 to-lime-600" />
-                <StatCard title="Pacientes Ativos" value={stats.activeCases} icon={Users} gradient="from-cyan-500 to-blue-600" />
-                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-red-400 to-rose-500" subtext="Faltas recorrentes" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <ActionCard
-                    title="Sessão Fono"
-                    description="Registrar terapia de fala e linguagem"
-                    icon={Mic}
-                    onClick={() => onNavigate('speech-therapy/new-session')}
-                    colorClass="bg-teal-50 text-teal-600"
-                />
-                <ActionCard
-                    title="Agenda"
-                    description="Visualizar agendamentos"
-                    icon={Calendar}
-                    onClick={() => onNavigate('agenda')}
-                    colorClass="bg-cyan-50 text-cyan-600"
-                />
-            </div>
-        </div>
-    );
-};
-
-// --- 8. NUTRIÇÃO ---
-export const NutritionDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await SupabaseService.getAppointments({ professionalId: currentUser.id });
-                setAppointments(data);
-            } catch (error) {
-                console.error('Erro ao carregar agenda:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
-    }, [currentUser.id]);
-
-    const stats = useMemo(() => {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const monthStr = now.toISOString().slice(0, 7);
-
-        const myStudents = students.filter(s => s.history?.some(h => h.specialty === Specialty.NUTRITION));
-
-        const todayCount = appointments.filter(a => a.date === todayStr).length;
-        const weekCount = appointments.filter(a => {
-            const d = new Date(a.date);
-            const weekAhead = new Date();
-            weekAhead.setDate(now.getDate() + 7);
-            return d >= now && d <= weekAhead;
-        }).length;
-        const monthCount = appointments.filter(a => a.date.startsWith(monthStr)).length;
-        const absences = appointments.filter(a => a.status === 'FALTOU').length;
-
-        return { activeCases: myStudents.length, todayCount, weekCount, monthCount, absences };
-    }, [students, appointments]);
-
-    return (
-        <div className="space-y-8 animate-slideUp">
-            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
-
-            {/* Indicadores de Agenda */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard title="Hoje" value={stats.todayCount} icon={Calendar} gradient="from-green-500 to-emerald-600" />
-                <StatCard title="Esta Semana" value={stats.weekCount} icon={Activity} gradient="from-emerald-500 to-teal-600" />
-                <StatCard title="Este Mês" value={stats.monthCount} icon={TrendingUp} gradient="from-teal-500 to-cyan-600" />
-                <StatCard title="Pacientes Ativos" value={stats.activeCases} icon={Users} gradient="from-lime-500 to-green-600" />
-                <StatCard title="Faltas" value={stats.absences} icon={AlertTriangle} gradient="from-red-400 to-rose-500" subtext="Faltas recorrentes" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <ActionCard
-                    title="Consulta Nutricional"
-                    description="Registrar anamnese e plano alimentar"
-                    icon={Activity}
-                    onClick={() => onNavigate('nutrition/new-session')}
-                    colorClass="bg-green-50 text-green-600"
-                />
-                <ActionCard
-                    title="Meus Pacientes"
-                    description="Consultar histórico nutricional"
-                    icon={Users}
-                    onClick={() => onNavigate('list')}
-                    colorClass="bg-emerald-50 text-emerald-600"
-                />
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                <h3 className="mb-4 text-lg font-bold text-slate-800">Ações rápidas</h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                    <button
+                        type="button"
+                        onClick={() => onNavigate('scheduling')}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                    >
+                        Central de agendamentos
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onNavigate('list')}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                    >
+                        Lista de alunos
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onNavigate('documents')}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                    >
+                        Documentos
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onNavigate('my-access')}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                    >
+                        Minhas mensagens
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void handleSendQuickMessage()}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                    >
+                        <span className="inline-flex items-center gap-2">
+                            <Send size={16} />
+                            Enviar mensagem
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={scrollToPending}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
+                    >
+                        Confirmar presenças pendentes
+                    </button>
+                </div>
             </div>
         </div>
     );
 };
 
 // --- 9. ESCOLA ---
-export const SchoolDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
-    const stats = useMemo(() => {
-        // Filtra alunos da escola do usuário logado baseado no schoolId (UUID)
-        const myStudents = students.filter(s =>
-            s.school.schoolId === currentUser.schoolId
-        );
-        const total = myStudents.length;
+export const SchoolDashboard: React.FC<DashboardProps> = ({
+    students,
+    currentUser,
+    onNavigate,
+    onOpenPatient,
+}) => {
+    const myStudents = useMemo(
+        () => students.filter(s => s.school.schoolId === currentUser.schoolId),
+        [students, currentUser.schoolId]
+    );
 
-        const teaStudents = myStudents.filter(s => {
-            const diag = (s.clinical?.diagnosis || '').toUpperCase();
-            const needs = (s.clinical?.specialNeeds || []).map(n => n.toUpperCase());
-            return diag.includes('TEA') || diag.includes('AUTISMO') || needs.includes('AUTISMO') || needs.includes('TEA');
-        });
+    const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
+    const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
+    const [schoolsList, setSchoolsList] = useState<SchoolEntity[]>([]);
+    const [loadingRemote, setLoadingRemote] = useState(true);
 
-        const withSupport = myStudents.filter(s => s.school?.hasSpecialAide === true).length;
-        const pendingEval = myStudents.filter(s => s.status === 'Pending').length;
-
-        // Distribuição TEA por Idade
-        const teaByAge = teaStudents.reduce((acc: any[], s) => {
-            if (!s.birthDate) return acc;
-            const birth = new Date(s.birthDate);
-            const today = new Date();
-            let age = today.getFullYear() - birth.getFullYear();
-            const m = today.getMonth() - birth.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-
-            const ageGroup = `${age} anos`;
-            const existing = acc.find(i => i.name === ageGroup);
-            if (existing) existing.value++;
-            else acc.push({ name: ageGroup, age, value: 1 });
-            return acc;
-        }, []).sort((a, b) => a.age - b.age);
-
-        return {
-            total,
-            teaCount: teaStudents.length,
-            withSupport,
-            withoutSupport: total - withSupport,
-            pendingEval,
-            teaByAge
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setLoadingRemote(true);
+            try {
+                const sid = (currentUser.schoolId || '').trim();
+                const [sp, apts, sch] = await Promise.all([
+                    SupabaseService.getSupportProfessionals(sid || undefined),
+                    SupabaseService.getAppointments({}),
+                    SupabaseService.getSchools(),
+                ]);
+                if (!cancelled) {
+                    setSupportProfessionals(sp);
+                    setAllAppointments(apts);
+                    setSchoolsList(sch);
+                }
+            } catch (e) {
+                console.error('[SchoolDashboard] Erro ao carregar dados:', e);
+                if (!cancelled) {
+                    setSupportProfessionals([]);
+                    setAllAppointments([]);
+                    setSchoolsList([]);
+                }
+            } finally {
+                if (!cancelled) setLoadingRemote(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
         };
-    }, [students, currentUser]);
+    }, [currentUser.schoolId]);
+
+    const schoolSupportProfessionals = useMemo(
+        () => supportProfessionals.filter(sp => sp.schoolId === currentUser.schoolId),
+        [supportProfessionals, currentUser.schoolId]
+    );
+
+    const studentIdsWithSupport = useMemo(() => {
+        const set = new Set<string>();
+        for (const sp of schoolSupportProfessionals) {
+            if (sp.studentId && sp.studentId.trim()) set.add(sp.studentId);
+        }
+        return set;
+    }, [schoolSupportProfessionals]);
+
+    const myStudentIdSet = useMemo(() => new Set(myStudents.map(s => s.id)), [myStudents]);
+
+    const todayYmd = ymdLocal();
+    const weekEndYmd = addDaysToYmd(todayYmd, 6);
+
+    const appointmentsThisWeekForSchool = useMemo(() => {
+        return allAppointments.filter(a => {
+            if (!myStudentIdSet.has(a.studentId)) return false;
+            if (a.status === 'CANCELADO') return false;
+            return a.date >= todayYmd && a.date <= weekEndYmd;
+        });
+    }, [allAppointments, myStudentIdSet, todayYmd, weekEndYmd]);
+
+    const coverageCount = useMemo(
+        () => myStudents.filter(s => studentIdsWithSupport.has(s.id)).length,
+        [myStudents, studentIdsWithSupport]
+    );
+
+    const coveragePct = myStudents.length === 0 ? 0 : Math.round((coverageCount / myStudents.length) * 100);
+
+    const coverageColorClass =
+        coveragePct >= 70
+            ? 'border-emerald-200 bg-emerald-50/80'
+            : coveragePct >= 50
+              ? 'border-amber-200 bg-amber-50/80'
+              : 'border-rose-200 bg-rose-50/80';
+
+    const confirmedThisWeek = useMemo(
+        () => appointmentsThisWeekForSchool.filter(a => a.status === 'CONFIRMADO').length,
+        [appointmentsThisWeekForSchool]
+    );
+
+    const morningCount = useMemo(
+        () => myStudents.filter(s => s.school?.shift === 'Manhã').length,
+        [myStudents]
+    );
+    const afternoonCount = useMemo(
+        () => myStudents.filter(s => s.school?.shift === 'Tarde').length,
+        [myStudents]
+    );
+
+    const schoolRecord = useMemo(
+        () => schoolsList.find(s => s.id === currentUser.schoolId),
+        [schoolsList, currentUser.schoolId]
+    );
+
+    const displaySchoolName =
+        schoolRecord?.name || myStudents[0]?.school?.schoolName || 'Escola';
+
+    const sortedMyStudents = useMemo(
+        () => [...myStudents].sort((a, b) => a.fullName.localeCompare(b.fullName, 'pt-BR')),
+        [myStudents]
+    );
+
+    const visibleStudents = sortedMyStudents.slice(0, 8);
+
+    const upcomingAppointments = useMemo(() => {
+        return allAppointments
+            .filter(
+                a =>
+                    myStudentIdSet.has(a.studentId) &&
+                    a.date >= todayYmd &&
+                    a.status !== 'CANCELADO'
+            )
+            .sort((a, b) => {
+                const d = a.date.localeCompare(b.date);
+                if (d !== 0) return d;
+                return (a.startTime || '').localeCompare(b.startTime || '');
+            })
+            .slice(0, 6);
+    }, [allAppointments, myStudentIdSet, todayYmd]);
+
+    const teaTrackedCount = useMemo(
+        () =>
+            myStudents.filter(s => {
+                const cid = (s.clinical?.cid || '').toUpperCase();
+                if (cid.includes('F84')) return true;
+                const needs = (s.clinical?.specialNeeds || []).map(n => n.toUpperCase());
+                if (needs.some(n => n.includes('TEA'))) return true;
+                const diag = (s.clinical?.diagnosis || '').toUpperCase();
+                if (diag.includes('TEA') || diag.includes('AUTISMO')) return true;
+                if (needs.some(n => n.includes('AUTISMO'))) return true;
+                return false;
+            }).length,
+        [myStudents]
+    );
+
+    const withoutSupportCount = myStudents.length - coverageCount;
+    const pendingCount = useMemo(() => myStudents.filter(s => s.status === 'Pending').length, [myStudents]);
+
+    const studentsWithAppointmentThisWeek = useMemo(() => {
+        const ids = new Set<string>();
+        for (const a of appointmentsThisWeekForSchool) ids.add(a.studentId);
+        return ids.size;
+    }, [appointmentsThisWeekForSchool]);
+
+    const diagnosisSummary = (s: Student): string => {
+        const cid = (s.clinical?.cid || '').trim();
+        if (cid) return cid;
+        const sn0 = (s.clinical?.specialNeeds || []).find(x => (x || '').trim());
+        if (sn0) return sn0.trim();
+        return 'Não informado';
+    };
+
+    const statusStudentBadge = (st: Student['status']) => {
+        if (st === 'Active') return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        if (st === 'Pending') return 'bg-amber-100 text-amber-900 border border-amber-200';
+        return 'bg-slate-200 text-slate-700 border border-slate-300';
+    };
+
+    const initialsOf = (name: string) => {
+        const parts = name.trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return '?';
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    };
+
+    const openReadonlyRecord = (studentId: string) => {
+        if (onOpenPatient) {
+            onOpenPatient(studentId);
+            return;
+        }
+        onNavigate('list');
+    };
+
+    const unitBadgeClass = (u: Unit) =>
+        u === 'SEDE'
+            ? 'bg-sky-100 text-sky-900 border border-sky-200'
+            : 'bg-amber-100 text-amber-900 border border-amber-200';
 
     return (
         <div className="space-y-8 animate-slideUp">
-            {/* Header com mensagem específica solicitada */}
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-3xl p-8 text-white shadow-[0_8px_30px_rgba(16,185,129,0.3)] relative overflow-hidden flex items-center justify-between">
-                <div className="relative z-10">
-                    <h1 className="text-3xl font-extrabold mb-2 text-white">Painel Escolar</h1>
-                    <p className="text-emerald-50 text-xl font-bold mb-2">Unidade: {currentUser.name}</p>
-                    <p className="text-emerald-100 font-medium">Acompanhamento de Educação Inclusiva e Gestão de Alunos</p>
-                </div>
-                <div className="relative z-10 hidden md:block opacity-90">
-                    <School size={80} className="text-white" />
-                </div>
-                <div className="absolute right-0 top-0 h-full w-1/3 bg-white opacity-10 skew-x-12 transform translate-x-10"></div>
-            </div>
-
-            {/* Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ActionCard
-                    title="Alunos"
-                    description="Gerencie os cadastros e acompanhe os alunos da sua escola"
-                    icon={Users}
-                    onClick={() => onNavigate('list')}
-                    colorClass="bg-emerald-50 text-emerald-600"
-                />
-                <ActionCard
-                    title="Profissionais de Apoio"
-                    description="Gestão de acompanhantes e monitores escolares"
-                    icon={HeartPulse}
-                    onClick={() => onNavigate('support-professionals')}
-                    colorClass="bg-teal-50 text-teal-600"
-                />
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard title="Total Alunos" value={stats.total} icon={Users} gradient="from-blue-500 to-indigo-600" />
-                <StatCard title="Alunos TEA" value={stats.teaCount} icon={Brain} gradient="from-purple-500 to-indigo-600" />
-                <StatCard title="Com Apoio" value={stats.withSupport} icon={HeartPulse} gradient="from-emerald-500 to-teal-600" />
-                <StatCard title="Sem Apoio" value={stats.withoutSupport} icon={AlertTriangle} gradient="from-orange-400 to-red-500" />
-                <StatCard title="Aguar. Avaliação" value={stats.pendingEval} icon={Clock} gradient="from-slate-600 to-slate-800" />
-            </div>
-
-            {/* Gráfico TEA por Idade */}
-            <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
-                <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200">
-                    <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2">
-                        <Activity size={20} className="text-primary-600" /> Alunos TEA por Idade na Unidade
-                    </h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={stats.teaByAge}>
-                                <defs>
-                                    <linearGradient id="colorTeaSchool" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                                <YAxis hide />
-                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                                <Area type="monotone" dataKey="value" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorTeaSchool)" strokeWidth={3} />
-                            </AreaChart>
-                        </ResponsiveContainer>
+            <div className="rounded-3xl border border-emerald-100 bg-gradient-to-r from-emerald-600 to-teal-600 p-8 text-white shadow-[0_8px_30px_rgba(16,185,129,0.25)]">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <p className="text-sm font-semibold text-emerald-100">Olá, {currentUser.name}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{displaySchoolName}</h1>
+                            <span className="rounded-full border border-white/40 bg-white/15 px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
+                                Escola
+                            </span>
+                        </div>
+                        <p className="mt-2 max-w-2xl text-sm font-medium text-emerald-50">
+                            Acompanhamento dos alunos EEIA — somente leitura
+                        </p>
+                        {currentUser.schoolInep ? (
+                            <p className="mt-1 text-xs text-emerald-100/90">INEP: {currentUser.schoolInep}</p>
+                        ) : null}
+                    </div>
+                    <div className="hidden opacity-90 md:block">
+                        <School size={72} className="text-white" />
                     </div>
                 </div>
             </div>
 
-            {/* Info Section */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="flex items-start gap-4">
-                    <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-                        <AlertTriangle size={24} />
+            {loadingRemote ? (
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                    Carregando dados da escola…
+                </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alunos EEIA matriculados</p>
+                    <p className="mt-2 text-3xl font-extrabold text-slate-900">{myStudents.length}</p>
+                    <p className="mt-2 text-xs text-slate-500">
+                        Manhã: {morningCount} · Tarde: {afternoonCount}
+                    </p>
+                </div>
+                <div className={`rounded-2xl border p-6 shadow-sm ${coverageColorClass}`}>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Com profissional de apoio</p>
+                    <p className="mt-2 text-3xl font-extrabold text-slate-900">
+                        {coverageCount} <span className="text-lg font-bold text-slate-500">de</span> {myStudents.length}
+                    </p>
+                    <p className="mt-2 text-xs font-semibold text-slate-600">Cobertura: {coveragePct}%</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Agendamentos esta semana</p>
+                    <p className="mt-2 text-3xl font-extrabold text-slate-900">{appointmentsThisWeekForSchool.length}</p>
+                    <p className="mt-2 text-xs text-slate-500">{confirmedThisWeek} confirmados</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="space-y-4 lg:col-span-2">
+                    <div className="flex items-center justify-between gap-2">
+                        <h2 className="text-lg font-bold text-slate-800">Alunos da escola</h2>
+                        <button
+                            type="button"
+                            onClick={() => onNavigate('list')}
+                            className="text-xs font-bold text-emerald-700 hover:underline"
+                        >
+                            Ver todos {myStudents.length} alunos
+                        </button>
+                    </div>
+                    <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                        {visibleStudents.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-slate-500">Nenhum aluno EEIA vinculado a esta escola.</p>
+                        ) : (
+                            visibleStudents.map(s => {
+                                const hasSp = studentIdsWithSupport.has(s.id);
+                                return (
+                                    <div
+                                        key={s.id}
+                                        className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+                                    >
+                                        <div className="flex min-w-0 flex-1 gap-3">
+                                            {s.photoUrl ? (
+                                                <img
+                                                    src={s.photoUrl}
+                                                    alt=""
+                                                    className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-white"
+                                                />
+                                            ) : (
+                                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white ring-2 ring-white">
+                                                    {initialsOf(s.fullName)}
+                                                </div>
+                                            )}
+                                            <div className="min-w-0">
+                                                <p className="truncate font-bold text-slate-900">{s.fullName}</p>
+                                                <p className="text-xs text-slate-600">
+                                                    {s.school?.grade || '—'} · {s.school?.shift || '—'}
+                                                </p>
+                                                <p className="text-xs text-slate-500">{s.school?.teachingType || '—'}</p>
+                                                <p className="mt-1 truncate text-xs text-slate-600">{diagnosisSummary(s)}</p>
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    <span
+                                                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                                            hasSp
+                                                                ? 'bg-emerald-100 text-emerald-800'
+                                                                : 'bg-rose-100 text-rose-800'
+                                                        }`}
+                                                    >
+                                                        {hasSp ? 'Com apoio' : 'Sem apoio'}
+                                                    </span>
+                                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${statusStudentBadge(s.status)}`}>
+                                                        {s.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => openReadonlyRecord(s.id)}
+                                            className="shrink-0 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50"
+                                        >
+                                            Ver prontuário
+                                        </button>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <h2 className="text-lg font-bold text-slate-800">Profissionais de apoio</h2>
+                    <div className="max-h-[560px] space-y-3 overflow-y-auto rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                        {schoolSupportProfessionals.length === 0 ? (
+                            <p className="py-6 text-center text-sm text-slate-500">
+                                Nenhum profissional de apoio cadastrado para esta escola
+                            </p>
+                        ) : (
+                            schoolSupportProfessionals.map(sp => {
+                                const linked = !!(sp.studentId && sp.studentId.trim());
+                                const stName = myStudents.find(x => x.id === sp.studentId)?.fullName || '—';
+                                return (
+                                    <div key={sp.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <p className="font-bold text-slate-900">{sp.name}</p>
+                                            <span
+                                                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                                    linked ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
+                                                }`}
+                                            >
+                                                {linked ? 'Vinculado' : 'Sem aluno'}
+                                            </span>
+                                        </div>
+                                        <p className="mt-1 text-xs text-slate-600">Formação: {sp.education || '—'}</p>
+                                        <p className="text-xs text-slate-600">Carga horária: {sp.workload || '—'}</p>
+                                        <p className="mt-2 text-xs text-slate-700">
+                                            <span className="font-semibold">Aluno:</span> {stName}
+                                        </p>
+                                        <p className="text-xs text-slate-700">
+                                            <span className="font-semibold">Professor regente:</span> {sp.regentTeacher || '—'}
+                                        </p>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                        <h2 className="text-lg font-bold text-slate-800">Próximos agendamentos</h2>
+                        <button
+                            type="button"
+                            onClick={() => onNavigate('scheduling')}
+                            className="text-xs font-bold text-emerald-700 hover:underline"
+                        >
+                            Ver agenda completa
+                        </button>
+                    </div>
+                    {upcomingAppointments.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-slate-500">Nenhum agendamento futuro para os alunos desta escola.</p>
+                    ) : (
+                        <ul className="space-y-3">
+                            {upcomingAppointments.map(a => (
+                                <li key={a.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                        <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+                                        <span className="font-semibold text-slate-800">
+                                            {new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR')} · {a.startTime}
+                                        </span>
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${unitBadgeClass(a.unit)}`}>
+                                            {a.unit}
+                                        </span>
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${appointmentStatusBadgeClass(a.status)}`}>
+                                            {a.status}
+                                        </span>
+                                    </div>
+                                    <p className="mt-2 text-sm font-bold text-slate-900">{a.studentName}</p>
+                                    <p className="text-xs text-slate-600">
+                                        {String(a.specialty ?? '')} · {a.professionalName}
+                                    </p>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+
+                <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="text-lg font-bold text-slate-800">Alertas da escola</h2>
+                    <ul className="space-y-3 text-sm">
+                        {withoutSupportCount > 0 ? (
+                            <li className="flex gap-2 rounded-2xl border border-amber-100 bg-amber-50/80 p-3 text-amber-950">
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                                <span>
+                                    <strong>Atenção:</strong> {withoutSupportCount} aluno(s) sem profissional de apoio vinculado
+                                </span>
+                            </li>
+                        ) : null}
+                        {pendingCount > 0 ? (
+                            <li className="flex gap-2 rounded-2xl border border-amber-100 bg-amber-50/80 p-3 text-amber-950">
+                                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                                <span>
+                                    <strong>Atenção:</strong> {pendingCount} aluno(s) aguardando avaliação
+                                </span>
+                            </li>
+                        ) : null}
+                        <li className="flex gap-2 rounded-2xl border border-sky-100 bg-sky-50/80 p-3 text-sky-950">
+                            <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+                            <span>
+                                <strong>Info:</strong> {studentsWithAppointmentThisWeek} aluno(s) com atendimento agendado esta semana
+                            </span>
+                        </li>
+                        <li className="flex gap-2 rounded-2xl border border-sky-100 bg-sky-50/80 p-3 text-sky-950">
+                            <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+                            <span>
+                                <strong>Info:</strong> {teaTrackedCount} aluno(s) com diagnóstico TEA acompanhados
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-slate-800">Informações da escola</h2>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <p className="text-xs font-semibold uppercase text-slate-500">Nome</p>
+                        <p className="font-bold text-slate-900">{schoolRecord?.name || displaySchoolName}</p>
+                        <p className="mt-1 text-xs text-slate-500">INEP (perfil): {currentUser.schoolInep || schoolRecord?.inep || '—'}</p>
                     </div>
                     <div>
-                        <h4 className="font-bold text-slate-800 text-lg">Informações Importantes</h4>
-                        <p className="text-slate-600 mt-2 leading-relaxed">
-                            Como usuário da escola, você tem permissão para visualizar e editar os dados cadastrais dos alunos e profissionais vinculados à sua instituição.
-                            <strong> Dados clínicos e agendas são restritos à equipe técnica da sede.</strong>
-                        </p>
+                        <p className="text-xs font-semibold uppercase text-slate-500">Direção</p>
+                        <p className="text-sm text-slate-800">{schoolRecord?.director?.trim() || '—'}</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                        <Phone className="mt-0.5 h-4 w-4 text-slate-400" />
+                        <div>
+                            <p className="text-xs font-semibold uppercase text-slate-500">Telefone</p>
+                            <p className="text-sm text-slate-800">{schoolRecord?.phone || '—'}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                        <Building2 className="mt-0.5 h-4 w-4 text-slate-400" />
+                        <div>
+                            <p className="text-xs font-semibold uppercase text-slate-500">Distrito</p>
+                            <p className="text-sm text-slate-800">{schoolRecord?.district || '—'}</p>
+                        </div>
+                    </div>
+                    <div className="sm:col-span-2">
+                        <p className="text-xs font-semibold uppercase text-slate-500">Conectividade</p>
+                        {schoolRecord?.hasInternet === true ? (
+                            <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800">
+                                <Wifi className="h-3.5 w-3.5" /> Com internet
+                            </span>
+                        ) : schoolRecord?.hasInternet === false ? (
+                            <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                                <WifiOff className="h-3.5 w-3.5" /> Sem internet
+                            </span>
+                        ) : (
+                            <span className="mt-1 text-xs text-slate-500">Dado não disponível no cadastro atual</span>
+                        )}
                     </div>
                 </div>
             </div>
+
+            <p className="text-center text-xs text-slate-500">
+                Painel consultivo: não há ações de criação, edição ou exclusão nesta visão.
+            </p>
         </div>
     );
 };

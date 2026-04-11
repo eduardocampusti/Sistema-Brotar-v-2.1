@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { SupportProfessional, School, Student, User as UserType, AuditAction, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory } from '../types';
+import { SupportProfessional, School, Student, User as UserType, AuditAction, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, Unit } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Trash2, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft } from 'lucide-react';
+import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Trash2, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart } from 'lucide-react';
+import { RelatorioProfissionais } from '../src/components/reports';
 import { ConfirmModal } from './ConfirmModal';
 import { CSVImporter } from './CSVImporter';
 import SearchableSelect from './SearchableSelect';
@@ -102,7 +103,31 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [formModalTab, setFormModalTab] = useState<'dados' | 'anexos'>('dados');
     const [pendingAttachmentFiles, setPendingAttachmentFiles] = useState<Partial<Record<SupportProfessionalAttachmentCategory, File>>>({});
     const [savingProfessional, setSavingProfessional] = useState(false);
+    const [mainListTab, setMainListTab] = useState<'lista' | 'relatorios'>(() => {
+        if (isFormPage) return 'lista';
+        const q = new URLSearchParams(location.search);
+        if (q.get('tab') === 'relatorios' || q.get('relatorio') === '1') return 'relatorios';
+        return 'lista';
+    });
     const isEscola = currentUser?.role === 'ESCOLA';
+
+    useEffect(() => {
+        if (isFormPage) return;
+        const q = new URLSearchParams(location.search);
+        if (q.get('tab') === 'relatorios' || q.get('relatorio') === '1') {
+            setMainListTab('relatorios');
+        }
+    }, [location.search, isFormPage]);
+
+    const letterheadUnitForRelatorio = useMemo((): Unit | undefined => {
+        const q = new URLSearchParams(location.search);
+        const unitParam = (q.get('unit') || '').toUpperCase();
+        if (unitParam === 'COCAL') return 'COCAL';
+        if (unitParam === 'SEDE') return 'SEDE';
+        if (currentUser?.role === 'SECRETARIA_SEDE') return 'SEDE';
+        if (currentUser?.scope === 'COCAL') return 'COCAL';
+        return undefined;
+    }, [location.search, currentUser?.role, currentUser?.scope]);
 
     // Estados para formulário
     const numberInputRef = useRef<HTMLInputElement>(null);
@@ -1117,6 +1142,46 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                 )}
             </div>
 
+            <div
+                className="flex border-b border-slate-200 bg-white rounded-t-xl overflow-x-auto"
+                role="tablist"
+                aria-label="Visualização da lista ou relatórios"
+            >
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={mainListTab === 'lista'}
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${mainListTab === 'lista'
+                        ? 'border-primary-500 text-primary-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => setMainListTab('lista')}
+                >
+                    <LayoutList size={18} />
+                    Lista
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={mainListTab === 'relatorios'}
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${mainListTab === 'relatorios'
+                        ? 'border-primary-500 text-primary-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => setMainListTab('relatorios')}
+                >
+                    <FileBarChart size={18} />
+                    Relatórios
+                </button>
+            </div>
+
+            {mainListTab === 'relatorios' ? (
+                <RelatorioProfissionais
+                    professionals={professionals}
+                    schools={schools}
+                    students={students}
+                    letterheadUnit={letterheadUnitForRelatorio}
+                />
+            ) : (
+                <>
             {/* BARRA DE BUSCA INTELIGENTE */}
             <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 animate-fadeIn relative z-20">
                 {/* Nome */}
@@ -1275,6 +1340,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     );
                 })}
             </div>
+                </>
+            )}
                 </>
             )}
         </div>

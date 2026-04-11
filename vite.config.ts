@@ -8,6 +8,11 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5500,
       host: '0.0.0.0',
+      // OneDrive/Windows: o watcher às vezes não detecta alterações; polling evita “não mudou nada” no dev.
+      watch: {
+        usePolling: true,
+        interval: 1000,
+      },
     },
     plugins: [react()],
     define: {
