@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { SupportProfessional, School, Student, User as UserType, AuditAction } from '../types';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { SupportProfessional, School, Student, User as UserType, AuditAction, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserCog, X, Phone, Mail, User, School as SchoolIcon, BookOpen, Trash2, Edit, MapPin, Briefcase, Calendar, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint } from 'lucide-react';
+import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Trash2, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 import { CSVImporter } from './CSVImporter';
 import SearchableSelect from './SearchableSelect';
@@ -58,15 +59,36 @@ const maskCPF = (value: string) => {
         .replace(/(-\d{2})\d+?$/, '$1');
 };
 
+const ATTACHMENT_SLOT_DEFS: {
+    category: SupportProfessionalAttachmentCategory;
+    label: string;
+    hint: string;
+}[] = [
+    { category: 'rg', label: 'RG', hint: 'Documento de identidade (PDF ou imagem)' },
+    { category: 'cpf_documento', label: 'CPF (documento)', hint: 'Comprovante ou cópia do CPF' },
+    { category: 'certificado', label: 'Certificado / diploma', hint: 'Formação ou certificação profissional' },
+    { category: 'conta_bancaria', label: 'Conta bancária', hint: 'Comprovante de dados bancários' },
+    { category: 'historico_escolar', label: 'Histórico escolar', hint: 'Documentação escolar quando aplicável' },
+];
+
 interface SupportProfessionalManagementProps {
     currentUser?: UserType;
 }
 
+const SUPPORT_PROF_LIST_PATH = '/app/support-professionals';
+
 export const SupportProfessionalManagement: React.FC<SupportProfessionalManagementProps> = ({ currentUser }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { profId: editProfId } = useParams<{ profId?: string }>();
+    const normalizedPath = location.pathname.replace(/\/$/, '');
+    const isNewFormPage = normalizedPath.endsWith('/support-professionals/new');
+    const isFormPage = isNewFormPage || Boolean(editProfId);
+    const appliedEditRef = useRef<string | null>(null);
+
     const [professionals, setProfessionals] = useState<SupportProfessional[]>([]);
     const [schools, setSchools] = useState<School[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
-    const [isAdding, setIsAdding] = useState(false);
     const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -76,6 +98,10 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [nameSearchTerm, setNameSearchTerm] = useState('');
     const [cpfSearchTerm, setCpfSearchTerm] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const attachmentInputRefs = useRef<Partial<Record<SupportProfessionalAttachmentCategory, HTMLInputElement | null>>>({});
+    const [formModalTab, setFormModalTab] = useState<'dados' | 'anexos'>('dados');
+    const [pendingAttachmentFiles, setPendingAttachmentFiles] = useState<Partial<Record<SupportProfessionalAttachmentCategory, File>>>({});
+    const [savingProfessional, setSavingProfessional] = useState(false);
     const isEscola = currentUser?.role === 'ESCOLA';
 
     // Estados para formulário
@@ -135,7 +161,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         address: { street: '', number: '', district: '', city: '', state: '', zipCode: '' },
         schoolId: '',
         regentTeacher: '',
-        studentId: ''
+        studentId: '',
+        attachments: []
     });
 
     const academicOptions = [
@@ -255,6 +282,23 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             }
         }
 
+        let mergedAttachments: SupportProfessionalAttachment[] = [...(formData.attachments || [])];
+        const pendingEntries = Object.entries(pendingAttachmentFiles) as [SupportProfessionalAttachmentCategory, File][];
+        setSavingProfessional(true);
+        try {
+            for (const [cat, file] of pendingEntries) {
+                if (!file) continue;
+                const uploaded = await SupabaseService.uploadSupportProfessionalAttachmentFile(file, cat);
+                mergedAttachments = mergedAttachments.filter(a => a.category !== cat);
+                mergedAttachments.push(uploaded);
+            }
+        } catch (uploadErr: any) {
+            console.error(uploadErr);
+            showNotification(uploadErr?.message || 'Erro ao enviar anexos.', 'error');
+            setSavingProfessional(false);
+            return;
+        }
+
         const newProf: SupportProfessional = {
             id: formData.id || '', // Se for novo, manda vazio para cair no INSERT do backend
             name: formData.name,
@@ -269,7 +313,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             schoolId: formData.schoolId,
             regentTeacher: formData.regentTeacher || '',
             studentId: formData.studentId,
-            createdAt: formData.createdAt || new Date().toISOString()
+            createdAt: formData.createdAt || new Date().toISOString(),
+            attachments: mergedAttachments,
         };
 
         try {
@@ -282,16 +327,25 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             }
 
             await loadData();
-            setIsAdding(false);
+            navigate(SUPPORT_PROF_LIST_PATH);
             resetForm();
+            setPendingAttachmentFiles({});
             showNotification('Profissional salvo com sucesso!', 'success');
         } catch (err: any) {
             console.error(err);
             showNotification(`Erro ao salvar profissional: ${err.message || 'Erro desconhecido'}`, 'error');
+        } finally {
+            setSavingProfessional(false);
         }
     };
 
     const resetForm = () => {
+        setFormModalTab('dados');
+        setPendingAttachmentFiles({});
+        ATTACHMENT_SLOT_DEFS.forEach(({ category }) => {
+            const el = attachmentInputRefs.current[category];
+            if (el) el.value = '';
+        });
         setFormData({
             name: '',
             photoUrl: '',
@@ -304,9 +358,51 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             address: { street: '', number: '', district: '', city: '', state: '', zipCode: '' },
             schoolId: '',
             regentTeacher: '',
-            studentId: ''
+            studentId: '',
+            attachments: []
         });
     };
+
+    const applyProfToForm = useCallback((prof: SupportProfessional) => {
+        const address = prof.address || { street: '', number: '', district: '', city: '', state: '', zipCode: '' };
+        const schoolMatch = schools.find(s => s.id === prof.schoolId || s.name === prof.schoolId);
+        const studentMatch = students.find(s => s.id === prof.studentId || s.fullName === prof.studentId);
+
+        setFormModalTab('dados');
+        setPendingAttachmentFiles({});
+        ATTACHMENT_SLOT_DEFS.forEach(({ category }) => {
+            const el = attachmentInputRefs.current[category];
+            if (el) el.value = '';
+        });
+        setFormData({
+            ...prof,
+            address,
+            schoolId: schoolMatch?.id || prof.schoolId,
+            studentId: studentMatch?.id || prof.studentId,
+            attachments: prof.attachments || []
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [schools, students]);
+
+    useEffect(() => {
+        if (!isNewFormPage) return;
+        appliedEditRef.current = '';
+        resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apenas ao entrar na rota "novo"
+    }, [isNewFormPage]);
+
+    useEffect(() => {
+        if (!editProfId) {
+            appliedEditRef.current = '';
+            return;
+        }
+        const prof = professionals.find(p => p.id === editProfId);
+        if (!prof) return;
+        const loadKey = `${editProfId}|s${schools.length}|st${students.length}`;
+        if (appliedEditRef.current === loadKey) return;
+        appliedEditRef.current = loadKey;
+        applyProfToForm(prof);
+    }, [editProfId, professionals, schools.length, students.length, applyProfToForm]);
 
     useEffect(() => {
         if (currentUser?.role === 'ESCOLA' && currentUser.schoolId && schools.length > 0) {
@@ -322,23 +418,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     }, [currentUser, schools, formData.schoolId]);
 
     const handleEdit = (prof: SupportProfessional) => {
-        console.log('[SupportProfessionalManagement] Carregando profissional para edição:', prof);
-        const address = prof.address || { street: '', number: '', district: '', city: '', state: '', zipCode: '' };
-        
-        // Diagnóstico de IDs
-        const schoolMatch = schools.find(s => s.id === prof.schoolId || s.name === prof.schoolId);
-        const studentMatch = students.find(s => s.id === prof.studentId || s.fullName === prof.studentId);
-        
-        setFormData({ 
-            ...prof, 
-            address,
-            schoolId: schoolMatch?.id || prof.schoolId, // Tenta normalizar para UUID se for nome
-            studentId: studentMatch?.id || prof.studentId
-        });
-        
-        setIsAdding(true);
-        // Scroll suave para o topo para garantir que o usuário veja o formulário
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        navigate(`${SUPPORT_PROF_LIST_PATH}/edit/${prof.id}`);
     };
 
     const handleDeleteClick = (id: string) => {
@@ -554,7 +634,9 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div
+            className={`mx-auto ${!isFormPage ? 'space-y-6' : ''} ${isFormPage ? 'max-w-5xl -mt-2 md:-mt-4 pb-2 md:pb-4' : 'max-w-6xl'}`}
+        >
             {notification && (
                 <Toast
                     message={notification.message}
@@ -575,6 +657,434 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                 isLoading={isDeleting}
             />
 
+            {showImporter && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
+                    <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto custom-scrollbar relative">
+                        <button
+                            onClick={() => setShowImporter(false)}
+                            className="absolute top-4 right-4 z-10 p-2 bg-white/10 text-white hover:bg-white/20 rounded-full transition-colors"
+                        >
+                            <X size={24} />
+                        </button>
+                        <CSVImporter
+                            type="support_professionals"
+                            currentUser={currentUser || { name: 'Admin', email: '', role: 'ADMIN' }}
+                            onComplete={() => {
+                                setShowImporter(false);
+                                loadData();
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {isFormPage ? (
+                <div className="bg-white rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-200 overflow-hidden flex flex-col">
+                        <div className="px-4 py-4 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-slate-50">
+                            <div className="min-w-0">
+                                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <UserCog size={22} className="text-primary-600 flex-shrink-0" />
+                                    <span className="truncate">{formData.id ? 'Editar profissional de apoio' : 'Ficha de cadastro — profissional de apoio escolar'}</span>
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-1">
+                                    {formData.id ? 'Atualize os dados e salve para gravar as alterações.' : 'Preencha os dados completos para admissão na rede.'}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => navigate(SUPPORT_PROF_LIST_PATH)}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 shadow-sm transition-colors flex-shrink-0"
+                            >
+                                <ArrowLeft size={18} className="text-primary-600" />
+                                Voltar à lista
+                            </button>
+                        </div>
+
+                        <div className="flex border-b border-slate-100 overflow-x-auto bg-white z-10" role="tablist" aria-label="Seções do cadastro">
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={formModalTab === 'dados'}
+                                className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${formModalTab === 'dados'
+                                    ? 'border-primary-500 text-primary-600'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                                onClick={() => setFormModalTab('dados')}
+                            >
+                                <User size={18} />
+                                <span className="hidden sm:inline">Dados cadastrais</span>
+                                <span className="sm:hidden">Dados</span>
+                            </button>
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={formModalTab === 'anexos'}
+                                className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${formModalTab === 'anexos'
+                                    ? 'border-primary-500 text-primary-600'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                                onClick={() => setFormModalTab('anexos')}
+                            >
+                                <Paperclip size={18} />
+                                <span>Anexos</span>
+                                {(() => {
+                                    let n = 0;
+                                    for (const { category } of ATTACHMENT_SLOT_DEFS) {
+                                        if (pendingAttachmentFiles[category]) n++;
+                                        else if (formData.attachments?.some(a => a.category === category)) n++;
+                                    }
+                                    return n > 0 ? (
+                                        <span className="text-[10px] font-bold bg-primary-600 text-white px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">{n}</span>
+                                    ) : null;
+                                })()}
+                            </button>
+                        </div>
+
+                            <form id="support-professional-form" onSubmit={handleSubmit} className="px-4 py-4 sm:px-6 sm:py-5 md:py-6">
+                        {formModalTab === 'dados' && (
+                        <div className="animate-fadeIn space-y-6">
+                            <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="relative group">
+                                        <div className="w-32 h-32 rounded-full bg-slate-100 border-4 border-white shadow-md flex items-center justify-center overflow-hidden">
+                                            {formData.photoUrl ? (
+                                                <img src={formData.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <UserCog size={48} className="text-slate-300" />
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="absolute bottom-0 right-0 bg-primary-600 text-white p-2 rounded-full shadow-lg hover:bg-primary-700 transition-colors"
+                                            title="Carregar Foto"
+                                        >
+                                            <Upload size={16} />
+                                        </button>
+                                    </div>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handlePhotoUpload}
+                                    />
+                                    {formData.photoUrl && (
+                                        <button type="button" onClick={handleRemovePhoto} className="text-xs text-red-500 hover:underline">
+                                            Remover foto
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="flex-1 min-w-0 space-y-5">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                            <span className="w-1 h-4 bg-primary-500 rounded-full" aria-hidden />
+                                            Dados pessoais e formação
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-5">
+                                            <div className="md:col-span-12">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Nome completo *</label>
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    name="name"
+                                                    className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
+                                                    value={formData.name}
+                                                    onChange={handleInputChange}
+                                                    onBlur={e => setFormData({ ...formData, name: formatarNomeBR(e.target.value) })}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-12">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Formação acadêmica</label>
+                                                <div className="relative">
+                                                    <select
+                                                        className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border bg-white appearance-none pl-10"
+                                                        value={formData.education}
+                                                        name="education"
+                                                        onChange={handleInputChange}
+                                                    >
+                                                        <option value="">Selecione a formação...</option>
+                                                        {academicOptions.map(opt => (
+                                                            <option key={opt} value={opt}>{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                    <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-4">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">CPF</label>
+                                                <input
+                                                    type="text"
+                                                    name="cpf"
+                                                    placeholder="000.000.000-00"
+                                                    className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
+                                                    value={formData.cpf}
+                                                    onChange={handleInputChange}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-4">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Telefone / WhatsApp</label>
+                                                <input
+                                                    type="text"
+                                                    name="phone"
+                                                    placeholder="(00) 00000-0000"
+                                                    className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
+                                                    value={formData.phone}
+                                                    onChange={handleInputChange}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-4">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
+                                                <input
+                                                    type="email"
+                                                    name="email"
+                                                    className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
+                                                    value={formData.email}
+                                                    onChange={handleInputChange}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2 border-t border-slate-100">
+                                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                            <span className="w-1 h-4 bg-primary-500 rounded-full" aria-hidden />
+                                            Contrato e lotação
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-5">
+                                            <div className="md:col-span-4">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Início do contrato</label>
+                                                <input
+                                                    type="date"
+                                                    name="contractStartDate"
+                                                    className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
+                                                    value={formData.contractStartDate}
+                                                    onChange={handleInputChange}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-4">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Carga horária</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        name="workload"
+                                                        placeholder="Ex: 40h"
+                                                        className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border pl-10"
+                                                        value={formData.workload}
+                                                        onChange={handleInputChange}
+                                                    />
+                                                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-4 md:col-start-1">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Escola de lotação *</label>
+                                                <SearchableSelect
+                                                    options={schoolOptions}
+                                                    value={formData.schoolId}
+                                                    disabled={isEscola}
+                                                    placeholder="Selecione a unidade escolar..."
+                                                    onChange={(val) => {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            schoolId: val,
+                                                            studentId: ''
+                                                        }));
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-8">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Aluno assistido *</label>
+                                                <SearchableSelect
+                                                    options={studentOptions}
+                                                    value={formData.studentId}
+                                                    disabled={!formData.schoolId}
+                                                    placeholder={!formData.schoolId ? 'Selecione a escola primeiro...' : 'Selecione o aluno...'}
+                                                    onChange={(val) => {
+                                                        setFormData(prev => ({ ...prev, studentId: val }));
+                                                    }}
+                                                />
+                                                {formData.schoolId && filteredStudents.length === 0 && (
+                                                    <p className="text-xs text-amber-600 mt-1.5">
+                                                        Atenção: não há alunos vinculados a esta escola no sistema.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-200">
+                                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                    <span className="w-1 h-4 bg-primary-500 rounded-full" aria-hidden />
+                                    Endereço residencial
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="md:col-span-1">
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">CEP</label>
+                                        <input
+                                            type="text"
+                                            name="zipCode"
+                                            placeholder="00000-000"
+                                            className="w-full rounded-lg border-slate-300 focus:ring-primary-500 focus:border-primary-500 p-2.5 border"
+                                            value={formData.address?.zipCode}
+                                            onChange={handleAddressInputChange}
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Logradouro (rua, av., etc.)</label>
+                                        <input
+                                            type="text"
+                                            name="street"
+                                            className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                            value={formData.address?.street}
+                                            onChange={handleAddressInputChange}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Número</label>
+                                        <input
+                                            ref={numberInputRef}
+                                            type="text"
+                                            name="number"
+                                            className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                            value={formData.address?.number}
+                                            onChange={handleAddressInputChange}
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Bairro</label>
+                                        <input
+                                            type="text"
+                                            name="district"
+                                            className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                            value={formData.address?.district}
+                                            onChange={handleAddressInputChange}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Cidade</label>
+                                        <input
+                                            type="text"
+                                            name="city"
+                                            className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                            value={formData.address?.city}
+                                            onChange={handleAddressInputChange}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">UF</label>
+                                        <input
+                                            type="text"
+                                            name="state"
+                                            className="w-full rounded-lg border-slate-300 p-2.5 border"
+                                            value={formData.address?.state}
+                                            onChange={handleAddressInputChange}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        )}
+
+                        {formModalTab === 'anexos' && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                                Os arquivos são enviados ao armazenamento ao clicar em <strong className="text-slate-800">Salvar profissional</strong> no rodapé. Prefira PDF ou imagem (JPG, PNG).
+                            </p>
+                            {ATTACHMENT_SLOT_DEFS.map(def => {
+                                const saved = formData.attachments?.find(a => a.category === def.category);
+                                const pending = pendingAttachmentFiles[def.category];
+                                const filled = !!(pending || saved);
+                                return (
+                                    <div key={def.category} className="flex flex-wrap items-start gap-3 justify-between rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-semibold text-slate-800">{def.label}</p>
+                                            <p className="text-[11px] text-slate-500">{def.hint}</p>
+                                            {saved && !pending && (
+                                                <a href={saved.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline mt-1 inline-block truncate max-w-full">
+                                                    Abrir arquivo: {saved.fileName}
+                                                </a>
+                                            )}
+                                            {pending && (
+                                                <p className="text-xs text-amber-800 mt-1">Pronto para envio: {pending.name}</p>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0">
+                                            {filled && (
+                                                <span className="inline-flex items-center justify-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1">
+                                                    <CheckCircle size={14} aria-hidden /> Adicionado
+                                                </span>
+                                            )}
+                                            <input
+                                                type="file"
+                                                className="hidden"
+                                                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,image/*,application/pdf"
+                                                ref={el => { attachmentInputRefs.current[def.category] = el; }}
+                                                onChange={(e) => {
+                                                    const f = e.target.files?.[0];
+                                                    if (f) setPendingAttachmentFiles(prev => ({ ...prev, [def.category]: f }));
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 font-medium inline-flex items-center gap-1 justify-center"
+                                                onClick={() => attachmentInputRefs.current[def.category]?.click()}
+                                            >
+                                                <Paperclip size={14} aria-hidden />
+                                                {filled ? 'Substituir' : 'Anexar'}
+                                            </button>
+                                            {filled && (
+                                                <button
+                                                    type="button"
+                                                    className="text-xs text-red-600 hover:underline px-2 text-left sm:text-center"
+                                                    onClick={() => {
+                                                        setPendingAttachmentFiles(prev => {
+                                                            const n = { ...prev };
+                                                            delete n[def.category];
+                                                            return n;
+                                                        });
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            attachments: (prev.attachments || []).filter(a => a.category !== def.category),
+                                                        }));
+                                                        const el = attachmentInputRefs.current[def.category];
+                                                        if (el) el.value = '';
+                                                    }}
+                                                >
+                                                    Remover
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        )}
+
+                            </form>
+                <div className="px-4 py-4 sm:px-6 sm:py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+                    <button
+                        type="button"
+                        disabled={savingProfessional}
+                        onClick={() => navigate(SUPPORT_PROF_LIST_PATH)}
+                        className="px-5 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 shadow-sm disabled:opacity-50"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="submit"
+                        form="support-professional-form"
+                        disabled={savingProfessional}
+                        className="flex items-center gap-2 px-8 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 shadow-md"
+                    >
+                        {savingProfessional ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        {savingProfessional ? 'Salvando...' : (formData.id ? 'Atualizar profissional' : 'Salvar profissional')}
+                    </button>
+                </div>
+                </div>
+            ) : (
+                <>
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800">Profissionais de Apoio Escolar</h2>
@@ -598,7 +1108,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                         </button>
 
                         <button
-                            onClick={() => { setIsAdding(true); resetForm(); }}
+                            onClick={() => navigate(`${SUPPORT_PROF_LIST_PATH}/new`)}
                             className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
                         >
                             <UserCog size={18} /> Novo Profissional
@@ -606,251 +1116,6 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     </div>
                 )}
             </div>
-
-            {/* Modal Importador */}
-            {showImporter && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-                    <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto custom-scrollbar relative">
-                        <button
-                            onClick={() => setShowImporter(false)}
-                            className="absolute top-4 right-4 z-10 p-2 bg-white/10 text-white hover:bg-white/20 rounded-full transition-colors"
-                        >
-                            <X size={24} />
-                        </button>
-                        <CSVImporter
-                            type="support_professionals"
-                            currentUser={currentUser || { name: 'Admin', email: '', role: 'ADMIN' }}
-                            onComplete={() => {
-                                setShowImporter(false);
-                                loadData();
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {isAdding && (
-                <div className="bg-white rounded-xl shadow-lg border border-primary-100 p-6 animate-fadeIn">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="font-bold text-slate-700 text-lg flex items-center gap-2">
-                            <UserCog size={20} className="text-primary-600" />
-                            {formData.id ? 'Editar Profissional' : 'Cadastro de Profissional de Apoio Escolar'}
-                        </h3>
-                        <button onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-slate-600">
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="flex flex-col md:flex-row gap-8">
-                            {/* Seção da Foto */}
-                            <div className="flex flex-col items-center gap-3">
-                                <div className="relative group">
-                                    <div className="w-32 h-32 rounded-full bg-slate-100 border-4 border-white shadow-md flex items-center justify-center overflow-hidden">
-                                        {formData.photoUrl ? (
-                                            <img src={formData.photoUrl} alt="Preview" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <UserCog size={48} className="text-slate-300" />
-                                        )}
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="absolute bottom-0 right-0 bg-primary-600 text-white p-2 rounded-full shadow-lg hover:bg-primary-700 transition-colors"
-                                        title="Carregar Foto"
-                                    >
-                                        <Upload size={16} />
-                                    </button>
-                                </div>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handlePhotoUpload}
-                                />
-                                {formData.photoUrl && (
-                                    <button type="button" onClick={handleRemovePhoto} className="text-xs text-red-500 hover:underline">
-                                        Remover foto
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Coluna Principal do Formulário */}
-                            <div className="flex-1 space-y-6">
-                                {/* Dados Pessoais */}
-                                <div className="space-y-4">
-                                    <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2">Dados Pessoais e Formação</h4>
-                                    <div>
-                                        <input required type="text" className="w-full rounded-lg border-slate-300 p-2.5 border focus:ring-primary-500"
-                                            value={formData.name}
-                                            name="name"
-                                            onChange={handleInputChange}
-                                            onBlur={e => setFormData({ ...formData, name: formatarNomeBR(e.target.value) })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Formação Acadêmica</label>
-                                        <div className="relative">
-                                            <select
-                                                className="w-full rounded-lg border-slate-300 p-2.5 border bg-white appearance-none pl-9"
-                                                value={formData.education}
-                                                name="education"
-                                                onChange={handleInputChange}
-                                            >
-                                                <option value="">Selecione a formação...</option>
-                                                {academicOptions.map(opt => (
-                                                    <option key={opt} value={opt}>{opt}</option>
-                                                ))}
-                                            </select>
-                                            <GraduationCap className="absolute left-3 top-3 text-slate-400 pointer-events-none" size={16} />
-                                            <ChevronDown className="absolute right-3 top-3 text-slate-400 pointer-events-none" size={16} />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">CPF</label>
-                                            <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                name="cpf"
-                                                placeholder="000.000.000-00"
-                                                value={formData.cpf} onChange={handleInputChange} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Telefone/WhatsApp</label>
-                                            <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                name="phone"
-                                                placeholder="(00) 00000-0000"
-                                                value={formData.phone} onChange={handleInputChange} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
-                                        <input type="email" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                            name="email"
-                                            value={formData.email} onChange={handleInputChange} />
-                                    </div>
-                                </div>
-
-                                    {/* Dados Contratuais e Lotação */}
-                                    <div className="space-y-4">
-                                        <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2">Contrato e Lotação</h4>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-1">Início do Contrato</label>
-                                                <div className="relative">
-                                                    <input type="date" className="w-full rounded-lg border-slate-300 p-2.5 border"
-                                                        name="contractStartDate"
-                                                        value={formData.contractStartDate} onChange={handleInputChange} />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-1">Carga Horária</label>
-                                                <div className="relative">
-                                                    <input type="text" className="w-full rounded-lg border-slate-300 p-2.5 border pl-9"
-                                                        name="workload"
-                                                        value={formData.workload} onChange={handleInputChange} placeholder="Ex: 40h" />
-                                                    <Briefcase className="absolute left-3 top-3 text-slate-400" size={16} />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Unidade Escolar (Escola de Lotação) */}
-                                        <div className="relative">
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Escola de Lotação *</label>
-                                            <SearchableSelect
-                                                options={schoolOptions}
-                                                value={formData.schoolId}
-                                                disabled={isEscola}
-                                                placeholder="Selecione a Unidade Escolar..."
-                                                onChange={(val) => {
-                                                    setFormData(prev => ({ 
-                                                        ...prev, 
-                                                        schoolId: val,
-                                                        studentId: '' // Limpa o aluno ao mudar a escola
-                                                    }));
-                                                }}
-                                            />
-                                        </div>
-
-                                    {/* Aluno Assistido */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Aluno Assistido *</label>
-                                        <SearchableSelect
-                                            options={studentOptions}
-                                            value={formData.studentId}
-                                            disabled={!formData.schoolId}
-                                            placeholder={!formData.schoolId ? "Selecione a escola primeiro..." : "Selecione o Aluno..."}
-                                            onChange={(val) => {
-                                                setFormData(prev => ({ ...prev, studentId: val }));
-                                            }}
-                                        />
-                                        {formData.schoolId && filteredStudents.length === 0 && (
-                                            <p className="text-xs text-amber-600 mt-1">
-                                                Atenção: Não há alunos vinculados a esta escola no sistema.
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Endereço */}
-                                <div className="pt-4">
-                                    <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
-                                        <MapPin size={16} /> Endereço Residencial
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">CEP</label>
-                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                                name="zipCode"
-                                                placeholder="00000-000"
-                                                value={formData.address?.zipCode} onChange={handleAddressInputChange} />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className="block text-xs text-slate-500 mb-1">Rua / Logradouro</label>
-                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                                name="street"
-                                                value={formData.address?.street} onChange={handleAddressInputChange} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">Número</label>
-                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                                ref={numberInputRef}
-                                                name="number"
-                                                value={formData.address?.number} onChange={handleAddressInputChange} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">Bairro</label>
-                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                                name="district"
-                                                value={formData.address?.district} onChange={handleAddressInputChange} />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className="block text-xs text-slate-500 mb-1">Cidade</label>
-                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                                name="city"
-                                                value={formData.address?.city} onChange={handleAddressInputChange} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-slate-500 mb-1">Estado</label>
-                                            <input type="text" className="w-full rounded-md border-slate-300 p-2 border text-sm"
-                                                name="state"
-                                                value={formData.address?.state} onChange={handleAddressInputChange} />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                            <button type="button" onClick={() => setIsAdding(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancelar</button>
-                            <button type="submit" className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium shadow-md">
-                                <Save size={18} /> Salvar Profissional
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            )}
 
             {/* BARRA DE BUSCA INTELIGENTE */}
             <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 animate-fadeIn relative z-20">
@@ -961,7 +1226,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                     {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA') && (
                                         <button 
-                                            onClick={() => handleEdit(prof)} 
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleEdit(prof); }}
                                             className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                                             title="Editar"
                                         >
@@ -970,7 +1236,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                     )}
                                     {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
                                         <button 
-                                            onClick={() => handleDeleteClick(prof.id)} 
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(prof.id); }}
                                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                                             title="Excluir"
                                         >
@@ -1008,6 +1275,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     );
                 })}
             </div>
+                </>
+            )}
         </div>
     );
 };

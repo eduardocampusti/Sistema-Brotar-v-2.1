@@ -312,6 +312,8 @@ function AppContent() {
           <Route path="documents" element={<React.Suspense fallback={<PageLoading />}><DocumentGenerator currentUser={user!} /></React.Suspense>} />
           <Route path="vault" element={<React.Suspense fallback={<PageLoading />}><DocumentVault currentUser={user!} students={students} onModelSelect={() => handleNavigate('documents')} /></React.Suspense>} />
           <Route path="schools" element={<React.Suspense fallback={<PageLoading />}><SchoolManagement /></React.Suspense>} />
+          <Route path="support-professionals/new" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
+          <Route path="support-professionals/edit/:profId" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
           <Route path="support-professionals" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
           <Route path="admin" element={<React.Suspense fallback={<PageLoading />}><UserManagement /></React.Suspense>} />
           <Route path="settings" element={<React.Suspense fallback={<PageLoading />}><SystemSettingsPanel /></React.Suspense>} />

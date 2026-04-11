@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
-import { Student, User, School, SupportProfessional, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog } from '../types';
+import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog } from '../types';
 
 /** Retry em timeout (57014 / statement timeout) para plano Supabase com limite rígido. */
 async function withRetry<T>(
@@ -230,7 +230,15 @@ export class SupabaseService {
      * ATENÇÃO: NÃO aplica recursividade em campos JSONB do banco (address, guardians,
      * clinical_info, social_info, documents) para evitar perda de dados aninhados.
      */
-    private static readonly JSONB_FIELDS = new Set(['address', 'guardians', 'clinical_info', 'social_info', 'family_info', 'educational_info', 'documents']);
+    private static readonly JSONB_FIELDS = new Set(['address', 'guardians', 'clinical_info', 'social_info', 'family_info', 'educational_info', 'documents', 'attachments']);
+
+    /** Colunas mínimas (compatível com DB antes de photo_url / V14 attachments). */
+    private static readonly SUPPORT_PRO_LIST_SELECT_LEGACY =
+        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at';
+    private static readonly SUPPORT_PRO_LIST_SELECT_PHOTO =
+        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,photo_url';
+    private static readonly SUPPORT_PRO_LIST_SELECT_FULL =
+        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,photo_url,attachments';
 
     private static cleanDataForSupabase(data: any): any {
         if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
@@ -1924,40 +1932,109 @@ export class SupabaseService {
     }
 
     // --- Support Professionals ---
+    /**
+     * Envia arquivo de anexo (RG, certificado, etc.) para o bucket já usado em documentos de alunos.
+     * Caminho prefixado com support_professional/ para organização e políticas do Storage.
+     */
+    static async uploadSupportProfessionalAttachmentFile(
+        file: File,
+        category: SupportProfessionalAttachmentCategory
+    ): Promise<SupportProfessionalAttachment> {
+        const sane = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const filePath = `support_professional/${category}_${Date.now()}_${sane}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('student-documents')
+            .upload(filePath, file, { upsert: true });
+
+        if (uploadError) {
+            console.error('[SupabaseService] uploadSupportProfessionalAttachmentFile:', uploadError);
+            throw new Error(
+                `Não foi possível enviar o arquivo (${uploadError.message}). ` +
+                    'Confirme o bucket Storage "student-documents" e permissões para a pasta support_professional/.'
+            );
+        }
+
+        const { data: publicUrlData } = supabase.storage.from('student-documents').getPublicUrl(uploadData.path);
+        return {
+            category,
+            fileName: file.name,
+            url: publicUrlData.publicUrl,
+            uploadedAt: new Date().toISOString(),
+        };
+    }
+
+    private static parseSupportProfessionalAttachments(raw: unknown): SupportProfessionalAttachment[] {
+        if (!Array.isArray(raw)) return [];
+        const allowed: SupportProfessionalAttachmentCategory[] = [
+            'rg',
+            'cpf_documento',
+            'certificado',
+            'conta_bancaria',
+            'historico_escolar',
+        ];
+        return raw
+            .filter(
+                (x: any) =>
+                    x &&
+                    typeof x.url === 'string' &&
+                    allowed.includes(x.category as SupportProfessionalAttachmentCategory)
+            )
+            .map((x: any) => ({
+                category: x.category as SupportProfessionalAttachmentCategory,
+                fileName: String(x.fileName || 'documento'),
+                url: String(x.url),
+                uploadedAt: String(x.uploadedAt || new Date().toISOString()),
+            }));
+    }
+
     static async getSupportProfessionalsByStudent(studentId: string): Promise<SupportProfessional[]> {
         return safeCall(async () => {
-            let data: any[] | null = null;
-            let error: any = null;
-
-            const resName = await supabase
-                .from('support_professionals')
-                .select(`
-                    id, name, cpf, phone, email, education,
+            const suffixes = [',photo_url,attachments', ',photo_url', ''] as const;
+            const selectFor = (nameField: 'name' | 'full_name', suffix: string) =>
+                `id, ${nameField}, cpf, phone, email, education,
                     contract_start_date, workload, address, school_id,
-                    regent_teacher, student_id, created_at
-                `)
-                .eq('student_id', studentId)
-                .order('name');
-            data = resName.data;
-            error = resName.error;
+                    regent_teacher, student_id, created_at${suffix}`;
 
-            if (error && (error.message?.includes('name') || error.code === '42703')) {
-                const resFull = await supabase
+            const runQuery = async (nameField: 'name' | 'full_name', suffix: string) =>
+                supabase
                     .from('support_professionals')
-                    .select(`
-                        id, full_name, cpf, phone, email, education,
-                        contract_start_date, workload, address, school_id,
-                        regent_teacher, student_id, created_at
-                    `)
+                    .select(selectFor(nameField, suffix))
                     .eq('student_id', studentId)
-                    .order('full_name');
-                data = resFull.data;
-                error = resFull.error;
+                    .order(nameField);
+
+            let data: any[] | null = null;
+
+            outer: for (const suffix of suffixes) {
+                let res = await runQuery('name', suffix);
+                if (!res.error) {
+                    data = res.data;
+                    break outer;
+                }
+                const msg = String(res.error.message || '');
+                if (res.error.code === '42703' && /attachments|photo_url/i.test(msg)) {
+                    console.warn('[getSupportProfessionalsByStudent] Colunas opcionais ausentes; tentando select reduzido.', msg);
+                    continue outer;
+                }
+                if (res.error && (res.error.message?.includes('name') || res.error.code === '42703')) {
+                    const resFull = await runQuery('full_name', suffix);
+                    if (!resFull.error) {
+                        data = resFull.data;
+                        break outer;
+                    }
+                    const msg2 = String(resFull.error.message || '');
+                    if (resFull.error.code === '42703' && /attachments|photo_url/i.test(msg2)) {
+                        console.warn('[getSupportProfessionalsByStudent] (full_name) Colunas opcionais ausentes; tentando select reduzido.', msg2);
+                        continue outer;
+                    }
+                    console.error(`Erro ao buscar ATs para o aluno ${studentId}:`, resFull.error);
+                    throw resFull.error;
+                }
+                console.error(`Erro ao buscar ATs para o aluno ${studentId}:`, res.error);
+                throw res.error;
             }
 
-            if (error) {
-                console.error(`Erro ao buscar ATs para o aluno ${studentId}:`, error);
-                throw error;
+            if (data === null) {
+                throw new Error('Não foi possível carregar profissionais de apoio do aluno.');
             }
 
             return (data ?? []).map((p: any) => ({
@@ -1973,7 +2050,9 @@ export class SupabaseService {
                 schoolId: p.school_id,
                 regentTeacher: p.regent_teacher,
                 studentId: p.student_id,
-                createdAt: p.created_at
+                createdAt: p.created_at,
+                photoUrl: p.photo_url || '',
+                attachments: this.parseSupportProfessionalAttachments(p.attachments),
             }));
         }, 2, 300, `getSupportProfessionalsByStudent(${studentId})`);
     }
@@ -2014,20 +2093,16 @@ export class SupabaseService {
             const filtrarPorEscola = !!schoolIdForFilter;
 
             const PAGE = 50;
-            const supportProListSelect =
-                'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at';
-            const buildQuery = () => {
-                let q = supabase.from('support_professionals').select(supportProListSelect);
-                if (filtrarPorEscola) {
-                    q = q.eq('school_id', schoolIdForFilter as string);
-                }
-                return q;
-            };
-            const fetchPages = async (orderCol: 'name' | 'full_name') => {
+
+            const fetchPages = async (orderCol: 'name' | 'full_name', selectList: string) => {
                 const acc: any[] = [];
                 for (let from = 0; ; from += PAGE) {
                     const to = from + PAGE - 1;
-                    const { data, error } = await buildQuery()
+                    let q = supabase.from('support_professionals').select(selectList);
+                    if (filtrarPorEscola) {
+                        q = q.eq('school_id', schoolIdForFilter as string);
+                    }
+                    const { data, error } = await q
                         .order(orderCol, { ascending: true })
                         .range(from, to)
                         .limit(PAGE);
@@ -2039,18 +2114,42 @@ export class SupabaseService {
                 return acc;
             };
 
-            // Coluna de nome no Postgres: `name` (ver information_schema / V13 idx_support_professionals_name)
+            const tryFetchList = async (selectList: string) => {
+                try {
+                    return await withRetry(() => fetchPages('name', selectList));
+                } catch (e: any) {
+                    const msg = String(e?.message || '');
+                    if (e?.code === '42703' && /support_professionals\.name\b/i.test(msg)) {
+                        console.warn('[SupabaseService][getSupportProfessionals] Coluna name indisponível; tentando full_name.', msg);
+                        return await withRetry(() => fetchPages('full_name', selectList));
+                    }
+                    throw e;
+                }
+            };
+
+            // Colunas opcionais (photo_url, attachments): fallback se migration V14 ainda não aplicada
             let data: any[] = [];
             try {
-                data = await withRetry(() => fetchPages('name'));
+                data = await tryFetchList(this.SUPPORT_PRO_LIST_SELECT_FULL);
             } catch (e: any) {
-                const msg = String(e?.message || '');
-                // Não usar includes('name'): mensagens com full_name também contêm "name".
-                if (e?.code === '42703' && /support_professionals\.name\b/i.test(msg)) {
-                    console.warn('[SupabaseService][getSupportProfessionals] Coluna name indisponível; tentando full_name.', msg);
-                    data = await withRetry(() => fetchPages('full_name'));
-                } else {
-                    throw e;
+                if (e?.code !== '42703') throw e;
+                const msg0 = String(e?.message || '');
+                if (!/attachments|photo_url/i.test(msg0)) throw e;
+                console.warn(
+                    '[SupabaseService][getSupportProfessionals] Select com attachments falhou (42703); tentando sem attachments.',
+                    msg0
+                );
+                try {
+                    data = await tryFetchList(this.SUPPORT_PRO_LIST_SELECT_PHOTO);
+                } catch (e2: any) {
+                    if (e2?.code !== '42703') throw e2;
+                    const msg2 = String(e2?.message || '');
+                    if (!/photo_url|attachments/i.test(msg2)) throw e2;
+                    console.warn(
+                        '[SupabaseService][getSupportProfessionals] Select com photo_url falhou; usando colunas legadas.',
+                        msg2
+                    );
+                    data = await tryFetchList(this.SUPPORT_PRO_LIST_SELECT_LEGACY);
                 }
             }
 
@@ -2068,7 +2167,8 @@ export class SupabaseService {
                 workload: p.workload || '',
                 email: p.email || '',
                 address: p.address || {},
-                createdAt: p.created_at || new Date().toISOString()
+                createdAt: p.created_at || new Date().toISOString(),
+                attachments: this.parseSupportProfessionalAttachments(p.attachments),
             }));
         }, 0, 300, 'getSupportProfessionals');
     }
@@ -2096,8 +2196,14 @@ export class SupabaseService {
                 address: prof.address,
                 school_id: toNull(prof.schoolId),
                 regent_teacher: prof.regentTeacher,
-                student_id: toNull(prof.studentId)
+                student_id: toNull(prof.studentId),
             };
+            if (prof.photoUrl !== undefined) {
+                payload.photo_url = prof.photoUrl || null;
+            }
+            if (prof.attachments !== undefined) {
+                payload.attachments = Array.isArray(prof.attachments) ? prof.attachments : [];
+            }
 
             return this.cleanDataForSupabase(payload);
         });
@@ -2105,9 +2211,28 @@ export class SupabaseService {
         console.log(`[SupabaseService] Realizando bulk upsert de ${payloads.length} profissionais...`);
 
         return safeCall(async () => {
-            const { error } = await supabase
-                .from('support_professionals')
-                .upsert(payloads);
+            let toUpsert: any[] = payloads;
+            let { error } = await supabase.from('support_professionals').upsert(toUpsert);
+
+            // DB sem migration V14: coluna attachments inexistente (42703)
+            if (error?.code === '42703' && /attachments/i.test(String(error.message || ''))) {
+                console.warn('[SupabaseService] upsert support_professionals: coluna attachments ausente; repetindo sem attachments.');
+                toUpsert = toUpsert.map((p: any) => {
+                    const copy = { ...p };
+                    delete copy.attachments;
+                    return copy;
+                });
+                ({ error } = await supabase.from('support_professionals').upsert(toUpsert));
+            }
+            if (error?.code === '42703' && /photo_url/i.test(String(error.message || ''))) {
+                console.warn('[SupabaseService] upsert support_professionals: coluna photo_url ausente; repetindo sem photo_url.');
+                toUpsert = toUpsert.map((p: any) => {
+                    const copy = { ...p };
+                    delete copy.photo_url;
+                    return copy;
+                });
+                ({ error } = await supabase.from('support_professionals').upsert(toUpsert));
+            }
 
             if (error) {
                 console.error('Erro no UPSERT de profissionais:', error);
@@ -2194,8 +2319,39 @@ export class SupabaseService {
         return found || PRESET_THEMES_LOCAL[0];
     }
     // --- WhatsApp Notifications ---
+    /** Normaliza corpo JSON de erro (Meta Graph, nginx, Express) para texto legível. */
+    private static formatWhatsAppApiError(data: unknown, httpStatus: number): string {
+        const hint401 =
+            httpStatus === 401
+                ? ' Verifique no servidor se WHATSAPP_TOKEN está válido (token da Meta expira) ou se a rota exige Authorization (BROTAR_WHATSAPP_SEND_SECRET).'
+                : '';
+        if (data == null || typeof data !== 'object') {
+            return `Erro HTTP ${httpStatus} na API de envio.${hint401}`;
+        }
+        const d = data as Record<string, unknown>;
+        const err = d.error;
+        if (typeof err === 'string') return `${err}${hint401}`;
+        if (err && typeof err === 'object') {
+            const em = (err as Record<string, unknown>).message;
+            if (typeof em === 'string') return `${em}${hint401}`;
+            const nested = (err as Record<string, unknown>).error;
+            if (nested && typeof nested === 'object' && typeof (nested as Record<string, unknown>).message === 'string') {
+                return `${(nested as Record<string, string>).message}${hint401}`;
+            }
+        }
+        if (typeof d.message === 'string') return `${d.message}${hint401}`;
+        try {
+            const s = JSON.stringify(data);
+            return (s.length > 400 ? `${s.slice(0, 400)}…` : s) + hint401;
+        } catch {
+            return `Erro HTTP ${httpStatus} na API de envio.${hint401}`;
+        }
+    }
+
     /**
-     * Envia notificação de WhatsApp via Servidor Local (Hostinger)
+     * Envia notificação de WhatsApp via API Node (ex.: Hostinger).
+     * URL: VITE_BROTAR_API_BASE_URL ou padrão api-brotar.smebrotas.com.br.
+     * Opcional: VITE_BROTAR_WHATSAPP_SEND_SECRET como Bearer se o servidor exigir.
      */
     static async sendWhatsAppNotification(details: {
         student: string,
@@ -2208,16 +2364,22 @@ export class SupabaseService {
     }) {
         console.log('[SupabaseService] Enviando WhatsApp via API local...', details);
 
-        // [FIX] URL da API corrigida para o domínio do backend
-        const API_BASE_URL = 'https://api-brotar.smebrotas.com.br';
-        const url = `${API_BASE_URL}/api/whatsapp/send`;
+        const API_BASE_URL =
+            (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BROTAR_API_BASE_URL) ||
+            'https://api-brotar.smebrotas.com.br';
+        const sendSecret =
+            typeof import.meta !== 'undefined' ? import.meta.env?.VITE_BROTAR_WHATSAPP_SEND_SECRET : undefined;
+        const url = `${String(API_BASE_URL).replace(/\/$/, '')}/api/whatsapp/send`;
+
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (sendSecret && String(sendSecret).trim()) {
+            headers.Authorization = `Bearer ${String(sendSecret).trim()}`;
+        }
 
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers,
                 body: JSON.stringify({
                     telefone: details.phone.replace(/\D/g, ''),
                     nome: details.student,
@@ -2241,7 +2403,7 @@ export class SupabaseService {
 
             if (!response.ok) {
                 console.error('[SupabaseService] Erro no backend WhatsApp:', response.status, data);
-                throw new Error(data.error || `Erro do servidor: ${response.status}`);
+                throw new Error(this.formatWhatsAppApiError(data, response.status));
             }
 
             console.log('[SupabaseService] Sucesso no envio:', data);

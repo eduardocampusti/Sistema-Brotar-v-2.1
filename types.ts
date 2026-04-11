@@ -79,6 +79,21 @@ export interface School {
   internetProviders?: Record<string, { company: string, contact: string }>;
 }
 
+/** Chaves fixas dos anexos na ficha do profissional de apoio (persistidas em JSONB). */
+export type SupportProfessionalAttachmentCategory =
+  | 'rg'
+  | 'cpf_documento'
+  | 'certificado'
+  | 'conta_bancaria'
+  | 'historico_escolar';
+
+export interface SupportProfessionalAttachment {
+  category: SupportProfessionalAttachmentCategory;
+  fileName: string;
+  url: string;
+  uploadedAt: string;
+}
+
 export interface SupportProfessional {
   id: string;
   name: string;
@@ -93,6 +108,9 @@ export interface SupportProfessional {
   workload?: string; // Carga horária
 
   address?: Address; // Endereço completo
+
+  /** Documentos (RG, CPF escaneado, etc.): metadados após upload no Storage */
+  attachments?: SupportProfessionalAttachment[];
 
   schoolId: string; // Vínculo com a escola
   regentTeacher: string; // Professor Regente

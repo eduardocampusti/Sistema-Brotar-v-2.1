@@ -204,10 +204,9 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                 }
             }
 
-            // 3. Notificação WhatsApp
+            // 3. Notificação WhatsApp (agendamento já está persistido; falha aqui não desfaz o save)
             if (guardianPhone) {
-                success("Agendamento salvo! Enviando WhatsApp...");
-                await sendWhatsAppNotification({
+                const wa = await sendWhatsAppNotification({
                     student: newApt.studentName || 'Aluno',
                     professional: newApt.professionalName || 'Profissional',
                     date: newApt.date!.split('-').reverse().join('/'),
@@ -216,10 +215,16 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                     appointmentId: savedId,
                     unit: newApt.unit || 'SEDE'
                 });
+                if (wa.ok === false) {
+                    showError(
+                        `Agendamento salvo com sucesso. Não foi possível enviar o WhatsApp: ${wa.message}`,
+                    );
+                } else {
+                    success('Agendamento salvo. Confirmação enviada por WhatsApp.');
+                }
             } else {
-                // Avisa que o agendamento foi salvo, mas o WhatsApp não pode ser enviado
-                showError(
-                    `Agendamento salvo, mas o responsável de "${newApt.studentName}" não possui telefone cadastrado. Cadastre o telefone do responsável para habilitar envio de WhatsApp.`,
+                success(
+                    `Agendamento salvo. O responsável de "${newApt.studentName}" não tem telefone cadastrado — inclua o número para enviar confirmação por WhatsApp.`,
                 );
             }
 
@@ -232,20 +237,37 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
         }
     };
 
-    const sendWhatsAppNotification = async (details: { student: string, professional: string, date: string, time: string, phone: string, appointmentId: string, unit: string }) => {
+    const sendWhatsAppNotification = async (details: {
+        student: string;
+        professional: string;
+        date: string;
+        time: string;
+        phone: string;
+        appointmentId: string;
+        unit: string;
+    }): Promise<{ ok: true } | { ok: false; message: string }> => {
         try {
             await SupabaseService.sendWhatsAppNotification(details);
-            success("Confirmação de WhatsApp enviada automaticamente!");
-        } catch (err: any) {
-            console.error("Erro no envio de WhatsApp:", err);
-            let userMessage = err.message || "Erro ao conectar com serviço de WhatsApp";
+            return { ok: true };
+        } catch (err: unknown) {
+            console.error('Erro no envio de WhatsApp:', err);
+            let userMessage =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === 'object' && err !== null && 'message' in err
+                      ? String((err as { message?: unknown }).message)
+                      : 'Erro ao conectar com o serviço de WhatsApp';
 
-            // Profissionaliza mensagens técnicas da Edge Function
-            if (userMessage.includes('WhatsApp credentials not configured') || userMessage.includes('environment variables are not configured') || userMessage.includes('Contact admin')) {
-                userMessage = "Envio falhou: As credenciais do WhatsApp (Token/ID) não estão configuradas no servidor Supabase. O Agendamento foi salvo.";
+            if (
+                userMessage.includes('WhatsApp credentials not configured') ||
+                userMessage.includes('environment variables are not configured') ||
+                userMessage.includes('Contact admin')
+            ) {
+                userMessage =
+                    'Credenciais do WhatsApp (token / ID do número) não estão configuradas no servidor da API.';
             }
 
-            showError(`${userMessage}`);
+            return { ok: false, message: userMessage };
         }
     };
 

@@ -15,6 +15,8 @@ interface SearchableSelectProps {
     label?: string;
     className?: string;
     disabled?: boolean;
+    /** Altura reduzida do gatilho (formulários densos / modais) */
+    compact?: boolean;
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -24,7 +26,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     placeholder = "Selecione...",
     label,
     className = "",
-    disabled = false
+    disabled = false,
+    compact = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -70,18 +73,19 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
             <div
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 className={`
-          flex items-center justify-between w-full px-3 py-2 bg-white 
+          flex items-center justify-between w-full bg-white 
           border rounded-lg transition-colors
+          ${compact ? 'px-2.5 py-1.5 text-sm' : 'px-3 py-2'}
           ${disabled ? 'bg-slate-50 cursor-not-allowed opacity-70 border-slate-200' : 'cursor-pointer border-slate-300 hover:border-slate-400'}
           ${isOpen && !disabled ? 'border-primary-500 ring-2 ring-primary-100' : ''}
         `}
             >
-                <div className="flex items-center gap-2 overflow-hidden">
+                <div className="flex items-center gap-2 overflow-hidden min-w-0">
                     <span className={`block truncate ${!selectedOption ? 'text-slate-500' : 'text-slate-700'}`}>
                         {selectedOption ? selectedOption.label : placeholder}
                     </span>
                 </div>
-                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={compact ? 14 : 16} className={`text-slate-400 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </div>
 
             {/* Dropdown */}
