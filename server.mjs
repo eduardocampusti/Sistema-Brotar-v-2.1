@@ -291,6 +291,16 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
 
 // 2. Envio de Mensagem (Confirmar Agendamento)
 app.post('/api/whatsapp/send', async (req, res) => {
+    const sendSecret = process.env.BROTAR_WHATSAPP_SEND_SECRET;
+    if (sendSecret && String(sendSecret).trim()) {
+        const auth = req.headers.authorization || '';
+        if (auth !== `Bearer ${String(sendSecret).trim()}`) {
+            return res.status(401).json({
+                error: 'Não autorizado: configure no app a variável VITE_BROTAR_WHATSAPP_SEND_SECRET com o mesmo valor de BROTAR_WHATSAPP_SEND_SECRET no servidor.',
+            });
+        }
+    }
+
     const { telefone, nome, data, hora, appointmentId, professional, unit } = req.body;
 
     if (!telefone || !nome || !data || !hora || !appointmentId) {
@@ -321,15 +331,16 @@ app.post('/api/whatsapp/send', async (req, res) => {
         template: {
             name: "confirmar_agendamento",
             language: { code: "pt_BR" },
+            // Corpo: quantidade DEVE coincidir com os {{n}} aprovados no modelo "confirmar_agendamento" na Meta.
+            // Erro #132000 = parâmetros a mais ou a menos. O modelo padrão do Brotar usa 3 (nome, data, hora).
+            // profissional/unidade não entram no body até o template no Manager ter {{4}} e {{5}} aprovados.
             components: [
                 {
                     type: "body",
                     parameters: [
                         { type: "text", text: nome },
                         { type: "text", text: data },
-                        { type: "text", text: hora },
-                        { type: "text", text: professional || 'Profissional' },
-                        { type: "text", text: unit || 'Unidade' }
+                        { type: "text", text: hora }
                     ]
                 },
                 {
