@@ -1,1 +1,0 @@
-export { RelatorioProfissionais } from './RelatorioProfissionais';
