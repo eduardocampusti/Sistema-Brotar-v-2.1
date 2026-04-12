@@ -6,7 +6,9 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer, ShieldAlert, Bell, ClipboardList, MessageSquare, UserCheck, Phone, Loader2, Send, Building2, Link2, Wifi, WifiOff, Info } from 'lucide-react';
 import { PatientList } from './PatientList';
 import { WelcomeHeader } from './WelcomeHeader';
-import { categorizeSecretaryDiagnosis, countTeaAutismStudents } from '../utils/teaAutismCount';
+import { countTeaAutismStudents } from '../utils/teaAutismCount';
+import { computeEducationSecretaryDerived } from '../utils/educationSecretaryMetrics';
+import { useEducationSecretaryPanelData } from '../hooks/useEducationSecretaryPanelData';
 
 const COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#6366f1'];
 
@@ -818,15 +820,6 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
 };
 
 // --- 2. SECRETÁRIA DE EDUCAÇÃO ---
-const COV_OK = '#1D9E75';
-const COV_MID = '#BA7517';
-const COV_LOW = '#E24B4A';
-
-function coverageColor(pct: number): string {
-    if (pct >= 70) return COV_OK;
-    if (pct >= 50) return COV_MID;
-    return COV_LOW;
-}
 
 function normalizeWorkload(w: string | undefined): string {
     const t = (w || '').toLowerCase().replace(/\s/g, '');
@@ -836,188 +829,34 @@ function normalizeWorkload(w: string | undefined): string {
 }
 
 export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
-    const isCocal = currentUser.scope === 'COCAL';
-    const scope = currentUser.scope ?? 'GLOBAL';
-
-    const [loading, setLoading] = useState(true);
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
-    const [schoolsList, setSchoolsList] = useState<SchoolEntity[]>([]);
-    const [generatedLaudoDocs, setGeneratedLaudoDocs] = useState<SavedDocument[]>([]);
-
     const monthStr = useMemo(() => new Date().toISOString().slice(0, 7), []);
+    const { loading, appointments, supportProfessionals, schoolsList, generatedLaudoDocs } =
+        useEducationSecretaryPanelData(currentUser);
 
-    useEffect(() => {
-        let cancelled = false;
-        const load = async () => {
-            setLoading(true);
-            try {
-                const [pros, sch, docsAll] = await Promise.all([
-                    SupabaseService.getSupportProfessionals(),
-                    SupabaseService.getSchools(),
-                    SupabaseService.getDocuments(),
-                ]);
-                let apts: Appointment[] = [];
-                if (scope === 'GLOBAL') {
-                    const [aSede, aCocal] = await Promise.all([
-                        SupabaseService.getAppointments({ unit: 'SEDE' }),
-                        SupabaseService.getAppointments({ unit: 'COCAL' }),
-                    ]);
-                    const byId = new Map<string, Appointment>();
-                    [...aSede, ...aCocal].forEach(a => byId.set(a.id, a));
-                    apts = [...byId.values()];
-                } else if (scope === 'SEDE') {
-                    apts = await SupabaseService.getAppointments({ unit: 'SEDE' });
-                } else if (scope === 'COCAL') {
-                    apts = await SupabaseService.getAppointments({ unit: 'COCAL' });
-                }
-                if (!cancelled) {
-                    setSupportProfessionals(pros);
-                    setSchoolsList(sch);
-                    setGeneratedLaudoDocs((docsAll || []).filter(d => d.docType === 'Laudo Médico'));
-                    setAppointments(apts);
-                }
-            } catch (e) {
-                console.error('[EducationSecretaryDashboard] Erro ao carregar painel:', e);
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        };
-        load();
-        return () => {
-            cancelled = true;
-        };
-    }, [scope]);
+    const derived = useMemo(
+        () =>
+            computeEducationSecretaryDerived(
+                students,
+                schoolsList,
+                supportProfessionals,
+                appointments,
+                currentUser,
+                monthStr
+            ),
+        [students, schoolsList, supportProfessionals, appointments, currentUser, monthStr]
+    );
 
-    const scopedStudents = useMemo(() => {
-        if (isCocal) {
-            return students.filter(s => {
-                const unit = String(s.unit || '').toUpperCase();
-                const schoolName = (s.school.schoolName || '').toLowerCase();
-                const district = (s.school.district || '').toLowerCase();
-                return unit === 'COCAL' || schoolName.includes('cocal') || district.includes('cocal');
-            });
-        }
-        if (currentUser.scope === 'SEDE') {
-            return students.filter(s => {
-                const unit = String(s.unit || '').toUpperCase();
-                const schoolName = (s.school.schoolName || '').toLowerCase();
-                const district = (s.school.district || '').toLowerCase();
-                const isCocalStudent = unit === 'COCAL' || schoolName.includes('cocal') || district.includes('cocal');
-                return !isCocalStudent;
-            });
-        }
-        return students;
-    }, [students, isCocal, currentUser.scope]);
+    const {
+        isCocal,
+        scope,
+        scopedStudents,
+        scopedStudentIdSet,
+        scopedSupportProfessionals,
+        strategic,
+        schoolCoverageRows,
+        diagnosisDonut,
+    } = derived;
 
-    const scopedStudentIdSet = useMemo(() => new Set(scopedStudents.map(s => s.id)), [scopedStudents]);
-
-    const schoolMatchesCocalTerritory = (name: string, dist: string) => {
-        const n = (name || '').toLowerCase();
-        const d = (dist || '').toLowerCase();
-        return n.includes('cocal') || d.includes('cocal');
-    };
-
-    const scopedSchools = useMemo(() => {
-        if (scope === 'COCAL' || isCocal) {
-            return schoolsList.filter(sc => schoolMatchesCocalTerritory(sc.name, sc.district || ''));
-        }
-        if (scope === 'SEDE') {
-            return schoolsList.filter(sc => !schoolMatchesCocalTerritory(sc.name, sc.district || ''));
-        }
-        return schoolsList;
-    }, [schoolsList, scope, isCocal]);
-
-    const scopedSchoolIdSet = useMemo(() => new Set(scopedSchools.map(s => s.id).filter(Boolean)), [scopedSchools]);
-
-    const scopedSupportProfessionals = useMemo(() => {
-        return supportProfessionals.filter(p => {
-            if (p.schoolId && scopedSchoolIdSet.has(p.schoolId)) return true;
-            if (p.studentId && scopedStudentIdSet.has(p.studentId)) return true;
-            return false;
-        });
-    }, [supportProfessionals, scopedSchoolIdSet, scopedStudentIdSet]);
-
-    const linkedStudentIds = useMemo(() => {
-        return new Set(
-            scopedSupportProfessionals
-                .map(p => p.studentId)
-                .filter(id => id && String(id).trim() !== '' && scopedStudentIdSet.has(id as string))
-        );
-    }, [scopedSupportProfessionals, scopedStudentIdSet]);
-
-    const strategic = useMemo(() => {
-        const total = scopedStudents.length;
-        const [y, m] = monthStr.split('-').map(Number);
-        const startMs = new Date(y, m - 1, 1).getTime();
-        const endMsMonth = new Date(y, m, 1).getTime();
-        const newThisMonth = scopedStudents.filter(s => {
-            if (!s.createdAt) return false;
-            const t = new Date(s.createdAt).getTime();
-            return !Number.isNaN(t) && t >= startMs && t < endMsMonth;
-        }).length;
-        const withSupportLink = scopedStudents.filter(s => linkedStudentIds.has(s.id)).length;
-        const coveragePct = total > 0 ? Math.round((withSupportLink / total) * 1000) / 10 : 0;
-        const withoutSupport = total - withSupportLink;
-        const monthAptsTotal = appointments.filter(a => a.date && a.date.startsWith(monthStr)).length;
-        return {
-            total,
-            newThisMonth,
-            coveragePct,
-            withoutSupport,
-            monthAptsTotal,
-            covColor: coverageColor(coveragePct),
-        };
-    }, [scopedStudents, monthStr, appointments, linkedStudentIds]);
-
-    const schoolCoverageRows = useMemo(() => {
-        return scopedSchools
-            .map(sc => {
-                const atSchool = scopedStudents.filter(s => {
-                    if (s.school.schoolId && sc.id) return s.school.schoolId === sc.id;
-                    const sn = (s.school.schoolName || '').trim().toLowerCase();
-                    const nn = (sc.name || '').trim().toLowerCase();
-                    return sn.length > 0 && sn === nn;
-                });
-                const total = atSchool.length;
-                const withP = atSchool.filter(s => linkedStudentIds.has(s.id)).length;
-                const pct = total > 0 ? Math.round((withP / total) * 1000) / 10 : 0;
-                return {
-                    id: sc.id,
-                    name: sc.name || 'Escola',
-                    withP,
-                    total,
-                    pct,
-                    fill: coverageColor(pct),
-                };
-            })
-            .filter(r => r.total > 0)
-            .sort((a, b) => a.pct - b.pct);
-    }, [scopedSchools, scopedStudents, linkedStudentIds]);
-
-    const diagnosisDonut = useMemo(() => {
-        const order = [
-            'TEA/Autismo',
-            'Deficiência Intelectual',
-            'Altas Habilidades',
-            'Outros diagnósticos',
-            'Sem CID informado',
-        ] as const;
-        const counts = new Map<string, number>();
-        order.forEach(k => counts.set(k, 0));
-        scopedStudents.forEach(s => {
-            const k = categorizeSecretaryDiagnosis(s);
-            counts.set(k, (counts.get(k) || 0) + 1);
-        });
-        const n = scopedStudents.length || 1;
-        return order.map(name => ({
-            name,
-            value: counts.get(name) || 0,
-            pct: Math.round(((counts.get(name) || 0) / n) * 1000) / 10,
-        }));
-    }, [scopedStudents]);
-
-    /** Igual à fatia «TEA/Autismo» do donut (mesma função `categorizeSecretaryDiagnosis`). */
     const teaAutismStudentCount = useMemo(() => countTeaAutismStudents(scopedStudents), [scopedStudents]);
 
     const workloadDist = useMemo(() => {

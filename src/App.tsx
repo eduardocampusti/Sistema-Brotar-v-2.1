@@ -34,6 +34,7 @@ const DocumentVault = React.lazy(() => import('../components/DocumentVault').the
 const MyAccess = React.lazy(() => import('../components/MyAccess').then(m => ({ default: m.MyAccess })));
 const AuditLogs = React.lazy(() => import('../components/AuditLogs').then(m => ({ default: m.AuditLogs })));
 const ChangePassword = React.lazy(() => import('../components/ChangePassword').then(m => ({ default: m.ChangePassword })));
+const RelatoriosGerenciais = React.lazy(() => import('../components/RelatoriosGerenciais').then(m => ({ default: m.RelatoriosGerenciais })));
 
 // Clinical Pages
 const PsychologyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PsychologyDashboardPage })));
@@ -381,6 +382,8 @@ function AppContent() {
               ? <SocialWorkerAgenda currentUser={user!} students={students} onNavigate={handleNavigate} onNavigateToCase={(id) => handleSelectStudent(students.find(s => s.id === id)!)} />
               : <SchedulingCenter students={students} currentUser={user!} onNavigate={handleNavigate} onReschedule={(apt) => { setRescheduleData(apt); handleNavigate('new-appointment'); }} />}
           </React.Suspense>} />
+
+          <Route path="relatorios-gerenciais" element={<React.Suspense fallback={<PageLoading />}><RelatoriosGerenciais currentUser={user!} students={students} /></React.Suspense>} />
 
           <Route path="new-appointment" element={<React.Suspense fallback={<PageLoading />}><AppointmentForm students={students} currentUser={user!} initialData={rescheduleData} onCancel={() => handleNavigate('scheduling')} onSuccess={() => handleNavigate('scheduling')} /></React.Suspense>} />
 

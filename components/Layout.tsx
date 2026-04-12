@@ -30,7 +30,8 @@ import {
   Palette, // Retained from original
   Scroll, // Retained from original
   ShieldAlert, // Novo ícone de auditoria
-  Apple // Retained from original
+  Apple, // Retained from original
+  BarChart2,
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission } from '../types';
 
@@ -150,11 +151,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         label: 'Visão Geral',
         icon: <LayoutDashboard size={20} />
       },
-      {
-        id: 'scheduling',
-        label: currentUser.specialty === Specialty.SOCIAL_WORK ? 'Meus Atendimentos' : 'Central de Agendamentos',
-        icon: <Calendar size={20} />
-      },
+      currentUser.role === 'EDUCATION_SECRETARY'
+        ? {
+            id: 'relatorios-gerenciais',
+            label: 'Relatórios Gerenciais',
+            icon: <BarChart2 size={20} />,
+          }
+        : {
+            id: 'scheduling',
+            label: currentUser.specialty === Specialty.SOCIAL_WORK ? 'Meus Atendimentos' : 'Central de Agendamentos',
+            icon: <Calendar size={20} />,
+          },
       {
         id: 'list',
         label: 'Alunos / Prontuários',
