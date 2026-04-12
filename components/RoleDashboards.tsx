@@ -6,6 +6,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer, ShieldAlert, Bell, ClipboardList, MessageSquare, UserCheck, Phone, Loader2, Send, Building2, Link2, Wifi, WifiOff, Info } from 'lucide-react';
 import { PatientList } from './PatientList';
 import { WelcomeHeader } from './WelcomeHeader';
+import { categorizeSecretaryDiagnosis, countTeaAutismStudents } from '../utils/teaAutismCount';
 
 const COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#6366f1'];
 
@@ -226,6 +227,8 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
         };
     }, [students, myAppointments, currentUser.name, todayY]);
 
+    const teaAutismInStudentList = useMemo(() => countTeaAutismStudents(students), [students]);
+
     const agendaToday = useMemo(() => {
         return myAppointments.filter(a => a.date === todayY).sort(sortAppointmentsByStart);
     }, [myAppointments, todayY]);
@@ -287,7 +290,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                 </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <StatCard
                     title="Meus pacientes"
                     value={metrics.myPatientsActive}
@@ -315,6 +318,13 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                     icon={CheckCircle}
                     gradient="from-slate-600 to-slate-800"
                     subtext="Agendamentos ATENDIDO no mês"
+                />
+                <StatCard
+                    title="Alunos com TEA/Autismo"
+                    value={teaAutismInStudentList}
+                    icon={Puzzle}
+                    gradient="from-blue-400 to-blue-600"
+                    subtext="Diagnóstico registrado"
                 />
             </div>
 
@@ -567,6 +577,8 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
         };
     }, [students, supportProfessionals, allUsers, appointments, documents, monthStr]);
 
+    const teaAutismTotal = useMemo(() => countTeaAutismStudents(students), [students]);
+
     const alerts = useMemo(() => {
         const linkedStudentIds = new Set(
             supportProfessionals
@@ -643,7 +655,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
                 </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 <StatCard title="Total de alunos" value={metrics.totalStudents} icon={Users} gradient="from-sky-500 to-blue-600" />
                 <StatCard
                     title="Profissionais de apoio"
@@ -673,6 +685,13 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
                     icon={FileText}
                     gradient="from-slate-600 to-slate-800"
                     subtext="generated_documents · createdAt"
+                />
+                <StatCard
+                    title="Alunos com TEA/Autismo"
+                    value={teaAutismTotal}
+                    icon={Puzzle}
+                    gradient="from-blue-400 to-blue-600"
+                    subtext="Diagnóstico registrado"
                 />
             </div>
 
@@ -814,33 +833,6 @@ function normalizeWorkload(w: string | undefined): string {
     if (t.includes('40')) return '40h';
     if (t.includes('20')) return '20h';
     return 'Outras / não informado';
-}
-
-function categorizeSecretaryDiagnosis(s: Student): string {
-    const cid = (s.clinical?.cid || '').toUpperCase().trim();
-    const diagnosisRaw = s.clinical?.diagnosis || '';
-    const dx = diagnosisRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const rawNeeds = s.clinical?.specialNeeds;
-    const needsList = Array.isArray(rawNeeds) ? rawNeeds : rawNeeds != null && String(rawNeeds).trim() !== '' ? [String(rawNeeds)] : [];
-    const needsLower = needsList.map(x => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
-    const needsJoined = needsLower.join(' ');
-    const textBlob = `${needsJoined} ${dx}`;
-
-    const hasTea =
-        cid.includes('F84') ||
-        /\bf84\b/.test(dx) ||
-        textBlob.includes('tea') ||
-        textBlob.includes('autismo') ||
-        textBlob.includes('transtorno do espectro') ||
-        textBlob.includes('espectro autista') ||
-        textBlob.includes('tgd') ||
-        textBlob.includes('pervasiv');
-
-    if (hasTea) return 'TEA/Autismo';
-    if (cid.includes('F7') || textBlob.includes('deficiencia intelectual') || textBlob.includes('di intelectual')) return 'Deficiência Intelectual';
-    if (textBlob.includes('altas habilidades') || textBlob.includes('superdot')) return 'Altas Habilidades';
-    if (cid.length > 0 || diagnosisRaw.trim().length > 0) return 'Outros diagnósticos';
-    return 'Sem CID informado';
 }
 
 export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
@@ -1025,6 +1017,9 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
         }));
     }, [scopedStudents]);
 
+    /** Igual à fatia «TEA/Autismo» do donut (mesma função `categorizeSecretaryDiagnosis`). */
+    const teaAutismStudentCount = useMemo(() => countTeaAutismStudents(scopedStudents), [scopedStudents]);
+
     const workloadDist = useMemo(() => {
         const bucket = new Map<string, number>();
         scopedSupportProfessionals.forEach(p => {
@@ -1131,7 +1126,7 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                 </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <StatCard
                     title="Total de alunos cadastrados"
                     value={strategic.total}
@@ -1161,6 +1156,13 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                     icon={Calendar}
                     gradient="from-amber-500 to-orange-600"
                     subtext={`Referência: ${monthStr}`}
+                />
+                <StatCard
+                    title="Alunos com TEA/Autismo"
+                    value={teaAutismStudentCount}
+                    icon={Puzzle}
+                    gradient="from-blue-400 to-blue-600"
+                    subtext="Diagnóstico registrado"
                 />
             </div>
 
@@ -1667,6 +1669,8 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
         [studentsSemApoio]
     );
 
+    const teaAutismSedeCount = useMemo(() => countTeaAutismStudents(sedeStudents), [sedeStudents]);
+
     const diagResumo = (s: Student) => {
         const cid = (s.clinical?.cid || '').trim();
         const sn0 = (s.clinical?.specialNeeds && s.clinical.specialNeeds[0]) || '';
@@ -1697,7 +1701,7 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
                 <p className="text-sm font-medium text-slate-500">{headerDate}</p>
             </header>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
                     <div className="relative z-10 flex justify-between items-start">
                         <div>
@@ -1737,6 +1741,13 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
                     icon={Calendar}
                     gradient="from-orange-400 to-amber-600"
                     subtext={`${apptsSedeHoje.filter(a => a.status === 'CONFIRMADO').length} confirmados`}
+                />
+                <StatCard
+                    title="Alunos com TEA/Autismo"
+                    value={teaAutismSedeCount}
+                    icon={Puzzle}
+                    gradient="from-blue-400 to-blue-600"
+                    subtext="Diagnóstico registrado"
                 />
             </div>
 
@@ -2117,6 +2128,8 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
         [studentsSemApoio]
     );
 
+    const teaAutismCocalCount = useMemo(() => countTeaAutismStudents(cocalStudents), [cocalStudents]);
+
     const diagResumo = (s: Student) => {
         const cid = (s.clinical?.cid || '').trim();
         const sn0 = (s.clinical?.specialNeeds && s.clinical.specialNeeds[0]) || '';
@@ -2147,7 +2160,7 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                 <p className="text-sm font-medium text-slate-500">{headerDate}</p>
             </header>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
                     <div className="relative z-10 flex justify-between items-start">
                         <div>
@@ -2194,6 +2207,13 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                     icon={Calendar}
                     gradient="from-orange-400 to-amber-600"
                     subtext={`${apptsCocalHoje.filter(a => a.status === 'CONFIRMADO').length} confirmados`}
+                />
+                <StatCard
+                    title="Alunos com TEA/Autismo"
+                    value={teaAutismCocalCount}
+                    icon={Puzzle}
+                    gradient="from-blue-400 to-blue-600"
+                    subtext="Diagnóstico registrado"
                 />
             </div>
 
@@ -2439,6 +2459,8 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
         return { totalSessions, vulnerableCount, familiesCount, referralsCount };
     }, [students]);
 
+    const teaAutismSocialCount = useMemo(() => countTeaAutismStudents(students), [students]);
+
     return (
         <div className="space-y-8 animate-slideUp">
             <WelcomeHeader name={currentUser.name.split(' ')[0]} />
@@ -2467,7 +2489,7 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
                 />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <StatCard
                     title="Atendimentos/Visitas"
                     value={stats.totalSessions}
@@ -2495,6 +2517,13 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
                     icon={FileText}
                     gradient="from-teal-400 to-emerald-500"
                     subtext="Rede de Proteção"
+                />
+                <StatCard
+                    title="Alunos com TEA/Autismo"
+                    value={teaAutismSocialCount}
+                    icon={Puzzle}
+                    gradient="from-blue-400 to-blue-600"
+                    subtext="Diagnóstico registrado"
                 />
             </div>
         </div>
@@ -2644,6 +2673,8 @@ export const AssistantDashboard: React.FC<DashboardProps> = ({ students, current
         };
     }, [apptsToday, scopedAppts, scopedStudents, documentsScoped, todayY, unreadInbox.length]);
 
+    const teaAutismScopedCount = useMemo(() => countTeaAutismStudents(scopedStudents), [scopedStudents]);
+
     const handleConfirm = async (id: string) => {
         setConfirmingId(id);
         try {
@@ -2720,7 +2751,7 @@ export const AssistantDashboard: React.FC<DashboardProps> = ({ students, current
 
             <WelcomeHeader name={firstName} subtitle={headerSubtitle} />
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                     title="Agenda hoje (unidade)"
                     value={stats.todayCount}
@@ -2741,6 +2772,13 @@ export const AssistantDashboard: React.FC<DashboardProps> = ({ students, current
                     icon={Bell}
                     gradient="from-amber-500 to-orange-600"
                     subtext="Diretas e avisos gerais"
+                />
+                <StatCard
+                    title="Alunos com TEA/Autismo"
+                    value={teaAutismScopedCount}
+                    icon={Puzzle}
+                    gradient="from-blue-400 to-blue-600"
+                    subtext="Diagnóstico registrado"
                 />
             </div>
 
@@ -3137,20 +3175,7 @@ export const SchoolDashboard: React.FC<DashboardProps> = ({
             .slice(0, 6);
     }, [allAppointments, myStudentIdSet, todayYmd]);
 
-    const teaTrackedCount = useMemo(
-        () =>
-            myStudents.filter(s => {
-                const cid = (s.clinical?.cid || '').toUpperCase();
-                if (cid.includes('F84')) return true;
-                const needs = (s.clinical?.specialNeeds || []).map(n => n.toUpperCase());
-                if (needs.some(n => n.includes('TEA'))) return true;
-                const diag = (s.clinical?.diagnosis || '').toUpperCase();
-                if (diag.includes('TEA') || diag.includes('AUTISMO')) return true;
-                if (needs.some(n => n.includes('AUTISMO'))) return true;
-                return false;
-            }).length,
-        [myStudents]
-    );
+    const teaTrackedCount = useMemo(() => countTeaAutismStudents(myStudents), [myStudents]);
 
     const withoutSupportCount = myStudents.length - coverageCount;
     const pendingCount = useMemo(() => myStudents.filter(s => s.status === 'Pending').length, [myStudents]);
@@ -3227,7 +3252,7 @@ export const SchoolDashboard: React.FC<DashboardProps> = ({
                 </div>
             ) : null}
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alunos AEE matriculados</p>
                     <p className="mt-2 text-3xl font-extrabold text-slate-900">{myStudents.length}</p>
@@ -3246,6 +3271,18 @@ export const SchoolDashboard: React.FC<DashboardProps> = ({
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Agendamentos esta semana</p>
                     <p className="mt-2 text-3xl font-extrabold text-slate-900">{appointmentsThisWeekForSchool.length}</p>
                     <p className="mt-2 text-xs text-slate-500">{confirmedThisWeek} confirmados</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alunos com TEA/Autismo</p>
+                            <p className="mt-2 text-3xl font-extrabold text-slate-900">{teaTrackedCount}</p>
+                            <p className="mt-2 text-xs text-slate-500">Diagnóstico registrado</p>
+                        </div>
+                        <div className="rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 p-3 text-white shadow-lg">
+                            <Puzzle size={22} />
+                        </div>
+                    </div>
                 </div>
             </div>
 

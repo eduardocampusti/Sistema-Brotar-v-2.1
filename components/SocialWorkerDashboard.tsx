@@ -16,9 +16,11 @@ import {
     FileEdit,
     ClipboardList,
     AlertTriangle,
-    Flag
+    Flag,
+    Puzzle,
 } from 'lucide-react';
 import { Student, User, Specialty, Appointment } from '../types';
+import { countTeaAutismStudents } from '../utils/teaAutismCount';
 
 // Helper simples para idade se não conseguir importar
 const getAge = (birthDate?: string) => {
@@ -140,6 +142,8 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
         };
     }, [students, appointments]);
 
+    const teaAutismCount = useMemo(() => countTeaAutismStudents(students), [students]);
+
     // Simulação de Atendimentos de Hoje (Já que não temos a prop de appointments aqui, 
     // idealmente viria de uma prop ou fetch, mas vamos simular um estado vazio visualmente 
     // ou instruir o uso da Agenda para ver detalhes)
@@ -168,7 +172,7 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
             </div>
 
             {/* 1. CARDS INFORMATIVOS (TOPO) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-[#1E7F85] transition-all">
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Hoje</p>
                     <h3 className="text-4xl font-black text-slate-800">{stats.todayCount}</h3>
@@ -185,6 +189,19 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Faltas</p>
                     <h3 className="text-4xl font-black text-rose-600">{stats.absences}</h3>
                     <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Absenteísmo</p>
+                </div>
+
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-all">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Alunos com TEA/Autismo</p>
+                            <h3 className="text-4xl font-black text-slate-800">{teaAutismCount}</h3>
+                            <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Diagnóstico registrado</p>
+                        </div>
+                        <div className="rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 p-3 text-white shadow-lg shrink-0">
+                            <Puzzle size={22} />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="bg-gradient-to-br from-[#1E7F85] to-[#145f63] p-6 rounded-[2rem] border border-[#1E7F85] shadow-lg text-white relative overflow-hidden group">

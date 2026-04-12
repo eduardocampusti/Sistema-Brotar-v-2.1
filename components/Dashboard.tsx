@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { Student, Specialty, User } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { Users, AlertCircle, CheckCircle } from 'lucide-react';
+import { Users, AlertCircle, CheckCircle, Puzzle } from 'lucide-react';
+import { countTeaAutismStudents } from '../utils/teaAutismCount';
 import { WelcomeHeader } from './WelcomeHeader';
 import { SpecialistClinicalHomeDashboard } from './RoleDashboards';
 
@@ -89,6 +90,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser, onN
     return { total, active, diagnosisData, demandData };
   }, [students]);
 
+  const teaAutismCount = useMemo(() => countTeaAutismStudents(students || []), [students]);
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {currentUser ? (
@@ -104,7 +107,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser, onN
       )}
 
       {/* Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500">Total de Alunos</p>
@@ -132,6 +135,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser, onN
           </div>
           <div className="p-3 bg-orange-50 text-orange-600 rounded-lg">
             <AlertCircle size={24} />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500">Alunos com TEA/Autismo</p>
+            <p className="text-3xl font-bold text-slate-800 mt-1">{teaAutismCount}</p>
+            <p className="text-xs text-slate-500 mt-1">Diagnóstico registrado</p>
+          </div>
+          <div className="p-3 bg-gradient-to-br from-blue-400 to-blue-600 text-white rounded-lg shadow-md">
+            <Puzzle size={24} />
           </div>
         </div>
       </div>
