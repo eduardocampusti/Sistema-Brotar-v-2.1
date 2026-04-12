@@ -701,14 +701,18 @@ export class SupabaseService {
 
             const role = (profile?.role || '').toUpperCase();
             const profileSchoolId = profile?.schoolId ?? null;
-            // ADMIN vê todos (sem filtro). Demais papéis: filtra por escola do perfil quando houver vínculo.
-            const filtrarPorEscolaDoPerfil = role !== 'ADMIN' && !!profileSchoolId;
+            // Só a role ESCOLA deve restringir a lista ao UUID da escola do perfil.
+            // Outros papéis (ex.: EDUCATION_SECRETARY) podem ter school_id legado no perfil sem ser "visão de escola";
+            // filtrar aqui esvaziava a lista para gestores municipais.
+            const filtrarPorEscolaDoPerfil = role === 'ESCOLA' && !!profileSchoolId;
 
-            console.log('[getStudents] role:', role, '| filtrarPorEscolaDoPerfil:', filtrarPorEscolaDoPerfil);
+            console.log('[getStudents] role:', role, '| filtrarPorEscolaDoPerfil (apenas ESCOLA):', filtrarPorEscolaDoPerfil);
 
             // Schema oficial: `full_name` (não existe coluna `name` em students).
+            // compactList: inclui clinical_info (CID, diagnóstico em texto, necessidades) para painéis
+            // (ex.: secretaria de educação — gráfico por diagnóstico) sem trazer o registo completo (*).
             const studentSelect = options?.compactList
-                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,schools(name,district)'
+                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,clinical_info,schools(name,district)'
                 : '*';
 
             const PAGE = 50;

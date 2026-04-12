@@ -161,17 +161,9 @@ function AppContent() {
 
         const schoolsData = await SupabaseService.getSchools();
         if (!cancelled) setSchools(schoolsData);
-
-        try {
-          const studentsData = await SupabaseService.getStudents(undefined, { compactList: true });
-          if (!cancelled) {
-            console.log('[DEBUG] Total alunos retornados:', studentsData?.length);
-            setStudents(studentsData);
-          }
-        } catch (err) {
-          console.error('[ERRO getStudents]', err);
-          if (!cancelled) setStudents([]);
-        }
+        // Alunos: não carregar aqui — ver efeito [sessão + user] abaixo.
+        // Se getStudents correr antes do login (ex.: /login), a lista ficava vazia para sempre
+        // porque este useEffect só executa uma vez (deps []).
       } catch (err) {
         console.error('Erro ao carregar dados iniciais (escolas/config/alunos):', err);
       }
@@ -185,6 +177,35 @@ function AppContent() {
       cancelled = true;
     };
   }, []);
+
+  // Carrega alunos sempre que existir sessão Supabase (inclui após login sem F5).
+  useEffect(() => {
+    if (isLoadingSession) return;
+    let cancelled = false;
+
+    async function loadStudentsWhenAuthenticated() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        if (!cancelled) setStudents([]);
+        return;
+      }
+      try {
+        const studentsData = await SupabaseService.getStudents(undefined, { compactList: true });
+        if (!cancelled) {
+          console.log('[DEBUG] Total alunos retornados:', studentsData?.length);
+          setStudents(studentsData);
+        }
+      } catch (err) {
+        console.error('[ERRO getStudents]', err);
+        if (!cancelled) setStudents([]);
+      }
+    }
+
+    void loadStudentsWhenAuthenticated();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoadingSession, user?.id]);
 
   const refreshData = async () => {
     try {

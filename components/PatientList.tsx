@@ -110,11 +110,16 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
   const isSchool = currentUser?.role === 'ESCOLA';
 
   const filteredStudents = useMemo(() => students.filter(p => {
-    // 1. User Scope Filter (Cocal Security)
+    // 1. User Scope Filter (Cocal Security) — distrito, nome da escola ou unidade do aluno
     if (isRestricted) {
+      const unit = String(p.unit || '').toUpperCase();
       const schoolName = (p.school.schoolName || '').toLowerCase();
       const district = (p.school.district || '').toLowerCase();
-      if (!schoolName.includes('cocal') && !district.includes('cocal')) return false;
+      const isCocalScope =
+        unit === 'COCAL' ||
+        schoolName.includes('cocal') ||
+        district.includes('cocal');
+      if (!isCocalScope) return false;
     }
 
     // 1b. School Specific Restriction — usa o UUID real (schoolId) resolvido no login

@@ -817,13 +817,29 @@ function normalizeWorkload(w: string | undefined): string {
 }
 
 function categorizeSecretaryDiagnosis(s: Student): string {
-    const cid = (s.clinical?.cid || '').toUpperCase();
-    const needsLower = (s.clinical?.specialNeeds || []).map(x => String(x).toLowerCase());
+    const cid = (s.clinical?.cid || '').toUpperCase().trim();
+    const diagnosisRaw = s.clinical?.diagnosis || '';
+    const dx = diagnosisRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const rawNeeds = s.clinical?.specialNeeds;
+    const needsList = Array.isArray(rawNeeds) ? rawNeeds : rawNeeds != null && String(rawNeeds).trim() !== '' ? [String(rawNeeds)] : [];
+    const needsLower = needsList.map(x => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
     const needsJoined = needsLower.join(' ');
-    if (cid.includes('F84') || needsJoined.includes('tea') || needsJoined.includes('autismo')) return 'TEA/Autismo';
-    if (cid.includes('F7') || needsJoined.includes('intelectual')) return 'Deficiência Intelectual';
-    if (needsJoined.includes('altas habilidades')) return 'Altas Habilidades';
-    if (cid.trim().length > 0) return 'Outros diagnósticos';
+    const textBlob = `${needsJoined} ${dx}`;
+
+    const hasTea =
+        cid.includes('F84') ||
+        /\bf84\b/.test(dx) ||
+        textBlob.includes('tea') ||
+        textBlob.includes('autismo') ||
+        textBlob.includes('transtorno do espectro') ||
+        textBlob.includes('espectro autista') ||
+        textBlob.includes('tgd') ||
+        textBlob.includes('pervasiv');
+
+    if (hasTea) return 'TEA/Autismo';
+    if (cid.includes('F7') || textBlob.includes('deficiencia intelectual') || textBlob.includes('di intelectual')) return 'Deficiência Intelectual';
+    if (textBlob.includes('altas habilidades') || textBlob.includes('superdot')) return 'Altas Habilidades';
+    if (cid.length > 0 || diagnosisRaw.trim().length > 0) return 'Outros diagnósticos';
     return 'Sem CID informado';
 }
 
@@ -884,16 +900,19 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
     const scopedStudents = useMemo(() => {
         if (isCocal) {
             return students.filter(s => {
+                const unit = String(s.unit || '').toUpperCase();
                 const schoolName = (s.school.schoolName || '').toLowerCase();
                 const district = (s.school.district || '').toLowerCase();
-                return schoolName.includes('cocal') || district.includes('cocal');
+                return unit === 'COCAL' || schoolName.includes('cocal') || district.includes('cocal');
             });
         }
         if (currentUser.scope === 'SEDE') {
             return students.filter(s => {
+                const unit = String(s.unit || '').toUpperCase();
                 const schoolName = (s.school.schoolName || '').toLowerCase();
                 const district = (s.school.district || '').toLowerCase();
-                return !schoolName.includes('cocal') && !district.includes('cocal');
+                const isCocalStudent = unit === 'COCAL' || schoolName.includes('cocal') || district.includes('cocal');
+                return !isCocalStudent;
             });
         }
         return students;
@@ -1114,7 +1133,7 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <StatCard
-                    title="Total de alunos EEIA"
+                    title="Total de alunos cadastrados"
                     value={strategic.total}
                     icon={Users}
                     gradient="from-blue-500 to-indigo-600"
@@ -1682,7 +1701,7 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
                 <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
                     <div className="relative z-10 flex justify-between items-start">
                         <div>
-                            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Alunos EEIA — Sede</p>
+                            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Alunos AEE — Sede</p>
                             <h3 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-800">{sedeStudents.length}</h3>
                             {studentsSemApoio.length > 0 ? (
                                 <p className="mt-2 text-xs font-semibold text-red-600">
@@ -2132,7 +2151,7 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                 <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
                     <div className="relative z-10 flex justify-between items-start">
                         <div>
-                            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Alunos EEIA — Cocal</p>
+                            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Alunos AEE — Cocal</p>
                             <h3 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-800">{cocalStudents.length}</h3>
                             {studentsSemApoio.length > 0 ? (
                                 <p className="mt-2 text-xs font-semibold text-red-600">
@@ -3189,7 +3208,7 @@ export const SchoolDashboard: React.FC<DashboardProps> = ({
                             </span>
                         </div>
                         <p className="mt-2 max-w-2xl text-sm font-medium text-emerald-50">
-                            Acompanhamento dos alunos EEIA — somente leitura
+                            Acompanhamento dos alunos AEE — somente leitura
                         </p>
                         {currentUser.schoolInep ? (
                             <p className="mt-1 text-xs text-emerald-100/90">INEP: {currentUser.schoolInep}</p>
@@ -3210,7 +3229,7 @@ export const SchoolDashboard: React.FC<DashboardProps> = ({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alunos EEIA matriculados</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alunos AEE matriculados</p>
                     <p className="mt-2 text-3xl font-extrabold text-slate-900">{myStudents.length}</p>
                     <p className="mt-2 text-xs text-slate-500">
                         Manhã: {morningCount} · Tarde: {afternoonCount}
@@ -3244,7 +3263,7 @@ export const SchoolDashboard: React.FC<DashboardProps> = ({
                     </div>
                     <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                         {visibleStudents.length === 0 ? (
-                            <p className="py-8 text-center text-sm text-slate-500">Nenhum aluno EEIA vinculado a esta escola.</p>
+                            <p className="py-8 text-center text-sm text-slate-500">Nenhum aluno AEE vinculado a esta escola.</p>
                         ) : (
                             visibleStudents.map(s => {
                                 const hasSp = studentIdsWithSupport.has(s.id);
