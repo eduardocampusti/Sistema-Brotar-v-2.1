@@ -30,11 +30,8 @@ export const ChangePassword: React.FC<ChangePasswordProps> = ({ onSuccess, userI
 
         setIsLoading(true);
         try {
-            const { error } = await SupabaseService.updatePassword(newPassword);
+            const { error } = await SupabaseService.completeMandatoryPasswordChange(userId, newPassword);
             if (error) throw error;
-
-            // Atualiza o flag must_change_password para false
-            await SupabaseService.updateProfile(userId, { must_change_password: false });
 
             success('Sua senha foi atualizada com sucesso!', 'Senha Alterada');
             onSuccess();

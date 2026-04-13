@@ -541,6 +541,63 @@ export class SupabaseService {
         return await supabase.from('profiles').update(data).eq('id', userId);
     }
 
+    /**
+     * Troca de senha obrigatória (primeiro acesso): atualiza a senha no Auth e zera `must_change_password` no perfil.
+     * Verifica se o UPDATE no perfil afetou linha (evita sucesso falso com RLS / 0 linhas).
+     * Se a senha nova for igual à já gravada no Auth (422), apenas sincroniza o flag no perfil — recupera estado
+     * em que a primeira troca atualizou a senha mas o perfil não foi confirmado.
+     */
+    static async completeMandatoryPasswordChange(
+        userId: string,
+        newPassword: string
+    ): Promise<{ error: Error | null }> {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session?.user || sessionData.session.user.id !== userId) {
+            return { error: new Error('Sessão inválida. Faça login novamente.') };
+        }
+
+        const { error: pwdError } = await supabase.auth.updateUser({ password: newPassword });
+
+        if (pwdError) {
+            const errMsg = (pwdError.message || String(pwdError) || '').toLowerCase();
+            const status = (pwdError as { status?: number }).status;
+            // Mesma senha que a já gravada no Auth (wording / idioma pode variar levemente).
+            const samePasswordAsCurrent =
+                errMsg.includes('different from the old') ||
+                errMsg.includes('should be different') ||
+                errMsg.includes('same as') ||
+                errMsg.includes('old password') ||
+                (errMsg.includes('new password') && errMsg.includes('different')) ||
+                (status === 422 &&
+                    errMsg.includes('password') &&
+                    (errMsg.includes('different') || errMsg.includes('same') || errMsg.includes('identical')));
+            if (!samePasswordAsCurrent) {
+                return { error: new Error(pwdError.message) };
+            }
+            // Auth já está com esta senha; segue só para corrigir o flag no banco.
+        }
+
+        const { data: updatedRows, error: profileError } = await supabase
+            .from('profiles')
+            .update({ must_change_password: false })
+            .eq('id', userId)
+            .select('id');
+
+        if (profileError) {
+            return { error: new Error(profileError.message || 'Erro ao atualizar o perfil.') };
+        }
+        if (!updatedRows?.length) {
+            return {
+                error: new Error(
+                    'Não foi possível confirmar a liberação do primeiro acesso no perfil. Contate o suporte ou um administrador.'
+                ),
+            };
+        }
+
+        this.userProfileCache.delete(userId);
+        return { error: null };
+    }
+
     static async resetPassword(email: string) {
         const finalEmail = email.includes('@') ? email : `${email}@brotar.com`;
 
@@ -2265,7 +2322,11 @@ export class SupabaseService {
                 }
 
                 if (error.code === '42501' || error.message.includes('RLS') || error.message.includes('permission denied')) {
-                     throw new Error('Acesso negado: Este Profissional já está vinculado a outra unidade. Solicite a transferência.');
+                    throw new Error(
+                        'Permissão negada ao salvar (políticas de segurança do banco). ' +
+                            'Confirme no Supabase se seu perfil (recepção/secretaria) tem política de escrita em support_professionals (migração V16). ' +
+                            `Detalhe: ${error.message || error.code || 'RLS'}`
+                    );
                 }
                 throw new Error(`Erro Banco de Dados (Upsert): ${error.message}`);
             }
