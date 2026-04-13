@@ -850,6 +850,131 @@ export class SupabaseService {
         }, 0, 300, 'getStudents');
     }
 
+    /** Papéis com visão ampla na rede (espelha RLS em `students`, ex. V19). */
+    static podeVerTodosAlunosNaRede(user: Pick<User, 'role'>): boolean {
+        const r = (user.role || '').toUpperCase();
+        return (
+            r === 'ADMIN' ||
+            r === 'EDUCATION_SECRETARY' ||
+            r === 'ASSISTANT' ||
+            r === 'SECRETARIA_SEDE' ||
+            r === 'SECRETARIA_COCAL'
+        );
+    }
+
+    /** Psicopedagogia e terapia ocupacional: lista de prontuários restrita a alunos com agendamento associado. */
+    static profissionalUsaVinculoAluno(user: Pick<User, 'role' | 'specialty'>): boolean {
+        if (user.role !== 'SPECIALIST') return false;
+        return (
+            user.specialty === Specialty.PSYCHOPEDAGOGY ||
+            user.specialty === Specialty.OCCUPATIONAL_THERAPY
+        );
+    }
+
+    /** Status de agendamento que mantêm o vínculo profissional↔aluno visível na Central de Prontuários. */
+    private static readonly APPOINTMENT_STATUS_VINCULO_PRONTUARIO: readonly AppointmentStatus[] = [
+        'AGENDADO',
+        'CONFIRMADO',
+        'ATENDIDO',
+        'REMARCAR',
+    ];
+
+    /**
+     * Alunos atribuídos à profissional via agendamentos (`appointments.student_id` + `professional_id`).
+     * Exclui cancelados e faltas; não usa `profissional_aluno_vinculo`.
+     */
+    static async getAlunosDaProfissional(
+        profissionalId: string,
+        options?: { compactList?: boolean }
+    ): Promise<Student[]> {
+        return safeCall(async () => {
+            const allowed = new Set<string>(
+                this.APPOINTMENT_STATUS_VINCULO_PRONTUARIO as unknown as string[]
+            );
+            const { data: rows, error } = await supabase
+                .from('appointments')
+                .select('student_id, status')
+                .eq('professional_id', profissionalId);
+            if (error) throw error;
+
+            const studentIds = [
+                ...new Set(
+                    (rows || [])
+                        .filter((r: { status?: string }) => allowed.has(String(r.status || '')))
+                        .map((r: { student_id: string }) => r.student_id)
+                        .filter(Boolean)
+                ),
+            ];
+            if (!studentIds.length) return [];
+
+            const studentSelect = options?.compactList
+                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,clinical_info,schools(name,district)'
+                : '*, schools(name, district)';
+
+            const chunkSize = 80;
+            const chunks: string[][] = [];
+            for (let i = 0; i < studentIds.length; i += chunkSize) {
+                chunks.push(studentIds.slice(i, i + chunkSize));
+            }
+
+            const raw: any[] = [];
+            for (const chunk of chunks) {
+                const { data: page, error: qErr } = await supabase
+                    .from('students')
+                    .select(studentSelect)
+                    .in('id', chunk);
+                if (qErr) throw qErr;
+                if (page?.length) raw.push(...page);
+            }
+
+            const order = new Map(studentIds.map((id, idx) => [id, idx]));
+            raw.sort(
+                (a, b) =>
+                    (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) ||
+                    String(a.full_name || a.name || '').localeCompare(
+                        String(b.full_name || b.name || ''),
+                        'pt-BR'
+                    )
+            );
+
+            return raw.map((s) => mapStudentFromDB(s));
+        }, 0, 300, 'getAlunosDaProfissional');
+    }
+
+    /**
+     * Lista de alunos para a Central de Prontuários conforme perfil.
+     * `listScope: 'meus'` restringe aos alunos com agendamento para aquele usuário (secretaria/admin).
+     */
+    static async getAlunosPorPerfil(
+        perfilUsuario: Pick<User, 'id' | 'role' | 'specialty'>,
+        profissionalId: string,
+        options?: { compactList?: boolean; listScope?: 'meus' | 'todos' }
+    ): Promise<Student[]> {
+        const listScope = options?.listScope ?? 'todos';
+        const getOpts = options?.compactList !== undefined ? { compactList: options.compactList } : undefined;
+
+        if (this.profissionalUsaVinculoAluno(perfilUsuario) && !this.podeVerTodosAlunosNaRede(perfilUsuario)) {
+            return this.getAlunosDaProfissional(perfilUsuario.id, getOpts);
+        }
+
+        const all = await this.getStudents(undefined, getOpts);
+
+        const podeFiltrarMeus =
+            this.podeVerTodosAlunosNaRede(perfilUsuario) && perfilUsuario.id === profissionalId;
+
+        if (podeFiltrarMeus && listScope === 'meus') {
+            return this.getAlunosDaProfissional(profissionalId, getOpts);
+        }
+
+        return all;
+    }
+
+    /** IDs de alunos com agendamento ativo/histórico para a profissional (toggle "Por profissional"). */
+    static async listAlunoIdsVinculadosProfissional(profissionalId: string): Promise<string[]> {
+        const students = await this.getAlunosDaProfissional(profissionalId, { compactList: true });
+        return students.map((s) => s.id);
+    }
+
     static async getStudentById(id: string): Promise<Student | null> {
         return safeCall(async () => {
             console.log(`[SupabaseService] Buscando detalhes completos do aluno: ${id}`);

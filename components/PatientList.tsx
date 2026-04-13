@@ -29,11 +29,12 @@ import SearchableSelect from './SearchableSelect';
 import { CSVImporter } from './CSVImporter';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '@/src/hooks/useAuth';
 
 interface StudentListProps {
   students: Student[];
   schools: School[];
-  onSelectStudent: (student: Student) => void;
+  onSelectStudent: (student: Student) => void | Promise<void>;
   onDelete: (id: string) => void;
   onRegister: () => void;
   onEdit: (student: Student) => void;
@@ -65,12 +66,15 @@ const getStudentStatus = (student: Student) => {
 };
 
 export const PatientList: React.FC<StudentListProps> = ({ students, schools, onSelectStudent, onDelete, onRegister, onEdit, currentUser, onRefresh }) => {
+  const { user: authUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
   const [showImporter, setShowImporter] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [showConfirmFinal, setShowConfirmFinal] = useState(false);
   const [isMerging, setIsMerging] = useState(false);
+  const [listaEscopo, setListaEscopo] = useState<'todos' | 'meus'>('todos');
+  const [meusAlunoIds, setMeusAlunoIds] = useState<Set<string> | null>(null);
   const { addToast } = useToast();
 
   // Estados para Mesclagem
@@ -109,7 +113,51 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
 
   const isSchool = currentUser?.role === 'ESCOLA';
 
-  const filteredStudents = useMemo(() => students.filter(p => {
+  const podeAlternarListaRede =
+    !!authUser && SupabaseService.podeVerTodosAlunosNaRede(authUser);
+
+  /** Psicopedagogia / TO: lista só por agendamento; sem busca global na Central de Prontuários. */
+  const listaSomenteAgendaProfissional =
+    !!authUser &&
+    SupabaseService.profissionalUsaVinculoAluno(authUser) &&
+    !SupabaseService.podeVerTodosAlunosNaRede(authUser);
+
+  useEffect(() => {
+    if (!podeAlternarListaRede || listaEscopo !== 'meus' || !authUser?.id) {
+      setMeusAlunoIds(null);
+      return;
+    }
+    let cancelled = false;
+    SupabaseService.listAlunoIdsVinculadosProfissional(authUser.id)
+      .then((ids) => {
+        if (!cancelled) setMeusAlunoIds(new Set(ids));
+      })
+      .catch(() => {
+        if (!cancelled) setMeusAlunoIds(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [podeAlternarListaRede, listaEscopo, authUser?.id]);
+
+  const baseStudentList = useMemo(() => {
+    if (podeAlternarListaRede && listaEscopo === 'meus') {
+      if (!meusAlunoIds) return [];
+      return students.filter((s) => meusAlunoIds.has(s.id));
+    }
+    return students;
+  }, [students, podeAlternarListaRede, listaEscopo, meusAlunoIds]);
+
+  const abrirProntuario = async (student: Student) => {
+    try {
+      await onSelectStudent(student);
+    } catch (e: any) {
+      console.error(e);
+      addToast(e?.message || 'Não foi possível abrir o prontuário.', 'error');
+    }
+  };
+
+  const filteredStudents = useMemo(() => baseStudentList.filter(p => {
     // 1. User Scope Filter (Cocal Security) — distrito, nome da escola ou unidade do aluno
     if (isRestricted) {
       const unit = String(p.unit || '').toUpperCase();
@@ -130,6 +178,10 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
       if (p.school?.schoolId !== mySchoolId) return false;
     }
 
+    if (listaSomenteAgendaProfissional) {
+      return true;
+    }
+
     // 2. Search Term Filter
     const normalizedSearch = normalizeText(searchTerm);
     const matchesSearch =
@@ -144,13 +196,13 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
       (selectedSchoolId !== 'ALL' && !p.school?.schoolId && p.school?.schoolName === selectedSchoolId);
 
     return matchesSearch && matchesSchool;
-  }), [students, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical]);
+  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional]);
 
   // Memoize school options — recomputed only when students list changes
   const schoolOptions = useMemo(() => [
     { value: 'ALL', label: 'Todas as Escolas' },
     ...Array.from(new Map(
-      students
+      baseStudentList
         .filter(s => s.school?.schoolId || s.school?.schoolName)
         .map(s => {
           const id = s.school?.schoolId || s.school?.schoolName;
@@ -159,7 +211,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
     ).entries())
       .map(([id, name]) => ({ value: id as string, label: name as string }))
       .sort((a, b) => a.label.localeCompare(b.label))
-  ], [students]);
+  ], [baseStudentList]);
 
   const confirmDelete = useCallback(async () => {
     if (studentToDelete) {
@@ -201,8 +253,8 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
     
     try {
       setIsMerging(true);
-      const mainStudent = students.find(s => s.id === mainStudentId);
-      const duplicateStudent = students.find(s => s.id === duplicateStudentId);
+      const mainStudent = baseStudentList.find(s => s.id === mainStudentId);
+      const duplicateStudent = baseStudentList.find(s => s.id === duplicateStudentId);
       
       await SupabaseService.mergeStudents(mainStudentId, duplicateStudentId);
       
@@ -255,31 +307,61 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          {/* Filtros */}
-          <div className="w-full sm:w-64 z-20">
-            <SearchableSelect
-              options={[
-                { value: 'ALL', label: 'Todas as Escolas' },
-                ...schools.map(s => ({ value: s.id, label: s.name || '' }))
-                  .sort((a, b) => a.label.localeCompare(b.label))
-              ]}
-              value={selectedSchoolId}
-              onChange={setSelectedSchoolId}
-              placeholder="Filtrar por escola..."
-              className="w-full"
-            />
-          </div>
+          {podeAlternarListaRede && (
+            <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 shadow-sm self-start sm:self-center">
+              <button
+                type="button"
+                onClick={() => setListaEscopo('todos')}
+                className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  listaEscopo === 'todos'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Visão geral
+              </button>
+              <button
+                type="button"
+                onClick={() => setListaEscopo('meus')}
+                className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  listaEscopo === 'meus'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Por profissional
+              </button>
+            </div>
+          )}
+          {/* Filtros (secretaria/admin/coordenação — profissional restrita não tem busca global) */}
+          {!listaSomenteAgendaProfissional && (
+            <>
+              <div className="w-full sm:w-64 z-20">
+                <SearchableSelect
+                  options={[
+                    { value: 'ALL', label: 'Todas as Escolas' },
+                    ...schools.map(s => ({ value: s.id, label: s.name || '' }))
+                      .sort((a, b) => a.label.localeCompare(b.label))
+                  ]}
+                  value={selectedSchoolId}
+                  onChange={setSelectedSchoolId}
+                  placeholder="Filtrar por escola..."
+                  className="w-full"
+                />
+              </div>
 
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Localizar aluno, CPF ou escola..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all shadow-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Localizar aluno, CPF ou escola..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all shadow-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
           {canRegister && (
             <div className="flex gap-2">
@@ -339,7 +421,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
                     Aluno Principal (Será Mantido)
                   </label>
                   <SearchableSelect
-                    options={students.map(s => ({ value: s.id, label: `${s.fullName} ${s.cpf ? `(${s.cpf})` : ''}` }))}
+                    options={baseStudentList.map(s => ({ value: s.id, label: `${s.fullName} ${s.cpf ? `(${s.cpf})` : ''}` }))}
                     value={mainStudentId}
                     onChange={setMainStudentId}
                     placeholder="Selecione o aluno oficial..."
@@ -354,7 +436,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
                     Aluno Duplicado (Será Apagado)
                   </label>
                   <SearchableSelect
-                    options={students.map(s => ({ value: s.id, label: `${s.fullName} ${s.cpf ? `(${s.cpf})` : ''}` }))}
+                    options={baseStudentList.map(s => ({ value: s.id, label: `${s.fullName} ${s.cpf ? `(${s.cpf})` : ''}` }))}
                     value={duplicateStudentId}
                     onChange={setDuplicateStudentId}
                     placeholder="Selecione o cadastro duplicado..."
@@ -428,7 +510,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
       <ConfirmModal
         isOpen={showConfirmFinal}
         title="Confirmar Mesclagem?"
-        message={`Você está prestes a mesclar todos os dados de "${students.find(s => s.id === duplicateStudentId)?.fullName}" para o prontuário de "${students.find(s => s.id === mainStudentId)?.fullName}". Esta operação não pode ser desfeita.`}
+        message={`Você está prestes a mesclar todos os dados de "${baseStudentList.find(s => s.id === duplicateStudentId)?.fullName}" para o prontuário de "${baseStudentList.find(s => s.id === mainStudentId)?.fullName}". Esta operação não pode ser desfeita.`}
         confirmLabel="Sim, Confirmar Mesclagem"
         cancelLabel="Cancelar"
         onConfirm={executeMerge}
@@ -481,8 +563,16 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
                   <td colSpan={5} className="px-6 py-20 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400">
                       <UserIcon size={48} className="mb-4 opacity-20" />
-                      <p className="font-bold text-slate-600">Nenhum registro encontrado</p>
-                      <p className="text-sm">Tente ajustar os filtros de busca</p>
+                      <p className="font-bold text-slate-600">
+                        {listaSomenteAgendaProfissional
+                          ? 'Nenhum aluno agendado para você ainda.'
+                          : 'Nenhum registro encontrado'}
+                      </p>
+                      <p className="text-sm">
+                        {listaSomenteAgendaProfissional
+                          ? 'Os alunos aparecem aqui quando a secretaria vincular você a um agendamento na Central de Agendamentos.'
+                          : 'Tente ajustar os filtros de busca'}
+                      </p>
                     </div>
                   </td>
                 </tr>
@@ -549,7 +639,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
                         <div className="flex items-center justify-end gap-2 relative">
                           {/* Botão Principal: Abrir Prontuário */}
                           <button
-                            onClick={() => onSelectStudent(student)}
+                            onClick={() => void abrirProntuario(student)}
                             className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-primary-600 hover:shadow-lg hover:shadow-primary-600/20 transition-all active:scale-95"
                           >
                             Abrir Prontuário <ChevronRight size={14} />
@@ -571,7 +661,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
                               <div ref={menuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
                                 <div className="p-1">
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); onSelectStudent(student); setActiveMenuId(null); }}
+                                    onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }}
                                     className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-primary-600 rounded-lg flex items-center gap-2 sm:hidden"
                                   >
                                     <FileText size={14} /> Abrir Prontuário
@@ -580,7 +670,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
                                   {/* Ações para Clínicos e Social */}
                                   {(isClinician || isSocialWorker) && (
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); onSelectStudent(student); /* Navegação para sessão deve ser via perfil ou ajustar prop onNewSession */ setActiveMenuId(null); }}
+                                      onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); /* Navegação para sessão deve ser via perfil ou ajustar prop onNewSession */ setActiveMenuId(null); }}
                                       className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-primary-600 rounded-lg flex items-center gap-2"
                                     >
                                       <Activity size={14} /> Novo Atendimento

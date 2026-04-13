@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outle
 import { SupabaseService } from '../services/SupabaseService';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
+import { AuthProvider } from '../contexts/AuthContext';
 import { Student, User, Specialty, SystemSettings, Appointment, School } from '../types';
 import { Loader2 } from 'lucide-react';
 import { NotificationProvider } from '../contexts/NotificationContext';
@@ -191,7 +192,17 @@ function AppContent() {
         return;
       }
       try {
-        const studentsData = await SupabaseService.getStudents(undefined, { compactList: true });
+        const perfil =
+          user ?? (await SupabaseService.getUserProfile(session.user.id));
+        if (!perfil) {
+          if (!cancelled) setStudents([]);
+          return;
+        }
+        const studentsData = await SupabaseService.getAlunosPorPerfil(
+          perfil,
+          perfil.id,
+          { compactList: true, listScope: 'todos' }
+        );
         if (!cancelled) {
           console.log('[DEBUG] Total alunos retornados:', studentsData?.length);
           setStudents(studentsData);
@@ -210,7 +221,13 @@ function AppContent() {
 
   const refreshData = async () => {
     try {
-      const students = await SupabaseService.getStudents();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const perfil = await SupabaseService.getUserProfile(session.user.id);
+      if (!perfil) return;
+      const students = await SupabaseService.getAlunosPorPerfil(perfil, perfil.id, {
+        listScope: 'todos',
+      });
       console.log('[DEBUG] Total alunos retornados (refresh):', students?.length);
       setStudents(students);
     } catch (err) {
@@ -232,9 +249,14 @@ function AppContent() {
   };
 
   // Helper for Student Selection in Profile
-  const handleSelectStudent = (student: Student) => {
-    setSelectedStudent(student);
-    navigate('/app/profile');
+  const handleSelectStudent = async (student: Student) => {
+    try {
+      setSelectedStudent(student);
+      navigate('/app/profile');
+    } catch (e) {
+      console.error('[App] handleSelectStudent:', e);
+      showError('Não foi possível preparar o acesso ao prontuário. Tente novamente.');
+    }
   };
 
   // Verificação de configuração do Supabase (Trava de Segurança)
@@ -270,6 +292,7 @@ function AppContent() {
   }
 
   return (
+    <AuthProvider user={user}>
     <NotificationProvider currentUser={user}>
       <Routes>
         {/* Rotas Públicas */}
@@ -404,6 +427,7 @@ function AppContent() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </NotificationProvider>
+    </AuthProvider>
   );
 }
 
