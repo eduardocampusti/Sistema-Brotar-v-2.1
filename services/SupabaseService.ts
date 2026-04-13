@@ -541,6 +541,29 @@ export class SupabaseService {
         return await supabase.from('profiles').update(data).eq('id', userId);
     }
 
+    /** Fallback quando a RPC V17 ainda não existe no projeto Supabase. */
+    private static async clearMustChangePasswordViaTable(userId: string): Promise<{ error: Error | null }> {
+        const { data: updatedRows, error: profileError } = await supabase
+            .from('profiles')
+            .update({ must_change_password: false })
+            .eq('id', userId)
+            .select('id');
+
+        if (profileError) {
+            return { error: new Error(profileError.message || 'Erro ao atualizar o perfil.') };
+        }
+        if (!updatedRows?.length) {
+            return {
+                error: new Error(
+                    'Não foi possível liberar o primeiro acesso no perfil (RLS). Execute no Supabase o script db/migrations/V17_clear_must_change_password_rpc.sql e tente novamente.'
+                ),
+            };
+        }
+
+        this.userProfileCache.delete(userId);
+        return { error: null };
+    }
+
     /**
      * Troca de senha obrigatória (primeiro acesso): atualiza a senha no Auth e zera `must_change_password` no perfil.
      * Verifica se o UPDATE no perfil afetou linha (evita sucesso falso com RLS / 0 linhas).
@@ -577,25 +600,26 @@ export class SupabaseService {
             // Auth já está com esta senha; segue só para corrigir o flag no banco.
         }
 
-        const { data: updatedRows, error: profileError } = await supabase
-            .from('profiles')
-            .update({ must_change_password: false })
-            .eq('id', userId)
-            .select('id');
+        const { data: rpcOk, error: rpcError } = await supabase.rpc('clear_must_change_password');
 
-        if (profileError) {
-            return { error: new Error(profileError.message || 'Erro ao atualizar o perfil.') };
-        }
-        if (!updatedRows?.length) {
-            return {
-                error: new Error(
-                    'Não foi possível confirmar a liberação do primeiro acesso no perfil. Contate o suporte ou um administrador.'
-                ),
-            };
+        if (!rpcError && rpcOk === true) {
+            this.userProfileCache.delete(userId);
+            return { error: null };
         }
 
-        this.userProfileCache.delete(userId);
-        return { error: null };
+        if (rpcError) {
+            const msg = (rpcError.message || '').toLowerCase();
+            const missingFn =
+                msg.includes('does not exist') ||
+                msg.includes('could not find') ||
+                msg.includes('clear_must_change_password') ||
+                rpcError.code === '42883';
+            if (!missingFn) {
+                return { error: new Error(rpcError.message || 'Erro ao liberar primeiro acesso (RPC).') };
+            }
+        }
+
+        return await this.clearMustChangePasswordViaTable(userId);
     }
 
     static async resetPassword(email: string) {
