@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { SupabaseService } from '../services/SupabaseService';
 import { supabase } from '../services/supabaseClient';
 import { User, SystemSettings, AuditAction } from '../types';
@@ -136,6 +136,55 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({
     </div>
 );
 
+/** Parâmetros no fragmento #... do Supabase (implicit / PKCE). */
+function parseHashSearchParams(): URLSearchParams {
+    const raw = window.location.hash;
+    if (!raw || raw.length < 2) return new URLSearchParams();
+    return new URLSearchParams(raw.startsWith('#') ? raw.slice(1) : raw);
+}
+
+/** Indica link de e-mail de recuperação ainda com tokens na URL. */
+function urlIndicatesPasswordRecovery(): boolean {
+    const q = new URLSearchParams(window.location.search);
+    const hp = parseHashSearchParams();
+    if (hp.get('type') === 'recovery' || q.get('type') === 'recovery') return true;
+    if (q.get('token_hash') && q.get('type') === 'recovery') return true;
+    const h = window.location.hash;
+    if (q.get('recovery') === 'true' && (h.includes('access_token=') || h.includes('type=recovery'))) return true;
+    return false;
+}
+
+function jwtPayload(accessToken: string): Record<string, unknown> | null {
+    try {
+        const parts = accessToken.split('.');
+        if (parts.length < 2) return null;
+        const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const json = atob(b64);
+        return JSON.parse(json) as Record<string, unknown>;
+    } catch {
+        return null;
+    }
+}
+
+/** Após o Supabase trocar o hash pela sessão, o JWT de recuperação ainda costuma trazer amr com "recovery". */
+function sessionLooksLikePasswordRecovery(session: { access_token: string } | null): boolean {
+    if (!session?.access_token) return false;
+    const p = jwtPayload(session.access_token);
+    if (!p) return false;
+    const amr = p.amr;
+    if (Array.isArray(amr)) {
+        return amr.some(
+            (e) =>
+                e === 'recovery' ||
+                (typeof e === 'object' &&
+                    e !== null &&
+                    JSON.stringify(e).toLowerCase().includes('recovery'))
+        );
+    }
+    if (typeof amr === 'string') return amr.toLowerCase().includes('recovery');
+    return false;
+}
+
 export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -144,9 +193,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
     const [view, setView] = useState<'login' | 'terms' | 'privacy' | 'forgot-password' | 'password-recovery'>(() => {
         const hash = window.location.hash;
         const search = window.location.search;
-        // Só muda para forgot-password se houver erro real de OTP/tempo
         if (hash.includes('error_code=otp_expired') || hash.includes('error=') || search.includes('error=')) {
             return 'forgot-password';
+        }
+        if (urlIndicatesPasswordRecovery()) {
+            return 'password-recovery';
         }
         return 'login';
     });
@@ -156,29 +207,62 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
     const [recoveryPassword, setRecoveryPassword] = useState('');
     const [recoveryConfirm, setRecoveryConfirm] = useState('');
 
-    // Fluxo do link do e-mail (Supabase): exibe formulário de nova senha na própria página de login.
-    React.useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-            if (event === 'PASSWORD_RECOVERY') {
-                setView('password-recovery');
-                setError('');
-                setRecoveryPassword('');
-                setRecoveryConfirm('');
-            }
-        });
-        return () => subscription.unsubscribe();
+    // Antes do useEffect do App consumir o hash: força a tela de nova senha quando a URL ainda traz o link do e-mail.
+    useLayoutEffect(() => {
+        const hash = window.location.hash;
+        const search = window.location.search;
+        if (hash.includes('error_code=otp_expired') || hash.includes('error=') || search.includes('error=')) {
+            setError(
+                hash.includes('error_code=otp_expired')
+                    ? 'O link de recuperação expirou ou já foi utilizado. Por favor, solicite um novo.'
+                    : 'Ocorreu um erro com o seu link de acesso. Tente novamente.'
+            );
+            setView('forgot-password');
+            return;
+        }
+        if (urlIndicatesPasswordRecovery()) {
+            setView('password-recovery');
+            setError('');
+        }
     }, []);
 
-    // Detectar erro de recuperação na URL (ex: otp_expired)
+    // Fluxo do link do e-mail: evento PASSWORD_RECOVERY pode disparar antes do mount — reforço com sessão/JWT e URL.
     React.useEffect(() => {
-        const hash = window.location.hash;
-        if (hash.includes('error_code=otp_expired')) {
-            setError('O link de recuperação expirou ou já foi utilizado. Por favor, solicite um novo.');
-            setView('forgot-password');
-        } else if (hash.includes('error=')) {
-            setError('Ocorreu um erro com o seu link de acesso. Tente novamente.');
-            setView('forgot-password');
-        }
+        const goRecovery = () => {
+            setView('password-recovery');
+            setError('');
+            setRecoveryPassword('');
+            setRecoveryConfirm('');
+        };
+
+        const maybeRecoveryFromSession = (session: { access_token: string } | null) => {
+            if (!session) return;
+            const q = new URLSearchParams(window.location.search);
+            // Hash já removido pelo cliente Supabase, mas a query ?recovery=true permanece.
+            if (
+                urlIndicatesPasswordRecovery() ||
+                sessionLooksLikePasswordRecovery(session) ||
+                (q.get('recovery') === 'true' && !window.location.hash)
+            ) {
+                goRecovery();
+            }
+        };
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                goRecovery();
+                return;
+            }
+            if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+                maybeRecoveryFromSession(session);
+            }
+        });
+
+        void supabase.auth.getSession().then(({ data: { session } }) => {
+            maybeRecoveryFromSession(session);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
     // Default values
