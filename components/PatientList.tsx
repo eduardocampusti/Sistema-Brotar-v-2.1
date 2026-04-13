@@ -30,6 +30,7 @@ import { CSVImporter } from './CSVImporter';
 import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '@/src/hooks/useAuth';
+import { isPerfilRestritoProntuario } from '@/src/config/perfilRestrito';
 
 interface StudentListProps {
   students: Student[];
@@ -116,10 +117,10 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
   const podeAlternarListaRede =
     !!authUser && SupabaseService.podeVerTodosAlunosNaRede(authUser);
 
-  /** Psicopedagogia / TO: lista só por agendamento; sem busca global na Central de Prontuários. */
+  /** Clínicos/terapeutas restritos: lista só por agendamento; sem busca global na Central de Prontuários. */
   const listaSomenteAgendaProfissional =
     !!authUser &&
-    SupabaseService.profissionalUsaVinculoAluno(authUser) &&
+    isPerfilRestritoProntuario(authUser) &&
     !SupabaseService.podeVerTodosAlunosNaRede(authUser);
 
   useEffect(() => {

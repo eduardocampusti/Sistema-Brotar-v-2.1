@@ -17,10 +17,20 @@ import {
     Loader2,
     Trash2,
     MessageSquare,
-    Smartphone
+    Smartphone,
+    PlayCircle,
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
-import { Appointment, AppointmentStatus, Unit, Specialty, Student, User, AuditAction } from '../types';
+import {
+    Appointment,
+    AppointmentStatus,
+    Unit,
+    Specialty,
+    Student,
+    User,
+    AuditAction,
+    statusAgendamentoRealizado,
+} from '../types';
 import { useToast } from '../contexts/ToastContext';
 
 interface SchedulingCenterProps {
@@ -120,9 +130,13 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
     const getStatusColor = (status: AppointmentStatus) => {
         switch (status) {
             case 'AGENDADO': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-            case 'ATENDIDO': return 'bg-blue-50 text-blue-600 border-blue-200';
+            case 'CONFIRMADO': return 'bg-teal-50 text-teal-700 border-teal-200';
+            case 'EM_ATENDIMENTO': return 'bg-violet-50 text-violet-700 border-violet-200';
+            case 'ATENDIDO':
+            case 'ENCERRADO': return 'bg-blue-50 text-blue-600 border-blue-200';
             case 'FALTOU': return 'bg-red-50 text-red-600 border-red-200';
             case 'REMARCAR': return 'bg-orange-50 text-orange-600 border-orange-200';
+            case 'CANCELADO': return 'bg-slate-100 text-slate-500 border-slate-200';
             default: return 'bg-slate-50 text-slate-600 border-slate-200';
         }
     };
@@ -130,9 +144,14 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
     const getStatusIcon = (status: AppointmentStatus) => {
         switch (status) {
             case 'AGENDADO': return <Clock size={14} />;
-            case 'ATENDIDO': return <CheckCircle2 size={14} />;
+            case 'CONFIRMADO': return <MessageSquare size={14} />;
+            case 'EM_ATENDIMENTO': return <PlayCircle size={14} />;
+            case 'ATENDIDO':
+            case 'ENCERRADO': return <CheckCircle2 size={14} />;
             case 'FALTOU': return <XCircle size={14} />;
             case 'REMARCAR': return <RotateCcw size={14} />;
+            case 'CANCELADO': return <XCircle size={14} />;
+            default: return <Clock size={14} />;
         }
     };
 
@@ -247,9 +266,13 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                         >
                             <option value="ALL">Todos os Status</option>
                             <option value="AGENDADO">🟢 Agendado</option>
-                            <option value="ATENDIDO">🔵 Atendido</option>
+                            <option value="CONFIRMADO">✅ Confirmado</option>
+                            <option value="EM_ATENDIMENTO">▶ Em atendimento</option>
+                            <option value="ENCERRADO">🏁 Encerrado</option>
+                            <option value="ATENDIDO">🔵 Atendido (legado)</option>
                             <option value="FALTOU">🔴 Faltou</option>
                             <option value="REMARCAR">🟠 Remarcar</option>
+                            <option value="CANCELADO">⛔ Cancelado</option>
                         </select>
                     </div>
 
@@ -365,15 +388,38 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                         {getConfirmationBadge(apt)}
                                     </div>
 
-                                    {/* Ações Rápidas */}
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            onClick={() => handleStatusUpdate(apt.id, 'ATENDIDO')}
-                                            className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                                            title="Marcar como Atendido"
-                                        >
-                                            <CheckCircle2 size={18} />
-                                        </button>
+                                    {/* Ações Rápidas — fluxo: Confirmar → Em atendimento → Encerrar */}
+                                    <div className="flex items-center gap-1 flex-wrap justify-end">
+                                        {apt.status === 'AGENDADO' && (
+                                            <button
+                                                onClick={() => handleStatusUpdate(apt.id, 'CONFIRMADO')}
+                                                className="p-2.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all"
+                                                title="Confirmar agendamento"
+                                            >
+                                                <MessageSquare size={18} />
+                                            </button>
+                                        )}
+                                        {(apt.status === 'AGENDADO' || apt.status === 'CONFIRMADO') && (
+                                            <button
+                                                onClick={() => handleStatusUpdate(apt.id, 'EM_ATENDIMENTO')}
+                                                className="p-2.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all"
+                                                title="Marcar como em atendimento"
+                                            >
+                                                <PlayCircle size={18} />
+                                            </button>
+                                        )}
+                                        {!statusAgendamentoRealizado(apt.status) &&
+                                            apt.status !== 'CANCELADO' &&
+                                            apt.status !== 'FALTOU' &&
+                                            apt.status !== 'REMARCAR' && (
+                                                <button
+                                                    onClick={() => handleStatusUpdate(apt.id, 'ENCERRADO')}
+                                                    className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                                    title="Encerrar atendimento (concluído)"
+                                                >
+                                                    <CheckCircle2 size={18} />
+                                                </button>
+                                            )}
                                         <button
                                             onClick={() => handleStatusUpdate(apt.id, 'FALTOU')}
                                             className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"

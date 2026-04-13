@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog } from '../types';
+import { isPerfilRestritoProntuario, STATUS_AGENDAMENTO_VINCULO_PRONTUARIO } from '@/src/config/perfilRestrito';
 
 /** Retry em timeout (57014 / statement timeout) para plano Supabase com limite rígido. */
 async function withRetry<T>(
@@ -858,26 +859,18 @@ export class SupabaseService {
             r === 'EDUCATION_SECRETARY' ||
             r === 'ASSISTANT' ||
             r === 'SECRETARIA_SEDE' ||
-            r === 'SECRETARIA_COCAL'
+            r === 'SECRETARIA_COCAL' ||
+            r === 'COORDENADOR'
         );
     }
 
-    /** Psicopedagogia e terapia ocupacional: lista de prontuários restrita a alunos com agendamento associado. */
+    /**
+     * Especialista em área com lista de prontuários restrita a alunos com agendamento associado.
+     * @see isPerfilRestritoProntuario em `@/src/config/perfilRestrito`
+     */
     static profissionalUsaVinculoAluno(user: Pick<User, 'role' | 'specialty'>): boolean {
-        if (user.role !== 'SPECIALIST') return false;
-        return (
-            user.specialty === Specialty.PSYCHOPEDAGOGY ||
-            user.specialty === Specialty.OCCUPATIONAL_THERAPY
-        );
+        return isPerfilRestritoProntuario(user);
     }
-
-    /** Status de agendamento que mantêm o vínculo profissional↔aluno visível na Central de Prontuários. */
-    private static readonly APPOINTMENT_STATUS_VINCULO_PRONTUARIO: readonly AppointmentStatus[] = [
-        'AGENDADO',
-        'CONFIRMADO',
-        'ATENDIDO',
-        'REMARCAR',
-    ];
 
     /**
      * Alunos atribuídos à profissional via agendamentos (`appointments.student_id` + `professional_id`).
@@ -888,8 +881,8 @@ export class SupabaseService {
         options?: { compactList?: boolean }
     ): Promise<Student[]> {
         return safeCall(async () => {
-            const allowed = new Set<string>(
-                this.APPOINTMENT_STATUS_VINCULO_PRONTUARIO as unknown as string[]
+            const allowed = new Set(
+                STATUS_AGENDAMENTO_VINCULO_PRONTUARIO.map((s) => s.toUpperCase())
             );
             const { data: rows, error } = await supabase
                 .from('appointments')
@@ -900,7 +893,9 @@ export class SupabaseService {
             const studentIds = [
                 ...new Set(
                     (rows || [])
-                        .filter((r: { status?: string }) => allowed.has(String(r.status || '')))
+                        .filter((r: { status?: string }) =>
+                            allowed.has(String(r.status || '').trim().toUpperCase())
+                        )
                         .map((r: { student_id: string }) => r.student_id)
                         .filter(Boolean)
                 ),

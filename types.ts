@@ -16,7 +16,7 @@ export enum Specialty {
   NUTRITION = 'Nutrição'
 }
 
-export type UserRole = 'ADMIN' | 'SPECIALIST' | 'ASSISTANT' | 'EDUCATION_SECRETARY' | 'SECRETARIA_SEDE' | 'SECRETARIA_COCAL' | 'ESCOLA';
+export type UserRole = 'ADMIN' | 'SPECIALIST' | 'ASSISTANT' | 'EDUCATION_SECRETARY' | 'SECRETARIA_SEDE' | 'SECRETARIA_COCAL' | 'COORDENADOR' | 'ESCOLA';
 export type UserScope = 'GLOBAL' | 'SEDE' | 'COCAL'; // Escopo de acesso (Sede ou Distrito)
 
 // --- PERMISSION SYSTEM ---
@@ -178,7 +178,31 @@ export interface Session {
   content?: any; // JSON completo da sessão (estruturado por especialidade)
 }
 
-export type AppointmentStatus = 'AGENDADO' | 'CONFIRMADO' | 'ATENDIDO' | 'FALTOU' | 'REMARCAR' | 'CANCELADO';
+export type AppointmentStatus =
+  | 'AGENDADO'
+  | 'CONFIRMADO'
+  | 'EM_ATENDIMENTO'
+  | 'ENCERRADO'
+  | 'ATENDIDO'
+  | 'FALTOU'
+  | 'REMARCAR'
+  | 'CANCELADO';
+
+/** Atendimento concluído (legado `ATENDIDO` + novo `ENCERRADO`). */
+export function statusAgendamentoRealizado(status: AppointmentStatus): boolean {
+  return status === 'ATENDIDO' || status === 'ENCERRADO';
+}
+
+/** Status que ainda ocupam o horário na checagem de conflito ao agendar. */
+export function statusAgendamentoOcupandoHorarioConflito(status: AppointmentStatus): boolean {
+  return (
+    status === 'AGENDADO' ||
+    status === 'CONFIRMADO' ||
+    status === 'EM_ATENDIMENTO' ||
+    status === 'REMARCAR'
+  );
+}
+
 export type Unit = 'SEDE' | 'COCAL';
 
 export interface Appointment {

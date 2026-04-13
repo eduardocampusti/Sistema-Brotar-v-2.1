@@ -1,5 +1,18 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Student, User, Specialty, Session, Appointment, SupportProfessional, SavedDocument, AuditLog, hasPermission, School as SchoolEntity, Unit } from '../types';
+import {
+    Student,
+    User,
+    Specialty,
+    Session,
+    Appointment,
+    SupportProfessional,
+    SavedDocument,
+    AuditLog,
+    hasPermission,
+    School as SchoolEntity,
+    Unit,
+    statusAgendamentoRealizado,
+} from '../types';
 import { StorageService } from '../services/storageService';
 import { SupabaseService } from '../services/SupabaseService';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -113,7 +126,10 @@ function appointmentStatusBadgeClass(status: Appointment['status']): string {
             return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
         case 'AGENDADO':
             return 'bg-amber-100 text-amber-900 border border-amber-200';
+        case 'EM_ATENDIMENTO':
+            return 'bg-violet-100 text-violet-800 border border-violet-200';
         case 'ATENDIDO':
+        case 'ENCERRADO':
             return 'bg-slate-200 text-slate-700 border border-slate-300';
         case 'FALTOU':
             return 'bg-red-100 text-red-800 border border-red-200';
@@ -214,7 +230,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
         const weekTotal = weekApts.length;
 
         const monthAttended = myAppointments.filter(
-            a => a.date.startsWith(monthStr) && a.status === 'ATENDIDO'
+            (a) => a.date.startsWith(monthStr) && statusAgendamentoRealizado(a.status)
         ).length;
 
         return {
@@ -319,7 +335,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                     value={metrics.monthAttended}
                     icon={CheckCircle}
                     gradient="from-slate-600 to-slate-800"
-                    subtext="Agendamentos ATENDIDO no mês"
+                    subtext="Agendamentos encerrados no mês (ATENDIDO ou ENCERRADO)"
                 />
                 <StatCard
                     title="Alunos com TEA/Autismo"
@@ -548,7 +564,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
         ).size;
 
         const monthApts = appointments.filter(a => a.date && a.date.startsWith(monthStr));
-        const apAttended = monthApts.filter(a => a.status === 'ATENDIDO').length;
+        const apAttended = monthApts.filter((a) => statusAgendamentoRealizado(a.status)).length;
         const apAbsent = monthApts.filter(a => a.status === 'FALTOU').length;
         const apCancelled = monthApts.filter(a => a.status === 'CANCELADO').length;
 
@@ -678,7 +694,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
                     value={metrics.monthAptsTotal}
                     icon={Calendar}
                     gradient="from-amber-500 to-orange-600"
-                    subtext={`ATENDIDO ${metrics.apAttended} · FALTOU ${metrics.apAbsent} · CANCELADO ${metrics.apCancelled}`}
+                    subtext={`Encerrados ${metrics.apAttended} · FALTOU ${metrics.apAbsent} · CANCELADO ${metrics.apCancelled}`}
                 />
                 <StatCard title="Usuários ativos" value={metrics.activeProfiles} icon={UserCheck} gradient="from-emerald-500 to-green-600" />
                 <StatCard
@@ -1225,7 +1241,12 @@ export const SecretaryDashboard: React.FC<DashboardProps> = ({ students, current
             return d >= stWeek && d <= enWeek;
         });
 
-        const confirmed = appointments.filter(a => a.status === 'CONFIRMADO' || a.status === 'ATENDIDO').length;
+        const confirmed = appointments.filter(
+            (a) =>
+                a.status === 'CONFIRMADO' ||
+                a.status === 'EM_ATENDIMENTO' ||
+                statusAgendamentoRealizado(a.status)
+        ).length;
         const cancelled = appointments.filter(a => a.status === 'CANCELADO').length;
         const waiting = students.filter(s => s.status === 'Pending').length;
 
@@ -2488,13 +2509,13 @@ export const AssistantDashboard: React.FC<DashboardProps> = ({ students, current
 
     const headerSubtitle = useMemo(() => {
         const hour = new Date().getHours();
-        const attended = apptsToday.filter(a => a.status === 'ATENDIDO').length;
+        const attended = apptsToday.filter((a) => statusAgendamentoRealizado(a.status)).length;
         const pending = apptsToday.filter(a => a.status === 'AGENDADO').length;
         const unit = scopeUnitLabel(currentUser.scope);
         if (hour < 12)
             return `${apptsToday.length} horário(s) hoje (${unit}) · ${pending} aguardando confirmação`;
         if (hour < 18) return `${apptsToday.length} horário(s) hoje · ${pending} ainda como AGENDADO`;
-        return `Encerrando o dia: ${attended} atendimento(s) marcado(s) como ATENDIDO na agenda.`;
+        return `Encerrando o dia: ${attended} atendimento(s) encerrado(s) na agenda (inclui legado ATENDIDO).`;
     }, [apptsToday, currentUser.scope]);
 
     const stats = useMemo(() => {

@@ -12,7 +12,15 @@ import {
     CalendarDays
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
-import { Appointment, AppointmentStatus, Unit, Specialty, Student, User } from '../types';
+import {
+    Appointment,
+    AppointmentStatus,
+    Unit,
+    Specialty,
+    Student,
+    User,
+    statusAgendamentoRealizado,
+} from '../types';
 import { useToast } from '../contexts/ToastContext';
 
 interface SocialWorkerAgendaProps {
@@ -81,7 +89,8 @@ export const SocialWorkerAgenda: React.FC<SocialWorkerAgendaProps> = ({ currentU
             const filtered = myAppointments.filter(apt => {
                 if (viewMode === 'TODAY') return apt.date === todayStr;
                 if (viewMode === 'UPCOMING') return apt.date > todayStr;
-                if (viewMode === 'HISTORY') return apt.date < todayStr || (apt.date === todayStr && apt.status === 'ATENDIDO');
+                if (viewMode === 'HISTORY')
+                    return apt.date < todayStr || (apt.date === todayStr && statusAgendamentoRealizado(apt.status));
                 return true;
             });
 
@@ -108,8 +117,8 @@ export const SocialWorkerAgenda: React.FC<SocialWorkerAgendaProps> = ({ currentU
 
     const handleMarkAsDone = async (id: string) => {
         try {
-            await SupabaseService.updateAppointmentStatus(id, 'ATENDIDO');
-            success("Atendimento marcado como realizado!");
+            await SupabaseService.updateAppointmentStatus(id, 'ENCERRADO');
+            success('Atendimento encerrado e registrado na agenda.');
             loadAppointments();
         } catch (err) {
             showError("Erro ao atualizar status");
@@ -119,9 +128,13 @@ export const SocialWorkerAgenda: React.FC<SocialWorkerAgendaProps> = ({ currentU
     const getStatusColor = (status: AppointmentStatus) => {
         switch (status) {
             case 'AGENDADO': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-            case 'ATENDIDO': return 'bg-blue-50 text-blue-600 border-blue-200';
+            case 'CONFIRMADO': return 'bg-teal-50 text-teal-700 border-teal-200';
+            case 'EM_ATENDIMENTO': return 'bg-violet-50 text-violet-700 border-violet-200';
+            case 'ATENDIDO':
+            case 'ENCERRADO': return 'bg-blue-50 text-blue-600 border-blue-200';
             case 'FALTOU': return 'bg-red-50 text-red-600 border-red-200';
             case 'REMARCAR': return 'bg-orange-50 text-orange-600 border-orange-200';
+            case 'CANCELADO': return 'bg-slate-100 text-slate-500 border-slate-200';
             default: return 'bg-slate-50 text-slate-600 border-slate-200';
         }
     };
@@ -229,12 +242,14 @@ export const SocialWorkerAgenda: React.FC<SocialWorkerAgendaProps> = ({ currentU
                                         <FileText size={16} /> Prontuário
                                     </button>
 
-                                    {apt.status === 'AGENDADO' && (
+                                    {(apt.status === 'AGENDADO' ||
+                                        apt.status === 'CONFIRMADO' ||
+                                        apt.status === 'EM_ATENDIMENTO') && (
                                         <button
                                             onClick={() => handleMarkAsDone(apt.id)}
                                             className="flex-1 md:flex-none px-6 py-3 bg-[#1E7F85] text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#166065] shadow-lg shadow-[#1E7F85]/20 transition-all flex items-center justify-center gap-2"
                                         >
-                                            <CheckCircle2 size={16} /> Realizado
+                                            <CheckCircle2 size={16} /> Encerrar
                                         </button>
                                     )}
                                 </div>

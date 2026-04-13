@@ -12,7 +12,16 @@ import {
     MessageCircle
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
-import { Appointment, Specialty, Student, User, Unit, School, AuditAction } from '../types';
+import {
+    Appointment,
+    Specialty,
+    Student,
+    User,
+    Unit,
+    School,
+    AuditAction,
+    statusAgendamentoOcupandoHorarioConflito,
+} from '../types';
 import { useToast } from '../contexts/ToastContext';
 import SearchableSelect from './SearchableSelect';
 
@@ -158,7 +167,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
             const hasConflict = studentAppointments.find(app => {
                 if (app.date !== newApt.date) return false;
                 if (initialData?.id && app.id === initialData.id) return false;
-                if (app.status !== 'AGENDADO' && app.status !== 'ATENDIDO') return false;
+                if (!statusAgendamentoOcupandoHorarioConflito(app.status)) return false;
 
                 const newStart = newApt.startTime!;
                 const newEnd = newApt.endTime!;

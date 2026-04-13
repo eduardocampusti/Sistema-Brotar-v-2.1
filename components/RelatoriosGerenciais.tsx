@@ -53,7 +53,13 @@ function endOfMonth(d: Date): Date {
 
 /** Mesmo critério de `EducationSecretaryDashboard` / `RoleDashboards` para “confirmado ou realizado”. */
 function isConfirmedOrAttended(status: Appointment['status']): boolean {
-  return status === 'AGENDADO' || status === 'CONFIRMADO' || status === 'ATENDIDO';
+  return (
+    status === 'AGENDADO' ||
+    status === 'CONFIRMADO' ||
+    status === 'EM_ATENDIMENTO' ||
+    status === 'ATENDIDO' ||
+    status === 'ENCERRADO'
+  );
 }
 
 /**
