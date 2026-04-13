@@ -625,10 +625,10 @@ export class SupabaseService {
     static async resetPassword(email: string) {
         const finalEmail = email.includes('@') ? email : `${email}@brotar.com`;
 
-        // Em produção, queremos que o link redirecione para a URL do site atual
-        // O Supabase usa o window.location.origin se for passado, 
-        // mas ele DEVE estar configurado no dashboard como Redirect URL ou Site URL.
-        const redirectTo = `${window.location.origin}${window.location.pathname.startsWith('/') ? '' : '/'}?recovery=true`;
+        // Redirecionar para /login (não a landing /), onde o fluxo PASSWORD_RECOVERY exibe o formulário de nova senha.
+        // Inclua em Supabase → Authentication → URL Configuration → Redirect URLs:
+        //   https://SEU_DOMINIO/login?recovery=true
+        const redirectTo = `${window.location.origin}/login?recovery=true`;
 
         console.log('[SupabaseService] Enviando reset para:', finalEmail, 'com redirectTo:', redirectTo);
 

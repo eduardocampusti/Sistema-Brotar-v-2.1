@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SupabaseService } from '../services/SupabaseService';
+import { supabase } from '../services/supabaseClient';
 import { User, SystemSettings, AuditAction } from '../types';
 import { HeartPulse, Lock, User as UserIcon, ArrowRight, Eye, EyeOff, Activity, ShieldCheck, Sparkles, Users } from 'lucide-react';
 
@@ -140,7 +141,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
-    const [view, setView] = useState<'login' | 'terms' | 'privacy' | 'forgot-password'>(() => {
+    const [view, setView] = useState<'login' | 'terms' | 'privacy' | 'forgot-password' | 'password-recovery'>(() => {
         const hash = window.location.hash;
         const search = window.location.search;
         // Só muda para forgot-password se houver erro real de OTP/tempo
@@ -152,6 +153,21 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
     const [isLoading, setIsLoading] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
     const [resetStatus, setResetStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [recoveryPassword, setRecoveryPassword] = useState('');
+    const [recoveryConfirm, setRecoveryConfirm] = useState('');
+
+    // Fluxo do link do e-mail (Supabase): exibe formulário de nova senha na própria página de login.
+    React.useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                setView('password-recovery');
+                setError('');
+                setRecoveryPassword('');
+                setRecoveryConfirm('');
+            }
+        });
+        return () => subscription.unsubscribe();
+    }, []);
 
     // Detectar erro de recuperação na URL (ex: otp_expired)
     React.useEffect(() => {
@@ -226,6 +242,40 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
             console.error(err);
             setError('Erro ao enviar email: ' + (err.message || 'Tente novamente.'));
             setResetStatus('error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRecoveryPasswordSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        if (recoveryPassword.length < 8) {
+            setError('A nova senha deve ter no mínimo 8 caracteres.');
+            return;
+        }
+        if (recoveryPassword !== recoveryConfirm) {
+            setError('As senhas não coincidem.');
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const { error } = await SupabaseService.updatePassword(recoveryPassword);
+            if (error) throw error;
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user) {
+                throw new Error('Sessão não encontrada após atualizar a senha. Tente fazer login.');
+            }
+            const user = await SupabaseService.getUserProfile(session.user.id);
+            if (!user) {
+                throw new Error('Não foi possível carregar seu perfil. Tente fazer login.');
+            }
+            await SupabaseService.logAction(user, AuditAction.LOGIN, 'SISTEMA', 'Acesso após recuperação de senha');
+            window.history.replaceState({}, '', '/login');
+            onLogin(user);
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || 'Não foi possível salvar a nova senha.');
         } finally {
             setIsLoading(false);
         }
@@ -383,6 +433,55 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack, systemSettings })
                             isLoading={isLoading}
                             error={error}
                         />
+                    ) : view === 'password-recovery' ? (
+                        <div className="animate-fadeIn space-y-6">
+                            <div className="text-left space-y-2">
+                                <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Definir nova senha</h2>
+                                <p className="text-slate-500 font-medium text-sm">
+                                    Digite e confirme sua nova senha de acesso ao sistema.
+                                </p>
+                            </div>
+                            <form onSubmit={handleRecoveryPasswordSubmit} className="space-y-6">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600 uppercase ml-1 mb-1 block">Nova senha</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        minLength={8}
+                                        className="block w-full px-5 py-4 bg-gray-100 border-none rounded-xl focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all text-slate-800 font-medium"
+                                        placeholder="Mínimo 8 caracteres"
+                                        value={recoveryPassword}
+                                        onChange={(e) => setRecoveryPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600 uppercase ml-1 mb-1 block">Confirmar nova senha</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        minLength={8}
+                                        className="block w-full px-5 py-4 bg-gray-100 border-none rounded-xl focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all text-slate-800 font-medium"
+                                        placeholder="Repita a nova senha"
+                                        value={recoveryConfirm}
+                                        onChange={(e) => setRecoveryConfirm(e.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                                {error && (
+                                    <div className="p-4 rounded-xl bg-red-50 text-red-600 text-sm font-bold flex items-center gap-2">
+                                        <ShieldCheck size={16} /> {error}
+                                    </div>
+                                )}
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="w-full bg-primary-600 hover:bg-primary-700 text-white py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-70 cursor-pointer"
+                                >
+                                    {isLoading ? 'Salvando...' : 'Salvar nova senha e entrar'}
+                                </button>
+                            </form>
+                        </div>
                     ) : (
                         <PrivacyPolicy systemName={systemName} onBack={() => setView('login')} />
                     )}

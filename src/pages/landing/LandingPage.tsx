@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     ShieldCheck,
     Users,
@@ -16,6 +17,21 @@ import {
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
+    const navigate = useNavigate();
+
+    // E-mails antigos apontavam para /?recovery=true — tokens ficam no hash; sem isso o usuário via só a landing.
+    useLayoutEffect(() => {
+        const { search, hash } = window.location;
+        const recoveryQuery =
+            (search.includes('recovery=') && !search.toLowerCase().includes('recovery=false')) ||
+            search === '?recovery=true';
+        const recoveryHash = hash.includes('type=recovery');
+        if (recoveryQuery || recoveryHash) {
+            const searchPart = search && search !== '?' ? search : '?recovery=true';
+            navigate(`/login${searchPart.startsWith('?') ? searchPart : `?${searchPart}`}${hash}`, { replace: true });
+        }
+    }, [navigate]);
+
     return (
         <div className="flex flex-col min-h-screen">
             {/* Navbar Minimalista */}
