@@ -184,6 +184,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             .select('id, student_name')
                             .or(`telefone_responsavel.ilike.%${phoneShort}%,telefone_responsavel.eq.${phoneClean},telefone_responsavel.eq.${phoneWith55}`)
                             .eq('status_confirmacao', 'PENDENTE')
+                            .or('excluido.is.null,excluido.eq.false')
                             .order('date', { ascending: true })
                             .limit(1);
 
@@ -208,6 +209,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         .from('appointments')
                         .update(updateData)
                         .eq('id', targetId)
+                        .or('excluido.is.null,excluido.eq.false')
                         .select();
 
                     if (error) {

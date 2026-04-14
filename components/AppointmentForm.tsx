@@ -1,57 +1,162 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-    ArrowLeft,
-    Save,
-    Calendar,
-    MapPin,
-    User as UserIcon,
-    Clock,
-    Sparkles,
-    CheckCircle2,
-    Search,
-    MessageCircle
-} from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { ArrowLeft, Save } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import {
     Appointment,
     Specialty,
     Student,
     User,
+    UserRole,
     Unit,
-    School,
     AuditAction,
-    statusAgendamentoOcupandoHorarioConflito,
 } from '../types';
 import { useToast } from '../contexts/ToastContext';
-import SearchableSelect from './SearchableSelect';
+
+/** Perfis que não aparecem como profissionais disponíveis no agendamento (apenas UI). */
+const PERFIS_EXCLUIDOS_LISTA_AGENDAMENTO: UserRole[] = [
+    'ADMIN',
+    'SECRETARIA_SEDE',
+    'SECRETARIA_COCAL',
+    'COORDENADOR',
+];
+
+const ESPECIALIDADES_CLINICAS = new Set<Specialty>(Object.values(Specialty) as Specialty[]);
+
+const SUGGESTED_START_TIMES = ['08:00', '08:40', '09:20', '10:00', '13:00', '13:40', '14:20', '15:00', '15:40', '16:20'] as const;
+
+/** Visual por especialidade — espelha `edu/code.html` (Material Symbols + superfícies). */
+const SPECIALTY_STITCH: Record<
+    Specialty,
+    { card: string; iconWrap: string; borderHover: string; symbol: string }
+> = {
+    [Specialty.PSYCHOLOGY]: {
+        card: 'bg-surface-container-low',
+        iconWrap: 'bg-primary-container text-on-primary-container',
+        borderHover: 'hover:border-primary/20',
+        symbol: 'psychology',
+    },
+    [Specialty.NUTRITION]: {
+        card: 'bg-tertiary-container',
+        iconWrap: 'bg-surface-container-highest text-on-tertiary-container',
+        borderHover: 'hover:border-tertiary/20',
+        symbol: 'nutrition',
+    },
+    [Specialty.PSYCHOPEDAGOGY]: {
+        card: 'bg-secondary-container/30',
+        iconWrap: 'bg-secondary-container text-on-secondary-container',
+        borderHover: 'hover:border-secondary/20',
+        symbol: 'child_care',
+    },
+    [Specialty.PHYSIOTHERAPY]: {
+        card: 'bg-surface-container-low',
+        iconWrap: 'bg-primary-container text-on-primary-container',
+        borderHover: 'hover:border-primary/20',
+        symbol: 'exercise',
+    },
+    [Specialty.SPEECH_THERAPY]: {
+        card: 'bg-secondary-container/30',
+        iconWrap: 'bg-secondary-container text-on-secondary-container',
+        borderHover: 'hover:border-secondary/20',
+        symbol: 'record_voice_over',
+    },
+    [Specialty.SOCIAL_WORK]: {
+        card: 'bg-tertiary-container',
+        iconWrap: 'bg-surface-container-highest text-on-tertiary-container',
+        borderHover: 'hover:border-tertiary/20',
+        symbol: 'diversity_3',
+    },
+    [Specialty.OCCUPATIONAL_THERAPY]: {
+        card: 'bg-surface-container-low',
+        iconWrap: 'bg-primary-container text-on-primary-container',
+        borderHover: 'hover:border-primary/20',
+        symbol: 'accessibility_new',
+    },
+};
+
+function formatLocalYYYYMMDD(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function addDaysLocalDate(d: Date, days: number): Date {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    x.setDate(x.getDate() + days);
+    return x;
+}
+
+/** Domingo 00:00 local da semana que contém `d`. */
+function startOfWeekSunday(d: Date): Date {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    x.setDate(x.getDate() - x.getDay());
+    return x;
+}
+
+function combineLocalDateAndTime(dateStr: string, timeHHmm: string): Date {
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    const [h, mi] = timeHHmm.split(':').map(Number);
+    return new Date(y, mo - 1, d, h, mi, 0, 0);
+}
+
+function addMinutesToClock(startHHmm: string, durMinutes: number): string {
+    const [h, m] = startHHmm.split(':').map(Number);
+    const total = h * 60 + m + durMinutes;
+    const h2 = Math.floor(total / 60) % 24;
+    const m2 = total % 60;
+    return `${String(h2).padStart(2, '0')}:${String(m2).padStart(2, '0')}`;
+}
+
+function initialsFromName(name: string): string {
+    const p = (name || '').trim().split(/\s+/).filter(Boolean);
+    if (p.length === 0) return '?';
+    if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+    return `${p[0][0] || ''}${p[p.length - 1][0] || ''}`.toUpperCase();
+}
 
 interface AppointmentFormProps {
     currentUser: User;
     students: Student[];
     initialData?: Appointment | null;
     onCancel: () => void;
-    onSuccess: () => void;
+    onSuccess: (payload?: { date: string }) => void;
 }
 
-export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, students: studentsProp, initialData, onCancel, onSuccess }) => {
-    const { success, error: showError } = useToast();
+export const AppointmentForm: React.FC<AppointmentFormProps> = ({
+    currentUser,
+    students: studentsProp,
+    initialData,
+    onCancel,
+    onSuccess,
+}) => {
+    const { success, error: showError, warning: showWarning } = useToast();
     const [loading, setLoading] = useState(false);
-    const [availableProfessionals, setAvailableProfessionals] = useState<User[]>([]);
-    const [schools, setSchools] = useState<School[]>([]);
-    // Estado local de alunos — usa o prop se presente, senão busca diretamente
+    const [allProfessionals, setAllProfessionals] = useState<User[]>([]);
+    const [loadingProfissionaisCache, setLoadingProfissionaisCache] = useState(true);
     const [localStudents, setLocalStudents] = useState<Student[]>(studentsProp || []);
-    // Estados de carregamento refinados
-    const [loadingProfessionals, setLoadingProfessionals] = useState(false);
-    const [loadingSchools, setLoadingSchools] = useState(false);
     const [loadingStudents, setLoadingStudents] = useState(false);
+    const [showAllSpecialties, setShowAllSpecialties] = useState(false);
 
-    // Estados de Filtro de Aluno
+    const [now, setNow] = useState(() => new Date());
+    useEffect(() => {
+        setNow(new Date());
+        const id = window.setInterval(() => setNow(new Date()), 60_000);
+        return () => window.clearInterval(id);
+    }, []);
+
+    const [profApptsDay, setProfApptsDay] = useState<Appointment[] | null>(null);
+    const [stuApptsDay, setStuApptsDay] = useState<Appointment[] | null>(null);
+    const [profConflitosSelecionado, setProfConflitosSelecionado] = useState<Appointment[]>([]);
+    const [alunoConflitosSelecionado, setAlunoConflitosSelecionado] = useState<Appointment[]>([]);
+    const [confStudentOverride, setConfStudentOverride] = useState(false);
+
+    const [monthApptDates, setMonthApptDates] = useState<Set<string>>(new Set());
+    const [dayUnitAppointments, setDayUnitAppointments] = useState<Appointment[] | null>(null);
+
+    const lastProfConflictToastKey = useRef('');
+    const lastStudentWarnToastKey = useRef('');
+
     const [searchName, setSearchName] = useState(initialData?.studentName || '');
-    const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
-
-    // State for selected duration (default 40min)
-    const [duration, setDuration] = useState(40);
-
     const resolveUnit = (): Unit => {
         const scope = currentUser.scope as string;
         if (scope && scope !== 'GLOBAL') return scope as Unit;
@@ -66,154 +171,416 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
         professionalId: initialData?.professionalId,
         professionalName: initialData?.professionalName,
         studentId: initialData?.studentId,
-        studentName: initialData?.studentName
+        studentName: initialData?.studentName,
     });
 
-    // Carregar profissionais quando a especialidade muda
-    useEffect(() => {
-        if (newApt.specialty) {
-            console.log(`[AppointmentForm] Especialidade selecionada: ${newApt.specialty}. Buscando profissionais...`);
-            setLoadingProfessionals(true);
-            SupabaseService.getProfessionalsBySpecialty(newApt.specialty)
-                .then(profs => {
-                    console.log(`[AppointmentForm] Recebidos ${profs.length} profissionais.`);
-                    setAvailableProfessionals(profs);
-                })
-                .catch(err => {
-                    console.error('[AppointmentForm] Erro ao buscar profissionais:', err);
-                    showError("Erro ao carregar profissionais.");
-                })
-                .finally(() => setLoadingProfessionals(false));
-        } else {
-            setAvailableProfessionals([]);
-        }
-    }, [newApt.specialty]);
+    const [weekViewStart, setWeekViewStart] = useState(() => {
+        const base = initialData?.date
+            ? new Date(`${initialData.date}T12:00:00`)
+            : new Date(`${new Date().toISOString().split('T')[0]}T12:00:00`);
+        return startOfWeekSunday(base);
+    });
 
-    // Sincroniza quando prop muda (caso App.tsx termine de carregar)
+    const [duration, setDuration] = useState(40);
+    /** UI alinhada ao Stitch; persistência de modalidade não existe no modelo atual de `Appointment`. */
+    const [attendanceMode, setAttendanceMode] = useState<'PRESENCIAL' | 'ONLINE'>('PRESENCIAL');
+    const [showAllStudentCards, setShowAllStudentCards] = useState(false);
+
+    useEffect(() => {
+        if (!newApt.startTime) return;
+        const nextEnd = addMinutesToClock(newApt.startTime, duration);
+        setNewApt((prev) => (prev.endTime === nextEnd ? prev : { ...prev, endTime: nextEnd }));
+    }, [duration, newApt.startTime]);
+
+    useEffect(() => {
+        let cancelled = false;
+        setLoadingProfissionaisCache(true);
+        void SupabaseService.getProfissionaisAtivos()
+            .then((profs) => {
+                if (cancelled) return;
+                setAllProfessionals(profs);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                const msg =
+                    err instanceof Error
+                        ? err.message
+                        : typeof err === 'object' && err !== null && 'message' in err
+                          ? String((err as { message?: unknown }).message)
+                          : String(err);
+                showError(msg ? `Erro ao carregar profissionais: ${msg}` : 'Erro ao carregar profissionais.');
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingProfissionaisCache(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [showError]);
+
     useEffect(() => {
         if (studentsProp && studentsProp.length > 0) {
-            console.log(`[AppointmentForm] Sincronizando localStudents com studentsProp (${studentsProp.length} registros).`);
             setLocalStudents(studentsProp);
         }
     }, [studentsProp]);
 
-    // Fallback: busca diretamente se prop estiver vazio
     useEffect(() => {
         if (!studentsProp || studentsProp.length === 0) {
-            console.log('[AppointmentForm] Prop students vazio — buscando diretamente do banco...');
             setLoadingStudents(true);
-            SupabaseService.getStudents()
-                .then(data => {
-                    console.log(`[AppointmentForm] Busca direta de alunos retornou ${data.length} registros.`);
+            SupabaseService.getStudents(undefined, { compactList: true })
+                .then((data) => {
                     if (data.length > 0) setLocalStudents(data);
                 })
                 .finally(() => setLoadingStudents(false));
         }
     }, [studentsProp]);
 
-    // Accessor estável para uso nos filtros
     const students = localStudents;
 
-    // Carregar escolas no mount
-    useEffect(() => {
-        console.log('[AppointmentForm] Carregando escolas...');
-        setLoadingSchools(true);
-        SupabaseService.getSchools()
-            .then(data => {
-                console.log(`[AppointmentForm] ${data.length} escolas carregadas.`);
-                setSchools(data);
-            })
-            .catch(err => {
-                console.error('[AppointmentForm] Erro ao carregar escolas:', err);
-            })
-            .finally(() => setLoadingSchools(false));
-    }, []);
+    const profissionaisParaAgendamento = useMemo(
+        () =>
+            allProfessionals.filter(
+                (p) =>
+                    !PERFIS_EXCLUIDOS_LISTA_AGENDAMENTO.includes(p.role) &&
+                    !!p.specialty &&
+                    ESPECIALIDADES_CLINICAS.has(p.specialty)
+            ),
+        [allProfessionals]
+    );
 
+    const especialidadesComContagem = useMemo(
+        () => SupabaseService.getEspecialidades(profissionaisParaAgendamento),
+        [profissionaisParaAgendamento]
+    );
+
+    const filteredProfessionals = useMemo(() => {
+        if (!newApt.specialty) return [];
+        return profissionaisParaAgendamento.filter((p) => p.specialty === newApt.specialty);
+    }, [profissionaisParaAgendamento, newApt.specialty]);
+
+    const profissionalSelecionado = useMemo(
+        () => filteredProfessionals.find((p) => p.id === newApt.professionalId),
+        [filteredProfessionals, newApt.professionalId]
+    );
+
+    const proOcupadoNoSlot = useMemo(() => {
+        if (!newApt.startTime || !newApt.endTime || !dayUnitAppointments) {
+            return () => false;
+        }
+        return (proId: string) => {
+            const mine = dayUnitAppointments.filter((a) => a.professionalId === proId);
+            return (
+                SupabaseService.filtrarAgendamentosSobrepostosJanela(
+                    mine,
+                    newApt.startTime!,
+                    newApt.endTime!,
+                    initialData?.id
+                ).length > 0
+            );
+        };
+    }, [newApt.startTime, newApt.endTime, dayUnitAppointments, initialData?.id]);
+
+    useEffect(() => {
+        if (!newApt.professionalId || !newApt.date) {
+            setProfApptsDay(null);
+            return;
+        }
+        let cancelled = false;
+        void SupabaseService.getAppointments({
+            professionalId: newApt.professionalId,
+            date: newApt.date,
+        }).then((rows) => {
+            if (!cancelled) setProfApptsDay(rows);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [newApt.professionalId, newApt.date]);
+
+    useEffect(() => {
+        if (!newApt.studentId || !newApt.date) {
+            setStuApptsDay(null);
+            return;
+        }
+        let cancelled = false;
+        void SupabaseService.getAppointments({
+            studentId: newApt.studentId,
+            date: newApt.date,
+        }).then((rows) => {
+            if (!cancelled) setStuApptsDay(rows);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [newApt.studentId, newApt.date]);
+
+    useEffect(() => {
+        if (!newApt.date || !newApt.unit) {
+            setDayUnitAppointments(null);
+            return;
+        }
+        let cancelled = false;
+        void SupabaseService.getAppointments({
+            date: newApt.date,
+            unit: newApt.unit as Unit,
+        }).then((rows) => {
+            if (!cancelled) setDayUnitAppointments(rows);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [newApt.date, newApt.unit]);
+
+    useEffect(() => {
+        if (!newApt.professionalId) {
+            setMonthApptDates(new Set());
+            return;
+        }
+        const from = formatLocalYYYYMMDD(weekViewStart);
+        const to = formatLocalYYYYMMDD(addDaysLocalDate(weekViewStart, 6));
+        let cancelled = false;
+        void SupabaseService.getAppointments({
+            professionalId: newApt.professionalId,
+            fromDate: from,
+            toDate: to,
+        }).then((rows) => {
+            if (cancelled) return;
+            const dates = new Set(rows.map((r) => r.date).filter(Boolean) as string[]);
+            setMonthApptDates(dates);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [newApt.professionalId, weekViewStart]);
+
+    useEffect(() => {
+        if (profApptsDay === null || !newApt.professionalId || !newApt.date || !newApt.startTime || !newApt.endTime) {
+            setProfConflitosSelecionado([]);
+            return;
+        }
+        let cancelled = false;
+        void SupabaseService.verificarConflitosProfissional(
+            newApt.professionalId,
+            newApt.date,
+            newApt.startTime,
+            newApt.endTime,
+            { excludeAppointmentId: initialData?.id, candidatos: profApptsDay }
+        ).then((list) => {
+            if (!cancelled) setProfConflitosSelecionado(list);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        profApptsDay,
+        newApt.professionalId,
+        newApt.date,
+        newApt.startTime,
+        newApt.endTime,
+        initialData?.id,
+    ]);
+
+    useEffect(() => {
+        if (stuApptsDay === null || !newApt.studentId || !newApt.date || !newApt.startTime || !newApt.endTime) {
+            setAlunoConflitosSelecionado([]);
+            return;
+        }
+        let cancelled = false;
+        void SupabaseService.verificarConflitosAluno(
+            newApt.studentId,
+            newApt.date,
+            newApt.startTime,
+            newApt.endTime,
+            { excludeAppointmentId: initialData?.id, candidatos: stuApptsDay }
+        ).then((list) => {
+            if (!cancelled) {
+                const pid = newApt.professionalId;
+                setAlunoConflitosSelecionado(pid ? list.filter((a) => a.professionalId !== pid) : list);
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        stuApptsDay,
+        newApt.studentId,
+        newApt.professionalId,
+        newApt.date,
+        newApt.startTime,
+        newApt.endTime,
+        initialData?.id,
+    ]);
+
+    useEffect(() => {
+        setConfStudentOverride(false);
+    }, [newApt.studentId, newApt.date, newApt.startTime, newApt.endTime, newApt.professionalId]);
+
+    useEffect(() => {
+        if (profConflitosSelecionado.length === 0) {
+            lastProfConflictToastKey.current = '';
+            return;
+        }
+        const c = profConflitosSelecionado[0];
+        const key = `${c.id}|${newApt.startTime}|${newApt.endTime}|${newApt.professionalId}`;
+        if (lastProfConflictToastKey.current === key) return;
+        lastProfConflictToastKey.current = key;
+        const profName = newApt.professionalName || 'Este profissional';
+        showError(`${profName} já tem atendimento neste horário.`);
+    }, [profConflitosSelecionado, newApt.startTime, newApt.endTime, newApt.professionalName, newApt.professionalId, showError]);
+
+    useEffect(() => {
+        if (alunoConflitosSelecionado.length === 0) {
+            lastStudentWarnToastKey.current = '';
+            return;
+        }
+        if (confStudentOverride) return;
+        const other = alunoConflitosSelecionado[0];
+        const key = `${other.id}|${newApt.startTime}|${newApt.endTime}|${newApt.studentId}|${newApt.professionalId}`;
+        if (lastStudentWarnToastKey.current === key) return;
+        lastStudentWarnToastKey.current = key;
+        const nomeAluno = newApt.studentName || 'O aluno';
+        showWarning(
+            `⚠️ ${nomeAluno} já tem atendimento neste horário com ${other.professionalName}. Confirma mesmo assim?`
+        );
+    }, [
+        alunoConflitosSelecionado,
+        confStudentOverride,
+        newApt.startTime,
+        newApt.endTime,
+        newApt.studentName,
+        newApt.studentId,
+        newApt.professionalId,
+        showWarning,
+    ]);
 
     const normalizeText = (text: string) => {
-        if (!text) return "";
-        return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        if (!text) return '';
+        return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     };
 
-    // Lógica de filtragem de alunos - Memoizado para performance
     const filteredStudents = useMemo(() => {
         const studentList = students || [];
         if (studentList.length === 0) return [];
-
-        const filtered = students.filter(s => {
+        return students.filter((s) => {
             const normalizedSearch = normalizeText(searchName);
             const nameMatch = !searchName || normalizeText(s.fullName || '').includes(normalizedSearch);
-            const schoolMatch = selectedSchoolId === 'ALL' || s.school?.schoolId === selectedSchoolId;
-            return nameMatch && schoolMatch;
+            const schoolNameMatch =
+                !searchName || normalizeText(s.school?.schoolName || '').includes(normalizedSearch);
+            const textMatch = !searchName || nameMatch || schoolNameMatch;
+            return textMatch;
         });
+    }, [students, searchName]);
 
-        console.log('[AppointmentForm] Alunos após filtragem:', filtered.length);
-        return filtered;
-    }, [students, searchName, selectedSchoolId]);
+    const isDateToday = useMemo(
+        () => !!newApt.date && newApt.date === formatLocalYYYYMMDD(now),
+        [newApt.date, now]
+    );
+
+    const weekStripDays = useMemo(
+        () => Array.from({ length: 7 }, (_, i) => addDaysLocalDate(weekViewStart, i)),
+        [weekViewStart]
+    );
+
+    const horarioPassadoBloqueante = useMemo(() => {
+        if (!newApt.date || !newApt.startTime || !newApt.endTime) return false;
+        if (!isDateToday) return false;
+        const startD = combineLocalDateAndTime(newApt.date, newApt.startTime);
+        const endD = combineLocalDateAndTime(newApt.date, newApt.endTime);
+        return startD <= now || endD <= now;
+    }, [newApt.date, newApt.startTime, newApt.endTime, isDateToday, now]);
+
+    const minTimeHHmm = useMemo(() => {
+        if (!isDateToday) return undefined;
+        return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    }, [isDateToday, now]);
+
+    const bloqueioProfissional = profConflitosSelecionado.length > 0;
+    const avisoAlunoPendente = alunoConflitosSelecionado.length > 0 && !confStudentOverride;
+
+    const confirmacaoDesabilitada =
+        loading ||
+        !newApt.studentId ||
+        !newApt.professionalId ||
+        !newApt.startTime ||
+        !newApt.endTime ||
+        !newApt.date ||
+        !newApt.specialty ||
+        bloqueioProfissional ||
+        horarioPassadoBloqueante ||
+        avisoAlunoPendente;
+
+    const rejeitarHorarioPassado = (dateStr: string, startHHmm: string, endHHmm: string): boolean => {
+        if (!dateStr || !startHHmm || !endHHmm) return false;
+        if (dateStr !== formatLocalYYYYMMDD(now)) return false;
+        const startD = combineLocalDateAndTime(dateStr, startHHmm);
+        const endD = combineLocalDateAndTime(dateStr, endHHmm);
+        if (startD <= now || endD <= now) {
+            showError('Horário já passou');
+            return true;
+        }
+        return false;
+    };
 
     const handleSaveAppointment = async () => {
         if (!newApt.studentId || !newApt.professionalId || !newApt.startTime || !newApt.endTime || !newApt.date || !newApt.specialty) {
-            showError("Preencha todos os campos obrigatórios");
+            showError('Preencha todos os campos obrigatórios');
+            return;
+        }
+
+        if (horarioPassadoBloqueante) {
+            showError('Não é possível agendar em horário já passado.');
+            return;
+        }
+
+        if (bloqueioProfissional) {
+            const c = profConflitosSelecionado[0];
+            const profName = newApt.professionalName || 'O profissional';
+            showError(`${profName} já tem atendimento neste horário.`);
+            return;
+        }
+
+        if (alunoConflitosSelecionado.length > 0 && !confStudentOverride) {
+            showError(
+                'Há conflito de horário do aluno com outro profissional. Confirme em “Confirmar mesmo assim” antes de salvar.'
+            );
             return;
         }
 
         setLoading(true);
         try {
-            // Verificação de Conflito de Horário
-            const studentAppointments = await SupabaseService.getAppointments({
-                studentId: newApt.studentId
-            });
-
-            const hasConflict = studentAppointments.find(app => {
-                if (app.date !== newApt.date) return false;
-                if (initialData?.id && app.id === initialData.id) return false;
-                if (!statusAgendamentoOcupandoHorarioConflito(app.status)) return false;
-
-                const newStart = newApt.startTime!;
-                const newEnd = newApt.endTime!;
-                const appStart = app.startTime;
-                const appEnd = app.endTime;
-
-                return newStart < appEnd && appStart < newEnd;
-            });
-
-            if (hasConflict) {
-                const dateFormatted = hasConflict.date.split('-').reverse().join('/');
-                showError(`Atenção: O profissional ${hasConflict.professionalName} já possui um agendamento para o dia ${dateFormatted} às ${hasConflict.startTime}. Por favor, verifique a disponibilidade.`);
-                setLoading(false);
-                return;
-            }
-
-            // 1. Mapear dados do aluno e salvar agendamento
-            const studentData = students.find(s => s.id === newApt.studentId);
+            const studentData = students.find((s) => s.id === newApt.studentId);
             const guardianPhone = studentData?.guardians?.[0]?.phone || '';
 
             const aptToSave = {
                 ...newApt,
-                telefoneResponsavel: guardianPhone
+                telefoneResponsavel: guardianPhone,
+                conflitoHorarioAluno:
+                    alunoConflitosSelecionado.length > 0 && confStudentOverride ? true : undefined,
             };
             if (initialData?.id) aptToSave.id = initialData.id;
 
-            const savedId = await SupabaseService.saveAppointment(aptToSave);
+            const savedId = await SupabaseService.confirmarAgendamento(aptToSave);
 
-            // Registro de Auditoria: Agendamento
             const acao = initialData?.id ? AuditAction.UPDATE : AuditAction.CREATE;
-            await SupabaseService.logAction(currentUser, acao, 'AGENDAMENTOS', `Consulta de ${studentData?.fullName || 'Desconhecido'} com ${newApt.professionalName}`);
+            await SupabaseService.logAction(
+                currentUser,
+                acao,
+                'AGENDAMENTOS',
+                `Consulta de ${studentData?.fullName || 'Desconhecido'} com ${newApt.professionalName}`
+            );
 
-            // 2. Reagendamento: Atualiza registro anterior se necessário
             if (initialData && initialData.id && newApt.date) {
                 try {
                     const dateFormatted = newApt.date.split('-').reverse().join('/');
                     await SupabaseService.updateAppointmentFields(initialData.id, {
                         status: 'REMARCAR',
-                        notes: `Remarcado para ${dateFormatted}`
+                        notes: `Remarcado para ${dateFormatted}`,
                     });
                 } catch (err) {
-                    console.warn("Falha ao atualizar notas do anterior", err);
+                    console.warn('Falha ao atualizar notas do anterior', err);
                 }
             }
 
-            // 3. Notificação WhatsApp (agendamento já está persistido; falha aqui não desfaz o save)
             if (guardianPhone) {
                 const wa = await sendWhatsAppNotification({
                     student: newApt.studentName || 'Aluno',
@@ -222,25 +589,31 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                     time: newApt.startTime!,
                     phone: guardianPhone,
                     appointmentId: savedId,
-                    unit: newApt.unit || 'SEDE'
+                    unit: newApt.unit || 'SEDE',
                 });
                 if (wa.ok === false) {
-                    showError(
-                        `Agendamento salvo com sucesso. Não foi possível enviar o WhatsApp: ${wa.message}`,
-                    );
+                    showError(`Agendamento salvo com sucesso. Não foi possível enviar o WhatsApp: ${wa.message}`);
                 } else {
                     success('Agendamento salvo. Confirmação enviada por WhatsApp.');
                 }
             } else {
                 success(
-                    `Agendamento salvo. O responsável de "${newApt.studentName}" não tem telefone cadastrado — inclua o número para enviar confirmação por WhatsApp.`,
+                    `Agendamento salvo. O responsável de "${newApt.studentName}" não tem telefone cadastrado — inclua o número para enviar confirmação por WhatsApp.`
                 );
             }
 
-            onSuccess();
+            onSuccess(newApt.date ? { date: newApt.date } : undefined);
         } catch (err: any) {
-            console.error("Erro ao salvar agendamento:", err);
-            showError(`Erro ao salvar: ${err.message || 'Erro desconhecido'}`);
+            console.error('Erro ao salvar agendamento:', err);
+            const msg = String(err?.message || err?.error_description || err || '');
+            const code = err?.code || err?.status;
+            if (code === '401' || code === 'PGRST301' || /jwt|session|expired|invalid/i.test(msg)) {
+                showError(
+                    'Sessão expirada ou não autorizado pelo servidor. Saia e entre de novo no sistema e tente salvar o agendamento.'
+                );
+            } else {
+                showError(`Erro ao salvar: ${msg || 'Erro desconhecido'}`);
+            }
         } finally {
             setLoading(false);
         }
@@ -280,155 +653,518 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
         }
     };
 
-    return (
-        <div className="flex flex-col h-full animate-in fade-in zoom-in duration-300">
-            {/* Header */}
-            <div className="flex items-center gap-4 mb-8">
-                <button
-                    onClick={onCancel}
-                    className="p-3 bg-white hover:bg-slate-100 text-slate-400 hover:text-primary-500 rounded-2xl shadow-sm transition-all group"
-                >
-                    <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">Novo Agendamento</h1>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary-500 opacity-60">Fluxo de Atendimento</p>
-                </div>
-            </div>
+    const selectSpecialty = (s: Specialty) => {
+        setNewApt((prev) => ({
+            ...prev,
+            specialty: s,
+            professionalId: undefined,
+            professionalName: undefined,
+        }));
+    };
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
-                {/* Coluna do Formulário */}
-                <div className="lg:col-span-2 space-y-8 bg-white p-10 rounded-[40px] shadow-sm border border-slate-100">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Seção 1: Unidade e Data */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 text-slate-400">
-                                <MapPin size={16} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Unidade e Data</span>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-600 px-1">Unidade de Atendimento</label>
-                                <select
-                                    value={newApt.unit}
-                                    onChange={(e) => setNewApt({ ...newApt, unit: e.target.value as Unit })}
-                                    className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:border-primary-500 focus:bg-white transition-all outline-none"
+    const selectProfessional = (p: User) => {
+        setNewApt((prev) => ({
+            ...prev,
+            professionalId: p.id,
+            professionalName: p.name,
+        }));
+    };
+
+    const especialidadesVisiveis = useMemo(() => {
+        if (showAllSpecialties) return especialidadesComContagem;
+        const preview = especialidadesComContagem.slice(0, 6);
+        const sel = newApt.specialty;
+        if (!sel) return preview;
+        if (preview.some((e) => e.specialty === sel)) return preview;
+        const selEntry = especialidadesComContagem.find((e) => e.specialty === sel);
+        if (!selEntry) return preview;
+        return [...preview.slice(0, 5), selEntry];
+    }, [especialidadesComContagem, showAllSpecialties, newApt.specialty]);
+
+    const pillsForProfessional = (p: User) => {
+        const pills: string[] = [];
+        if (p.specialty) pills.push(p.specialty);
+        pills.push(attendanceMode === 'ONLINE' ? 'Online' : 'Presencial');
+        if (p.jobTitle) {
+            const w = p.jobTitle.trim().split(/\s+/).slice(0, 2).join(' ');
+            if (w && !(p.specialty && w.toLowerCase().includes(p.specialty.toLowerCase().slice(0, 4)))) {
+                pills.push(w);
+            }
+        }
+        return [...new Set(pills)].slice(0, 4);
+    };
+
+    const studentCardsList = useMemo(() => {
+        const list = filteredStudents;
+        if (showAllStudentCards) return list;
+        return list.slice(0, 24);
+    }, [filteredStudents, showAllStudentCards]);
+
+    return (
+        <div className="appointment-stitch-shell flex min-h-0 w-full flex-col overflow-x-hidden bg-background font-body text-on-background transition-colors duration-300 md:max-h-[calc(100dvh-5.5rem)] md:overflow-y-hidden">
+            <main className="flex w-full flex-1 justify-center overflow-y-auto px-3 pb-10 pt-3 sm:px-4 sm:pb-12 md:pb-14 md:pt-4">
+                <div className="mx-auto w-full max-w-6xl rounded-2xl bg-[#F9FAFB] px-4 py-6 shadow-sm ring-1 ring-slate-200/60 sm:px-6 sm:py-8 md:px-8 md:py-10">
+                    <div className="grid w-full grid-cols-1 gap-y-10 md:gap-y-12">
+                    <header className="grid grid-cols-[auto_1fr] items-center gap-4 sm:gap-6">
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            className="group w-fit rounded-full bg-surface-container-low p-3 text-on-surface-variant transition-all duration-300 hover:bg-surface-container-high hover:text-primary"
+                            aria-label="Voltar"
+                        >
+                            <ArrowLeft size={20} className="transition-transform group-hover:-translate-x-1" />
+                        </button>
+                        <div className="flex flex-wrap items-center justify-self-end gap-3">
+                            <label className="sr-only" htmlFor="stitch-unit-select">
+                                Unidade
+                            </label>
+                            <span className="hidden text-sm font-semibold text-on-surface-variant sm:inline">Unidade</span>
+                            <select
+                                id="stitch-unit-select"
+                                value={newApt.unit}
+                                onChange={(e) => setNewApt({ ...newApt, unit: e.target.value as Unit })}
+                                className="rounded-full border-0 bg-surface-container-low px-4 py-2.5 text-sm font-semibold text-on-surface ring-1 ring-outline/10 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                                <option value="SEDE">SEDE</option>
+                                <option value="COCAL">COCAL (distrito)</option>
+                            </select>
+                        </div>
+                    </header>
+
+                    <section className="grid grid-cols-1 gap-3">
+                        <h1 className="font-headline text-4xl font-extrabold tracking-tight text-on-background md:text-5xl">
+                            Agendar Atendimento
+                        </h1>
+                        <p className="max-w-2xl text-lg text-on-surface-variant">
+                            Escolha o profissional e o melhor horário para você começar sua jornada de bem-estar.
+                        </p>
+                    </section>
+
+                    <section className="grid grid-cols-1 gap-4">
+                    <div className="inline-flex gap-1 rounded-full bg-surface-container-low p-1">
+                        <button
+                            type="button"
+                            onClick={() => setAttendanceMode('PRESENCIAL')}
+                            className={`rounded-full px-8 py-2.5 text-sm font-medium transition-all duration-300 ${
+                                attendanceMode === 'PRESENCIAL'
+                                    ? 'bg-primary text-on-primary'
+                                    : 'text-on-surface-variant hover:bg-surface-container-high'
+                            }`}
+                        >
+                            Presencial
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setAttendanceMode('ONLINE')}
+                            className={`rounded-full px-8 py-2.5 text-sm font-medium transition-all duration-300 ${
+                                attendanceMode === 'ONLINE'
+                                    ? 'bg-primary text-on-primary'
+                                    : 'text-on-surface-variant hover:bg-surface-container-high'
+                            }`}
+                        >
+                            Online
+                        </button>
+                    </div>
+                    </section>
+
+                    <section className="grid min-w-0 grid-cols-1 gap-6">
+                        <h2 className="font-headline text-2xl font-bold text-on-background">Contexto do Paciente</h2>
+                        <div className="relative w-full max-w-3xl">
+                            <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                                search
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="Busca por escola"
+                                value={searchName}
+                                onChange={(e) => setSearchName(e.target.value)}
+                                className="w-full rounded-full border-none bg-white py-4 pl-12 pr-6 text-on-surface shadow-sm ring-1 ring-slate-200/80 transition-all placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                        </div>
+                        <div className="flex min-w-0 flex-col gap-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="font-headline text-lg font-semibold text-on-background">Alunos Pacientes</h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAllStudentCards((v) => !v)}
+                                    className="text-sm font-semibold text-primary transition-all duration-300 hover:underline"
                                 >
-                                    <option value="SEDE">SEDE</option>
-                                    <option value="COCAL">COCAL (DISTRITO)</option>
-                                </select>
+                                    {showAllStudentCards ? 'Mostrar menos' : 'Ver todos'}
+                                </button>
                             </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-600 px-1">Data do Atendimento</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <input
-                                        type="date"
-                                        value={newApt.date}
-                                        onChange={(e) => setNewApt({ ...newApt, date: e.target.value })}
-                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:border-primary-500 focus:bg-white transition-all outline-none"
-                                    />
-                                </div>
+                            <div
+                                className="flex min-w-0 flex-nowrap gap-4 overflow-x-auto py-2 scrollbar-hide"
+                                role="list"
+                                aria-label="Lista de alunos pacientes"
+                            >
+                                {loadingStudents ? (
+                                    <p className="w-full shrink-0 text-sm text-on-surface-variant">Carregando alunos...</p>
+                                ) : studentCardsList.length === 0 ? (
+                                    <p className="w-full shrink-0 text-sm text-on-surface-variant">
+                                        Nenhum aluno encontrado com estes filtros.
+                                    </p>
+                                ) : (
+                                    studentCardsList.map((s) => {
+                                        const selected = newApt.studentId === s.id;
+                                        const sub = [s.school?.grade, s.school?.schoolName].filter(Boolean).join(' • ');
+                                        return (
+                                            <button
+                                                key={s.id}
+                                                type="button"
+                                                role="listitem"
+                                                aria-pressed={selected}
+                                                onClick={() =>
+                                                    setNewApt({
+                                                        ...newApt,
+                                                        studentId: s.id,
+                                                        studentName: s.fullName,
+                                                    })
+                                                }
+                                                className={`flex w-[min(20rem,calc(100vw-3rem))] shrink-0 cursor-pointer items-center gap-3 rounded-full bg-green-50 py-2.5 pl-2.5 pr-5 text-left ring-inset transition-all duration-300 sm:gap-3.5 sm:py-3 sm:pl-3 sm:pr-6 ${
+                                                    selected
+                                                        ? 'shadow-sm ring-2 ring-primary'
+                                                        : 'ring-1 ring-slate-200/90 hover:ring-primary/30'
+                                                }`}
+                                            >
+                                                {s.photoUrl ? (
+                                                    <img
+                                                        src={s.photoUrl}
+                                                        alt=""
+                                                        className="size-11 shrink-0 rounded-full bg-gray-200 object-cover sm:size-12"
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gray-300 sm:size-12"
+                                                        aria-hidden
+                                                    >
+                                                        <span className="material-symbols-outlined text-[22px] text-gray-500 sm:text-[24px]">
+                                                            person
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate font-bold leading-tight text-gray-900 sm:text-[15px]">
+                                                        {s.fullName}
+                                                    </p>
+                                                    <p className="mt-0.5 truncate text-xs leading-snug text-gray-500 sm:text-[13px]">
+                                                        {sub || '—'}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        );
+                                    })
+                                )}
                             </div>
                         </div>
+                    </section>
 
-                        {/* Seção 2: Especialidade e Profissional */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 text-slate-400">
-                                <Sparkles size={16} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Especialista</span>
-                            </div>
-                            <div className="space-y-1.5 text-left">
-                                <label className="text-xs font-bold text-slate-600 px-1">Especialidade Necessária</label>
-                                <SearchableSelect
-                                    options={Object.values(Specialty).map(s => ({ value: s, label: s }))}
-                                    value={newApt.specialty || ''}
-                                    onChange={(val) => setNewApt({ ...newApt, specialty: val as Specialty, professionalId: undefined, professionalName: undefined })}
-                                    placeholder={loadingProfessionals ? "Carregando profissionais..." : "Selecione a especialidade..."}
-                                />
-                            </div>
-
-                            {newApt.specialty && (
-                                <div className="space-y-1.5 text-left animate-in slide-in-from-top-2 duration-200">
-                                    <label className="text-xs font-bold text-slate-600 px-1">Profissional Disponível</label>
-                                    <SearchableSelect
-                                        options={availableProfessionals.map(p => ({ value: p.id, label: p.name }))}
-                                        value={newApt.professionalId || ''}
-                                        onChange={(val) => {
-                                            const prof = availableProfessionals.find(p => p.id === val);
-                                            setNewApt({ ...newApt, professionalId: val, professionalName: prof?.name });
-                                        }}
-                                        placeholder={loadingProfessionals ? "Carregando especialistas..." : "Selecione o profissional..."}
+                    <section className="grid min-w-0 grid-cols-1 gap-6">
+                        <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
+                        <h2 className="font-headline text-2xl font-bold text-on-background">Especialidades</h2>
+                        <button
+                            type="button"
+                            onClick={() => setShowAllSpecialties((v) => !v)}
+                            className="w-fit font-semibold text-primary underline-offset-4 transition-colors duration-300 hover:underline sm:justify-self-end"
+                        >
+                            {showAllSpecialties ? 'Mostrar menos' : 'Ver todas'}
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3 md:grid-cols-6 lg:grid-cols-7">
+                        {loadingProfissionaisCache ? (
+                            <>
+                                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                                    <div
+                                        key={i}
+                                        className="flex h-[92px] animate-pulse flex-col items-center justify-center gap-2 rounded-xl bg-surface-container-low px-2 py-2.5 sm:h-[100px]"
                                     />
+                                ))}
+                            </>
+                        ) : (
+                            especialidadesVisiveis.map(({ specialty, count }) => {
+                                const stitch = SPECIALTY_STITCH[specialty];
+                                const semProfissionais = count === 0;
+                                const selected = newApt.specialty === specialty;
+                                return (
+                                    <button
+                                        key={specialty}
+                                        type="button"
+                                        disabled={semProfissionais}
+                                        title={
+                                            semProfissionais
+                                                ? 'Nenhum profissional cadastrado'
+                                                : `Selecionar ${specialty}`
+                                        }
+                                        onClick={() => {
+                                            if (semProfissionais) return;
+                                            selectSpecialty(specialty);
+                                        }}
+                                        className={`flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-center transition-all duration-300 sm:gap-2 sm:px-2 sm:py-3 ${
+                                            semProfissionais
+                                                ? `cursor-not-allowed border-transparent opacity-40 ${stitch.card}`
+                                                : selected
+                                                  ? `cursor-pointer border-primary/30 bg-primary-container ${stitch.borderHover}`
+                                                  : `cursor-pointer border-transparent ${stitch.card} ${stitch.borderHover}`
+                                        }`}
+                                    >
+                                        <div
+                                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full sm:h-10 sm:w-10 ${stitch.iconWrap}`}
+                                        >
+                                            <span className="material-symbols-outlined text-[20px] sm:text-[22px]">
+                                                {stitch.symbol}
+                                            </span>
+                                        </div>
+                                        <span className="line-clamp-2 w-full px-0.5 text-[10px] font-semibold leading-tight text-on-surface sm:text-[11px]">
+                                            {specialty}
+                                        </span>
+                                        <span className="sr-only">
+                                            {count} {count === 1 ? 'profissional' : 'profissionais'}
+                                        </span>
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+                    </section>
+
+                    <section className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start lg:gap-10">
+                        {/* Coluna esquerda: escolha + card do profissional selecionado */}
+                        <div className="grid min-w-0 grid-cols-1 gap-5">
+                            <h2 className="font-headline text-2xl font-bold text-on-background">
+                                Profissionais Disponíveis
+                            </h2>
+                            {!newApt.specialty ? (
+                                <p className="text-on-surface-variant">
+                                    Selecione uma especialidade para listar os profissionais.
+                                </p>
+                            ) : loadingProfissionaisCache ? (
+                                <div className="flex gap-3">
+                                    {[1, 2, 3].map((i) => (
+                                        <div
+                                            key={i}
+                                            className="h-12 w-36 shrink-0 animate-pulse rounded-full bg-surface-container-low"
+                                        />
+                                    ))}
                                 </div>
+                            ) : filteredProfessionals.length === 0 ? (
+                                <p className="text-sm font-medium text-on-surface-variant">
+                                    Nenhum profissional ativo nesta especialidade.
+                                </p>
+                            ) : (
+                                <>
+                                    <div
+                                        className="-mx-1 flex gap-2 overflow-x-auto pb-1 pt-0.5 [scrollbar-width:thin]"
+                                        role="tablist"
+                                        aria-label="Selecionar profissional"
+                                    >
+                                        {filteredProfessionals.map((p) => {
+                                            const selected = newApt.professionalId === p.id;
+                                            const ocupado =
+                                                !!(newApt.startTime && newApt.endTime) && proOcupadoNoSlot(p.id);
+                                            return (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    role="tab"
+                                                    aria-selected={selected}
+                                                    disabled={ocupado}
+                                                    onClick={() => {
+                                                        if (!ocupado) selectProfessional(p);
+                                                    }}
+                                                    className={`flex max-w-[220px] shrink-0 items-center gap-2.5 rounded-full border py-2 pl-2 pr-3 text-left transition-all duration-300 ${
+                                                        selected
+                                                            ? 'border-primary/40 bg-emerald-50/90 shadow-sm ring-2 ring-primary/15'
+                                                            : 'border-slate-200/90 bg-white shadow-sm hover:border-primary/30'
+                                                    } ${ocupado ? 'cursor-not-allowed opacity-45' : ''}`}
+                                                >
+                                                    {p.photoUrl ? (
+                                                        <img
+                                                            src={p.photoUrl}
+                                                            alt=""
+                                                            className="size-9 shrink-0 rounded-full object-cover ring-2 ring-white"
+                                                        />
+                                                    ) : (
+                                                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 ring-2 ring-white">
+                                                            {initialsFromName(p.name)}
+                                                        </div>
+                                                    )}
+                                                    <span className="min-w-0 truncate text-xs font-bold text-on-background sm:text-sm">
+                                                        {p.name}
+                                                    </span>
+                                                    {ocupado ? (
+                                                        <span className="shrink-0 rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-red-700">
+                                                            Ocup.
+                                                        </span>
+                                                    ) : null}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {profissionalSelecionado ? (
+                                        <article className="grid min-h-[5.5rem] w-full max-w-full grid-cols-[5.5rem_1fr] overflow-hidden rounded-2xl border-2 border-primary/35 bg-white shadow-md ring-1 ring-slate-100 sm:min-h-[6rem] sm:grid-cols-[6.75rem_1fr]">
+                                            <div className="relative h-full min-h-[5.5rem] bg-slate-200 sm:min-h-[6rem]">
+                                                {profissionalSelecionado.photoUrl ? (
+                                                    <img
+                                                        src={profissionalSelecionado.photoUrl}
+                                                        alt=""
+                                                        className="absolute inset-0 h-full w-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-primary text-lg font-bold text-on-primary sm:text-xl">
+                                                        {initialsFromName(profissionalSelecionado.name)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex min-w-0 flex-col justify-center gap-1 px-3 py-2.5 sm:gap-1.5 sm:px-4 sm:py-3">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <h3 className="font-headline min-w-0 text-base font-bold leading-snug text-on-background sm:text-lg">
+                                                        {profissionalSelecionado.name}
+                                                    </h3>
+                                                    <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 px-2 py-0.5">
+                                                        <span className="material-symbols-outlined fill-1 text-sm text-amber-500">
+                                                            star
+                                                        </span>
+                                                        <span className="text-xs font-bold text-on-background sm:text-sm">
+                                                            5.0
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <p className="line-clamp-1 text-xs font-semibold text-primary sm:text-[13px]">
+                                                    {[profissionalSelecionado.specialty, profissionalSelecionado.jobTitle]
+                                                        .filter(Boolean)
+                                                        .join(' • ')}
+                                                </p>
+                                                <p className="line-clamp-2 text-xs leading-snug text-slate-600 sm:text-[13px] sm:leading-relaxed">
+                                                    {profissionalSelecionado.jobTitle
+                                                        ? `Perfil: ${profissionalSelecionado.jobTitle}.`
+                                                        : 'Profissional da rede Brotar.'}
+                                                </p>
+                                                <div className="mt-0.5 flex flex-wrap gap-1">
+                                                    {pillsForProfessional(profissionalSelecionado).map((label, pi) => (
+                                                        <span
+                                                            key={`${profissionalSelecionado.id}-${pi}-${label}`}
+                                                            className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold leading-tight text-slate-700 sm:text-[11px]"
+                                                        >
+                                                            {label}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </article>
+                                    ) : (
+                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 py-10 text-center text-sm text-slate-500">
+                                            Toque em um profissional na lista acima para ver a ficha e os horários.
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
 
-                        {/* Seção 3: Aluno */}
-                        <div className="md:col-span-2 space-y-4 border-t border-slate-50 pt-8">
-                            <div className="flex items-center gap-2 text-slate-400">
-                                <UserIcon size={16} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Paciente (Aluno)</span>
-                            </div>
-
-                            <div className="space-y-6">
-                                {/* Filtro por Escola no Topo */}
-                                <div className="space-y-1.5 text-left">
-                                    <label className="text-xs font-bold text-slate-600 px-1">Filtrar por Escola</label>
-                                    <SearchableSelect
-                                        options={[
-                                            { value: 'ALL', label: 'Todas as Escolas' },
-                                            ...schools.map(sch => ({ value: sch.id, label: sch.name }))
-                                        ]}
-                                        value={selectedSchoolId}
-                                        onChange={setSelectedSchoolId}
-                                        placeholder={loadingSchools ? "Carregando escolas..." : "Buscar escola..."}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5 text-left">
-                                        <label className="text-xs font-bold text-slate-600 px-1">Buscar por Nome</label>
-                                        <div className="relative">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                            <input
-                                                type="text"
-                                                placeholder="Digite o nome..."
-                                                value={searchName}
-                                                onChange={(e) => setSearchName(e.target.value)}
-                                                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:border-primary-500 focus:bg-white transition-all outline-none"
-                                            />
+                        {/* Coluna direita: agendar (confirmar + semana), duração, horários */}
+                        <div className="grid min-w-0 grid-cols-1 gap-6">
+                            <div className="grid grid-cols-1 gap-3">
+                                <h2 className="font-headline text-lg font-bold text-on-background">Agendar para</h2>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleSaveAppointment()}
+                                    disabled={confirmacaoDesabilitada}
+                                    className="flex w-full items-center justify-center gap-2 rounded-full bg-[#2D6A4F] px-6 py-3.5 font-headline text-base font-bold text-white shadow-md transition-colors duration-200 hover:bg-[#245a43] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {loading ? (
+                                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                    ) : (
+                                        <>
+                                            <Save size={20} className="shrink-0" />
+                                            Confirmar Agendamento
+                                        </>
+                                    )}
+                                </button>
+                                <div className="overflow-hidden rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-100 sm:p-4">
+                                    <div className="flex items-center gap-1 sm:gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setWeekViewStart((w) => addDaysLocalDate(w, -7))}
+                                            className="shrink-0 rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"
+                                            aria-label="Semana anterior"
+                                        >
+                                            <span className="material-symbols-outlined text-xl">chevron_left</span>
+                                        </button>
+                                        <div className="flex min-w-0 flex-1 items-center justify-between gap-0.5 sm:gap-1">
+                                            {weekStripDays.map((d) => {
+                                                const ymd = formatLocalYYYYMMDD(d);
+                                                const dayNum = d.getDate();
+                                                const isSelected = newApt.date === ymd;
+                                                const todayStr = formatLocalYYYYMMDD(now);
+                                                const isToday = todayStr === ymd;
+                                                const dayStart = d.getTime();
+                                                const startToday = new Date(
+                                                    now.getFullYear(),
+                                                    now.getMonth(),
+                                                    now.getDate()
+                                                ).getTime();
+                                                const isPastDay = dayStart < startToday;
+                                                const hasMark = monthApptDates.has(ymd);
+                                                if (isPastDay) {
+                                                    return (
+                                                        <span
+                                                            key={ymd}
+                                                            className="flex h-10 w-8 shrink-0 items-center justify-center text-sm tabular-nums text-slate-300 sm:h-11 sm:w-9"
+                                                            aria-hidden
+                                                        >
+                                                            {dayNum}
+                                                        </span>
+                                                    );
+                                                }
+                                                return (
+                                                    <button
+                                                        key={ymd}
+                                                        type="button"
+                                                        onClick={() => setNewApt((prev) => ({ ...prev, date: ymd }))}
+                                                        className={`relative flex h-10 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition-all duration-200 sm:h-11 sm:w-9 sm:text-base ${
+                                                            isSelected
+                                                                ? 'bg-primary font-bold text-on-primary shadow-sm'
+                                                                : 'text-on-surface hover:bg-primary-container/40'
+                                                        } ${
+                                                            isToday && !isSelected
+                                                                ? 'bg-primary-container/30 font-semibold text-on-primary-container'
+                                                                : ''
+                                                        }`}
+                                                    >
+                                                        {dayNum}
+                                                        {hasMark && !isSelected ? (
+                                                            <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />
+                                                        ) : null}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                    </div>
-
-                                    <div className="space-y-1.5 text-left">
-                                        <label className="text-xs font-bold text-slate-600 px-1">Selecione o Aluno</label>
-                                        <SearchableSelect
-                                            options={filteredStudents.map(s => ({ value: s.id, label: s.fullName }))}
-                                            value={newApt.studentId || ''}
-                                            onChange={(val) => {
-                                                const stu = students.find(s => s.id === val);
-                                                setNewApt({ ...newApt, studentId: val, studentName: stu?.fullName });
-                                            }}
-                                            placeholder={loadingStudents ? "Carregando alunos..." : (filteredStudents.length === 0 ? 'Nenhum aluno encontrado' : 'Selecione o aluno...')}
-                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setWeekViewStart((w) => addDaysLocalDate(w, 7))}
+                                            className="shrink-0 rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"
+                                            aria-label="Próxima semana"
+                                        >
+                                            <span className="material-symbols-outlined text-xl">chevron_right</span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Seção 4: Horários */}
-                        <div className="md:col-span-2 space-y-4 border-t border-slate-50 pt-8">
-                            <div className="flex items-center justify-between text-slate-400">
-                                <div className="flex items-center gap-2">
-                                    <Clock size={16} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Horário do Atendimento</span>
-                                </div>
-                                <div className="flex gap-1">
-                                    {[30, 40, 50, 60].map(dur => (
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-4">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                                    Duração
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {[30, 40, 50, 60].map((dur) => (
                                         <button
                                             key={dur}
+                                            type="button"
                                             onClick={() => setDuration(dur)}
-                                            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${duration === dur ? 'bg-primary-500 text-white shadow-md' : 'bg-slate-100 hover:bg-primary-50 text-slate-500 hover:text-primary-600'}`}
+                                            className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition-all duration-300 ${
+                                                duration === dur
+                                                    ? 'bg-[#2D6A4F] text-white shadow-sm'
+                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                            }`}
                                         >
                                             {dur}m
                                         </button>
@@ -436,99 +1172,143 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({ currentUser, s
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sugestões de Início</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {['08:00', '08:40', '09:20', '10:00', '13:00', '13:40', '14:20', '15:00', '15:40', '16:20'].map(time => (
-                                        <button
-                                            key={time}
-                                            onClick={() => {
-                                                const [h, m] = time.split(':').map(Number);
-                                                const d = new Date();
-                                                d.setHours(h, m + duration);
-                                                const nextEnd = d.toTimeString().slice(0, 5);
-                                                setNewApt({ ...newApt, startTime: time, endTime: nextEnd });
-                                            }}
-                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${newApt.startTime === time ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300'}`}
-                                        >
-                                            {time}
-                                        </button>
-                                    ))}
+                            <div className="grid grid-cols-1 gap-3">
+                                <h3 className="font-headline text-lg font-bold text-on-background">
+                                    Horários Disponíveis
+                                </h3>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {SUGGESTED_START_TIMES.map((time) => {
+                                        const nextEnd = addMinutesToClock(time, duration);
+                                        const past =
+                                            !!newApt.date &&
+                                            isDateToday &&
+                                            combineLocalDateAndTime(newApt.date, time) <= now;
+                                        const ocupado =
+                                            profApptsDay !== null &&
+                                            !!newApt.professionalId &&
+                                            SupabaseService.filtrarAgendamentosSobrepostosJanela(
+                                                profApptsDay,
+                                                time,
+                                                nextEnd,
+                                                initialData?.id
+                                            ).length > 0;
+                                        const disabled = past || ocupado;
+                                        const selected = newApt.startTime === time;
+                                        return (
+                                            <button
+                                                key={time}
+                                                type="button"
+                                                title={
+                                                    past
+                                                        ? 'Passou'
+                                                        : ocupado
+                                                          ? 'Profissional já tem atendimento neste horário'
+                                                          : undefined
+                                                }
+                                                disabled={disabled}
+                                                onClick={() => {
+                                                    if (disabled) return;
+                                                    setNewApt({ ...newApt, startTime: time, endTime: nextEnd });
+                                                }}
+                                                className={`w-full rounded-full px-3 py-2.5 text-sm font-semibold transition-all ${
+                                                    disabled
+                                                        ? 'cursor-not-allowed bg-slate-100 text-slate-400 opacity-55'
+                                                        : selected
+                                                          ? 'bg-[#2D6A4F] font-bold text-white shadow-sm'
+                                                          : 'bg-white text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50'
+                                                }`}
+                                            >
+                                                <span className={disabled && past ? 'line-through' : ''}>{time}</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 pt-2">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-600 px-1">Horário de Início</label>
+                                    <label className="px-1 text-xs font-semibold text-on-surface-variant">
+                                        Início (manual)
+                                    </label>
                                     <input
                                         type="time"
+                                        min={minTimeHHmm}
                                         value={newApt.startTime || ''}
                                         onChange={(e) => {
                                             const newStart = e.target.value;
-                                            if (newStart) {
-                                                const [h, m] = newStart.split(':').map(Number);
-                                                const d = new Date();
-                                                d.setHours(h, m + duration);
-                                                const nextEnd = d.toTimeString().slice(0, 5);
-                                                setNewApt({ ...newApt, startTime: newStart, endTime: nextEnd });
-                                            } else {
-                                                setNewApt({ ...newApt, startTime: newStart });
+                                            if (!newApt.date) return;
+                                            if (!newStart) {
+                                                setNewApt({ ...newApt, startTime: newStart, endTime: undefined });
+                                                return;
                                             }
+                                            const nextEnd = addMinutesToClock(newStart, duration);
+                                            if (rejeitarHorarioPassado(newApt.date, newStart, nextEnd)) return;
+                                            setNewApt({ ...newApt, startTime: newStart, endTime: nextEnd });
                                         }}
-                                        className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:border-primary-500 transition-all outline-none"
+                                        className={`w-full rounded-full border-0 bg-white p-3 text-sm font-bold text-on-surface outline-none ring-1 ring-slate-200 transition-all duration-300 focus:ring-2 focus:ring-[#2D6A4F] ${
+                                            horarioPassadoBloqueante ? 'ring-2 ring-sanctuary-error' : ''
+                                        }`}
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-600 px-1">Horário de Término</label>
+                                    <label className="px-1 text-xs font-semibold text-on-surface-variant">
+                                        Término (manual)
+                                    </label>
                                     <input
                                         type="time"
+                                        min={minTimeHHmm}
                                         value={newApt.endTime || ''}
-                                        onChange={(e) => setNewApt({ ...newApt, endTime: e.target.value })}
-                                        className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:border-primary-500 transition-all outline-none"
+                                        onChange={(e) => {
+                                            const end = e.target.value;
+                                            if (!newApt.date) return;
+                                            if (!end) {
+                                                setNewApt({ ...newApt, endTime: end });
+                                                return;
+                                            }
+                                            const start = newApt.startTime || '00:00';
+                                            if (rejeitarHorarioPassado(newApt.date, start, end)) return;
+                                            setNewApt({ ...newApt, endTime: end });
+                                        }}
+                                        className={`w-full rounded-full border-0 bg-white p-3 text-sm font-bold text-on-surface outline-none ring-1 ring-slate-200 transition-all duration-300 focus:ring-2 focus:ring-[#2D6A4F] ${
+                                            horarioPassadoBloqueante ? 'ring-2 ring-sanctuary-error' : ''
+                                        }`}
                                     />
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </section>
 
-                {/* Resumo */}
-                <div className="space-y-6">
-                    <div className="bg-slate-900 rounded-[32px] p-8 text-white space-y-6 shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-                        <h2 className="text-lg font-bold flex items-center gap-2 relative z-10">
-                            <CheckCircle2 size={24} className="text-primary-400" />
-                            Resumo da Operação
-                        </h2>
-                        <div className="space-y-4 relative z-10 text-left">
-                            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-                                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Paciente</p>
-                                <p className="text-sm font-bold truncate">{newApt.studentName || 'Não selecionado'}</p>
-                            </div>
-                            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-                                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Profissional / Unidade</p>
-                                <p className="text-sm font-bold truncate">{newApt.professionalName || 'Aguardando especialista'}</p>
-                                <p className="text-xs opacity-60 mt-0.5">{newApt.unit} | {newApt.date?.split('-').reverse().join('/')}</p>
-                            </div>
-                            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-                                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Horário</p>
-                                <p className="text-sm font-bold">{newApt.startTime && newApt.endTime ? `${newApt.startTime} às ${newApt.endTime}` : 'Defina os horários'}</p>
-                            </div>
+                    <div className="grid grid-cols-1 gap-4 pt-2">
+                    {(bloqueioProfissional || horarioPassadoBloqueante) && (
+                        <div className="rounded-stitch-lg bg-sanctuary-error-container/30 px-4 py-3 text-sm font-semibold text-red-950 ring-1 ring-sanctuary-error/25">
+                            Conflito de agenda do profissional ou horário já passado. Ajuste antes de confirmar.
                         </div>
-                        <div className="space-y-3 pt-4 relative z-10">
-                            <button
-                                onClick={handleSaveAppointment}
-                                disabled={loading}
-                                className="w-full py-4 bg-primary-500 hover:bg-primary-600 text-white rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <><Save size={20} /> Confirmar Agendamento</>}
-                            </button>
-                            <button onClick={onCancel} className="w-full py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-all">Descartar</button>
+                    )}
+                    {alunoConflitosSelecionado.length > 0 && (
+                        <div className="rounded-stitch-lg bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200/70">
+                            <p className="mb-2 font-semibold">
+                                Conflito de horário do aluno com outro profissional. Só é possível confirmar com
+                                autorização explícita.
+                            </p>
+                            {!confStudentOverride ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setConfStudentOverride(true)}
+                                    className="w-full rounded-full bg-amber-500 py-2.5 text-xs font-bold uppercase tracking-wide text-on-background transition-colors duration-300 hover:bg-amber-400"
+                                >
+                                    Confirmar mesmo assim
+                                </button>
+                            ) : (
+                                <p className="text-xs font-semibold text-amber-900">
+                                    Confirmação registrada — o agendamento será salvo com a flag de conflito do aluno.
+                                </p>
+                            )}
                         </div>
-                    </div>
+                    )}
                 </div>
-            </div>
-
+                </div>
+                </div>
+            </main>
         </div>
     );
 };

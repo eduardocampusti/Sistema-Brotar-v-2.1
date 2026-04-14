@@ -221,7 +221,14 @@ export interface Appointment {
   telefoneResponsavel?: string;
   notes?: string;
   createdAt: string;
+  /** Confirmado com aviso de conflito de agenda do aluno (outro profissional). */
+  conflitoHorarioAluno?: boolean;
 }
+
+/** Agenda do profissional: agendamento + escola do aluno (join opcional no serviço). */
+export type AgendamentoProfissionalView = Appointment & {
+  studentSchoolName?: string;
+};
 
 export type DocumentType = 'Laudo Médico' | 'Receita Médica' | 'Cartão de Vacina' | 'Cartão SUS' | 'Certidão de Nascimento' | 'PEI' | 'RG' | 'CPF' | 'Autorização de Uso de Imagem' | 'Outros';
 

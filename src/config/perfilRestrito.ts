@@ -2,7 +2,7 @@ import { Specialty, type User } from '../../types';
 
 /**
  * Slugs canônicos dos perfis clínicos/terapêuticos com visão restrita na Central de Prontuários.
- * Manter alinhado a `db/migrations/V20_prontuario_perfis_restritos_rls.sql` (array de especialidades no Postgres).
+ * Manter alinhado a `db/migrations/V20_prontuario_perfis_restritos_rls.sql` e status de vínculo em `V22_prontuario_vinculo_inclui_agendado.sql`.
  */
 export const PERFIS_RESTRITOS = [
     'psicologia',
@@ -32,6 +32,7 @@ export const ESPECIALIDADES_RESTRITAS_DB = [
  * No banco costumam estar em MAIÚSCULAS; inclui sinônimos previstos (ex.: encerrado).
  */
 export const STATUS_AGENDAMENTO_VINCULO_PRONTUARIO = [
+    'AGENDADO',
     'CONFIRMADO',
     'EM_ATENDIMENTO',
     'ATENDIDO',

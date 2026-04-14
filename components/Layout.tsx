@@ -34,6 +34,7 @@ import {
   BarChart2,
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission } from '../types';
+import { isPerfilRestritoProntuario } from '@/src/config/perfilRestrito';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -159,7 +160,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
           }
         : {
             id: 'scheduling',
-            label: currentUser.specialty === Specialty.SOCIAL_WORK ? 'Meus Atendimentos' : 'Central de Agendamentos',
+            label:
+              currentUser.specialty === Specialty.SOCIAL_WORK
+                ? 'Meus Atendimentos'
+                : isPerfilRestritoProntuario(currentUser)
+                  ? 'Minha Agenda'
+                  : 'Central de Agendamentos',
             icon: <Calendar size={20} />,
           },
       {

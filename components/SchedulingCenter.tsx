@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Calendar as CalendarIcon,
     Plus,
@@ -21,6 +21,8 @@ import {
     PlayCircle,
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
+import { useAuth } from '@/src/hooks/useAuth';
+import { ConfirmModal } from './ConfirmModal';
 import {
     Appointment,
     AppointmentStatus,
@@ -40,7 +42,18 @@ interface SchedulingCenterProps {
     onReschedule?: (appointment: Appointment) => void;
 }
 
+function formatarDataAgendaPtBr(isoDate: string): string {
+    const [y, m, d] = isoDate.split('-').map(Number);
+    if (!y || !m || !d) return isoDate;
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser, students, onNavigate, onReschedule }) => {
+    const { user: authUser } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const podeExcluirAtendimento = authUser?.role === 'ADMIN';
 
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -59,6 +72,14 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
     const [filterUnit, setFilterUnit] = useState<Unit | 'ALL'>(resolveInitialUnit());
     const [filterSpecialty, setFilterSpecialty] = useState<Specialty | 'ALL'>('ALL');
     const [filterStatus, setFilterStatus] = useState<AppointmentStatus | 'ALL'>('ALL');
+
+    useEffect(() => {
+        const st = location.state as { focusAppointmentDate?: string } | null | undefined;
+        const d = st?.focusAppointmentDate;
+        if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+        setSelectedDate(d);
+        navigate('.', { replace: true, state: {} });
+    }, [location.state, navigate]);
 
     const loadAppointments = async () => {
         setLoading(true);
@@ -96,8 +117,9 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         return () => clearInterval(interval);
     }, [selectedDate, filterUnit, filterSpecialty, filterStatus, viewMode]);
 
-    // State para Modal de Exclusão
-    const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+    const [pendingLogicalDelete, setPendingLogicalDelete] = useState<Appointment | null>(null);
+    const [motivoExclusao, setMotivoExclusao] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     const handleStatusUpdate = async (id: string, newStatus: AppointmentStatus) => {
         try {
@@ -109,21 +131,33 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         }
     };
 
-    const confirmDelete = async () => {
-        if (!itemToDelete) return;
+    const confirmLogicalDelete = async () => {
+        if (!pendingLogicalDelete || authUser?.role !== 'ADMIN' || !authUser.id) return;
+        setDeleting(true);
         try {
-            const aptToDelete = appointments.find(a => a.id === itemToDelete);
-            await SupabaseService.deleteAppointment(itemToDelete);
+            const apt = pendingLogicalDelete;
+            await SupabaseService.excluirAtendimentoLogico(
+                apt.id,
+                authUser.id,
+                motivoExclusao || undefined,
+                authUser.role
+            );
 
-            if (currentUser && aptToDelete) {
-                await SupabaseService.logAction(currentUser as any, AuditAction.DELETE, 'AGENDAMENTOS', `Consulta de ${aptToDelete.studentName} com ${aptToDelete.professionalName}`);
-            }
+            await SupabaseService.logAction(
+                currentUser as any,
+                AuditAction.DELETE,
+                'AGENDAMENTOS',
+                `Exclusão lógica: ${apt.studentName} (${apt.date} ${apt.startTime})${motivoExclusao.trim() ? ` — Motivo: ${motivoExclusao.trim()}` : ''}`
+            );
 
-            success("Agendamento excluído com sucesso!");
-            loadAppointments();
-            setItemToDelete(null);
+            success('Atendimento excluído');
+            setAppointments((prev) => prev.filter((a) => a.id !== apt.id));
+            setPendingLogicalDelete(null);
+            setMotivoExclusao('');
         } catch (err) {
-            showError("Erro ao excluir agendamento");
+            showError('Erro ao excluir atendimento');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -440,14 +474,22 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                         >
                                             <RotateCcw size={18} />
                                         </button>
-                                        <div className="w-px h-6 bg-slate-100 mx-1 hidden sm:block" />
-                                        <button
-                                            onClick={() => setItemToDelete(apt.id)}
-                                            className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                            title="Excluir Agendamento"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
+                                        {podeExcluirAtendimento && (
+                                            <>
+                                                <div className="w-px h-6 bg-slate-100 mx-1 hidden sm:block" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setMotivoExclusao('');
+                                                        setPendingLogicalDelete(apt);
+                                                    }}
+                                                    className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                                    title="Excluir atendimento (exclusão lógica)"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -456,36 +498,41 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                 </div>
             </div>
 
-            {/* Modal de Confirmação de Exclusão */}
-            {itemToDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-scaleIn">
-                        <div className="flex flex-col items-center text-center">
-                            <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-4">
-                                <Trash2 size={24} className="text-red-500" />
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">Excluir Agendamento?</h3>
-                            <p className="text-sm text-slate-500 mb-6">
-                                Tem certeza que deseja remover este agendamento? Esta ação não pode ser desfeita.
-                            </p>
-                            <div className="flex gap-3 w-full">
-                                <button
-                                    onClick={() => setItemToDelete(null)}
-                                    className="flex-1 py-2.5 px-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={confirmDelete}
-                                    className="flex-1 py-2.5 px-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-lg shadow-red-500/30"
-                                >
-                                    Sim, Excluir
-                                </button>
-                            </div>
-                        </div>
+            <ConfirmModal
+                isOpen={!!pendingLogicalDelete && podeExcluirAtendimento}
+                title="Excluir Atendimento"
+                type="warning"
+                confirmLabel="Sim, excluir"
+                cancelLabel="Cancelar"
+                confirmButtonClassName="bg-red-500 hover:bg-red-600 focus:ring-red-500 shadow-red-100"
+                message={
+                    pendingLogicalDelete
+                        ? `⚠️ Tem certeza que deseja excluir o atendimento de ${pendingLogicalDelete.studentName} agendado para ${formatarDataAgendaPtBr(pendingLogicalDelete.date)} às ${pendingLogicalDelete.startTime}?\n\nEsta ação não poderá ser desfeita pela interface.`
+                        : ''
+                }
+                footerExtra={
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide" htmlFor="motivo-exclusao-atendimento">
+                            Motivo da exclusão (opcional)
+                        </label>
+                        <textarea
+                            id="motivo-exclusao-atendimento"
+                            value={motivoExclusao}
+                            onChange={(e) => setMotivoExclusao(e.target.value)}
+                            placeholder="Descreva o motivo..."
+                            rows={3}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none resize-none"
+                        />
                     </div>
-                </div>
-            )}
+                }
+                isLoading={deleting}
+                onCancel={() => {
+                    if (deleting) return;
+                    setPendingLogicalDelete(null);
+                    setMotivoExclusao('');
+                }}
+                onConfirm={() => void confirmLogicalDelete()}
+            />
         </div>
     );
 };

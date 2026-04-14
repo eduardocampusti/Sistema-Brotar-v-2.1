@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Layout } from '../../components/Layout';
 import { User, SystemSettings } from '../../types';
 import { MessagingSystem } from '../../components/MessagingSystem';
@@ -12,6 +12,9 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, systemSettings }) => {
+    const location = useLocation();
+    const compactHeaderSpacing = location.pathname.endsWith('/new-appointment');
+
     return (
         <Layout
             currentUser={user}
@@ -19,10 +22,24 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ user, onLogout, systemSett
             systemSettings={systemSettings}
         >
             {/* Header Controls */}
-            <div className="flex justify-end items-center gap-3 mb-6 px-4 md:px-0">
-                <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-2 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
+            <div
+                className={`flex justify-end items-center gap-3 px-4 md:px-0 ${compactHeaderSpacing ? 'mb-2' : 'mb-6'}`}
+            >
+                <div
+                    className={
+                        compactHeaderSpacing
+                            ? 'flex items-center gap-2 rounded-full bg-surface-container-low/90 p-2 shadow-sm ring-1 ring-outline/10 backdrop-blur-sm'
+                            : 'flex items-center gap-2 rounded-full border border-gray-100 bg-white/80 p-2 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/80'
+                    }
+                >
                     <MessagingSystem currentUser={user} />
-                    <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+                    <div
+                        className={
+                            compactHeaderSpacing
+                                ? 'mx-1 h-6 w-px bg-outline/20'
+                                : 'mx-1 h-6 w-px bg-gray-200 dark:bg-gray-700'
+                        }
+                    />
                     <NotificationBell currentUser={user} />
                 </div>
             </div>

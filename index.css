@@ -30,3 +30,25 @@ body {
   @apply bg-[#EEF2F8] text-slate-800 antialiased selection:bg-primary-200 selection:text-primary-900;
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
+
+/* Tela de agendamento (Stitch): fundo alinhado ao token `background` (#f9faf6) */
+body:has(.appointment-stitch-shell),
+main.flex-1:has(.appointment-stitch-shell) {
+  background-color: #f9faf6 !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Ícones do export Stitch (`edu/code.html`) — Agendar Atendimento */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.material-symbols-outlined.fill-1 {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}

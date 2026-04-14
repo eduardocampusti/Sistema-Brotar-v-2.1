@@ -29,7 +29,7 @@ const SystemSettingsPanel = React.lazy(() => import('../components/SystemSetting
 const PapelTimbradoConfigPanel = React.lazy(() => import('../components/PapelTimbradoConfig').then(m => ({ default: m.PapelTimbradoConfigPanel })));
 const AboutSystem = React.lazy(() => import('../components/AboutSystem').then(m => ({ default: m.AboutSystem })));
 const DocumentGenerator = React.lazy(() => import('../components/DocumentGenerator').then(m => ({ default: m.DocumentGenerator })));
-const SchedulingCenter = React.lazy(() => import('../components/SchedulingCenter').then(m => ({ default: m.SchedulingCenter })));
+const SchedulingRoutePage = React.lazy(() => import('../components/SchedulingRoutePage').then(m => ({ default: m.SchedulingRoutePage })));
 const AppointmentForm = React.lazy(() => import('../components/AppointmentForm').then(m => ({ default: m.AppointmentForm })));
 const DocumentVault = React.lazy(() => import('../components/DocumentVault').then(m => ({ default: m.DocumentVault })));
 const MyAccess = React.lazy(() => import('../components/MyAccess').then(m => ({ default: m.MyAccess })));
@@ -45,7 +45,6 @@ const PsychopedagogySessionFormPage = React.lazy(() => import('../components/Cli
 const SocialServiceOperationalPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.SocialServiceOperationalPage })));
 const SocialServiceInterviewHub = React.lazy(() => import('../components/SocialServiceInterviewHub'));
 const SocialServiceHubComp = React.lazy(() => import('../components/SocialServiceHub').then(m => ({ default: m.SocialServiceHub })));
-const SocialWorkerAgenda = React.lazy(() => import('../components/SocialWorkerAgenda').then(m => ({ default: m.SocialWorkerAgenda })));
 const SocialWorkerDashboard = React.lazy(() => import('../components/SocialWorkerDashboard').then(m => ({ default: m.SocialWorkerDashboard })));
 const SocialServiceSessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.SocialServiceSessionFormPage })));
 const OccupationalTherapyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.OccupationalTherapyDashboardPage })));
@@ -235,8 +234,8 @@ function AppContent() {
     }
   };
 
-  const handleNavigate = (page: string) => {
-    navigate(`/app/${page}`);
+  const handleNavigate = (page: string, options?: { state?: Record<string, unknown> }) => {
+    navigate(`/app/${page}`, options?.state !== undefined ? { state: options.state } : undefined);
   };
 
   const handleLogin = (loggedInUser: User) => {
@@ -401,14 +400,34 @@ function AppContent() {
           <Route path="nutrition/new-session" element={<React.Suspense fallback={<PageLoading />}><NutritionSessionFormPage onCancel={() => handleNavigate('nutrition')} currentUser={user!} /></React.Suspense>} />
 
           <Route path="scheduling" element={<React.Suspense fallback={<PageLoading />}>
-            {user?.specialty === Specialty.SOCIAL_WORK
-              ? <SocialWorkerAgenda currentUser={user!} students={students} onNavigate={handleNavigate} onNavigateToCase={(id) => handleSelectStudent(students.find(s => s.id === id)!)} />
-              : <SchedulingCenter students={students} currentUser={user!} onNavigate={handleNavigate} onReschedule={(apt) => { setRescheduleData(apt); handleNavigate('new-appointment'); }} />}
+            <SchedulingRoutePage
+              students={students}
+              onNavigate={handleNavigate}
+              onReschedule={(apt) => { setRescheduleData(apt); handleNavigate('new-appointment'); }}
+              onSelectStudent={handleSelectStudent}
+            />
           </React.Suspense>} />
 
           <Route path="relatorios-gerenciais" element={<React.Suspense fallback={<PageLoading />}><RelatoriosGerenciais currentUser={user!} students={students} /></React.Suspense>} />
 
-          <Route path="new-appointment" element={<React.Suspense fallback={<PageLoading />}><AppointmentForm students={students} currentUser={user!} initialData={rescheduleData} onCancel={() => handleNavigate('scheduling')} onSuccess={() => handleNavigate('scheduling')} /></React.Suspense>} />
+          <Route
+            path="new-appointment"
+            element={
+              <React.Suspense fallback={<PageLoading />}>
+                <AppointmentForm
+                  students={students}
+                  currentUser={user!}
+                  initialData={rescheduleData}
+                  onCancel={() => handleNavigate('scheduling')}
+                  onSuccess={(payload) =>
+                    payload?.date
+                      ? handleNavigate('scheduling', { state: { focusAppointmentDate: payload.date } })
+                      : handleNavigate('scheduling')
+                  }
+                />
+              </React.Suspense>
+            }
+          />
 
           <Route path="documents" element={<React.Suspense fallback={<PageLoading />}><DocumentGenerator currentUser={user!} /></React.Suspense>} />
           <Route path="vault" element={<React.Suspense fallback={<PageLoading />}><DocumentVault currentUser={user!} students={students} onModelSelect={() => handleNavigate('documents')} /></React.Suspense>} />

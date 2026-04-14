@@ -10,10 +10,54 @@ export default {
   theme: {
     fontFamily: {
       sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+      headline: ['Manrope', '"Plus Jakarta Sans"', 'sans-serif'],
+      body: ['"Plus Jakarta Sans"', 'sans-serif'],
     },
     extend: {
+      borderRadius: {
+        stitch: '1rem',
+        'stitch-lg': '2rem',
+        'stitch-xl': '3rem',
+      },
       colors: {
+        /** Tokens do Stitch — `projects/2943493648880348875` (uso: `bg-sanctuary-*`, `text-sanctuary-*`) */
+        sanctuary: {
+          background: '#f9faf6',
+          onBackground: '#2f3430',
+          surface: '#f9faf6',
+          onSurface: '#2f3430',
+          onSurfaceVariant: '#5b605d',
+          surfaceContainerLow: '#f2f4f0',
+          surfaceContainer: '#ecefea',
+          surfaceContainerHigh: '#e6e9e5',
+          surfaceContainerHighest: '#dfe4df',
+          surfaceContainerLowest: '#ffffff',
+          surfaceVariant: '#dfe4df',
+          primary: '#2d6a4f',
+          primaryDim: '#1f5e44',
+          primaryContainer: '#b1f0ce',
+          onPrimary: '#e6ffee',
+          onPrimaryContainer: '#1d5c42',
+          secondary: '#216299',
+          secondaryDim: '#0b568c',
+          secondaryContainer: '#d0e4ff',
+          onSecondary: '#f7f9ff',
+          onSecondaryContainer: '#07558b',
+          tertiary: '#615f55',
+          tertiaryContainer: '#f5f1e3',
+          onTertiary: '#fdf9eb',
+          onTertiaryContainer: '#5c5a50',
+          outline: '#777c78',
+          outlineVariant: '#afb3af',
+          error: '#a73b21',
+          errorContainer: '#fd795a',
+          onError: '#fff7f6',
+        },
         primary: {
+          /** Cor sólida do Stitch para `bg-primary` / `text-primary` onde usado sem escala */
+          DEFAULT: '#2d6a4f',
+          dim: '#1f5e44',
+          container: '#b1f0ce',
           50: 'var(--color-primary-50)',
           100: 'var(--color-primary-100)',
           200: 'var(--color-primary-200)',
@@ -26,10 +70,38 @@ export default {
           900: 'var(--color-primary-900)',
           950: 'var(--color-primary-950)',
         },
+        /** Stitch / edu — `bg-secondary`, `bg-secondary-container`, `border-secondary/20` */
         secondary: {
-          500: '#f97316',
-          600: '#ea580c',
+          DEFAULT: '#216299',
+          dim: '#0b568c',
+          container: '#d0e4ff',
         },
+        /** Stitch tertiary — `bg-tertiary-container`, `border-tertiary/20` */
+        tertiary: {
+          DEFAULT: '#615f55',
+          dim: '#555349',
+          container: '#f5f1e3',
+        },
+        /** Nomes de token iguais ao `edu/code.html` (classes com hífen) */
+        background: '#f9faf6',
+        'on-background': '#2f3430',
+        'on-surface': '#2f3430',
+        'on-surface-variant': '#5b605d',
+        surface: '#f9faf6',
+        'surface-bright': '#f9faf6',
+        'surface-container': '#ecefea',
+        'surface-container-low': '#f2f4f0',
+        'surface-container-high': '#e6e9e5',
+        'surface-container-highest': '#dfe4df',
+        'surface-container-lowest': '#ffffff',
+        outline: '#777c78',
+        'outline-variant': '#afb3af',
+        'on-primary': '#e6ffee',
+        'on-primary-container': '#1d5c42',
+        'on-secondary': '#f7f9ff',
+        'on-secondary-container': '#07558b',
+        'on-tertiary-container': '#5c5a50',
+        'on-tertiary': '#fdf9eb',
         psy: {
           light: '#f3e8ff',
           main: '#9333ea',
@@ -93,5 +165,15 @@ export default {
       }
     }
   },
-  plugins: [],
+  plugins: [
+    function scrollbarHide({ addUtilities }) {
+      addUtilities({
+        '.scrollbar-hide': {
+          '-ms-overflow-style': 'none',
+          'scrollbar-width': 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        },
+      });
+    },
+  ],
 }

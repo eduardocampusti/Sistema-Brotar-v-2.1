@@ -11,6 +11,10 @@ interface ConfirmModalProps {
     onCancel: () => void;
     type?: 'danger' | 'warning' | 'info';
     isLoading?: boolean;
+    /** Conteúdo entre a mensagem e os botões (ex.: campo opcional). */
+    footerExtra?: React.ReactNode;
+    /** Sobrescreve a classe do botão de confirmação (ex.: vermelho com type="warning"). */
+    confirmButtonClassName?: string;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -22,7 +26,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     onConfirm,
     onCancel,
     type = 'danger',
-    isLoading = false
+    isLoading = false,
+    footerExtra,
+    confirmButtonClassName
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
@@ -96,9 +102,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                             {title}
                         </h3>
 
-                        <p className="text-slate-600 mb-8 leading-relaxed">
+                        <p className={`text-slate-600 leading-relaxed whitespace-pre-line ${footerExtra ? 'mb-4' : 'mb-8'}`}>
                             {message}
                         </p>
+
+                        {footerExtra ? <div className="w-full mb-6 text-left">{footerExtra}</div> : null}
 
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
                             <button
@@ -111,7 +119,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                             <button
                                 disabled={isLoading}
                                 onClick={onConfirm}
-                                className={`flex-1 px-6 py-3 rounded-xl text-white font-semibold transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 ${confirmButtonColors[type]}`}
+                                className={`flex-1 px-6 py-3 rounded-xl text-white font-semibold transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 ${confirmButtonClassName ?? confirmButtonColors[type]}`}
                             >
                                 {isLoading ? (
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

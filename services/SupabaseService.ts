@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
-import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog } from '../types';
+import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog, AgendamentoProfissionalView, statusAgendamentoOcupandoHorarioConflito } from '../types';
 import { isPerfilRestritoProntuario, STATUS_AGENDAMENTO_VINCULO_PRONTUARIO } from '@/src/config/perfilRestrito';
 
 /** Retry em timeout (57014 / statement timeout) para plano Supabase com limite rígido. */
@@ -151,7 +151,7 @@ export class SupabaseService {
     };
 
     // Cache genérico com TTL para reduzir latência em consultas frequentes
-    private static dataCache: Map<string, { data: any, timestamp: number }> = new Map();
+    private static dataCache: Map<string, { data: any; timestamp: number; ttlMs?: number }> = new Map();
     private static readonly DEFAULT_TTL = 30 * 1000; // 30 segundos (reduzido para maior precisão)
     private static readonly CACHE_BYPASS_FLAG = 'brotar_debug_bypass_cache';
 
@@ -165,16 +165,18 @@ export class SupabaseService {
         return !!(url && key && url !== '' && key !== '');
     }
 
-    private static setInCache(key: string, data: any): void {
-        this.dataCache.set(key, { data, timestamp: Date.now() });
+    private static setInCache(key: string, data: any, ttlMs?: number): void {
+        const entry: { data: any; timestamp: number; ttlMs?: number } = { data, timestamp: Date.now() };
+        if (ttlMs !== undefined) entry.ttlMs = ttlMs;
+        this.dataCache.set(key, entry);
     }
 
     private static getFromCache<T>(key: string): T | null {
         const cached = this.dataCache.get(key);
         if (!cached) return null;
 
-        const isExpired = Date.now() - cached.timestamp > this.DEFAULT_TTL;
-        if (isExpired) {
+        const ttl = cached.ttlMs ?? this.DEFAULT_TTL;
+        if (Date.now() - cached.timestamp > ttl) {
             this.dataCache.delete(key);
             return null;
         }
@@ -887,7 +889,8 @@ export class SupabaseService {
             const { data: rows, error } = await supabase
                 .from('appointments')
                 .select('student_id, status')
-                .eq('professional_id', profissionalId);
+                .eq('professional_id', profissionalId)
+                .or('excluido.is.null,excluido.eq.false');
             if (error) throw error;
 
             const studentIds = [
@@ -1435,7 +1438,7 @@ export class SupabaseService {
                 isActive: s.is_active === true
             }));
 
-            this.setInCache(cacheKey, schools);
+            this.setInCache(cacheKey, schools, 5 * 60 * 1000);
             return schools;
         } catch (err) {
             console.error('[SupabaseService] Erro fatal em getSchools:', err);
@@ -1915,13 +1918,18 @@ export class SupabaseService {
     }
 
     // --- Scheduling Center (Agendamentos) ---
-    static async getAppointments(filters: { date?: string, fromDate?: string, unit?: Unit, specialty?: Specialty, status?: AppointmentStatus, studentId?: string, professionalId?: string }): Promise<Appointment[]> {
-        let query = supabase.from('appointments').select('*');
+    static async getAppointments(filters: { date?: string, fromDate?: string, toDate?: string, unit?: Unit, specialty?: Specialty, status?: AppointmentStatus, studentId?: string, professionalId?: string }): Promise<Appointment[]> {
+        let query = supabase.from('appointments').select('*').or('excluido.is.null,excluido.eq.false');
 
         if (filters.date) {
             query = query.eq('date', filters.date);
-        } else if (filters.fromDate) {
-            query = query.gte('date', filters.fromDate);
+        } else {
+            if (filters.fromDate) {
+                query = query.gte('date', filters.fromDate);
+            }
+            if (filters.toDate) {
+                query = query.lte('date', filters.toDate);
+            }
         }
         if (filters.unit) query = query.eq('unit', filters.unit);
         if (filters.studentId) query = query.eq('student_id', filters.studentId);
@@ -1954,8 +1962,182 @@ export class SupabaseService {
             statusConfirmacao: a.status_confirmacao,
             telefoneResponsavel: a.telefone_responsavel,
             notes: a.notes,
-            createdAt: a.created_at
+            createdAt: a.created_at,
+            conflitoHorarioAluno: a.conflito_horario_aluno === true
         }));
+    }
+
+    /** Dois intervalos [início, fim) em HH:mm do mesmo dia se sobrepõem (comparação lexicográfica HH:mm). */
+    static horariosIntervaloSobrepostos(
+        aInicio: string,
+        aFim: string,
+        bInicio: string,
+        bFim: string
+    ): boolean {
+        return aInicio < bFim && bInicio < aFim;
+    }
+
+    /** Agendamentos que ocupam o horário e intersectam a janela informada. */
+    static filtrarAgendamentosSobrepostosJanela(
+        agendamentos: Appointment[],
+        horarioInicio: string,
+        horarioFim: string,
+        excludeAppointmentId?: string
+    ): Appointment[] {
+        if (!horarioInicio || !horarioFim) return [];
+        return agendamentos.filter((a) => {
+            if (excludeAppointmentId && a.id === excludeAppointmentId) return false;
+            if (!statusAgendamentoOcupandoHorarioConflito(a.status)) return false;
+            return this.horariosIntervaloSobrepostos(
+                horarioInicio,
+                horarioFim,
+                a.startTime,
+                a.endTime
+            );
+        });
+    }
+
+    /** Opções para reutilizar lista já carregada (evita consulta duplicada na UI). */
+    static async verificarConflitosProfissional(
+        profissionalId: string,
+        data: string,
+        horarioInicio: string,
+        horarioFim: string,
+        opts?: { excludeAppointmentId?: string; candidatos?: Appointment[] }
+    ): Promise<Appointment[]> {
+        const all =
+            opts?.candidatos ??
+            (await this.getAppointments({ professionalId: profissionalId, date: data }));
+        return this.filtrarAgendamentosSobrepostosJanela(
+            all,
+            horarioInicio,
+            horarioFim,
+            opts?.excludeAppointmentId
+        );
+    }
+
+    static async verificarConflitosAluno(
+        alunoId: string,
+        data: string,
+        horarioInicio: string,
+        horarioFim: string,
+        opts?: { excludeAppointmentId?: string; candidatos?: Appointment[] }
+    ): Promise<Appointment[]> {
+        const all =
+            opts?.candidatos ??
+            (await this.getAppointments({ studentId: alunoId, date: data }));
+        return this.filtrarAgendamentosSobrepostosJanela(
+            all,
+            horarioInicio,
+            horarioFim,
+            opts?.excludeAppointmentId
+        );
+    }
+
+    /**
+     * Agenda do profissional: filtra por `professional_id` e data (dia exato ou a partir de `fromDate`),
+     * com join em `students`/`schools` para nome da escola quando o RLS permitir leitura do aluno.
+     */
+    static async getAgendamentosDoProfissional(
+        profissionalId: string,
+        dataOuOpts: string | { date?: string; fromDate?: string }
+    ): Promise<AgendamentoProfissionalView[]> {
+        const opts = typeof dataOuOpts === 'string' ? { date: dataOuOpts } : dataOuOpts;
+
+        let query = supabase
+            .from('appointments')
+            .select(
+                `
+        id,
+        student_id,
+        student_name,
+        professional_id,
+        professional_name,
+        specialty,
+        unit,
+        date,
+        start_time,
+        end_time,
+        status,
+        status_confirmacao,
+        telefone_responsavel,
+        notes,
+        created_at,
+        students (
+          full_name,
+          schools ( name )
+        )
+      `
+            )
+            .eq('professional_id', profissionalId)
+            .or('excluido.is.null,excluido.eq.false');
+
+        if (opts.date) {
+            query = query.eq('date', opts.date);
+        } else if (opts.fromDate) {
+            query = query.gte('date', opts.fromDate);
+        }
+
+        const { data, error } = await query.order('date', { ascending: true }).order('start_time', { ascending: true });
+
+        if (error) {
+            console.warn('[getAgendamentosDoProfissional] join falhou, usando lista simples:', error.message);
+            const fallback = await this.getAppointments({
+                professionalId: profissionalId,
+                date: opts.date,
+                fromDate: opts.fromDate,
+            });
+            return fallback.map((a) => ({ ...a }));
+        }
+
+        const resolveSchool = (row: any): string | undefined => {
+            const st = row.students;
+            if (!st) return undefined;
+            const sch = st.schools;
+            if (!sch) return undefined;
+            if (Array.isArray(sch)) return sch[0]?.name;
+            return sch.name;
+        };
+
+        return (data || []).map((a: any) => ({
+            id: a.id,
+            studentId: a.student_id,
+            studentName: a.student_name || a.students?.full_name || 'Sem nome',
+            professionalId: a.professional_id,
+            professionalName: a.professional_name,
+            specialty: a.specialty ? (this.REVERSE_SPECIALTY_MAP[a.specialty] || a.specialty) : undefined,
+            unit: a.unit,
+            date: a.date,
+            startTime: a.start_time,
+            endTime: a.end_time,
+            status: a.status,
+            statusConfirmacao: a.status_confirmacao,
+            telefoneResponsavel: a.telefone_responsavel,
+            notes: a.notes,
+            createdAt: a.created_at,
+            studentSchoolName: resolveSchool(a),
+        }));
+    }
+
+    static async atualizarStatusAgendamento(id: string, novoStatus: AppointmentStatus): Promise<void> {
+        return this.updateAppointmentStatus(id, novoStatus);
+    }
+
+    /**
+     * Marca atendimento como em curso e devolve a rota do prontuário (fluxo atual: `/app/profile` após selecionar o aluno).
+     */
+    static async iniciarAtendimento(agendamentoId: string, alunoId: string): Promise<{ prontuarioPath: string }> {
+        const { data, error } = await supabase
+            .from('appointments')
+            .select('student_id')
+            .eq('id', agendamentoId)
+            .or('excluido.is.null,excluido.eq.false')
+            .maybeSingle();
+        if (error) throw error;
+        if (!data?.student_id) throw new Error('Agendamento não encontrado.');
+        if (data.student_id !== alunoId) throw new Error('O aluno não corresponde a este agendamento.');
+        await this.updateAppointmentStatus(agendamentoId, 'EM_ATENDIMENTO');
+        return { prontuarioPath: '/app/profile' };
     }
 
     static async saveAppointment(appointment: Partial<Appointment>): Promise<string> {
@@ -1973,6 +2155,10 @@ export class SupabaseService {
             telefone_responsavel: appointment.telefoneResponsavel,
             notes: appointment.notes
         };
+
+        if (appointment.conflitoHorarioAluno === true) {
+            payload.conflito_horario_aluno = true;
+        }
 
         if (appointment.id) payload.id = appointment.id;
 
@@ -2012,6 +2198,7 @@ export class SupabaseService {
         return savedId;
     }
 
+    /** DELETE físico: bloqueado pelo RLS para `authenticated`; preferir `excluirAtendimentoLogico`. */
     static async deleteAppointment(id: string): Promise<void> {
         const { error } = await supabase.from('appointments').delete().eq('id', id);
         if (error) {
@@ -2020,8 +2207,35 @@ export class SupabaseService {
         }
     }
 
+    /**
+     * Exclusão lógica (admin). RLS exige perfil ADMIN para gravar `excluido = true`.
+     */
+    static async excluirAtendimentoLogico(
+        agendamentoId: string,
+        adminId: string,
+        motivo?: string,
+        papelPerfil?: string
+    ): Promise<void> {
+        const payload = this.cleanDataForSupabase({
+            excluido: true,
+            excluido_em: new Date().toISOString(),
+            excluido_por: adminId,
+            motivo_exclusao: motivo?.trim() ? motivo.trim() : null,
+            excluido_papel: papelPerfil?.trim() ? papelPerfil.trim() : null,
+        });
+        const { error } = await supabase.from('appointments').update(payload).eq('id', agendamentoId);
+        if (error) {
+            console.error('Erro na exclusão lógica do agendamento:', error);
+            throw error;
+        }
+    }
+
     static async updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<void> {
-        const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
+        const { error } = await supabase
+            .from('appointments')
+            .update({ status })
+            .eq('id', id)
+            .or('excluido.is.null,excluido.eq.false');
         if (error) {
             console.error('Erro ao atualizar status do agendamento:', error);
             throw error;
@@ -2029,64 +2243,204 @@ export class SupabaseService {
     }
 
     static async updateAppointmentFields(id: string, updates: { status?: string, notes?: string }): Promise<void> {
-        const { error } = await supabase.from('appointments').update(updates).eq('id', id);
+        const { error } = await supabase
+            .from('appointments')
+            .update(updates)
+            .eq('id', id)
+            .or('excluido.is.null,excluido.eq.false');
         if (error) {
             console.error('Erro ao atualizar campos do agendamento:', error);
             throw error;
         }
     }
 
+    /**
+     * Especialistas para agendamento: colunas mínimas (sem JSONB `address`), filtro por `specialty` no banco,
+     * tentativa com valor em português do enum, e fallback curto (80 linhas) para não repetir timeout 57014.
+     * Cada ida ao PostgREST usa AbortSignal para o fetch não ficar pendurado indefinidamente (UI "Carregando...").
+     * Índice recomendado no banco: `db/migrations/V25_profiles_specialist_specialty_index.sql`.
+     * Nota: em paralelo, `getStudents()` com `select('*')` satura o mesmo pool — use `compactList: true` na UI.
+     */
     static async getProfessionalsBySpecialty(specialty: Specialty): Promise<User[]> {
-        const dbSpecialty = this.SPECIALTY_MAP[specialty] || specialty;
-        console.log('[SupabaseService] Buscando profissionais para especialidade:', { specialty, dbSpecialty });
+        const dbSpecialty = (this.SPECIALTY_MAP[specialty] || specialty) as string;
+        const labelPt = String(specialty);
+        const cacheKey = `professionals_by_specialty:${dbSpecialty}`;
 
-        try {
-            // Busca simplificada: pega todos os especialistas e filtra no código para evitar erros de sintaxe .or()
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('role', 'SPECIALIST');
+        if (!this.isCacheBypassEnabled()) {
+            const cached = this.getFromCache<User[]>(cacheKey);
+            if (cached) return cached;
+        }
 
-            if (error) {
-                console.error('[SupabaseService] Erro ao buscar perfis de especialistas:', error);
-                throw error;
-            }
+        const cols =
+            'id, full_name, username, email, role, specialty, job_title, is_active, scope, phone, photo_url';
 
-            const allProfessionals = data || [];
-            console.log(`[SupabaseService] Total de especialistas (role=SPECIALIST) encontrados: ${allProfessionals.length}`);
+        const order = { ascending: true as const };
+        const QUERY_CLIENT_MS = 14_000;
 
-            let filtered = allProfessionals.filter((p: any) => {
+        const filterPool = (pool: any[]): any[] => {
+            const targetStandard = dbSpecialty.toUpperCase();
+            const targetOriginal = labelPt.toUpperCase();
+            return pool.filter((p: any) => {
                 const pSpec = (p.specialty || '').toUpperCase();
-                const targetStandard = dbSpecialty.toString().toUpperCase();
-                const targetOriginal = specialty.toString().toUpperCase();
                 const pJob = (p.job_title || '').toUpperCase();
-
-                const isMatch = pSpec === targetStandard ||
+                return (
+                    pSpec === targetStandard ||
                     pSpec === targetOriginal ||
                     pJob.includes(targetStandard) ||
-                    pJob.includes(targetOriginal);
-
-                if (isMatch) {
-                    console.log(`[SupabaseService] Match confirmado para: ${p.full_name} (${pSpec} / ${pJob})`);
-                }
-
-                return isMatch;
+                    pJob.includes(targetOriginal)
+                );
             });
+        };
 
-            // Se o filtro específico falhou mas existem especialistas, retorna avisando ou retorna todos como fallback?
-            // Melhor retornar todos como fallback se o filtro por especialidade estiver vindo vazio mas houver especialistas.
-            if (filtered.length === 0 && allProfessionals.length > 0) {
-                console.warn(`[SupabaseService] Nenhum especialista encontrado para "${specialty}". Retornando todos os especialistas como fallback.`);
-                filtered = allProfessionals;
+        const profilesQuery = async (
+            label: string,
+            build: (signal: AbortSignal) => PromiseLike<{ data: any[] | null; error: { message?: string } | null }>
+        ): Promise<any[]> => {
+            const ac = new AbortController();
+            const timer = setTimeout(() => ac.abort(), QUERY_CLIENT_MS);
+            try {
+                const { data, error } = await build(ac.signal);
+                if (error) {
+                    console.warn(`[SupabaseService] Profissionais (${label}):`, error.message || error);
+                    return [];
+                }
+                return data || [];
+            } catch (e: any) {
+                const aborted = e?.name === 'AbortError' || ac.signal.aborted;
+                if (aborted) {
+                    throw new Error(
+                        `Tempo esgotado ao buscar profissionais (${label}, ${QUERY_CLIENT_MS / 1000}s). ` +
+                            'Confira rede, RLS em `profiles` e se a migração V25 (índice role+specialty) está aplicada.'
+                    );
+                }
+                throw e;
+            } finally {
+                clearTimeout(timer);
             }
+        };
 
-            console.log(`[App-Auth] Filtro concluído. Profissionais retornados: ${filtered.length}`);
-            return filtered.map((p: any) => this.mapProfileToUser(p));
+        return safeCall(
+            () =>
+                withRetry(async () => {
+                    let rows: any[] = [];
 
-        } catch (error) {
-            console.error('[SupabaseService] Erro fatal em getProfessionalsBySpecialty:', error);
-            return [];
+                    rows = await profilesQuery('enum DB', (signal) =>
+                        supabase
+                            .from('profiles')
+                            .select(cols)
+                            .eq('role', 'SPECIALIST')
+                            .eq('specialty', dbSpecialty)
+                            .order('full_name', order)
+                            .abortSignal(signal)
+                    );
+
+                    if (!rows.length && labelPt !== dbSpecialty) {
+                        const alt = await profilesQuery('rótulo PT', (signal) =>
+                            supabase
+                                .from('profiles')
+                                .select(cols)
+                                .eq('role', 'SPECIALIST')
+                                .eq('specialty', labelPt)
+                                .order('full_name', order)
+                                .abortSignal(signal)
+                        );
+                        if (alt.length) rows = alt;
+                    }
+
+                    if (!rows.length) {
+                        const poolArr = await profilesQuery('fallback 80', (signal) =>
+                            supabase
+                                .from('profiles')
+                                .select(cols)
+                                .eq('role', 'SPECIALIST')
+                                .order('full_name', order)
+                                .limit(80)
+                                .abortSignal(signal)
+                        );
+
+                        const filtered = filterPool(poolArr);
+                        rows = filtered.length > 0 ? filtered : poolArr;
+                        if (filtered.length === 0 && poolArr.length > 0) {
+                            console.warn(
+                                `[SupabaseService] Nenhum match fino para "${specialty}". Listando ${rows.length} perfis do fallback (máx. 80).`
+                            );
+                        }
+                    }
+
+                    const users = rows.map((p: any) => this.mapProfileToUser(p));
+                    this.setInCache(cacheKey, users, 3 * 60 * 1000);
+                    console.log(`[SupabaseService] Profissionais para "${specialty}": ${users.length}`);
+                    return users;
+                }),
+            2,
+            400,
+            'getProfessionalsBySpecialty'
+        );
+    }
+
+    /**
+     * Todos os especialistas ativos (cache 3 min) — uma query para a tela de agendamento;
+     * filtrar por especialidade no cliente.
+     */
+    static async getProfissionaisAtivos(): Promise<User[]> {
+        const cacheKey = 'profissionais_ativos_agenda_v1';
+        if (!this.isCacheBypassEnabled()) {
+            const cached = this.getFromCache<User[]>(cacheKey);
+            if (cached) return cached;
         }
+        const cols =
+            'id, full_name, username, email, role, specialty, job_title, is_active, scope, phone, photo_url';
+        return safeCall(
+            () =>
+                withRetry(async () => {
+                    const { data, error } = await supabase
+                        .from('profiles')
+                        .select(cols)
+                        .eq('role', 'SPECIALIST')
+                        .eq('is_active', true)
+                        .order('full_name', { ascending: true });
+                    if (error) {
+                        console.warn('[SupabaseService] getProfissionaisAtivos:', error.message || error);
+                        return [];
+                    }
+                    const users = (data || []).map((p: any) => this.mapProfileToUser(p));
+                    this.setInCache(cacheKey, users, 3 * 60 * 1000);
+                    return users;
+                }),
+            2,
+            400,
+            'getProfissionaisAtivos'
+        );
+    }
+
+    /** Contagem de profissionais ativos por valor do enum `Specialty` (lista tipicamente de `getProfissionaisAtivos`). */
+    static getEspecialidadesComContagem(
+        profissionais: User[]
+    ): Array<{ specialty: Specialty; count: number }> {
+        const counts = new Map<Specialty, number>();
+        for (const s of Object.values(Specialty) as Specialty[]) {
+            counts.set(s, 0);
+        }
+        for (const p of profissionais) {
+            const s = p.specialty;
+            if (s && counts.has(s)) {
+                counts.set(s, (counts.get(s) || 0) + 1);
+            }
+        }
+        return (Object.values(Specialty) as Specialty[]).map((specialty) => ({
+            specialty,
+            count: counts.get(specialty) || 0
+        }));
+    }
+
+    /** Alias de `getEspecialidadesComContagem` (documentação / integrações). */
+    static getEspecialidades(profissionais: User[]): Array<{ specialty: Specialty; count: number }> {
+        return this.getEspecialidadesComContagem(profissionais);
+    }
+
+    /** Persiste agendamento (INSERT/UPDATE) — mesmo fluxo validado de `saveAppointment`. */
+    static async confirmarAgendamento(appointment: Partial<Appointment>): Promise<string> {
+        return this.saveAppointment(appointment);
     }
 
     // Método auxiliar para evitar duplicação de lógica de mapeamento
@@ -2639,7 +2993,9 @@ export class SupabaseService {
             console.error('[SupabaseService] Falha técnica no envio de WhatsApp:', err);
             // Captura o erro "Failed to fetch" (CORS/Rede) e dá um nome amigável
             if (err.message === 'Failed to fetch') {
-                throw new Error('Erro de conexão: Verifique sua internet ou se o Supabase está bloqueado no navegador.');
+                throw new Error(
+                    'Erro de conexão com a API de WhatsApp (rede, CORS ou servidor). Se o agendamento foi salvo, ele deve aparecer na agenda após atualizar a página.'
+                );
             }
             throw err;
         }
