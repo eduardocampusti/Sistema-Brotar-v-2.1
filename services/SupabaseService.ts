@@ -1283,29 +1283,37 @@ export class SupabaseService {
     static async lookupStudentsByNamesOrCPF(identifiers: { name?: string, cpf?: string }[]): Promise<Record<string, string>> {
         if (identifiers.length === 0) return {};
 
-        const names = identifiers.map(i => i.name).filter(Boolean) as string[];
-        const cpfs = identifiers.map(i => sanitizeCPF(i.cpf)).filter(Boolean) as string[];
+        const names = [...new Set(identifiers.map(i => i.name).filter(Boolean) as string[])];
+        const cpfs = [...new Set(identifiers.map(i => sanitizeCPF(i.cpf)).filter(Boolean) as string[])];
 
-        let query = supabase.from('students').select('id, full_name, cpf');
+        if (names.length === 0 && cpfs.length === 0) return {};
 
-        if (names.length > 0 && cpfs.length > 0) {
-            query = query.or(`full_name.in.(${names.map(n => `"${n}"`).join(',')}),cpf.in.(${cpfs.join(',')})`);
-        } else if (names.length > 0) {
-            query = query.in('full_name', names);
-        } else if (cpfs.length > 0) {
-            query = query.in('cpf', cpfs);
-        } else {
-            return {};
-        }
+        const selectCols = 'id, full_name, cpf';
+        const IN_CHUNK = 100;
+        const rowsById = new Map<string, any>();
 
-        const { data, error } = await query;
-        if (error) {
-            console.error('[SupabaseService] Erro no lookup de alunos:', error);
-            return {};
-        }
+        const fetchInChunks = async (column: 'full_name' | 'cpf', values: string[]) => {
+            for (let i = 0; i < values.length; i += IN_CHUNK) {
+                const chunk = values.slice(i, i + IN_CHUNK);
+                const { data, error } = await supabase
+                    .from('students')
+                    .select(selectCols)
+                    .in(column, chunk);
+                if (error) {
+                    console.error('[SupabaseService] Erro no lookup de alunos:', error);
+                    return;
+                }
+                (data || []).forEach((s: any) => {
+                    if (s?.id) rowsById.set(s.id, s);
+                });
+            }
+        };
+
+        if (names.length > 0) await fetchInChunks('full_name', names);
+        if (cpfs.length > 0) await fetchInChunks('cpf', cpfs);
 
         const map: Record<string, string> = {};
-        (data || []).forEach((s: any) => {
+        rowsById.forEach((s: any) => {
             const normalizedName = s.full_name || s.name;
             if (normalizedName) map[normalizedName] = s.id;
             if (s.cpf) map[s.cpf] = s.id;
@@ -1723,8 +1731,8 @@ export class SupabaseService {
     }
 
     static async saveSystemSettings(settings: SystemSettings): Promise<void> {
+        // `system_settings.id` no banco é int fixo (1); não enviar string — sobrescrevia o id: 1 do upsert.
         const payload = {
-            id: 'settings', // ID único para garantir que sempre atualizamos o mesmo registro
             system_name: settings.systemName,
             active_theme_id: settings.activeThemeId,
             logo_url: settings.logoUrl,
@@ -1734,7 +1742,7 @@ export class SupabaseService {
 
         // Cache local para carregamento instantâneo
         try {
-            localStorage.setItem('brotar_system_settings', JSON.stringify(payload));
+            localStorage.setItem('brotar_system_settings', JSON.stringify({ id: 1, ...payload }));
         } catch (e) {
             console.warn('Cache local cheio ou indisponível. A imagem será salva apenas no servidor.', e);
             // Podemos tentar limpar cache antigo se necessário, ou apenas ignorar
@@ -2543,7 +2551,7 @@ export class SupabaseService {
         const { data, error } = await query.order('created_at', { ascending: false });
         if (error) return [];
 
-        return data.map((d: any) => ({
+        return (data ?? []).map((d: any) => ({
             id: d.id,
             studentId: d.student_id,
             studentName: d.student_name,
@@ -2564,11 +2572,13 @@ export class SupabaseService {
             content: doc.content,
             professional_name: doc.professionalName
         });
-        await supabase.from('generated_documents').insert(payload);
+        const { error } = await supabase.from('generated_documents').insert(payload);
+        if (error) throw error;
     }
 
     static async deleteDocument(id: string): Promise<void> {
-        await supabase.from('generated_documents').delete().eq('id', id);
+        const { error } = await supabase.from('generated_documents').delete().eq('id', id);
+        if (error) throw error;
     }
 
     // --- Support Professionals ---

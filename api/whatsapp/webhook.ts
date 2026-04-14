@@ -17,6 +17,39 @@ function normalizeText(text: any): string {
         .toLowerCase();
 }
 
+/** Evita que `%` e `_` no número tratado como curingas do ILIKE; `\` também escapado (padrão LIKE do Postgres). */
+function escapeIlikePattern(value: string): string {
+    return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
+/** Busca agendamento pendente por telefone: igualdades exatas primeiro, depois ILIKE com padrão escapado. */
+async function fetchPendingAppointmentByPhone(phoneClean: string, phoneShort: string, phoneWith55: string) {
+    const base = () =>
+        supabase
+            .from('appointments')
+            .select('id, student_name')
+            .eq('status_confirmacao', 'PENDENTE')
+            .or('excluido.is.null,excluido.eq.false')
+            .order('date', { ascending: true })
+            .limit(1);
+
+    const variants = [...new Set([phoneClean, phoneShort, phoneWith55].filter(Boolean))];
+    for (const p of variants) {
+        const { data, error } = await base().eq('telefone_responsavel', p);
+        if (error) console.error('[Webhook] Busca por telefone (eq):', error);
+        if (data?.[0]) return data;
+    }
+
+    if (phoneShort.length >= 6) {
+        const pattern = `%${escapeIlikePattern(phoneShort)}%`;
+        const { data, error } = await base().ilike('telefone_responsavel', pattern);
+        if (error) console.error('[Webhook] Busca por telefone (ilike):', error);
+        if (data?.[0]) return data;
+    }
+
+    return null;
+}
+
 async function sendWhatsAppMessage(to: string, message: string) {
     const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
     const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -179,14 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                         console.log(`[Webhook] Buscando agendamento pendente para: ${phoneClean} / ${phoneShort}`);
 
-                        const { data: pending } = await supabase
-                            .from('appointments')
-                            .select('id, student_name')
-                            .or(`telefone_responsavel.ilike.%${phoneShort}%,telefone_responsavel.eq.${phoneClean},telefone_responsavel.eq.${phoneWith55}`)
-                            .eq('status_confirmacao', 'PENDENTE')
-                            .or('excluido.is.null,excluido.eq.false')
-                            .order('date', { ascending: true })
-                            .limit(1);
+                        const pending = await fetchPendingAppointmentByPhone(phoneClean, phoneShort, phoneWith55);
 
                         if (pending?.[0]) {
                             targetId = pending[0].id;

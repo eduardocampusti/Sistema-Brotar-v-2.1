@@ -61,66 +61,52 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
     setError(null);
     const newCode = `BRT-${new Date().getFullYear()}-${Math.floor(Math.random() * 90000) + 10000}`;
 
+    let content: string;
+    let usedTemplateFallback = false;
+
     try {
-      // Lógica de Geração IA via GeminiService
-      // Using freshStudent guarantees we send the latest IPO data if it was just saved
-      const result = await GeminiService.generateOfficialDocument(
+      content = await GeminiService.generateOfficialDocument(
         docType, freshStudent, currentUser.name, currentUser.jobTitle || currentUser.role, context
       );
-
-      setGeneratedContent(result);
-      setDocumentCode(newCode);
-
-      // Salvar Automático no Histórico
-      const newDoc: SavedDocument = {
-        id: crypto.randomUUID(),
-        studentId: student.id,
-        studentName: student.fullName,
-        docType,
-        code: newCode,
-        content: result,
-        createdAt: new Date().toISOString(),
-        professionalName: currentUser.name
-      };
-      await SupabaseService.saveDocument(newDoc);
-
-      // Refresh history if on history tab
-      if (activeTab === 'history') {
-        const data = await SupabaseService.getDocuments(selectedStudentId);
-        setHistory(data);
-      }
-
     } catch (err: any) {
       console.warn('IA indisponível, ativando fallback de templates:', err);
-
-      // --- FALLBACK AUTOMÁTICO PARA TEMPLATES ---
       const professionalRole = currentUser.specialty || currentUser.jobTitle || currentUser.role;
-      const fallbackContent = TemplateService.getFallbackDocument(docType, student, currentUser.name, professionalRole, context);
-      setGeneratedContent(fallbackContent);
-      setDocumentCode(newCode);
+      content = TemplateService.getFallbackDocument(
+        docType, student, currentUser.name, professionalRole, context
+      );
+      usedTemplateFallback = true;
+    }
 
-      // Salvar como documento gerado (marcando origem no console se necessário, mas para o usuário é transparente)
-      const newDoc: SavedDocument = {
-        id: crypto.randomUUID(),
-        studentId: student.id,
-        studentName: student.fullName,
-        docType,
-        code: newCode,
-        content: fallbackContent,
-        createdAt: new Date().toISOString(),
-        professionalName: currentUser.name
-      };
+    setGeneratedContent(content);
+    setDocumentCode(newCode);
+
+    const newDoc: SavedDocument = {
+      id: crypto.randomUUID(),
+      studentId: student.id,
+      studentName: student.fullName,
+      docType,
+      code: newCode,
+      content,
+      createdAt: new Date().toISOString(),
+      professionalName: currentUser.name
+    };
+
+    try {
       await SupabaseService.saveDocument(newDoc);
-
-      // Notificar usuário que o sistema usou modelos padrão devido à instabilidade da IA
-      setError(null); // Limpa erro anterior
-      addToast("Documento gerado com sucesso usando modelos institucionais (IA Instável)", "info");
-
+      setError(null);
+      if (usedTemplateFallback) {
+        addToast("Documento gerado com sucesso usando modelos institucionais (IA instável).", "info");
+      }
       if (activeTab === 'history') {
         const data = await SupabaseService.getDocuments(selectedStudentId);
         setHistory(data);
       }
-
+    } catch (saveErr: any) {
+      console.error('Erro ao salvar documento gerado:', saveErr);
+      setError(
+        'O texto foi gerado, mas não foi possível salvar no histórico. Verifique conexão, permissões ou tente novamente.'
+      );
+      addToast('Falha ao salvar o documento no servidor.', 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -377,8 +363,13 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
                           <button
                             onClick={async () => {
                               if (confirm('Excluir este documento permanentemente?')) {
-                                await SupabaseService.deleteDocument(doc.id);
-                                setHistory(prev => prev.filter(h => h.id !== doc.id));
+                                try {
+                                  await SupabaseService.deleteDocument(doc.id);
+                                  setHistory(prev => prev.filter(h => h.id !== doc.id));
+                                } catch (e) {
+                                  console.error(e);
+                                  addToast('Não foi possível excluir o documento.', 'error');
+                                }
                               }
                             }}
                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
