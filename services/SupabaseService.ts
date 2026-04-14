@@ -771,7 +771,7 @@ export class SupabaseService {
     /** Listagens (dropdowns, grids leves): evita clinical_info/educational_info grandes no fio. */
     static async getStudents(
         _unit?: Unit,
-        options?: { compactList?: boolean }
+        options?: { compactList?: boolean; schoolId?: string }
     ): Promise<Student[]> {
         return safeCall(async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -809,6 +809,8 @@ export class SupabaseService {
                     .range(from, to);
                 if (filtrarPorEscolaDoPerfil && profileSchoolId) {
                     q = q.eq('school_id', profileSchoolId);
+                } else if (options?.schoolId) {
+                    q = q.eq('school_id', options.schoolId);
                 }
                 return q;
             };
@@ -1442,6 +1444,66 @@ export class SupabaseService {
             return schools;
         } catch (err) {
             console.error('[SupabaseService] Erro fatal em getSchools:', err);
+            return [];
+        }
+    }
+
+    /** Uma escola por id (ex.: exibir nome no agendamento). */
+    static async getSchoolById(id: string): Promise<School | null> {
+        if (!id) return null;
+        try {
+            const { data, error } = await supabase
+                .from('schools')
+                .select('id, name, inep, director, phone, district, is_active')
+                .eq('id', id)
+                .maybeSingle();
+            if (error) throw error;
+            if (!data) return null;
+            const s = data as any;
+            return {
+                id: s.id || '',
+                name: s.name || 'Escola sem Nome',
+                inep: s.inep || '',
+                director: s.director || '',
+                phone: s.phone || '',
+                district: s.district || s.address?.district || 'Sede',
+                isActive: s.is_active === true,
+            };
+        } catch (err) {
+            console.error('[SupabaseService] getSchoolById:', err);
+            return null;
+        }
+    }
+
+    /**
+     * Busca parcial por nome (case-insensitive). Escapa % e _ do padrão ILIKE.
+     * @param searchTerm texto digitado (sem debounce aqui — faça no componente).
+     */
+    static async searchSchoolsByName(searchTerm: string, opts?: { limit?: number }): Promise<School[]> {
+        const raw = (searchTerm || '').trim();
+        if (!raw) return [];
+        const limit = Math.min(Math.max(opts?.limit ?? 24, 1), 50);
+        const escaped = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+        try {
+            const { data, error } = await supabase
+                .from('schools')
+                .select('id, name, inep, director, phone, district, is_active')
+                .or('is_active.is.null,is_active.eq.true')
+                .ilike('name', `%${escaped}%`)
+                .order('name', { ascending: true })
+                .limit(limit);
+            if (error) throw error;
+            return (data || []).map((s: any) => ({
+                id: s.id || '',
+                name: s.name || 'Escola sem Nome',
+                inep: s.inep || '',
+                director: s.director || '',
+                phone: s.phone || '',
+                district: s.district || s.address?.district || 'Sede',
+                isActive: s.is_active === true,
+            }));
+        } catch (err) {
+            console.error('[SupabaseService] searchSchoolsByName:', err);
             return [];
         }
     }
@@ -2141,6 +2203,7 @@ export class SupabaseService {
     }
 
     static async saveAppointment(appointment: Partial<Appointment>): Promise<string> {
+        // Atendimento sempre presencial na UI; não há coluna de modalidade no payload (tabela `appointments`).
         const payload: any = {
             student_id: appointment.studentId,
             student_name: appointment.studentName,

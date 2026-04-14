@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import {
     Appointment,
+    AuditAction,
+    School,
     Specialty,
     Student,
     User,
     UserRole,
     Unit,
-    AuditAction,
 } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import { AppointmentSummaryCard } from './AppointmentSummaryCard';
 
 /** Perfis que não aparecem como profissionais disponíveis no agendamento (apenas UI). */
 const PERFIS_EXCLUIDOS_LISTA_AGENDAMENTO: UserRole[] = [
@@ -137,6 +139,21 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [showAllSpecialties, setShowAllSpecialties] = useState(false);
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [schoolResults, setSchoolResults] = useState<School[]>([]);
+    const [isLoadingSchools, setIsLoadingSchools] = useState(false);
+    const [selectedSchoolId, setSelectedSchoolId] = useState<string>(() =>
+        currentUser.role === 'ESCOLA' && currentUser.schoolId ? currentUser.schoolId : ''
+    );
+    /** Nome da escola confirmada na UI (para saber quando o texto divergiu e limpar o id). */
+    const [selectedSchoolName, setSelectedSchoolName] = useState('');
+    const [schoolAutocompleteOpen, setSchoolAutocompleteOpen] = useState(false);
+    const schoolComboRef = useRef<HTMLDivElement>(null);
+
+    const [studentsBySchool, setStudentsBySchool] = useState<Student[]>([]);
+    const [loadingSchoolStudents, setLoadingSchoolStudents] = useState(false);
+    const appliedInitialSchoolFromAppointmentRef = useRef(false);
+
     const [now, setNow] = useState(() => new Date());
     useEffect(() => {
         setNow(new Date());
@@ -182,8 +199,6 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     });
 
     const [duration, setDuration] = useState(40);
-    /** UI alinhada ao Stitch; persistência de modalidade não existe no modelo atual de `Appointment`. */
-    const [attendanceMode, setAttendanceMode] = useState<'PRESENCIAL' | 'ONLINE'>('PRESENCIAL');
     const [showAllStudentCards, setShowAllStudentCards] = useState(false);
 
     useEffect(() => {
@@ -235,7 +250,114 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         }
     }, [studentsProp]);
 
+    useEffect(() => {
+        if (!(currentUser.role === 'ESCOLA' && currentUser.schoolId)) return;
+        let cancelled = false;
+        void SupabaseService.getSchoolById(currentUser.schoolId).then((sch) => {
+            if (cancelled || !sch) return;
+            setSearchQuery(sch.name);
+            setSelectedSchoolName(sch.name);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser.role, currentUser.schoolId]);
+
+    useEffect(() => {
+        if (currentUser.role === 'ESCOLA' && currentUser.schoolId) return;
+        const q = searchQuery.trim();
+        if (q.length === 0) {
+            setSchoolResults([]);
+            setIsLoadingSchools(false);
+            return;
+        }
+        let cancelled = false;
+        setIsLoadingSchools(true);
+        const id = window.setTimeout(() => {
+            void SupabaseService.searchSchoolsByName(q)
+                .then((rows) => {
+                    if (!cancelled) setSchoolResults(rows);
+                })
+                .finally(() => {
+                    if (!cancelled) setIsLoadingSchools(false);
+                });
+        }, 300);
+        return () => {
+            cancelled = true;
+            clearTimeout(id);
+        };
+    }, [searchQuery, currentUser.role, currentUser.schoolId]);
+
+    useEffect(() => {
+        const onDocDown = (e: MouseEvent) => {
+            const el = schoolComboRef.current;
+            if (!el || !schoolAutocompleteOpen) return;
+            if (e.target instanceof Node && !el.contains(e.target)) {
+                setSchoolAutocompleteOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onDocDown);
+        return () => document.removeEventListener('mousedown', onDocDown);
+    }, [schoolAutocompleteOpen]);
+
+    useEffect(() => {
+        if (appliedInitialSchoolFromAppointmentRef.current) return;
+        if (!initialData?.studentId) return;
+        const src = studentsProp?.length ? studentsProp : localStudents;
+        const st = src.find((s) => s.id === initialData.studentId);
+        if (st?.school?.schoolId) {
+            setSelectedSchoolId(st.school.schoolId);
+            const label = st.school.schoolName || '';
+            setSearchQuery(label);
+            setSelectedSchoolName(label);
+            appliedInitialSchoolFromAppointmentRef.current = true;
+        }
+    }, [initialData?.studentId, studentsProp, localStudents]);
+
+    useEffect(() => {
+        if (!selectedSchoolId) {
+            setStudentsBySchool([]);
+            setLoadingSchoolStudents(false);
+            return;
+        }
+        let cancelled = false;
+        setLoadingSchoolStudents(true);
+        void SupabaseService.getStudents(undefined, { compactList: true, schoolId: selectedSchoolId })
+            .then((rows) => {
+                if (!cancelled) setStudentsBySchool(rows);
+            })
+            .catch(() => {
+                if (!cancelled) setStudentsBySchool([]);
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingSchoolStudents(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedSchoolId]);
+
     const students = localStudents;
+
+    const pickSchoolFromAutocomplete = (sch: School) => {
+        setSelectedSchoolId(sch.id);
+        setSearchQuery(sch.name);
+        setSelectedSchoolName(sch.name);
+        setSchoolResults([]);
+        setSchoolAutocompleteOpen(false);
+        setSearchName('');
+        setNewApt((prev) => ({ ...prev, studentId: undefined, studentName: undefined }));
+    };
+
+    const onSchoolSearchInputChange = (v: string) => {
+        setSearchQuery(v);
+        setSchoolAutocompleteOpen(true);
+        if (selectedSchoolId && v.trim() !== selectedSchoolName.trim()) {
+            setSelectedSchoolId('');
+            setSelectedSchoolName('');
+            setNewApt((prev) => ({ ...prev, studentId: undefined, studentName: undefined }));
+        }
+    };
 
     const profissionaisParaAgendamento = useMemo(
         () =>
@@ -459,17 +581,26 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     };
 
     const filteredStudents = useMemo(() => {
-        const studentList = students || [];
-        if (studentList.length === 0) return [];
-        return students.filter((s) => {
-            const normalizedSearch = normalizeText(searchName);
-            const nameMatch = !searchName || normalizeText(s.fullName || '').includes(normalizedSearch);
-            const schoolNameMatch =
-                !searchName || normalizeText(s.school?.schoolName || '').includes(normalizedSearch);
-            const textMatch = !searchName || nameMatch || schoolNameMatch;
-            return textMatch;
+        if (!selectedSchoolId) return [];
+        const pool = studentsBySchool;
+        if (pool.length === 0) return [];
+        const raw = searchName.trim();
+        if (!raw) return pool;
+
+        const tokens = normalizeText(raw)
+            .split(/\s+/)
+            .map((t) => t.trim())
+            .filter((t) => t.length > 0);
+        if (tokens.length === 0) return pool;
+
+        return pool.filter((s) => {
+            const school = s.school;
+            const haystack = normalizeText(
+                [s.fullName, school?.schoolName, school?.district, school?.grade].filter(Boolean).join(' ')
+            );
+            return tokens.every((tok) => haystack.includes(tok));
         });
-    }, [students, searchName]);
+    }, [selectedSchoolId, studentsBySchool, searchName]);
 
     const isDateToday = useMemo(
         () => !!newApt.date && newApt.date === formatLocalYYYYMMDD(now),
@@ -684,7 +815,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     const pillsForProfessional = (p: User) => {
         const pills: string[] = [];
         if (p.specialty) pills.push(p.specialty);
-        pills.push(attendanceMode === 'ONLINE' ? 'Online' : 'Presencial');
+        pills.push('Presencial');
         if (p.jobTitle) {
             const w = p.jobTitle.trim().split(/\s+/).slice(0, 2).join(' ');
             if (w && !(p.specialty && w.toLowerCase().includes(p.specialty.toLowerCase().slice(0, 4)))) {
@@ -700,11 +831,14 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         return list.slice(0, 24);
     }, [filteredStudents, showAllStudentCards]);
 
+    const resumoNomeEscola =
+        selectedSchoolId ? (selectedSchoolName.trim() || searchQuery.trim() || undefined) : undefined;
+
     return (
         <div className="appointment-stitch-shell flex min-h-0 w-full flex-col overflow-x-hidden bg-background font-body text-on-background transition-colors duration-300 md:max-h-[calc(100dvh-5.5rem)] md:overflow-y-hidden">
             <main className="flex w-full flex-1 justify-center overflow-y-auto px-3 pb-10 pt-3 sm:px-4 sm:pb-12 md:pb-14 md:pt-4">
                 <div className="mx-auto w-full max-w-6xl rounded-2xl bg-[#F9FAFB] px-4 py-6 shadow-sm ring-1 ring-slate-200/60 sm:px-6 sm:py-8 md:px-8 md:py-10">
-                    <div className="grid w-full grid-cols-1 gap-y-10 md:gap-y-12">
+                    <div className="grid w-full grid-cols-1 gap-y-6 md:gap-y-8">
                     <header className="grid grid-cols-[auto_1fr] items-center gap-4 sm:gap-6">
                         <button
                             type="button"
@@ -731,7 +865,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                         </div>
                     </header>
 
-                    <section className="grid grid-cols-1 gap-3">
+                    <section className="grid grid-cols-1 gap-2.5 md:gap-3">
                         <h1 className="font-headline text-4xl font-extrabold tracking-tight text-on-background md:text-5xl">
                             Agendar Atendimento
                         </h1>
@@ -740,68 +874,157 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                         </p>
                     </section>
 
-                    <section className="grid grid-cols-1 gap-4">
-                    <div className="inline-flex gap-1 rounded-full bg-surface-container-low p-1">
-                        <button
-                            type="button"
-                            onClick={() => setAttendanceMode('PRESENCIAL')}
-                            className={`rounded-full px-8 py-2.5 text-sm font-medium transition-all duration-300 ${
-                                attendanceMode === 'PRESENCIAL'
-                                    ? 'bg-primary text-on-primary'
-                                    : 'text-on-surface-variant hover:bg-surface-container-high'
-                            }`}
-                        >
-                            Presencial
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setAttendanceMode('ONLINE')}
-                            className={`rounded-full px-8 py-2.5 text-sm font-medium transition-all duration-300 ${
-                                attendanceMode === 'ONLINE'
-                                    ? 'bg-primary text-on-primary'
-                                    : 'text-on-surface-variant hover:bg-surface-container-high'
-                            }`}
-                        >
-                            Online
-                        </button>
-                    </div>
-                    </section>
-
                     <section className="grid min-w-0 grid-cols-1 gap-6">
                         <h2 className="font-headline text-2xl font-bold text-on-background">Contexto do Paciente</h2>
-                        <div className="relative w-full max-w-3xl">
-                            <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
-                                search
-                            </span>
-                            <input
-                                type="text"
-                                placeholder="Busca por escola"
-                                value={searchName}
-                                onChange={(e) => setSearchName(e.target.value)}
-                                className="w-full rounded-full border-none bg-white py-4 pl-12 pr-6 text-on-surface shadow-sm ring-1 ring-slate-200/80 transition-all placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-primary"
-                            />
+                        <div className="grid min-w-0 max-w-3xl grid-cols-1 gap-3">
+                            <div className="grid grid-cols-1 gap-1.5">
+                                <label
+                                    htmlFor="agenda-unidade-escolar"
+                                    className="px-1 text-xs font-semibold uppercase tracking-wide text-on-surface-variant"
+                                >
+                                    Unidade escolar
+                                </label>
+                                <div ref={schoolComboRef} className="relative">
+                                    <input
+                                        id="agenda-unidade-escolar"
+                                        type="text"
+                                        role="combobox"
+                                        aria-expanded={schoolAutocompleteOpen}
+                                        aria-controls="agenda-school-results"
+                                        aria-autocomplete="list"
+                                        autoComplete="off"
+                                        value={searchQuery}
+                                        onChange={(e) => onSchoolSearchInputChange(e.target.value)}
+                                        onFocus={() => {
+                                            if (!(currentUser.role === 'ESCOLA' && currentUser.schoolId)) {
+                                                setSchoolAutocompleteOpen(true);
+                                            }
+                                        }}
+                                        disabled={currentUser.role === 'ESCOLA' && !!currentUser.schoolId}
+                                        placeholder={
+                                            currentUser.role === 'ESCOLA' && currentUser.schoolId
+                                                ? 'Sua unidade escolar'
+                                                : 'Digite para buscar a unidade escolar…'
+                                        }
+                                        className="w-full rounded-full border-2 border-primary/35 bg-white py-3.5 pl-5 pr-12 text-sm font-semibold text-on-surface shadow-sm transition-[border-color,box-shadow] placeholder:font-normal placeholder:text-outline-variant focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:border-primary/15 disabled:bg-surface-container-low disabled:text-on-surface-variant"
+                                    />
+                                    <span
+                                        className="pointer-events-none absolute right-3.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-primary/70"
+                                        aria-hidden
+                                    >
+                                        {isLoadingSchools &&
+                                        !(currentUser.role === 'ESCOLA' && currentUser.schoolId) &&
+                                        searchQuery.trim().length > 0 ? (
+                                            <span
+                                                className="size-4 shrink-0 animate-spin rounded-full border-2 border-primary/20 border-t-primary"
+                                                aria-label="Buscando escolas"
+                                            />
+                                        ) : (
+                                            <span className="material-symbols-outlined text-[22px] leading-none">
+                                                expand_more
+                                            </span>
+                                        )}
+                                    </span>
+                                    {schoolAutocompleteOpen &&
+                                    !(currentUser.role === 'ESCOLA' && currentUser.schoolId) &&
+                                    searchQuery.trim().length > 0 ? (
+                                        <ul
+                                            id="agenda-school-results"
+                                            role="listbox"
+                                            className="absolute z-[80] mt-2 max-h-60 w-full overflow-y-auto rounded-2xl border border-slate-100/90 bg-white py-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-slate-200/60"
+                                        >
+                                            {isLoadingSchools ? (
+                                                <li
+                                                    className="px-4 py-3 text-center text-xs text-on-surface-variant/75"
+                                                    role="status"
+                                                >
+                                                    Buscando…
+                                                </li>
+                                            ) : schoolResults.length === 0 ? (
+                                                <li className="px-4 py-3.5 text-sm text-on-surface-variant">
+                                                    Nenhuma escola encontrada.
+                                                </li>
+                                            ) : (
+                                                schoolResults.map((sch) => (
+                                                    <li key={sch.id} role="none">
+                                                        <button
+                                                            type="button"
+                                                            role="option"
+                                                            className="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-primary/5"
+                                                            onMouseDown={(e) => e.preventDefault()}
+                                                            onClick={() => pickSchoolFromAutocomplete(sch)}
+                                                        >
+                                                            <span className="font-semibold text-on-background">
+                                                                {sch.name}
+                                                            </span>
+                                                            {sch.district ? (
+                                                                <span className="text-xs text-on-surface-variant">
+                                                                    {sch.district}
+                                                                </span>
+                                                            ) : null}
+                                                        </button>
+                                                    </li>
+                                                ))
+                                            )}
+                                        </ul>
+                                    ) : null}
+                                </div>
+                            </div>
+                            <div className="relative w-full">
+                                <span
+                                    className={`material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${
+                                        selectedSchoolId ? 'text-on-surface-variant' : 'text-outline-variant'
+                                    }`}
+                                >
+                                    search
+                                </span>
+                                <input
+                                    id="agenda-busca-aluno"
+                                    type="text"
+                                    placeholder={
+                                        selectedSchoolId
+                                            ? 'Buscar por nome, série ou bairro'
+                                            : 'Selecione uma escola para buscar'
+                                    }
+                                    value={searchName}
+                                    onChange={(e) => setSearchName(e.target.value)}
+                                    disabled={!selectedSchoolId}
+                                    aria-disabled={!selectedSchoolId}
+                                    className="w-full rounded-full border-none bg-white py-4 pl-12 pr-6 text-on-surface shadow-sm ring-1 ring-slate-200/80 transition-all placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:bg-surface-container-low/80 disabled:text-on-surface-variant/80"
+                                />
+                            </div>
                         </div>
                         <div className="flex min-w-0 flex-col gap-4">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <h3 className="font-headline text-lg font-semibold text-on-background">Alunos Pacientes</h3>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAllStudentCards((v) => !v)}
-                                    className="text-sm font-semibold text-primary transition-all duration-300 hover:underline"
-                                >
-                                    {showAllStudentCards ? 'Mostrar menos' : 'Ver todos'}
-                                </button>
+                                {selectedSchoolId ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllStudentCards((v) => !v)}
+                                        className="text-sm font-semibold text-primary transition-all duration-300 hover:underline"
+                                    >
+                                        {showAllStudentCards ? 'Mostrar menos' : 'Ver todos'}
+                                    </button>
+                                ) : null}
                             </div>
                             <div
                                 className="flex min-w-0 flex-nowrap gap-4 overflow-x-auto py-2 scrollbar-hide"
                                 role="list"
                                 aria-label="Lista de alunos pacientes"
                             >
-                                {loadingStudents ? (
-                                    <p className="w-full shrink-0 text-sm text-on-surface-variant">Carregando alunos...</p>
+                                {!selectedSchoolId ? (
+                                    <p className="w-full shrink-0 rounded-xl bg-white/90 px-4 py-8 text-center text-sm leading-relaxed text-on-surface-variant ring-1 ring-slate-200/70">
+                                        Selecione uma unidade escolar para ver os alunos.
+                                    </p>
+                                ) : loadingStudents || loadingSchoolStudents ? (
+                                    <p className="w-full shrink-0 text-sm text-on-surface-variant">Carregando alunos…</p>
                                 ) : studentCardsList.length === 0 ? (
-                                    <p className="w-full shrink-0 text-sm text-on-surface-variant">
-                                        Nenhum aluno encontrado com estes filtros.
+                                    <p className="w-full shrink-0 rounded-xl bg-white/90 px-4 py-6 text-center text-sm leading-relaxed text-on-surface-variant ring-1 ring-slate-200/70">
+                                        {studentsBySchool.length === 0
+                                            ? 'Nenhum aluno matriculado nesta unidade escolar (ou sem permissão de leitura).'
+                                            : searchName.trim()
+                                              ? 'Nenhum aluno corresponde à busca nesta unidade.'
+                                              : 'Nenhum aluno encontrado com estes filtros.'}
                                     </p>
                                 ) : (
                                     studentCardsList.map((s) => {
@@ -928,7 +1151,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
                     <section className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start lg:gap-10">
                         {/* Coluna esquerda: escolha + card do profissional selecionado */}
-                        <div className="grid min-w-0 grid-cols-1 gap-5">
+                        <div className="grid min-w-0 grid-cols-1 gap-4">
                             <h2 className="font-headline text-2xl font-bold text-on-background">
                                 Profissionais Disponíveis
                             </h2>
@@ -1001,8 +1224,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     </div>
 
                                     {profissionalSelecionado ? (
-                                        <article className="grid min-h-[5.5rem] w-full max-w-full grid-cols-[5.5rem_1fr] overflow-hidden rounded-2xl border-2 border-primary/35 bg-white shadow-md ring-1 ring-slate-100 sm:min-h-[6rem] sm:grid-cols-[6.75rem_1fr]">
-                                            <div className="relative h-full min-h-[5.5rem] bg-slate-200 sm:min-h-[6rem]">
+                                        <article className="grid min-h-[4.25rem] w-full max-w-full grid-cols-[4.5rem_1fr] overflow-hidden rounded-2xl border-2 border-primary/35 bg-white shadow-md ring-1 ring-slate-100 sm:min-h-[4.5rem] sm:grid-cols-[5rem_1fr]">
+                                            <div className="relative h-full min-h-[4.25rem] bg-slate-200 sm:min-h-[4.5rem]">
                                                 {profissionalSelecionado.photoUrl ? (
                                                     <img
                                                         src={profissionalSelecionado.photoUrl}
@@ -1010,40 +1233,40 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                                         className="absolute inset-0 h-full w-full object-cover"
                                                     />
                                                 ) : (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-primary text-lg font-bold text-on-primary sm:text-xl">
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-primary text-sm font-bold text-on-primary sm:text-base">
                                                         {initialsFromName(profissionalSelecionado.name)}
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="flex min-w-0 flex-col justify-center gap-1 px-3 py-2.5 sm:gap-1.5 sm:px-4 sm:py-3">
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <h3 className="font-headline min-w-0 text-base font-bold leading-snug text-on-background sm:text-lg">
+                                            <div className="flex min-w-0 flex-col justify-center gap-0.5 p-4">
+                                                <div className="flex items-start justify-between gap-1.5">
+                                                    <h3 className="font-headline min-w-0 text-sm font-bold leading-tight text-on-background sm:text-base">
                                                         {profissionalSelecionado.name}
                                                     </h3>
-                                                    <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 px-2 py-0.5">
-                                                        <span className="material-symbols-outlined fill-1 text-sm text-amber-500">
+                                                    <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 px-1.5 py-0">
+                                                        <span className="material-symbols-outlined fill-1 text-[15px] text-amber-500 leading-none">
                                                             star
                                                         </span>
-                                                        <span className="text-xs font-bold text-on-background sm:text-sm">
+                                                        <span className="text-[11px] font-bold text-on-background sm:text-xs">
                                                             5.0
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <p className="line-clamp-1 text-xs font-semibold text-primary sm:text-[13px]">
+                                                <p className="line-clamp-1 text-[11px] font-semibold leading-tight text-primary sm:text-xs">
                                                     {[profissionalSelecionado.specialty, profissionalSelecionado.jobTitle]
                                                         .filter(Boolean)
                                                         .join(' • ')}
                                                 </p>
-                                                <p className="line-clamp-2 text-xs leading-snug text-slate-600 sm:text-[13px] sm:leading-relaxed">
+                                                <p className="line-clamp-1 text-[11px] leading-tight text-slate-600 sm:text-xs sm:leading-snug">
                                                     {profissionalSelecionado.jobTitle
                                                         ? `Perfil: ${profissionalSelecionado.jobTitle}.`
                                                         : 'Profissional da rede Brotar.'}
                                                 </p>
-                                                <div className="mt-0.5 flex flex-wrap gap-1">
+                                                <div className="flex flex-wrap gap-0.5 pt-0.5">
                                                     {pillsForProfessional(profissionalSelecionado).map((label, pi) => (
                                                         <span
                                                             key={`${profissionalSelecionado.id}-${pi}-${label}`}
-                                                            className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold leading-tight text-slate-700 sm:text-[11px]"
+                                                            className="rounded-full bg-slate-100 px-1.5 py-px text-[9px] font-semibold leading-tight text-slate-700 sm:text-[10px]"
                                                         >
                                                             {label}
                                                         </span>
@@ -1058,27 +1281,25 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     )}
                                 </>
                             )}
+
+                            <AppointmentSummaryCard
+                                patientName={newApt.studentName}
+                                schoolName={resumoNomeEscola}
+                                specialty={newApt.specialty}
+                                professionalName={newApt.professionalName}
+                                dateYmd={newApt.date}
+                                startTime={newApt.startTime}
+                                endTime={newApt.endTime}
+                                loading={loading}
+                                confirmDisabled={confirmacaoDesabilitada}
+                                onConfirm={handleSaveAppointment}
+                            />
                         </div>
 
-                        {/* Coluna direita: agendar (confirmar + semana), duração, horários */}
+                        {/* Coluna direita: semana, duração, horários */}
                         <div className="grid min-w-0 grid-cols-1 gap-6">
                             <div className="grid grid-cols-1 gap-3">
                                 <h2 className="font-headline text-lg font-bold text-on-background">Agendar para</h2>
-                                <button
-                                    type="button"
-                                    onClick={() => void handleSaveAppointment()}
-                                    disabled={confirmacaoDesabilitada}
-                                    className="flex w-full items-center justify-center gap-2 rounded-full bg-[#2D6A4F] px-6 py-3.5 font-headline text-base font-bold text-white shadow-md transition-colors duration-200 hover:bg-[#245a43] disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    {loading ? (
-                                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                                    ) : (
-                                        <>
-                                            <Save size={20} className="shrink-0" />
-                                            Confirmar Agendamento
-                                        </>
-                                    )}
-                                </button>
                                 <div className="overflow-hidden rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-100 sm:p-4">
                                     <div className="flex items-center gap-1 sm:gap-2">
                                         <button
