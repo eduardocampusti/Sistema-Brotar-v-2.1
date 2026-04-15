@@ -12,6 +12,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
+    "test:rls": "vitest run tests/integration/recepcionistaCocal.rls.integration.test.ts",
     "db:count": "node scripts/count-db-records.mjs",
     "start": "node server.mjs"
   },

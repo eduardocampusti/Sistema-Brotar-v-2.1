@@ -4,7 +4,24 @@ import { User, UserRole, Specialty, UserScope } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { useToast } from '../contexts/ToastContext';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle, Eye, EyeOff, Search } from 'lucide-react';
+
+const ROLE_FILTER_ALL = 'ALL' as const;
+type RoleFilterValue = typeof ROLE_FILTER_ALL | UserRole;
+
+function getRoleLabel(role: UserRole): string {
+    switch (role) {
+        case 'ADMIN': return 'Administrador';
+        case 'SPECIALIST': return 'Especialista';
+        case 'ASSISTANT': return 'Assistente';
+        case 'EDUCATION_SECRETARY': return 'Secretária de Educação';
+        case 'SECRETARIA_SEDE': return 'Secretária Sede';
+        case 'SECRETARIA_COCAL': return 'Secretária Cocal';
+        case 'COORDENADOR': return 'Coordenador';
+        case 'ESCOLA': return 'Escola';
+        default: return role;
+    }
+}
 
 const JOB_TITLES = [
     'Administrador(a)',
@@ -30,8 +47,8 @@ export const UserManagement: React.FC = () => {
     const [userToDelete, setUserToDelete] = useState<User | null>(null); // [NEW] Modal de Exclusão
     const [showPassword, setShowPassword] = useState(false); // [NEW] Toggle de senha
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    // ... (rest of the code)
+    const [searchQuery, setSearchQuery] = useState('');
+    const [roleFilter, setRoleFilter] = useState<RoleFilterValue>(ROLE_FILTER_ALL);
 
 
     const [formData, setFormData] = useState<Partial<User>>({
@@ -209,6 +226,42 @@ export const UserManagement: React.FC = () => {
             fileInputRef.current.value = '';
         }
     };
+
+    const filteredUsers = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        return users.filter(u => {
+            if (roleFilter !== ROLE_FILTER_ALL && u.role !== roleFilter) return false;
+            if (!q) return true;
+            const haystack = [
+                u.name,
+                u.email,
+                u.username,
+                u.phone,
+                u.jobTitle,
+                getRoleLabel(u.role),
+                u.specialty
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+            return haystack.includes(q);
+        });
+    }, [users, searchQuery, roleFilter]);
+
+    const roleFilterOptions: { value: RoleFilterValue; label: string }[] = useMemo(
+        () => [
+            { value: ROLE_FILTER_ALL, label: 'Todos os perfis' },
+            { value: 'ADMIN', label: getRoleLabel('ADMIN') },
+            { value: 'SPECIALIST', label: getRoleLabel('SPECIALIST') },
+            { value: 'ASSISTANT', label: getRoleLabel('ASSISTANT') },
+            { value: 'EDUCATION_SECRETARY', label: getRoleLabel('EDUCATION_SECRETARY') },
+            { value: 'SECRETARIA_SEDE', label: getRoleLabel('SECRETARIA_SEDE') },
+            { value: 'SECRETARIA_COCAL', label: getRoleLabel('SECRETARIA_COCAL') },
+            { value: 'COORDENADOR', label: getRoleLabel('COORDENADOR') },
+            { value: 'ESCOLA', label: getRoleLabel('ESCOLA') }
+        ],
+        []
+    );
 
     return (
         <div className="max-w-6xl mx-auto space-y-6">
@@ -469,6 +522,38 @@ export const UserManagement: React.FC = () => {
             )}
 
             <div className="bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+                    <div className="flex-1 min-w-[200px] max-w-xl">
+                        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Pesquisar</label>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input
+                                type="search"
+                                placeholder="Nome, e-mail, login, telefone ou cargo…"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
+                            />
+                        </div>
+                    </div>
+                    <div className="w-full sm:w-auto sm:min-w-[200px]">
+                        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Tipo de perfil</label>
+                        <select
+                            value={roleFilter}
+                            onChange={e => setRoleFilter(e.target.value as RoleFilterValue)}
+                            className="w-full rounded-lg border border-slate-300 py-2.5 px-3 text-sm bg-white shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
+                        >
+                            {roleFilterOptions.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                <p className="px-4 py-2 text-xs text-slate-500 bg-slate-50/80 border-b border-slate-100">
+                    {filteredUsers.length === users.length
+                        ? `${users.length} usuário(s) cadastrado(s).`
+                        : `Mostrando ${filteredUsers.length} de ${users.length} usuário(s) com os filtros atuais.`}
+                </p>
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                         <tr>
@@ -480,7 +565,14 @@ export const UserManagement: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                        {users.map(user => (
+                        {filteredUsers.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-12 text-center text-slate-500 text-sm">
+                                    Nenhum usuário encontrado com os filtros selecionados. Ajuste a pesquisa ou o tipo de perfil.
+                                </td>
+                            </tr>
+                        )}
+                        {filteredUsers.map(user => (
                             <tr key={user.id} className="hover:bg-slate-50">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
@@ -510,13 +602,20 @@ export const UserManagement: React.FC = () => {
                                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium w-fit ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
                                             user.role === 'SPECIALIST' ? 'bg-blue-100 text-blue-800' :
                                                 user.role === 'EDUCATION_SECRETARY' ? 'bg-orange-100 text-orange-800' :
-                                                    'bg-slate-100 text-slate-800'
+                                                    user.role === 'ESCOLA' ? 'bg-emerald-100 text-emerald-800' :
+                                                        user.role === 'COORDENADOR' ? 'bg-indigo-100 text-indigo-800' :
+                                                            user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' ? 'bg-amber-100 text-amber-900' :
+                                                                'bg-slate-100 text-slate-800'
                                             }`}>
                                             {user.role === 'ADMIN' && <Shield size={12} />}
-                                            {user.role === 'ADMIN' ? 'Administrador' :
-                                                user.role === 'SPECIALIST' ? 'Especialista' :
+                                            {user.role === 'ADMIN' ? getRoleLabel('ADMIN') :
+                                                user.role === 'SPECIALIST' ? getRoleLabel('SPECIALIST') :
                                                     user.role === 'EDUCATION_SECRETARY' ? 'Secretária Educ.' :
-                                                        'Assistente'}
+                                                        user.role === 'ESCOLA' ? getRoleLabel('ESCOLA') :
+                                                            user.role === 'COORDENADOR' ? getRoleLabel('COORDENADOR') :
+                                                                user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL'
+                                                                    ? (user.role === 'SECRETARIA_SEDE' ? 'Sec. Sede' : 'Sec. Cocal')
+                                                                    : getRoleLabel('ASSISTANT')}
                                         </span>
                                         <span className="text-xs text-slate-400">Login: {user.username}</span>
                                         {(user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_COCAL') && (

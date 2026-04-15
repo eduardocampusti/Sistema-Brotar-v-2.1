@@ -4,7 +4,7 @@ import { SupabaseService } from '../services/SupabaseService';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { AuthProvider } from '../contexts/AuthContext';
-import { Student, User, Specialty, SystemSettings, Appointment, School } from '../types';
+import { Student, User, Specialty, SystemSettings, Appointment, School, canViewSystemAuditLogs } from '../types';
 import { Loader2 } from 'lucide-react';
 import { NotificationProvider } from '../contexts/NotificationContext';
 
@@ -440,7 +440,18 @@ function AppContent() {
           <Route path="settings" element={<React.Suspense fallback={<PageLoading />}><SystemSettingsPanel /></React.Suspense>} />
           <Route path="about" element={<React.Suspense fallback={<PageLoading />}><AboutSystem /></React.Suspense>} />
           <Route path="my-access" element={<React.Suspense fallback={<PageLoading />}><MyAccess currentUser={user!} /></React.Suspense>} />
-          <Route path="audit-logs" element={<React.Suspense fallback={<PageLoading />}><AuditLogs currentUser={user!} /></React.Suspense>} />
+          <Route
+            path="audit-logs"
+            element={
+              user && canViewSystemAuditLogs(user) ? (
+                <React.Suspense fallback={<PageLoading />}>
+                  <AuditLogs currentUser={user} />
+                </React.Suspense>
+              ) : (
+                <Navigate to="/app" replace />
+              )
+            }
+          />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

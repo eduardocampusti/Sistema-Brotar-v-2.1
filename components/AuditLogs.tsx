@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ShieldAlert, Search, Filter, Loader2, RefreshCcw } from 'lucide-react';
-import { AuditLog, User } from '../types';
+import { AuditLog, User, canViewSystemAuditLogs } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 
 interface AuditLogsProps {
@@ -47,14 +47,7 @@ export function AuditLogs({ currentUser }: AuditLogsProps) {
     const uniqueModules = useMemo(() => Array.from(new Set(logs.map(log => log.module))).filter(Boolean).sort(), [logs]);
     const uniqueActions = useMemo(() => Array.from(new Set(logs.map(log => log.action))).filter(Boolean).sort(), [logs]);
 
-    const canViewAuditLogs =
-        currentUser.role === 'ADMIN' ||
-        currentUser.role === 'EDUCATION_SECRETARY' ||
-        currentUser.role === 'SECRETARIA_SEDE' ||
-        currentUser.role === 'SECRETARIA_COCAL' ||
-        currentUser.role === 'ASSISTANT';
-
-    if (!canViewAuditLogs) {
+    if (!canViewSystemAuditLogs(currentUser)) {
         return (
             <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-red-200 dark:border-red-900/30">
                 <ShieldAlert className="w-16 h-16 text-red-500 mb-4" />

@@ -31,6 +31,10 @@ export const hasPermission = (user: User, permission: Permission): boolean => {
   return false;
 };
 
+/** Módulo "Auditoria do Sistema": exclusivo Administrador (ADMIN) e Secretário(a) de Educação. */
+export const canViewSystemAuditLogs = (user: Pick<User, 'role'>): boolean =>
+  user.role === 'ADMIN' || user.role === 'EDUCATION_SECRETARY';
+
 export interface User {
   id: string;
   name: string;

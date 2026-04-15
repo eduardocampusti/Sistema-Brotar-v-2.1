@@ -33,7 +33,7 @@ import {
   Apple, // Retained from original
   BarChart2,
 } from 'lucide-react';
-import { User, Specialty, SystemSettings, hasPermission } from '../types';
+import { User, Specialty, SystemSettings, hasPermission, canViewSystemAuditLogs } from '../types';
 import { isPerfilRestritoProntuario } from '@/src/config/perfilRestrito';
 
 interface LayoutProps {
@@ -126,7 +126,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     const administration = [
       { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
       { id: 'admin', label: 'Gestão de Usuários', icon: <ShieldCheck size={20} /> },
-      { id: 'audit-logs', label: 'Auditoria do Sistema', icon: <ShieldAlert size={20} /> },
+      ...(canViewSystemAuditLogs(currentUser)
+        ? [{ id: 'audit-logs', label: 'Auditoria do Sistema', icon: <ShieldAlert size={20} /> } as const]
+        : []),
     ];
 
     // Grupo 3: Configurações
@@ -194,7 +196,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       items.push(
         { id: 'vault', label: 'Cofre Documentos', icon: <Shield size={20} /> },
         { id: 'documents', label: 'Documentos Oficiais', icon: <FileCheck size={20} /> },
-        { id: 'audit-logs', label: 'Auditoria do Sistema', icon: <ShieldAlert size={20} /> },
+        ...(canViewSystemAuditLogs(currentUser)
+          ? [{ id: 'audit-logs', label: 'Auditoria do Sistema', icon: <ShieldAlert size={20} /> } as const]
+          : []),
         { id: 'my-access', label: 'Meus Acessos', icon: <Key size={20} /> },
         { id: 'about', label: 'Sobre o Sistema', icon: <Info size={20} /> }
       );

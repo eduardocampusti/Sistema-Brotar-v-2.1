@@ -855,17 +855,21 @@ export class SupabaseService {
         }, 0, 300, 'getStudents');
     }
 
-    /** Papéis com visão ampla na rede (espelha RLS em `students`, ex. V19). */
-    static podeVerTodosAlunosNaRede(user: Pick<User, 'role'>): boolean {
+    /**
+     * Papéis com visão ampla na rede (alinhado ao RLS após V27: secretarias regionais e assistente com escopo não são “rede inteira”).
+     */
+    static podeVerTodosAlunosNaRede(user: Pick<User, 'role' | 'scope'>): boolean {
         const r = (user.role || '').toUpperCase();
-        return (
-            r === 'ADMIN' ||
-            r === 'EDUCATION_SECRETARY' ||
-            r === 'ASSISTANT' ||
-            r === 'SECRETARIA_SEDE' ||
-            r === 'SECRETARIA_COCAL' ||
-            r === 'COORDENADOR'
-        );
+        if (r === 'ADMIN' || r === 'COORDENADOR') return true;
+        if (r === 'EDUCATION_SECRETARY') {
+            const s = (user.scope || 'GLOBAL').toUpperCase();
+            return s === 'GLOBAL' || s === '';
+        }
+        if (r === 'ASSISTANT') {
+            const s = (user.scope || 'GLOBAL').toUpperCase();
+            return s === 'GLOBAL' || s === '';
+        }
+        return false;
     }
 
     /**
@@ -946,7 +950,7 @@ export class SupabaseService {
      * `listScope: 'meus'` restringe aos alunos com agendamento para aquele usuário (secretaria/admin).
      */
     static async getAlunosPorPerfil(
-        perfilUsuario: Pick<User, 'id' | 'role' | 'specialty'>,
+        perfilUsuario: Pick<User, 'id' | 'role' | 'specialty' | 'scope'>,
         profissionalId: string,
         options?: { compactList?: boolean; listScope?: 'meus' | 'todos' }
     ): Promise<Student[]> {
