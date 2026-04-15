@@ -12,6 +12,7 @@ import {
     School as SchoolEntity,
     Unit,
     statusAgendamentoRealizado,
+    isSupportProfessionalActive,
 } from '../types';
 import { StorageService } from '../services/storageService';
 import { SupabaseService } from '../services/SupabaseService';
@@ -550,11 +551,12 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
     }, [currentUser.id]);
 
     const metrics = useMemo(() => {
+        const activeSupportPros = supportProfessionals.filter(isSupportProfessionalActive);
         const totalStudents = students.length;
-        const spWithStudent = supportProfessionals.filter(
+        const spWithStudent = activeSupportPros.filter(
             p => p.studentId && String(p.studentId).trim() !== ''
         ).length;
-        const spWithoutStudent = supportProfessionals.length - spWithStudent;
+        const spWithoutStudent = activeSupportPros.length - spWithStudent;
 
         const specialists = allUsers.filter(u => u.role === 'SPECIALIST');
         const specialtyAreas = new Set(
@@ -581,7 +583,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
 
         return {
             totalStudents,
-            supportTotal: supportProfessionals.length,
+            supportTotal: activeSupportPros.length,
             spWithStudent,
             spWithoutStudent,
             specialistCount: specialists.length,
@@ -598,14 +600,15 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
     const teaAutismTotal = useMemo(() => countTeaAutismStudents(students), [students]);
 
     const alerts = useMemo(() => {
+        const activeSupportPros = supportProfessionals.filter(isSupportProfessionalActive);
         const linkedStudentIds = new Set(
-            supportProfessionals
+            activeSupportPros
                 .map(p => p.studentId)
                 .filter(id => id && String(id).trim() !== '')
         );
         const studentsWithoutSupportPro = students.filter(s => !linkedStudentIds.has(s.id)).length;
         const usersMustChangePassword = allUsers.filter(u => u.mustChangePassword === true).length;
-        const supportProsUnlinked = supportProfessionals.filter(
+        const supportProsUnlinked = activeSupportPros.filter(
             p => !p.studentId || String(p.studentId).trim() === ''
         ).length;
         const studentsNoCid = students.filter(
@@ -1414,7 +1417,7 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
     const sedeSchoolIdSet = useMemo(() => new Set(sedeSchools.map(s => s.id)), [sedeSchools]);
 
     const sedeSupportProfessionals = useMemo(
-        () => supportProfessionals.filter(sp => sedeSchoolIdSet.has(sp.schoolId)),
+        () => supportProfessionals.filter(sp => isSupportProfessionalActive(sp) && sedeSchoolIdSet.has(sp.schoolId)),
         [supportProfessionals, sedeSchoolIdSet]
     );
 
@@ -1854,7 +1857,7 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
     const cocalSchoolIdSet = useMemo(() => new Set(cocalSchools.map(s => s.id).filter(Boolean)), [cocalSchools]);
 
     const cocalSupportProfessionals = useMemo(
-        () => supportProfessionals.filter(sp => cocalSchoolIdSet.has(sp.schoolId)),
+        () => supportProfessionals.filter(sp => isSupportProfessionalActive(sp) && cocalSchoolIdSet.has(sp.schoolId)),
         [supportProfessionals, cocalSchoolIdSet]
     );
 
@@ -1955,7 +1958,7 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
     );
     const sedeStudentIdSet = useMemo(() => new Set(sedeStudents.map(s => s.id)), [sedeStudents]);
     const sedeSupportProfessionals = useMemo(
-        () => supportProfessionals.filter(sp => sedeSchoolIdSet.has(sp.schoolId)),
+        () => supportProfessionals.filter(sp => isSupportProfessionalActive(sp) && sedeSchoolIdSet.has(sp.schoolId)),
         [supportProfessionals, sedeSchoolIdSet]
     );
     const sedeLinkedIds = useMemo(() => {
@@ -2951,7 +2954,10 @@ export const SchoolDashboard: React.FC<DashboardProps> = ({
     }, [currentUser.schoolId]);
 
     const schoolSupportProfessionals = useMemo(
-        () => supportProfessionals.filter(sp => sp.schoolId === currentUser.schoolId),
+        () =>
+            supportProfessionals.filter(
+                sp => isSupportProfessionalActive(sp) && sp.schoolId === currentUser.schoolId
+            ),
         [supportProfessionals, currentUser.schoolId]
     );
 

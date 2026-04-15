@@ -237,11 +237,16 @@ export class SupabaseService {
 
     /** Colunas mínimas (compatível com DB antes de photo_url / V14 attachments). */
     private static readonly SUPPORT_PRO_LIST_SELECT_LEGACY =
-        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at';
+        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,status,unlinked_at';
     private static readonly SUPPORT_PRO_LIST_SELECT_PHOTO =
-        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,photo_url';
+        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,photo_url,status,unlinked_at';
     private static readonly SUPPORT_PRO_LIST_SELECT_FULL =
-        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,photo_url,attachments';
+        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,photo_url,attachments,status,unlinked_at';
+
+    /** Ambiente sem migração V29: remove `status` e `unlinked_at` do SELECT. */
+    private static stripSupportProfessionalSoftDeleteSelectCols(selectList: string): string {
+        return selectList.replace(/,status,unlinked_at/g, '');
+    }
 
     private static cleanDataForSupabase(data: any): any {
         if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
@@ -2644,47 +2649,66 @@ export class SupabaseService {
     static async getSupportProfessionalsByStudent(studentId: string): Promise<SupportProfessional[]> {
         return safeCall(async () => {
             const suffixes = [',photo_url,attachments', ',photo_url', ''] as const;
-            const selectFor = (nameField: 'name' | 'full_name', suffix: string) =>
-                `id, ${nameField}, cpf, phone, email, education,
+
+            const runSuffixLoop = async (includeSoftDeleteCols: boolean): Promise<any[] | null> => {
+                const soft = includeSoftDeleteCols ? ', status, unlinked_at' : '';
+                const selectFor = (nameField: 'name' | 'full_name', suffix: string) =>
+                    `id, ${nameField}, cpf, phone, email, education,
                     contract_start_date, workload, address, school_id,
-                    regent_teacher, student_id, created_at${suffix}`;
+                    regent_teacher, student_id, created_at${soft}${suffix}`;
 
-            const runQuery = async (nameField: 'name' | 'full_name', suffix: string) =>
-                supabase
-                    .from('support_professionals')
-                    .select(selectFor(nameField, suffix))
-                    .eq('student_id', studentId)
-                    .order(nameField);
+                const runQuery = async (nameField: 'name' | 'full_name', suffix: string) =>
+                    supabase
+                        .from('support_professionals')
+                        .select(selectFor(nameField, suffix))
+                        .eq('student_id', studentId)
+                        .order(nameField);
 
-            let data: any[] | null = null;
+                let data: any[] | null = null;
 
-            outer: for (const suffix of suffixes) {
-                let res = await runQuery('name', suffix);
-                if (!res.error) {
-                    data = res.data;
-                    break outer;
-                }
-                const msg = String(res.error.message || '');
-                if (res.error.code === '42703' && /attachments|photo_url/i.test(msg)) {
-                    console.warn('[getSupportProfessionalsByStudent] Colunas opcionais ausentes; tentando select reduzido.', msg);
-                    continue outer;
-                }
-                if (res.error && (res.error.message?.includes('name') || res.error.code === '42703')) {
-                    const resFull = await runQuery('full_name', suffix);
-                    if (!resFull.error) {
-                        data = resFull.data;
+                outer: for (const suffix of suffixes) {
+                    let res = await runQuery('name', suffix);
+                    if (!res.error) {
+                        data = res.data;
                         break outer;
                     }
-                    const msg2 = String(resFull.error.message || '');
-                    if (resFull.error.code === '42703' && /attachments|photo_url/i.test(msg2)) {
-                        console.warn('[getSupportProfessionalsByStudent] (full_name) Colunas opcionais ausentes; tentando select reduzido.', msg2);
+                    const msg = String(res.error.message || '');
+                    if (res.error.code === '42703' && /attachments|photo_url/i.test(msg)) {
+                        console.warn('[getSupportProfessionalsByStudent] Colunas opcionais ausentes; tentando select reduzido.', msg);
                         continue outer;
                     }
-                    console.error(`Erro ao buscar ATs para o aluno ${studentId}:`, resFull.error);
-                    throw resFull.error;
+                    if (res.error.code === '42703' && /status|unlinked_at/i.test(msg) && includeSoftDeleteCols) {
+                        console.warn('[getSupportProfessionalsByStudent] Colunas status/unlinked_at ausentes; repetindo sem elas.', msg);
+                        return null;
+                    }
+                    if (res.error && (res.error.message?.includes('name') || res.error.code === '42703')) {
+                        const resFull = await runQuery('full_name', suffix);
+                        if (!resFull.error) {
+                            data = resFull.data;
+                            break outer;
+                        }
+                        const msg2 = String(resFull.error.message || '');
+                        if (resFull.error.code === '42703' && /attachments|photo_url/i.test(msg2)) {
+                            console.warn('[getSupportProfessionalsByStudent] (full_name) Colunas opcionais ausentes; tentando select reduzido.', msg2);
+                            continue outer;
+                        }
+                        if (resFull.error.code === '42703' && /status|unlinked_at/i.test(msg2) && includeSoftDeleteCols) {
+                            console.warn('[getSupportProfessionalsByStudent] (full_name) status/unlinked_at ausentes; repetindo sem elas.', msg2);
+                            return null;
+                        }
+                        console.error(`Erro ao buscar ATs para o aluno ${studentId}:`, resFull.error);
+                        throw resFull.error;
+                    }
+                    console.error(`Erro ao buscar ATs para o aluno ${studentId}:`, res.error);
+                    throw res.error;
                 }
-                console.error(`Erro ao buscar ATs para o aluno ${studentId}:`, res.error);
-                throw res.error;
+
+                return data;
+            };
+
+            let data = await runSuffixLoop(true);
+            if (data === null) {
+                data = await runSuffixLoop(false);
             }
 
             if (data === null) {
@@ -2707,6 +2731,8 @@ export class SupabaseService {
                 createdAt: p.created_at,
                 photoUrl: p.photo_url || '',
                 attachments: this.parseSupportProfessionalAttachments(p.attachments),
+                status: (p.status as SupportProfessional['status']) || 'ativo',
+                unlinkedAt: p.unlinked_at ?? null,
             }));
         }, 2, 300, `getSupportProfessionalsByStudent(${studentId})`);
     }
@@ -2781,31 +2807,56 @@ export class SupabaseService {
                 }
             };
 
-            // Colunas opcionais (photo_url, attachments): fallback se migration V14 ainda não aplicada
-            let data: any[] = [];
-            try {
-                data = await tryFetchList(this.SUPPORT_PRO_LIST_SELECT_FULL);
-            } catch (e: any) {
-                if (e?.code !== '42703') throw e;
-                const msg0 = String(e?.message || '');
-                if (!/attachments|photo_url/i.test(msg0)) throw e;
-                console.warn(
-                    '[SupabaseService][getSupportProfessionals] Select com attachments falhou (42703); tentando sem attachments.',
-                    msg0
-                );
+            // Colunas opcionais: V29 (status/unlinked_at) e V14 (attachments, photo_url)
+            const loadWithFallbacks = async (selFull: string, selPhoto: string, selLegacy: string): Promise<any[]> => {
                 try {
-                    data = await tryFetchList(this.SUPPORT_PRO_LIST_SELECT_PHOTO);
-                } catch (e2: any) {
-                    if (e2?.code !== '42703') throw e2;
-                    const msg2 = String(e2?.message || '');
-                    if (!/photo_url|attachments/i.test(msg2)) throw e2;
+                    return await tryFetchList(selFull);
+                } catch (e: any) {
+                    if (e?.code !== '42703') throw e;
+                    const msg0 = String(e?.message || '');
+                    if (/status|unlinked_at/i.test(msg0) && selFull.includes('status')) {
+                        console.warn(
+                            '[SupabaseService][getSupportProfessionals] Colunas status/unlinked_at ausentes; repetindo SELECT sem soft delete.',
+                            msg0
+                        );
+                        return await loadWithFallbacks(
+                            this.stripSupportProfessionalSoftDeleteSelectCols(selFull),
+                            this.stripSupportProfessionalSoftDeleteSelectCols(selPhoto),
+                            this.stripSupportProfessionalSoftDeleteSelectCols(selLegacy)
+                        );
+                    }
+                    if (!/attachments|photo_url/i.test(msg0)) throw e;
                     console.warn(
-                        '[SupabaseService][getSupportProfessionals] Select com photo_url falhou; usando colunas legadas.',
-                        msg2
+                        '[SupabaseService][getSupportProfessionals] Select com attachments falhou (42703); tentando sem attachments.',
+                        msg0
                     );
-                    data = await tryFetchList(this.SUPPORT_PRO_LIST_SELECT_LEGACY);
+                    try {
+                        return await tryFetchList(selPhoto);
+                    } catch (e2: any) {
+                        if (e2?.code !== '42703') throw e2;
+                        const msg2 = String(e2?.message || '');
+                        if (/status|unlinked_at/i.test(msg2) && selPhoto.includes('status')) {
+                            return await loadWithFallbacks(
+                                this.stripSupportProfessionalSoftDeleteSelectCols(selFull),
+                                this.stripSupportProfessionalSoftDeleteSelectCols(selPhoto),
+                                this.stripSupportProfessionalSoftDeleteSelectCols(selLegacy)
+                            );
+                        }
+                        if (!/photo_url|attachments/i.test(msg2)) throw e2;
+                        console.warn(
+                            '[SupabaseService][getSupportProfessionals] Select com photo_url falhou; usando colunas legadas.',
+                            msg2
+                        );
+                        return await tryFetchList(selLegacy);
+                    }
                 }
-            }
+            };
+
+            const data = await loadWithFallbacks(
+                this.SUPPORT_PRO_LIST_SELECT_FULL,
+                this.SUPPORT_PRO_LIST_SELECT_PHOTO,
+                this.SUPPORT_PRO_LIST_SELECT_LEGACY
+            );
 
             return (data || []).map((p: any) => ({
                 id: p.id,
@@ -2823,6 +2874,8 @@ export class SupabaseService {
                 address: p.address || {},
                 createdAt: p.created_at || new Date().toISOString(),
                 attachments: this.parseSupportProfessionalAttachments(p.attachments),
+                status: (p.status as SupportProfessional['status']) || 'ativo',
+                unlinkedAt: p.unlinked_at ?? null,
             }));
         }, 0, 300, 'getSupportProfessionals');
     }
@@ -2852,6 +2905,12 @@ export class SupabaseService {
                 regent_teacher: prof.regentTeacher,
                 student_id: toNull(prof.studentId),
             };
+            if (prof.status !== undefined && prof.status !== null) {
+                payload.status = prof.status;
+            }
+            if (prof.unlinkedAt !== undefined) {
+                payload.unlinked_at = prof.unlinkedAt || null;
+            }
             if (prof.photoUrl !== undefined) {
                 payload.photo_url = prof.photoUrl || null;
             }
@@ -2899,7 +2958,7 @@ export class SupabaseService {
                 if (error.code === '42501' || error.message.includes('RLS') || error.message.includes('permission denied')) {
                     throw new Error(
                         'Permissão negada ao salvar (políticas de segurança do banco). ' +
-                            'Confirme no Supabase se seu perfil (recepção/secretaria) tem política de escrita em support_professionals (migração V16). ' +
+                            'Confirme no Supabase as políticas em support_professionals: equipe (V16/V29) e perfil ESCOLA na própria escola (migração V30). ' +
                             `Detalhe: ${error.message || error.code || 'RLS'}`
                     );
                 }
@@ -2908,8 +2967,13 @@ export class SupabaseService {
         });
     }
 
-    static async deleteSupportProfessional(id: string): Promise<void> {
-        const { error } = await supabase.from('support_professionals').delete().eq('id', id);
+    /** Desativa o cadastro (exclusão lógica); não remove a linha. */
+    static async unlinkSupportProfessional(id: string): Promise<void> {
+        const unlinked_at = new Date().toISOString();
+        const { error } = await supabase
+            .from('support_professionals')
+            .update({ status: 'desativado', unlinked_at })
+            .eq('id', id);
         if (error) throw error;
     }
 

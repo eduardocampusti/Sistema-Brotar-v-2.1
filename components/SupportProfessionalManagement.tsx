@@ -1,10 +1,22 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { SupportProfessional, School, Student, User as UserType, AuditAction, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, Unit } from '../types';
+import {
+    SupportProfessional,
+    School,
+    Student,
+    User as UserType,
+    AuditAction,
+    SupportProfessionalAttachment,
+    SupportProfessionalAttachmentCategory,
+    Unit,
+    isSupportProfessionalActive,
+    canViewInactiveSupportProfessionals,
+    canUnlinkSupportProfessional,
+} from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Trash2, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart } from 'lucide-react';
+import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Link2Off, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart } from 'lucide-react';
 import { RelatorioProfissionais } from '../src/components/reports';
 import { ConfirmModal } from './ConfirmModal';
 import { CSVImporter } from './CSVImporter';
@@ -44,6 +56,13 @@ const normalizeString = (str: string | undefined | null): string => {
         .trim();
 };
 
+const formatUnlinkedDatePt = (iso: string | null | undefined): string => {
+    if (!iso) return '—';
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return '—';
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 const sanitizeCPF = (cpf: string | undefined | null): string => {
     if (!cpf) return '';
     return cpf.replace(/\D/g, '');
@@ -78,6 +97,17 @@ interface SupportProfessionalManagementProps {
 
 const SUPPORT_PROF_LIST_PATH = '/app/support-professionals';
 
+const EMPTY_ADDRESS: NonNullable<SupportProfessional['address']> = {
+    street: '',
+    number: '',
+    district: '',
+    city: '',
+    state: '',
+    zipCode: '',
+};
+
+const UNLINK_MOTIVO_MIN_LEN = 15;
+
 export const SupportProfessionalManagement: React.FC<SupportProfessionalManagementProps> = ({ currentUser }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -91,9 +121,11 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [schools, setSchools] = useState<School[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
     const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+    const [isUnlinking, setIsUnlinking] = useState(false);
+    const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
+    const [pendingUnlinkId, setPendingUnlinkId] = useState<string | null>(null);
+    const [unlinkMotivo, setUnlinkMotivo] = useState('');
+    const [professionalsReady, setProfessionalsReady] = useState(false);
     const [showImporter, setShowImporter] = useState(false);
     const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('ALL');
     const [nameSearchTerm, setNameSearchTerm] = useState('');
@@ -168,9 +200,10 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         setFormData(prev => ({
             ...prev,
             address: {
-                ...prev.address!,
-                [name]: maskedValue
-            }
+                ...EMPTY_ADDRESS,
+                ...(prev.address || {}),
+                [name]: maskedValue,
+            },
         }));
     };
 
@@ -183,11 +216,13 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         education: '',
         contractStartDate: '',
         workload: '',
-        address: { street: '', number: '', district: '', city: '', state: '', zipCode: '' },
+        address: { ...EMPTY_ADDRESS },
         schoolId: '',
         regentTeacher: '',
         studentId: '',
-        attachments: []
+        attachments: [],
+        status: 'ativo',
+        unlinkedAt: null,
     });
 
     const academicOptions = [
@@ -227,12 +262,13 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                         setFormData(prev => ({
                             ...prev,
                             address: {
-                                ...prev.address!,
+                                ...EMPTY_ADDRESS,
+                                ...(prev.address || {}),
                                 street: addressData.street,
                                 district: addressData.district,
                                 city: addressData.city,
-                                state: addressData.state
-                            }
+                                state: addressData.state,
+                            },
                         }));
                         // Foco automático no campo Número
                         setTimeout(() => numberInputRef.current?.focus(), 100);
@@ -247,6 +283,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
     const loadData = async () => {
         if (!currentUser) return;
+        setProfessionalsReady(false);
         try {
             // Se for escola, busca apenas os profissionais e alunos daquela escola
             const schoolFilter = currentUser.role === 'ESCOLA' ? currentUser.schoolId : undefined;
@@ -268,6 +305,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         } catch (error) {
             console.error('ERRO_PROFISSIONAIS:', error);
             showNotification('Erro ao carregar dados.', 'error');
+        } finally {
+            setProfessionalsReady(true);
         }
     };
 
@@ -334,12 +373,14 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             education: formData.education || '',
             contractStartDate: formData.contractStartDate || '',
             workload: formData.workload || '',
-            address: formData.address,
+            address: { ...EMPTY_ADDRESS, ...(formData.address || {}) },
             schoolId: formData.schoolId,
             regentTeacher: formData.regentTeacher || '',
             studentId: formData.studentId,
             createdAt: formData.createdAt || new Date().toISOString(),
             attachments: mergedAttachments,
+            status: formData.status ?? 'ativo',
+            unlinkedAt: formData.unlinkedAt ?? null,
         };
 
         try {
@@ -380,16 +421,18 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             education: '',
             contractStartDate: '',
             workload: '',
-            address: { street: '', number: '', district: '', city: '', state: '', zipCode: '' },
+            address: { ...EMPTY_ADDRESS },
             schoolId: '',
             regentTeacher: '',
             studentId: '',
-            attachments: []
+            attachments: [],
+            status: 'ativo',
+            unlinkedAt: null,
         });
     };
 
     const applyProfToForm = useCallback((prof: SupportProfessional) => {
-        const address = prof.address || { street: '', number: '', district: '', city: '', state: '', zipCode: '' };
+        const address = { ...EMPTY_ADDRESS, ...(prof.address && typeof prof.address === 'object' ? prof.address : {}) };
         const schoolMatch = schools.find(s => s.id === prof.schoolId || s.name === prof.schoolId);
         const studentMatch = students.find(s => s.id === prof.studentId || s.fullName === prof.studentId);
 
@@ -404,7 +447,9 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             address,
             schoolId: schoolMatch?.id || prof.schoolId,
             studentId: studentMatch?.id || prof.studentId,
-            attachments: prof.attachments || []
+            attachments: prof.attachments || [],
+            status: prof.status ?? 'ativo',
+            unlinkedAt: prof.unlinkedAt ?? null,
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [schools, students]);
@@ -429,6 +474,19 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         applyProfToForm(prof);
     }, [editProfId, professionals, schools.length, students.length, applyProfToForm]);
 
+    /** Evita formulário de edição “vazio” quando o id não existe na lista (RLS, link antigo, etc.). */
+    useEffect(() => {
+        if (!editProfId || !isFormPage || !professionalsReady) return;
+        const found = professionals.some(p => p.id === editProfId);
+        if (!found) {
+            setNotification({
+                message: 'Profissional não encontrado ou sem permissão para editar. Voltando à lista.',
+                type: 'error',
+            });
+            navigate(SUPPORT_PROF_LIST_PATH, { replace: true });
+        }
+    }, [editProfId, isFormPage, professionals, professionalsReady, navigate]);
+
     useEffect(() => {
         if (currentUser?.role === 'ESCOLA' && currentUser.schoolId && schools.length > 0) {
             const mySchool = schools.find(s => s.id === currentUser.schoolId);
@@ -446,32 +504,45 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         navigate(`${SUPPORT_PROF_LIST_PATH}/edit/${prof.id}`);
     };
 
-    const handleDeleteClick = (id: string) => {
-        setPendingDeleteId(id);
-        setShowDeleteConfirm(true);
+    const closeUnlinkModal = () => {
+        setShowUnlinkConfirm(false);
+        setPendingUnlinkId(null);
+        setUnlinkMotivo('');
     };
 
-    const handleConfirmDelete = async () => {
-        if (!pendingDeleteId) return;
+    const handleUnlinkClick = (id: string) => {
+        setPendingUnlinkId(id);
+        setUnlinkMotivo('');
+        setShowUnlinkConfirm(true);
+    };
 
-        setIsDeleting(true);
+    const handleConfirmUnlink = async () => {
+        if (!pendingUnlinkId) return;
+
+        const motivo = unlinkMotivo.trim();
+        if (motivo.length < UNLINK_MOTIVO_MIN_LEN) {
+            showNotification(`Descreva o motivo do desvinculamento (mínimo ${UNLINK_MOTIVO_MIN_LEN} caracteres).`, 'error');
+            return;
+        }
+
+        setIsUnlinking(true);
         try {
-            const profToDelete = professionals.find(p => p.id === pendingDeleteId);
-            await SupabaseService.deleteSupportProfessional(pendingDeleteId);
+            const profToUnlink = professionals.find(p => p.id === pendingUnlinkId);
+            await SupabaseService.unlinkSupportProfessional(pendingUnlinkId);
 
-            if (currentUser && profToDelete) {
-                await SupabaseService.logAction(currentUser as any, AuditAction.DELETE, 'PROFISSIONAIS_APOIO', profToDelete.name);
+            if (currentUser && profToUnlink) {
+                const auditMsg = `Desvinculado: ${profToUnlink.name}. Motivo: ${motivo}`;
+                await SupabaseService.logAction(currentUser as any, AuditAction.UPDATE, 'PROFISSIONAIS_APOIO', auditMsg);
             }
 
             await loadData();
-            showNotification('Profissional excluído.', 'success');
+            showNotification('Profissional desvinculado (cadastro desativado).', 'success');
+            closeUnlinkModal();
         } catch (err) {
             console.error(err);
-            showNotification('Erro ao excluir profissional.', 'error');
+            showNotification('Erro ao desvincular profissional.', 'error');
         } finally {
-            setIsDeleting(false);
-            setShowDeleteConfirm(false);
-            setPendingDeleteId(null);
+            setIsUnlinking(false);
         }
     };
 
@@ -479,9 +550,10 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         setFormData(prev => ({
             ...prev,
             address: {
-                ...prev.address!,
-                [field]: value
-            }
+                ...EMPTY_ADDRESS,
+                ...(prev.address || {}),
+                [field]: value,
+            },
         }));
     };
 
@@ -671,15 +743,38 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             )}
 
             <ConfirmModal
-                isOpen={showDeleteConfirm}
-                title="Excluir Profissional"
-                message="Tem certeza que deseja excluir este profissional de apoio? Esta ação não pode ser desfeita."
-                confirmLabel="Sim, Excluir"
+                isOpen={showUnlinkConfirm}
+                title="Desvincular profissional de apoio?"
+                message={
+                    'O cadastro será desativado na rede (exclusão lógica): o histórico permanece no sistema, mas o profissional deixa de aparecer para perfis comuns.\n\n' +
+                    'Confirme somente se deseja realmente desvincular.'
+                }
+                confirmLabel="Sim, desvincular"
                 cancelLabel="Cancelar"
-                onConfirm={handleConfirmDelete}
-                onCancel={() => setShowDeleteConfirm(false)}
+                onConfirm={handleConfirmUnlink}
+                onCancel={closeUnlinkModal}
                 type="danger"
-                isLoading={isDeleting}
+                isLoading={isUnlinking}
+                confirmDisabled={unlinkMotivo.trim().length < UNLINK_MOTIVO_MIN_LEN}
+                footerExtra={
+                    <div className="space-y-2">
+                        <label htmlFor="unlink-motivo" className="block text-sm font-medium text-slate-700 text-left">
+                            Motivo do desvinculamento <span className="text-red-600">*</span>
+                        </label>
+                        <textarea
+                            id="unlink-motivo"
+                            rows={4}
+                            maxLength={800}
+                            value={unlinkMotivo}
+                            onChange={e => setUnlinkMotivo(e.target.value)}
+                            placeholder="Descreva o motivo (mínimo de caracteres indicado abaixo). Ex.: mudança de município, encerramento de contrato, solicitação da escola…"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        />
+                        <p className="text-xs text-slate-500 text-left">
+                            {unlinkMotivo.trim().length}/{UNLINK_MOTIVO_MIN_LEN} caracteres (mínimo obrigatório para confirmar)
+                        </p>
+                    </div>
+                }
             />
 
             {showImporter && (
@@ -1257,13 +1352,25 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     </div>
                 ) : filteredProfessionals.map(prof => {
                     const { studentStr, regentStr, isUnregistered } = renderStudentAndRegent(prof);
-                    
+                    const inactive = !isSupportProfessionalActive(prof);
+                    const gestorSeesInactive =
+                        inactive && currentUser && canViewInactiveSupportProfessionals(currentUser);
+
                     return (
                         <div 
                             key={prof.id} 
                             onClick={() => handleEdit(prof)}
-                            className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-all group relative border-l-4 border-l-primary-500 cursor-pointer active:scale-[0.98]"
+                            className={`rounded-xl border p-4 shadow-sm hover:shadow-md transition-all group relative border-l-4 cursor-pointer active:scale-[0.98] ${
+                                gestorSeesInactive
+                                    ? 'bg-slate-100 border-slate-300 border-l-slate-400 opacity-[0.78]'
+                                    : 'bg-white border-slate-200 border-l-primary-500'
+                            }`}
                         >
+                            {gestorSeesInactive ? (
+                                <div className="mb-2 rounded-md border border-amber-300/80 bg-amber-100/90 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-950">
+                                    Desativado em: {formatUnlinkedDatePt(prof.unlinkedAt)}
+                                </div>
+                            ) : null}
                             {/* Header do Card */}
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
@@ -1275,7 +1382,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                         )}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-slate-900 leading-tight group-hover:text-primary-600 transition-colors uppercase text-sm tracking-tight">{prof.name}</h3>
+                                        <h3 className={`font-bold leading-tight group-hover:text-primary-600 transition-colors uppercase text-sm tracking-tight ${gestorSeesInactive ? 'text-slate-600' : 'text-slate-900'}`}>{prof.name}</h3>
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                             {prof.workload && (
                                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-50 text-primary-700 uppercase tracking-wider">
@@ -1287,8 +1394,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                     </div>
                                 </div>
                                 
-                                {/* Ações Elegantes */}
-                                <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                {/* Ações: sempre visíveis (antes md:opacity-0 escondia no desktop até hover). */}
+                                <div className="flex items-center gap-1 opacity-100 transition-opacity">
                                     {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA') && (
                                         <button 
                                             type="button"
@@ -1299,16 +1406,16 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                             <Edit size={16} />
                                         </button>
                                     )}
-                                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY') && (
+                                    {currentUser && canUnlinkSupportProfessional(currentUser) && isSupportProfessionalActive(prof) ? (
                                         <button 
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(prof.id); }}
-                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                            title="Excluir"
+                                            onClick={(e) => { e.stopPropagation(); handleUnlinkClick(prof.id); }}
+                                            className="p-1.5 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-all"
+                                            title="Desvincular"
                                         >
-                                            <Trash2 size={16} />
+                                            <Link2Off size={16} />
                                         </button>
-                                    )}
+                                    ) : null}
                                 </div>
                             </div>
 

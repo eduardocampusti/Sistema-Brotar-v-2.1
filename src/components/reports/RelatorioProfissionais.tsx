@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FileDown, Loader2 } from 'lucide-react';
 import type { PapelTimbradoConfig, School, Student, SupportProfessional, Unit } from '../../../types';
+import { isSupportProfessionalActive } from '../../../types';
 import { SupabaseService } from '../../../services/SupabaseService';
 import { drawLetterhead, drawFooter } from '../../../utils/pdfExport';
 
@@ -81,6 +82,11 @@ export const RelatorioProfissionais: React.FC<RelatorioProfissionaisProps> = ({
     students,
     letterheadUnit,
 }) => {
+    const activeProfessionals = useMemo(
+        () => professionals.filter(isSupportProfessionalActive),
+        [professionals]
+    );
+
     const [letterhead, setLetterhead] = useState<PapelTimbradoConfig | null>(null);
     const [loadingLetterhead, setLoadingLetterhead] = useState(true);
     const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -161,21 +167,21 @@ export const RelatorioProfissionais: React.FC<RelatorioProfissionaisProps> = ({
 
     const educationOptions = useMemo(() => {
         const set = new Set<string>();
-        professionals.forEach((p) => {
+        activeProfessionals.forEach((p) => {
             const e = (p.education || '').trim();
             if (e) set.add(e);
         });
         return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    }, [professionals]);
+    }, [activeProfessionals]);
 
     const workloadOptions = useMemo(() => {
         const set = new Set<string>();
-        professionals.forEach((p) => {
+        activeProfessionals.forEach((p) => {
             const w = (p.workload || '').trim();
             if (w) set.add(w);
         });
         return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    }, [professionals]);
+    }, [activeProfessionals]);
 
     const getClinicalForProfessional = useCallback(
         (studentId: string | undefined) => {
@@ -189,7 +195,7 @@ export const RelatorioProfissionais: React.FC<RelatorioProfissionaisProps> = ({
 
     const filtered = useMemo(() => {
         const q = nameSearch.trim().toLowerCase();
-        return professionals.filter((p) => {
+        return activeProfessionals.filter((p) => {
             if (filterSchoolId && p.schoolId !== filterSchoolId) return false;
             if (filterEducation && (p.education || '').trim() !== filterEducation) return false;
             if (filterWorkload && (p.workload || '').trim() !== filterWorkload) return false;
@@ -203,7 +209,7 @@ export const RelatorioProfissionais: React.FC<RelatorioProfissionaisProps> = ({
             return true;
         });
     }, [
-        professionals,
+        activeProfessionals,
         filterSchoolId,
         filterEducation,
         filterWorkload,

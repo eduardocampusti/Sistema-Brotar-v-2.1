@@ -98,6 +98,34 @@ export interface SupportProfessionalAttachment {
   uploadedAt: string;
 }
 
+/** Situação do cadastro na rede (exclusão lógica). */
+export type SupportProfessionalStatus = 'ativo' | 'desativado';
+
+/** True se o cadastro não está explicitamente desativado (legado / valores vazios = ativo). */
+export function isSupportProfessionalActive(p: { status?: SupportProfessionalStatus | string | null }): boolean {
+  const s = String(p.status ?? '').trim().toLowerCase();
+  if (s === 'desativado') return false;
+  return true;
+}
+
+/** Perfis que enxergam profissionais desativados no SELECT (RLS alinhado). */
+export function canViewInactiveSupportProfessionals(user: Pick<User, 'role'> | { role?: string }): boolean {
+  const r = String(user?.role ?? '').trim().toUpperCase();
+  return r === 'ADMIN' || r === 'EDUCATION_SECRETARY';
+}
+
+/** Quem pode desvincular (UPDATE) conforme política de gestão em support_professionals. */
+export function canUnlinkSupportProfessional(user: Pick<User, 'role'> | { role?: string }): boolean {
+  const r = String(user?.role ?? '').trim().toUpperCase();
+  return (
+    r === 'ADMIN' ||
+    r === 'ASSISTANT' ||
+    r === 'SECRETARIA_SEDE' ||
+    r === 'SECRETARIA_COCAL' ||
+    r === 'EDUCATION_SECRETARY'
+  );
+}
+
 export interface SupportProfessional {
   id: string;
   name: string;
@@ -120,6 +148,9 @@ export interface SupportProfessional {
   regentTeacher: string; // Professor Regente
   studentId: string; // Vínculo com o aluno
   createdAt: string;
+  status?: SupportProfessionalStatus;
+  /** ISO: momento do desvinculamento (soft delete). */
+  unlinkedAt?: string | null;
 }
 
 export interface Guardian {

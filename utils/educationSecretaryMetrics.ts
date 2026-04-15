@@ -1,4 +1,4 @@
-import { Student, User, UserScope, School, SupportProfessional, Appointment } from '../types';
+import { Student, User, UserScope, School, SupportProfessional, Appointment, isSupportProfessionalActive } from '../types';
 import { categorizeSecretaryDiagnosis } from './teaAutismCount';
 
 const COV_OK = '#1D9E75';
@@ -103,6 +103,7 @@ export function computeEducationSecretaryDerived(
   const scopedSchoolIdSet = new Set(scopedSchools.map(s => s.id).filter(Boolean));
 
   const scopedSupportProfessionals = supportProfessionals.filter(p => {
+    if (!isSupportProfessionalActive(p)) return false;
     if (p.schoolId && scopedSchoolIdSet.has(p.schoolId)) return true;
     if (p.studentId && scopedStudentIdSet.has(p.studentId)) return true;
     return false;
