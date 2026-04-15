@@ -108,22 +108,30 @@ export function isSupportProfessionalActive(p: { status?: SupportProfessionalSta
   return true;
 }
 
-/** Perfis que enxergam profissionais desativados no SELECT (RLS alinhado). */
-export function canViewInactiveSupportProfessionals(user: Pick<User, 'role'> | { role?: string }): boolean {
+/** Perfis de gestão que podem desvincular (soft delete) e ver cadastros desativados (RLS + UI). */
+const SUPPORT_PROFESSIONAL_SOFT_DELETE_MANAGEMENT_ROLES: ReadonlySet<string> = new Set([
+  'ADMIN',
+  'ASSISTANT',
+  'SECRETARIA_SEDE',
+  'SECRETARIA_COCAL',
+  'EDUCATION_SECRETARY',
+]);
+
+function isSupportProfessionalSoftDeleteManagerRole(
+  user: Pick<User, 'role'> | { role?: string }
+): boolean {
   const r = String(user?.role ?? '').trim().toUpperCase();
-  return r === 'ADMIN' || r === 'EDUCATION_SECRETARY';
+  return SUPPORT_PROFESSIONAL_SOFT_DELETE_MANAGEMENT_ROLES.has(r);
 }
 
-/** Quem pode desvincular (UPDATE) conforme política de gestão em support_professionals. */
+/** Perfis que enxergam profissionais desativados no SELECT (RLS alinhado a V31). */
+export function canViewInactiveSupportProfessionals(user: Pick<User, 'role'> | { role?: string }): boolean {
+  return isSupportProfessionalSoftDeleteManagerRole(user);
+}
+
+/** Quem pode desvincular: exclusivamente gestão de rede (não perfil ESCOLA nem outros). */
 export function canUnlinkSupportProfessional(user: Pick<User, 'role'> | { role?: string }): boolean {
-  const r = String(user?.role ?? '').trim().toUpperCase();
-  return (
-    r === 'ADMIN' ||
-    r === 'ASSISTANT' ||
-    r === 'SECRETARIA_SEDE' ||
-    r === 'SECRETARIA_COCAL' ||
-    r === 'EDUCATION_SECRETARY'
-  );
+  return isSupportProfessionalSoftDeleteManagerRole(user);
 }
 
 export interface SupportProfessional {

@@ -16,7 +16,7 @@ import {
 } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Link2Off, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart } from 'lucide-react';
+import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Link2Off, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart, ListFilter, History } from 'lucide-react';
 import { RelatorioProfissionais } from '../src/components/reports';
 import { ConfirmModal } from './ConfirmModal';
 import { CSVImporter } from './CSVImporter';
@@ -61,6 +61,41 @@ const formatUnlinkedDatePt = (iso: string | null | undefined): string => {
     const t = new Date(iso).getTime();
     if (Number.isNaN(t)) return '—';
     return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+/** Data e hora completas para o histórico de desvinculações. */
+const formatUnlinkedDateTimePt = (iso: string | null | undefined): string => {
+    if (!iso) return '—';
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return '—';
+    return new Date(iso).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    });
+};
+
+const startOfLocalDay = (yyyyMmDd: string): Date | null => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(yyyyMmDd.trim());
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const d = Number(m[3]);
+    const dt = new Date(y, mo, d, 0, 0, 0, 0);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+};
+
+const endOfLocalDay = (yyyyMmDd: string): Date | null => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(yyyyMmDd.trim());
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const d = Number(m[3]);
+    const dt = new Date(y, mo, d, 23, 59, 59, 999);
+    return Number.isNaN(dt.getTime()) ? null : dt;
 };
 
 const sanitizeCPF = (cpf: string | undefined | null): string => {
@@ -108,6 +143,9 @@ const EMPTY_ADDRESS: NonNullable<SupportProfessional['address']> = {
 
 const UNLINK_MOTIVO_MIN_LEN = 15;
 
+/** Filtro da lista: desvinculados = cadastro desativado (soft delete). */
+type SupportProfessionalListStatusFilter = 'all' | 'ativo' | 'desvinculado';
+
 export const SupportProfessionalManagement: React.FC<SupportProfessionalManagementProps> = ({ currentUser }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -130,26 +168,36 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('ALL');
     const [nameSearchTerm, setNameSearchTerm] = useState('');
     const [cpfSearchTerm, setCpfSearchTerm] = useState('');
+    const [statusListFilter, setStatusListFilter] = useState<SupportProfessionalListStatusFilter>('all');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const attachmentInputRefs = useRef<Partial<Record<SupportProfessionalAttachmentCategory, HTMLInputElement | null>>>({});
     const [formModalTab, setFormModalTab] = useState<'dados' | 'anexos'>('dados');
     const [pendingAttachmentFiles, setPendingAttachmentFiles] = useState<Partial<Record<SupportProfessionalAttachmentCategory, File>>>({});
     const [savingProfessional, setSavingProfessional] = useState(false);
-    const [mainListTab, setMainListTab] = useState<'lista' | 'relatorios'>(() => {
+    const [historySchoolFilter, setHistorySchoolFilter] = useState<string>('ALL');
+    const [historyDateFrom, setHistoryDateFrom] = useState<string>('');
+    const [historyDateTo, setHistoryDateTo] = useState<string>('');
+    type MainListTab = 'lista' | 'relatorios' | 'historico';
+    const [mainListTab, setMainListTab] = useState<MainListTab>(() => {
         if (isFormPage) return 'lista';
         const q = new URLSearchParams(location.search);
         if (q.get('tab') === 'relatorios' || q.get('relatorio') === '1') return 'relatorios';
+        if (q.get('tab') === 'historico') return 'historico';
         return 'lista';
     });
     const isEscola = currentUser?.role === 'ESCOLA';
+
+    const seesSupportProfInactive = Boolean(currentUser && canViewInactiveSupportProfessionals(currentUser));
 
     useEffect(() => {
         if (isFormPage) return;
         const q = new URLSearchParams(location.search);
         if (q.get('tab') === 'relatorios' || q.get('relatorio') === '1') {
             setMainListTab('relatorios');
+        } else if (q.get('tab') === 'historico') {
+            setMainListTab(seesSupportProfInactive ? 'historico' : 'lista');
         }
-    }, [location.search, isFormPage]);
+    }, [location.search, isFormPage, seesSupportProfInactive]);
 
     const letterheadUnitForRelatorio = useMemo((): Unit | undefined => {
         const q = new URLSearchParams(location.search);
@@ -603,9 +651,9 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                         .sort((a, b) => a.label.localeCompare(b.label))
     , [filteredStudents]);
 
-    // Filtragem simplificada
+    // Filtragem + ordenação: ativos no topo, desativados ao final; alfabético dentro de cada grupo
     const filteredProfessionals = useMemo(() => {
-        let result = professionals;
+        let result = [...professionals];
 
         if (selectedSchoolFilter !== 'ALL') {
             result = result.filter(p => p.schoolId === selectedSchoolFilter);
@@ -621,16 +669,69 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             result = result.filter(p => sanitizeCPF(p.cpf).includes(search));
         }
 
-        return result;
-    }, [professionals, selectedSchoolFilter, nameSearchTerm, cpfSearchTerm]);
+        if (statusListFilter === 'ativo') {
+            result = result.filter(p => isSupportProfessionalActive(p));
+        } else if (statusListFilter === 'desvinculado') {
+            result = result.filter(p => !isSupportProfessionalActive(p));
+        }
 
-    const hasActiveFilters = selectedSchoolFilter !== 'ALL' || nameSearchTerm.trim() !== '' || cpfSearchTerm.trim() !== '';
+        result.sort((a, b) => {
+            const aActive = isSupportProfessionalActive(a);
+            const bActive = isSupportProfessionalActive(b);
+            if (aActive !== bActive) {
+                return aActive ? -1 : 1;
+            }
+            return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+        });
+
+        return result;
+    }, [professionals, selectedSchoolFilter, nameSearchTerm, cpfSearchTerm, statusListFilter]);
+
+    const hasActiveFilters =
+        selectedSchoolFilter !== 'ALL' ||
+        nameSearchTerm.trim() !== '' ||
+        cpfSearchTerm.trim() !== '' ||
+        statusListFilter !== 'all';
 
     const clearAllFilters = () => {
         setSelectedSchoolFilter('ALL');
         setNameSearchTerm('');
         setCpfSearchTerm('');
+        setStatusListFilter('all');
     };
+
+    const clearHistoryFilters = () => {
+        setHistorySchoolFilter('ALL');
+        setHistoryDateFrom('');
+        setHistoryDateTo('');
+    };
+
+    const historyFilteredRows = useMemo(() => {
+        if (!seesSupportProfInactive) return [];
+        let rows = professionals.filter(p => !isSupportProfessionalActive(p));
+        if (historySchoolFilter !== 'ALL') {
+            rows = rows.filter(p => p.schoolId === historySchoolFilter);
+        }
+        const fromDt = historyDateFrom ? startOfLocalDay(historyDateFrom) : null;
+        const toDt = historyDateTo ? endOfLocalDay(historyDateTo) : null;
+        rows = rows.filter(p => {
+            if (!p.unlinkedAt) return true;
+            const ud = new Date(p.unlinkedAt).getTime();
+            if (Number.isNaN(ud)) return true;
+            if (fromDt && ud < fromDt.getTime()) return false;
+            if (toDt && ud > toDt.getTime()) return false;
+            return true;
+        });
+        rows.sort((a, b) => {
+            const ta = a.unlinkedAt ? new Date(a.unlinkedAt).getTime() : 0;
+            const tb = b.unlinkedAt ? new Date(b.unlinkedAt).getTime() : 0;
+            return tb - ta;
+        });
+        return rows;
+    }, [professionals, historySchoolFilter, historyDateFrom, historyDateTo, seesSupportProfInactive]);
+
+    const hasActiveHistoryFilters =
+        historySchoolFilter !== 'ALL' || historyDateFrom.trim() !== '' || historyDateTo.trim() !== '';
 
     const getSchoolName = (idOrName: string) => {
         if (!idOrName) return 'Desconhecida';
@@ -1240,7 +1341,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             <div
                 className="flex border-b border-slate-200 bg-white rounded-t-xl overflow-x-auto"
                 role="tablist"
-                aria-label="Visualização da lista ou relatórios"
+                aria-label="Lista, histórico de desvinculações ou relatórios"
             >
                 <button
                     type="button"
@@ -1254,6 +1355,20 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     <LayoutList size={18} />
                     Lista
                 </button>
+                {seesSupportProfInactive ? (
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={mainListTab === 'historico'}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${mainListTab === 'historico'
+                            ? 'border-primary-500 text-primary-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                        onClick={() => setMainListTab('historico')}
+                    >
+                        <History size={18} />
+                        Histórico de Desvinculações
+                    </button>
+                ) : null}
                 <button
                     type="button"
                     role="tab"
@@ -1275,6 +1390,93 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     students={students}
                     letterheadUnit={letterheadUnitForRelatorio}
                 />
+            ) : mainListTab === 'historico' && seesSupportProfInactive ? (
+                <div className="space-y-4 pb-10 animate-fadeIn">
+                    <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                        <div className="w-full md:w-72 min-w-[200px]">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
+                                <SchoolIcon size={12} className="text-primary-500" />
+                                Escola
+                            </label>
+                            <SearchableSelect
+                                options={schoolFilterOptions}
+                                value={historySchoolFilter}
+                                onChange={setHistorySchoolFilter}
+                                disabled={isEscola}
+                                placeholder="Todas as escolas..."
+                            />
+                        </div>
+                        <div className="w-full sm:w-auto min-w-[160px]">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                Período — de
+                            </label>
+                            <input
+                                type="date"
+                                value={historyDateFrom}
+                                onChange={e => setHistoryDateFrom(e.target.value)}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
+                            />
+                        </div>
+                        <div className="w-full sm:w-auto min-w-[160px]">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                até
+                            </label>
+                            <input
+                                type="date"
+                                value={historyDateTo}
+                                onChange={e => setHistoryDateTo(e.target.value)}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2 mb-1 ml-auto">
+                            {hasActiveHistoryFilters ? (
+                                <button
+                                    type="button"
+                                    onClick={clearHistoryFilters}
+                                    className="flex items-center gap-2 px-3 py-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all font-bold text-[10px] uppercase tracking-wider"
+                                >
+                                    <X size={14} /> Limpar filtros
+                                </button>
+                            ) : null}
+                            <div className="bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
+                                {historyFilteredRows.length} registro(s)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-sm">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        <th className="px-4 py-3">Nome</th>
+                                        <th className="px-4 py-3">Escola de origem</th>
+                                        <th className="px-4 py-3 whitespace-nowrap">Data da desvinculação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {historyFilteredRows.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={3} className="px-4 py-12 text-center text-slate-500">
+                                                Nenhum profissional desativado neste filtro.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        historyFilteredRows.map(prof => (
+                                            <tr key={prof.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80">
+                                                <td className="px-4 py-3 font-semibold text-slate-900">{prof.name}</td>
+                                                <td className="px-4 py-3 text-slate-700">{getSchoolName(prof.schoolId)}</td>
+                                                <td className="px-4 py-3 text-slate-700 whitespace-nowrap font-mono text-[13px]">
+                                                    {formatUnlinkedDateTimePt(prof.unlinkedAt)}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             ) : (
                 <>
             {/* BARRA DE BUSCA INTELIGENTE */}
@@ -1323,6 +1525,29 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                         placeholder="Todas as escolas..."
                     />
                 </div>
+
+                {/* Status (perfis internos / administração — não exibido para ESCOLA) */}
+                {!isEscola && (
+                    <div className="w-full md:w-56">
+                        <label
+                            htmlFor="support-prof-status-filter"
+                            className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5"
+                        >
+                            <ListFilter size={12} className="text-primary-500" />
+                            Status
+                        </label>
+                        <select
+                            id="support-prof-status-filter"
+                            value={statusListFilter}
+                            onChange={e => setStatusListFilter(e.target.value as SupportProfessionalListStatusFilter)}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-primary-100 focus:border-primary-500 transition-all cursor-pointer"
+                        >
+                            <option value="all">Todos os status</option>
+                            <option value="ativo">Apenas Ativos</option>
+                            <option value="desvinculado">Apenas Desvinculados</option>
+                        </select>
+                    </div>
+                )}
                 
                 {/* Limpeza e Contador */}
                 <div className="flex items-center gap-2 mb-1 ml-auto">
