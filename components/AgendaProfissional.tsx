@@ -26,6 +26,11 @@ export interface AgendaProfissionalProps {
     currentUser: User;
     students: Student[];
     onSelectStudent: (student: Student) => void;
+    /**
+     * Quando definido (ex.: especialista com ficha no módulo clínico), substitui `onSelectStudent`
+     * após “Iniciar atendimento” com sucesso e ao clicar em “Em atendimento” para retomar a ficha.
+     */
+    onSelectStudentAfterIniciar?: (student: Student) => void;
 }
 
 function badgeLabel(status: AppointmentStatus): string {
@@ -162,6 +167,7 @@ export const AgendaProfissional: React.FC<AgendaProfissionalProps> = ({
     currentUser,
     students,
     onSelectStudent,
+    onSelectStudentAfterIniciar,
 }) => {
     const [appointments, setAppointments] = useState<AgendamentoProfissionalView[]>([]);
     const [loading, setLoading] = useState(true);
@@ -235,7 +241,8 @@ export const AgendaProfissional: React.FC<AgendaProfissionalProps> = ({
                 );
                 return;
             }
-            onSelectStudent(st);
+            const openStudent = onSelectStudentAfterIniciar ?? onSelectStudent;
+            openStudent(st);
         } catch (e: unknown) {
             console.error('[AgendaProfissional] iniciar atendimento:', e);
             showError(mensagemErroSupabase(e));
@@ -252,6 +259,30 @@ export const AgendaProfissional: React.FC<AgendaProfissionalProps> = ({
             await loadAppointments();
         } catch (e: unknown) {
             console.error('[AgendaProfissional] concluir:', e);
+            showError(mensagemErroSupabase(e));
+        } finally {
+            setActingId(null);
+        }
+    };
+
+    /** Volta ao prontuário/ficha sem alterar o status (já está EM_ATENDIMENTO). */
+    const handleRetomarAtendimento = async (apt: AgendamentoProfissionalView) => {
+        if (apt.status !== 'EM_ATENDIMENTO') return;
+        setActingId(apt.id);
+        try {
+            let st: Student | undefined = students.find((s) => s.id === apt.studentId);
+            if (!st) {
+                const fetched = await SupabaseService.getStudentById(apt.studentId);
+                if (fetched) st = fetched;
+            }
+            if (!st) {
+                showError('Não foi possível localizar o cadastro deste aluno para abrir a ficha.');
+                return;
+            }
+            const openStudent = onSelectStudentAfterIniciar ?? onSelectStudent;
+            openStudent(st);
+        } catch (e: unknown) {
+            console.error('[AgendaProfissional] retomar atendimento:', e);
             showError(mensagemErroSupabase(e));
         } finally {
             setActingId(null);
@@ -389,16 +420,36 @@ export const AgendaProfissional: React.FC<AgendaProfissionalProps> = ({
                                                             <School size={14} className="text-primary-500 shrink-0" />
                                                             <span className="truncate">{escolaDoAluno(apt)}</span>
                                                         </div>
-                                                        <div
-                                                            className={`mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${badgeClass(apt.status)}`}
-                                                        >
-                                                            <span
-                                                                className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass(apt.status)}`}
-                                                                aria-hidden
-                                                            />
-                                                            <StatusBadgeIcon status={apt.status} />
-                                                            <span className="tracking-tight">{badgeLabel(apt.status)}</span>
-                                                        </div>
+                                                        {apt.status === 'EM_ATENDIMENTO' ? (
+                                                            <button
+                                                                type="button"
+                                                                disabled={!!actingId}
+                                                                title="Voltar à ficha de atendimento deste aluno"
+                                                                aria-label="Em atendimento: retomar e abrir a ficha"
+                                                                onClick={() => void handleRetomarAtendimento(apt)}
+                                                                className={`mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold text-left transition-all ${badgeClass(
+                                                                    apt.status
+                                                                )} cursor-pointer hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60`}
+                                                            >
+                                                                <span
+                                                                    className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass(apt.status)}`}
+                                                                    aria-hidden
+                                                                />
+                                                                <StatusBadgeIcon status={apt.status} />
+                                                                <span className="tracking-tight">{badgeLabel(apt.status)}</span>
+                                                            </button>
+                                                        ) : (
+                                                            <div
+                                                                className={`mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${badgeClass(apt.status)}`}
+                                                            >
+                                                                <span
+                                                                    className={`h-2 w-2 shrink-0 rounded-full ${statusDotClass(apt.status)}`}
+                                                                    aria-hidden
+                                                                />
+                                                                <StatusBadgeIcon status={apt.status} />
+                                                                <span className="tracking-tight">{badgeLabel(apt.status)}</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>

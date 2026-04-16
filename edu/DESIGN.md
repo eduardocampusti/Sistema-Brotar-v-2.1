@@ -1,4 +1,4 @@
-# Design System Strategy: The Living Sanctuary
+n# Design System Strategy: The Living Sanctuary
 
 ## 1. Overview & Creative North Star
 This design system moves away from the sterile, rigid grids typically associated with healthcare. Our Creative North Star is **"The Living Sanctuary."** We are crafting a digital environment that breathes, heals, and guides. 

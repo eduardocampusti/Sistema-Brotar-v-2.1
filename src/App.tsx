@@ -240,8 +240,29 @@ function AppContent() {
     }
   };
 
-  const handleNavigate = (page: string, options?: { state?: Record<string, unknown> }) => {
-    navigate(`/app/${page}`, options?.state !== undefined ? { state: options.state } : undefined);
+  const handleNavigate = (page: string, options?: { state?: Record<string, unknown> } | boolean) => {
+    // PatientProfile chama onNavigate(rota, true): repassa aluno selecionado ao módulo clínico correto.
+    if (options === true && selectedStudent?.id && user?.role === 'SPECIALIST' && user.specialty) {
+      const routeForSpec: Partial<Record<Specialty, string>> = {
+        [Specialty.PSYCHOPEDAGOGY]: 'psychopedagogy',
+        [Specialty.PSYCHOLOGY]: 'psychology',
+        [Specialty.SPEECH_THERAPY]: 'speech-therapy',
+        [Specialty.OCCUPATIONAL_THERAPY]: 'occupational-therapy',
+        [Specialty.PHYSIOTHERAPY]: 'physiotherapy',
+        [Specialty.NUTRITION]: 'nutrition',
+      };
+      const expected = routeForSpec[user.specialty];
+      if (expected && page === expected) {
+        const openTab = user.specialty === Specialty.PSYCHOPEDAGOGY ? 'anamnesis' : 'anamnese';
+        navigate(`/app/${page}`, { state: { openStudentId: selectedStudent.id, openTab } });
+        return;
+      }
+    }
+    if (options && typeof options === 'object' && options.state !== undefined) {
+      navigate(`/app/${page}`, { state: options.state });
+      return;
+    }
+    navigate(`/app/${page}`);
   };
 
   const handleLogin = (loggedInUser: User) => {

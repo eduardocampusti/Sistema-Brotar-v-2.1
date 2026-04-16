@@ -1,5 +1,6 @@
 import { useToast } from '../contexts/ToastContext';
 import React, { useState, useEffect, useMemo } from 'react';
+import { agendaClinicalDeepLinkPreserveTabRef, useAgendaClinicalDeepLink } from '@/src/hooks/useAgendaClinicalDeepLink';
 
 import type { Student, Session, User, PapelTimbradoConfig, School, Appointment } from '../types';
 import { Specialty } from '../types';
@@ -8,6 +9,19 @@ import { Plus, Search, Calendar, Clock, User as UserIcon, Save, X, FileText, Che
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cell, CartesianGrid, PieChart, Pie } from 'recharts';
 import { PortageCalculator } from './PortageCalculator';
 import SearchableSelect from './SearchableSelect';
+import {
+    PPAnamnesisV3Form,
+    buildPPAnamnesisV3PrintHtml,
+    createInitialPPAnamnesisV3,
+    hasPPAnamnesisV3PartialShape,
+    hydratePsychopedagogyAnamnesisV3IfNoPersistedJson,
+    looksLikePPAnamnesisV1Plain,
+    mergePsychopedagogyAnamnesisV3,
+    mergePsychopedagogyAnamnesisV3WithStudentCadastro,
+    migratePPAnamnesisV1ToV3,
+    migratePPAnamnesisV2ToV3,
+} from '@/src/features/psychopedagogy/anamnesisV3';
+import type { PPAnamnesisV3 } from '@/src/features/psychopedagogy/anamnesisV3';
 
 
 const COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#6366f1'];
@@ -872,7 +886,8 @@ interface PPAnamnesisV2 {
 
 interface PPPrivateData {
     diagnosis: PPDiagnosisForm;
-    anamnesis: PPAnamnesisForm | PPAnamnesisV2; // Suporta ambas as versões
+    /** v1 texto livre | v2 ficha intermediária | v3 ficha estruturada atual (somente psicopedagogia) */
+    anamnesis: PPAnamnesisForm | PPAnamnesisV2 | PPAnamnesisV3;
     sessions: PPSession[];
     ipoHistory: IPOAssessment[];
     statusAtendimento: 'Em Avaliação' | 'Em Acompanhamento' | 'Alta' | 'Desligado';
@@ -903,7 +918,7 @@ const initialPPAnamnesisV2: PPAnamnesisV2 = {
 
 const initialPPData: PPPrivateData = {
     diagnosis: { queixaPrincipal: '', queixaSecundaria: '', contextoDemanda: '', instrumentosUtilizados: '', hipoteseDiagnostica: '', parecerInicial: '', encaminhamentos: '' },
-    anamnesis: initialPPAnamnesisV2, // Use V2 by default for new records if enabled
+    anamnesis: createInitialPPAnamnesisV3(),
     sessions: [],
     ipoHistory: [],
     statusAtendimento: 'Em Avaliação'
@@ -1059,7 +1074,7 @@ const PPAnamnesisV1LegacyView: React.FC<{ data: PPAnamnesisForm, onMigrate: () =
                 </div>
                 <div>
                     <h3 className="font-bold text-lg">Modo de Visualização Legado (V1)</h3>
-                    <p className="text-sm opacity-80">Esta ficha foi criada no formato antigo. Para usar os novos recursos e tabelas, você deve realizar a migração.</p>
+                    <p className="text-sm opacity-80">Esta ficha foi criada no formato antigo (texto livre). Migre para a ficha estruturada atual (v3) para os campos clínicos completos; os dados originais serão preservados em snapshot.</p>
                 </div>
             </div>
             <button
@@ -1067,7 +1082,7 @@ const PPAnamnesisV1LegacyView: React.FC<{ data: PPAnamnesisForm, onMigrate: () =
                 className="w-full md:w-auto px-8 py-3 bg-amber-600 text-white rounded-2xl font-black hover:bg-amber-700 shadow-xl shadow-amber-200 transition-all flex items-center justify-center gap-2 group active:scale-95"
             >
                 <Zap size={18} className="group-hover:animate-pulse" />
-                MIGRAR PARA V2.0
+                Migrar para ficha atual (v3)
             </button>
         </div>
 
@@ -1570,17 +1585,30 @@ const extractPPData = (student: Student): PPPrivateData => {
         }));
 
     let anamnesisData = rawPP.anamnesis || initialPPData.anamnesis;
-    // Se for um registro V1 (sem schemaVersion), não fazemos merge com o initialV2 para evitar poluição
+    // Sem schemaVersion: só trata como V1 se houver texto típico da ficha legada; senão merge v3 parcial ou v3 limpa.
     if (rawPP.anamnesis && !rawPP.anamnesis.schemaVersion) {
-        anamnesisData = rawPP.anamnesis;
+        if (looksLikePPAnamnesisV1Plain(rawPP.anamnesis)) {
+            anamnesisData = rawPP.anamnesis as PPAnamnesisForm;
+        } else if (hasPPAnamnesisV3PartialShape(rawPP.anamnesis)) {
+            anamnesisData = mergePsychopedagogyAnamnesisV3(createInitialPPAnamnesisV3(), rawPP.anamnesis);
+        } else {
+            anamnesisData = createInitialPPAnamnesisV3();
+        }
     } else if (rawPP.anamnesis && rawPP.anamnesis.schemaVersion === "2") {
         // Deep merge simples para V2 (mantendo garantias de novos campos se adicionados no futuro)
         anamnesisData = { ...initialPPAnamnesisV2, ...rawPP.anamnesis };
+    } else if (rawPP.anamnesis && rawPP.anamnesis.schemaVersion === "3") {
+        anamnesisData = mergePsychopedagogyAnamnesisV3(createInitialPPAnamnesisV3(), rawPP.anamnesis);
     }
+
+    const anamnesisHydrated = hydratePsychopedagogyAnamnesisV3IfNoPersistedJson(student, anamnesisData, rawPP) as
+        | PPAnamnesisForm
+        | PPAnamnesisV2
+        | PPAnamnesisV3;
 
     return {
         diagnosis: { ...initialPPData.diagnosis, ...(rawPP.diagnosis || {}) },
-        anamnesis: anamnesisData,
+        anamnesis: anamnesisHydrated,
         ipoHistory: rawPP.ipoHistory || [],
         statusAtendimento: rawPP.statusAtendimento || 'Em Avaliação',
         sessions: mappedSessions,
@@ -1688,6 +1716,17 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
     useEffect(() => { loadData(); }, []);
 
+    useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab) => {
+        setSelectedStudent(full);
+        const t = openTab;
+        if (t === 'anamnesis' || t === 'sessions' || t === 'diagnostic' || t === 'ipo' || t === 'reports') {
+            setActiveTab(t);
+        } else {
+            setActiveTab('anamnesis');
+        }
+        setIsEditingSession(false);
+    });
+
     const filteredStudents = useMemo(() => {
         if (!searchTerm) return [];
         return students.filter(s =>
@@ -1770,22 +1809,37 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
     };
 
 
-    const handleMigrateToV2 = () => {
+    /** Migração opcional V1 (texto livre) → V3; preserva snapshot em legacy (ver migratePPAnamnesisV1ToV3). */
+    const handleMigrateV1ToV3 = () => {
         if (!ppData.anamnesis) return;
-        // Verifica se já é V2
-        if ('schemaVersion' in ppData.anamnesis && ppData.anamnesis.schemaVersion === "2") {
-            return;
-        }
+        if ('schemaVersion' in ppData.anamnesis && ppData.anamnesis.schemaVersion === "2") return;
+        if ('schemaVersion' in ppData.anamnesis && ppData.anamnesis.schemaVersion === "3") return;
 
-        if (confirmModal) return; // evitar múltiplos modais
+        if (confirmModal) return;
 
         setConfirmModal({
-            title: "Confirmação de Migração",
-            message: "Deseja migrar esta ficha para o novo formato V2.0? Esta ação é segura e preserva uma cópia dos dados originais em segredo profissional.",
+            title: "Migrar ficha legada (V1)",
+            message: "Migrar para a ficha estruturada atual (v3)? Os textos da V1 serão preservados em snapshot e copiados de forma conservadora para os novos campos.",
             onConfirm: () => {
-                const v2 = migrateV1toV2(ppData.anamnesis as PPAnamnesisForm);
-                setPPData(prev => ({ ...prev, anamnesis: v2 }));
-                showToast("Ficha migrada para V2.0 com sucesso!", "success");
+                const v3 = migratePPAnamnesisV1ToV3(ppData.anamnesis as PPAnamnesisForm);
+                setPPData(prev => ({ ...prev, anamnesis: v3 }));
+                showToast("Ficha migrada para o formato atual (v3).", "success");
+                setConfirmModal(null);
+            }
+        });
+    };
+
+    const handleMigrateV2ToV3 = () => {
+        if (!ppData.anamnesis || !('schemaVersion' in ppData.anamnesis) || ppData.anamnesis.schemaVersion !== "2") return;
+        if (confirmModal) return;
+
+        setConfirmModal({
+            title: "Migrar ficha V2 → V3",
+            message: "A ficha V2 completa será preservada em JSON (legacy). Campos homólogos serão pré-preenchidos na v3. Deseja continuar?",
+            onConfirm: () => {
+                const v3 = migratePPAnamnesisV2ToV3(ppData.anamnesis as PPAnamnesisV2);
+                setPPData(prev => ({ ...prev, anamnesis: v3 }));
+                showToast("Ficha migrada para v3.", "success");
                 setConfirmModal(null);
             }
         });
@@ -1796,6 +1850,10 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
     };
 
     const updateAnamnesisV2 = (newData: PPAnamnesisV2) => {
+        setPPData(prev => ({ ...prev, anamnesis: newData }));
+    };
+
+    const updateAnamnesisV3 = (newData: PPAnamnesisV3) => {
         setPPData(prev => ({ ...prev, anamnesis: newData }));
     };
 
@@ -1928,11 +1986,15 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
             const session = targetSession || (ppData.sessions.length > 0 ? ppData.sessions[0] : null);
             const latestIPO = ppData.ipoHistory.length > 0 ? ppData.ipoHistory[0] : null;
 
-            const isV2 = (ppData.anamnesis as any)?.schemaVersion === "2";
+            const isV3 = (ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "3";
+            const isV2 = (ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "2";
+            const v3 = isV3 ? (ppData.anamnesis as PPAnamnesisV3) : null;
             const v2 = isV2 ? (ppData.anamnesis as PPAnamnesisV2) : null;
-            const v1 = !isV2 ? (ppData.anamnesis as PPAnamnesisForm) : null;
+            const v1 = !isV2 && !isV3 ? (ppData.anamnesis as PPAnamnesisForm) : null;
 
-            const contentHTML = `
+            const anamneseBloco = v3
+                ? buildPPAnamnesisV3PrintHtml(v3, selectedStudent.fullName)
+                : `
                 <h2 class="section-title">I. ANAMNESE E QUEIXA</h2>
                 <div class="box">
                     <div class="data-row"><span class="label">QUEIXA PRINCIPAL:</span> <div class="value">${ppData.diagnosis.queixaPrincipal || v2?.queixaPrincipal || '-'}</div></div>
@@ -1944,7 +2006,10 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                         <div class="data-row"><span class="label">HÁBITOS / ROTINA:</span> <div class="value">${v2?.habitosRotina || '-'}</div></div>
                         <div class="data-row"><span class="label">RELACIONAMENTO:</span> <div class="value">${v2?.relacionamento || '-'}</div></div>
                     `}
-                </div>
+                </div>`;
+
+            const contentHTML = `
+                ${anamneseBloco}
 
                 <h2 class="section-title">II. DIAGNÓSTICO PSICOPEDAGÓGICO</h2>
                 <div class="box">
@@ -2250,21 +2315,45 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 pr-4">
                                         <Users className="text-pink-600" /> Anamnese Psicopedagógica
                                     </h3>
-                                    <div className="flex gap-3">
-                                        {/* Botão de Migração exibido apenas se for V1 */}
-                                        {!((ppData.anamnesis as any)?.schemaVersion === "2") && (
+                                    <div className="flex flex-wrap gap-3 justify-end">
+                                        {(ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "2" && (
                                             <button
-                                                onClick={handleMigrateToV2}
+                                                onClick={handleMigrateV2ToV3}
                                                 className="bg-amber-100 text-amber-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-200 transition-all text-xs"
                                             >
-                                                <Zap size={16} /> Migrar V2.0
+                                                <Zap size={16} /> Migrar V2 → ficha atual (v3)
+                                            </button>
+                                        )}
+                                        {!((ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "2" || (ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "3") && (
+                                            <button
+                                                onClick={handleMigrateV1ToV3}
+                                                className="bg-amber-100 text-amber-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-200 transition-all text-xs"
+                                            >
+                                                <Zap size={16} /> Migrar legado (V1) → v3
                                             </button>
                                         )}
                                         <button onClick={handleSaveGeneral} className="bg-pink-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-pink-700 shadow-lg shadow-pink-200"><Save size={18} /> Salvar Ficha</button>
                                     </div>
                                 </div>
 
-                                {((ppData.anamnesis as any)?.schemaVersion === "2") ? (
+                                {(ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "3" ? (
+                                    <PPAnamnesisV3Form
+                                        data={ppData.anamnesis as PPAnamnesisV3}
+                                        onChange={updateAnamnesisV3}
+                                        student={selectedStudent}
+                                        onCadastroSync={(mode) => {
+                                            if (!selectedStudent) return;
+                                            setPPData((prev) => ({
+                                                ...prev,
+                                                anamnesis: mergePsychopedagogyAnamnesisV3WithStudentCadastro(
+                                                    prev.anamnesis as PPAnamnesisV3,
+                                                    selectedStudent,
+                                                    mode
+                                                ),
+                                            }));
+                                        }}
+                                    />
+                                ) : (ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "2" ? (
                                     <PPAnamnesisV2Form
                                         data={ppData.anamnesis as PPAnamnesisV2}
                                         onChange={updateAnamnesisV2}
@@ -2274,7 +2363,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                     <div className="grid grid-cols-1 gap-6">
                                         <PPAnamnesisV1LegacyView
                                             data={ppData.anamnesis as PPAnamnesisForm}
-                                            onMigrate={handleMigrateToV2}
+                                            onMigrate={handleMigrateV1ToV3}
                                         />
 
                                         {/* Fallback View original caso o profissional prefira editar antes de migrar */}
@@ -2464,6 +2553,14 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
     }, [preSelectedStudent]);
 
     const isSpeech = currentUser.specialty === Specialty.SPEECH_THERAPY || currentUser.role === 'ADMIN';
+
+    useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab) => {
+        setSelectedStudent(full);
+        const tabs = ['anamnese', 'avaliacao', 'sessions', 'history', 'reports'] as const;
+        const ok = tabs.find((x) => x === openTab);
+        setActiveTab(ok ?? 'anamnese');
+        setIsEditingSession(false);
+    });
 
     useEffect(() => {
         const load = async () => {
@@ -2868,6 +2965,14 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
     const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
 
     const isOT = currentUser.specialty === Specialty.OCCUPATIONAL_THERAPY || currentUser.role === 'ADMIN';
+
+    useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab) => {
+        setSelectedStudent(full);
+        const tabs = ['anamnese', 'avaliacao', 'sessions', 'history', 'reports'] as const;
+        const ok = tabs.find((x) => x === openTab);
+        setActiveTab(ok ?? 'anamnese');
+        setIsEditingSession(false);
+    });
 
     useEffect(() => {
         const load = async () => {
@@ -3369,6 +3474,14 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
     const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
 
     const isPT = currentUser.specialty === Specialty.PHYSIOTHERAPY || currentUser.role === 'ADMIN';
+
+    useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab) => {
+        setSelectedStudent(full);
+        const tabs = ['anamnese', 'avaliacao', 'funcionalidade', 'sessions', 'conclusao', 'reports'] as const;
+        const ok = tabs.find((x) => x === openTab);
+        setActiveTab(ok ?? 'anamnese');
+        setIsEditingSession(false);
+    });
 
     useEffect(() => {
         if (preSelectedStudent) setSelectedStudent(preSelectedStudent);
@@ -3978,6 +4091,14 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 
     const canAccessPrivate = currentUser.role === 'ADMIN' || currentUser.specialty === Specialty.PSYCHOLOGY;
 
+    useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab) => {
+        agendaClinicalDeepLinkPreserveTabRef.current = true;
+        setSelectedStudent(full);
+        const tabs = ['anamnese', 'prontuario', 'sessions', 'reports'] as const;
+        const ok = tabs.find((x) => x === openTab);
+        setActiveTab(ok ?? 'anamnese');
+    });
+
     const moodColors: Record<string, string> = {
         neutro: 'bg-yellow-100 text-yellow-700 border-yellow-200',
         triste: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -4037,7 +4158,11 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
             if (canAccessPrivate) {
                 setPrivateData(extractPsychData(selectedStudent));
             }
-            setActiveTab('sessions');
+            if (agendaClinicalDeepLinkPreserveTabRef.current) {
+                agendaClinicalDeepLinkPreserveTabRef.current = false;
+            } else {
+                setActiveTab('sessions');
+            }
         }
     }, [selectedStudent, canAccessPrivate]);
 
@@ -6841,6 +6966,12 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
     const [currentSession, setCurrentSession] = useState<Partial<NutritionSession>>({});
 
     const isNutritionist = currentUser.specialty === Specialty.NUTRITION || currentUser.role === 'ADMIN';
+
+    useAgendaClinicalDeepLink(setLoading, toastError, (full) => {
+        setSelectedStudent(full);
+        setStudents((prev) => (prev.some((s) => s.id === full.id) ? prev : [...prev, full]));
+        setViewMode('list');
+    });
 
     useEffect(() => {
         if (preSelectedStudent) setSelectedStudent(preSelectedStudent);
