@@ -32,25 +32,50 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
     // ATs Vinculados State
     const [linkedATs, setLinkedATs] = useState<SupportProfessional[]>([]);
 
-    // Ensure history array exists and load if empty (on-demand loading)
+    // Prontuário completo (foto, documentos, JSON escolar etc.) + sessões e ATs — a lista costuma vir parcial (compactList).
     useEffect(() => {
-        setStudent(initialStudent);
+        let cancelled = false;
 
-        // Se o estudante não tiver histórico carregado, busca no Supabase
-        if ((!initialStudent.history || initialStudent.history.length === 0) && initialStudent.id) {
-            const loadSessions = async () => {
-                const sessions = await SupabaseService.getStudentSessions(initialStudent.id);
-                setStudent(prev => ({ ...prev, history: sessions }));
-            };
-            loadSessions();
+        if (!initialStudent?.id) {
+            setStudent(initialStudent);
+            setLinkedATs([]);
+            return () => { cancelled = true; };
         }
 
-        // Buscar ATs vinculados
-        if (initialStudent.id) {
-            SupabaseService.getSupportProfessionalsByStudent(initialStudent.id)
-                .then(ats => setLinkedATs(ats))
-                .catch(err => console.error("Erro ao buscar ATs vinculados:", err));
-        }
+        const id = initialStudent.id;
+
+        (async () => {
+            try {
+                const [full, sessions, ats] = await Promise.all([
+                    SupabaseService.getStudentById(id),
+                    SupabaseService.getStudentSessions(id),
+                    SupabaseService.getSupportProfessionalsByStudent(id).catch(() => [] as SupportProfessional[]),
+                ]);
+                if (cancelled) return;
+                const base = full ?? initialStudent;
+                setStudent({ ...base, history: sessions });
+                setLinkedATs(ats);
+            } catch (err) {
+                console.error('[PatientProfile] Erro ao carregar dados completos do aluno:', err);
+                if (cancelled) return;
+                setStudent(initialStudent);
+                if (!initialStudent.history?.length) {
+                    try {
+                        const sessions = await SupabaseService.getStudentSessions(id);
+                        if (!cancelled) {
+                            setStudent((prev) => ({ ...prev, history: sessions }));
+                        }
+                    } catch (e) {
+                        console.error('[PatientProfile] Erro ao carregar sessões (fallback):', e);
+                    }
+                }
+                SupabaseService.getSupportProfessionalsByStudent(id)
+                    .then((a) => { if (!cancelled) setLinkedATs(a); })
+                    .catch(() => { if (!cancelled) setLinkedATs([]); });
+            }
+        })();
+
+        return () => { cancelled = true; };
     }, [initialStudent]);
 
     const handleSaveSession = async (e: React.FormEvent) => {

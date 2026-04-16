@@ -30,10 +30,22 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const [schools, setSchools] = useState<School[]>([]);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
-    const [documentFiles, setDocumentFiles] = useState<{ file: File, type: string }[]>([]);
+    /** Anexos ainda não enviados ao Storage — `id` alinha com `StudentDocument.id` para remover da fila ao excluir na UI. */
+    const [documentFiles, setDocumentFiles] = useState<{ id: string; file: File; type: string }[]>([]);
+    const lastStudentIdForPendingFilesRef = useRef<string | null | undefined>(undefined);
     const [isSearchingCEP, setIsSearchingCEP] = useState(false);
     const [cepError, setCepError] = useState<string | null>(null);
     const [linkedATs, setLinkedATs] = useState<SupportProfessional[]>([]); // Novo estado para exibir ATs
+
+    // Ao trocar de aluno (ou sair de edição → cadastro novo), não manter fila de upload da tela anterior.
+    useEffect(() => {
+        const sid = initialData?.id ?? null;
+        if (sid !== lastStudentIdForPendingFilesRef.current) {
+            lastStudentIdForPendingFilesRef.current = sid;
+            setDocumentFiles([]);
+            setSelectedPhotoFile(null);
+        }
+    }, [initialData?.id]);
 
     // Novos estados locais para separar Naturalidade e Estado
     const [birthCity, setBirthCity] = useState('');
@@ -66,21 +78,24 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     });
 
     // ... (Effects and handlers remain same until Tab rendering) ...
-    // Load initial data if editing
+    // Load initial data if editing — sempre buscar registro completo por ID ao editar, pois a lista
+    // costuma vir com `compactList` (sem documents, educational_info, etc.) e salvar apagava anexos.
     useEffect(() => {
-        if (initialData) {
-            const safeData = {
-                ...initialData,
-                ethnicity: initialData.ethnicity || '',
-                guardians: (initialData.guardians && initialData.guardians.length > 0)
-                    ? initialData.guardians
+        let cancelled = false;
+
+        const applyStudentToForm = (src: Student) => {
+            if (cancelled) return;
+            const safeData: Student = {
+                ...src,
+                ethnicity: src.ethnicity || '',
+                guardians: (src.guardians && src.guardians.length > 0)
+                    ? src.guardians
                     : [{ name: '', relationship: '', phone: '', email: '', occupation: '', ethnicity: '', cpf: '', rg: '' }],
-                socialInfo: initialData.socialInfo || { nis: '', bolsaFamilia: false, bpc: false },
-                clinical: initialData.clinical || { diagnosis: '', medications: '', allergies: '', specialNeeds: [], therapiesHistory: '' },
-                school: initialData.school || { schoolId: '', schoolName: '', grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' }
+                socialInfo: src.socialInfo || { nis: '', bolsaFamilia: false, bpc: false },
+                clinical: src.clinical || { diagnosis: '', medications: '', allergies: '', specialNeeds: [], therapiesHistory: '' },
+                school: src.school || { schoolId: '', schoolName: '', grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' }
             };
 
-            // Separação de Naturalidade / Estado para exibição
             if (safeData.birthPlace) {
                 const parts = safeData.birthPlace.split('/').map(p => p.trim());
                 if (parts.length >= 2) {
@@ -97,18 +112,36 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
 
             setFormData(safeData);
 
-            // Buscar ATs vinculados se estivermos editando um aluno existente
             if (safeData.id) {
                 SupabaseService.getSupportProfessionalsByStudent(safeData.id)
-                    .then(ats => setLinkedATs(ats))
+                    .then(ats => { if (!cancelled) setLinkedATs(ats); })
                     .catch(err => console.error("Erro ao buscar ATs vinculados:", err));
             }
+        };
 
-        } else {
+        if (!initialData) {
             setBirthCity('');
             setBirthState('');
-            setLinkedATs([]); // Limpa se for novo aluno
+            setLinkedATs([]);
+            return () => { cancelled = true; };
         }
+
+        (async () => {
+            if (initialData.id) {
+                try {
+                    const full = await SupabaseService.getStudentById(initialData.id);
+                    if (!cancelled && full) {
+                        applyStudentToForm(full);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('[RegistrationForm] Não foi possível carregar o aluno completo; usando dados da lista.', e);
+                }
+            }
+            applyStudentToForm(initialData as Student);
+        })();
+
+        return () => { cancelled = true; };
     }, [initialData]);
 
     // Load schools list
@@ -271,8 +304,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         if (file) {
             const reader = new FileReader();
             reader.onloadend = () => {
+                const newId = crypto.randomUUID();
                 const newDoc: StudentDocument = {
-                    id: crypto.randomUUID(),
+                    id: newId,
                     type: docType,
                     fileName: file.name,
                     url: reader.result as string,
@@ -284,7 +318,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                     documents: [...(prev.documents || []), newDoc]
                 }));
 
-                setDocumentFiles(prev => [...prev, { file, type: docType }]);
+                setDocumentFiles(prev => [...prev, { id: newId, file, type: docType }]);
             };
             reader.readAsDataURL(file);
         }
@@ -296,6 +330,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
             ...prev,
             documents: prev.documents?.filter(d => d.id !== docId) || []
         }));
+        setDocumentFiles(prev => prev.filter(d => d.id !== docId));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -362,7 +397,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
             const savedId = await SupabaseService.saveStudent(
                 submissionData,
                 selectedPhotoFile || undefined,
-                documentFiles
+                documentFiles.map(({ file, type }) => ({ file, type }))
             );
             console.log(`[RegistrationForm] saveStudent concluído em ${Date.now() - startTime}ms. ID salvo:`, savedId);
 

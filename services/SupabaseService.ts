@@ -800,8 +800,10 @@ export class SupabaseService {
             // Schema oficial: `full_name` (não existe coluna `name` em students).
             // compactList: inclui clinical_info (CID, diagnóstico em texto, necessidades) para painéis
             // (ex.: secretaria de educação — gráfico por diagnóstico) sem trazer o registo completo (*).
+            // compactList: incluir photo_url (leve) — sem isso a lista vinha sem foto e o formulário de edição
+            // partia de estado incompleto e o saveStudent podia gravar photo_url null por engano.
             const studentSelect = options?.compactList
-                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,clinical_info,schools(name,district)'
+                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,photo_url,clinical_info,schools(name,district)'
                 : '*';
 
             const PAGE = 50;
@@ -917,7 +919,7 @@ export class SupabaseService {
             if (!studentIds.length) return [];
 
             const studentSelect = options?.compactList
-                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,clinical_info,schools(name,district)'
+                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,photo_url,clinical_info,schools(name,district)'
                 : '*, schools(name, district)';
 
             const chunkSize = 80;
@@ -1214,8 +1216,9 @@ export class SupabaseService {
         let data: any;
         let error: any;
 
-        // [CORREÇÃO] O school_id NÃO É CHAVE ÚNICA. O conflito deve ser apenas ID ou CPF.
-        const conflictTarget = dbPayload.cpf ? 'cpf' : 'id';
+        // Com UUID válido, o conflito DEVE ser sempre `id`. Usar `cpf` aqui fazia o update "pular" para
+        // outro aluno quando vários compartilhavam o mesmo CPF (ex.: placeholder 000.000.000-00).
+        const conflictTarget = hasValidId ? 'id' : dbPayload.cpf ? 'cpf' : 'id';
         console.log(`[SupabaseService] UPSERT via ${conflictTarget} (school_id é metadado, não chave)...`);
         
         const result = await supabase
