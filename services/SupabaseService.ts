@@ -1115,23 +1115,45 @@ export class SupabaseService {
             photo_url: finalPhotoUrl || null,
             documents: (student.documents && student.documents.length > 0) ? student.documents : null,
 
-            // JSONB: dados clínicos
-            clinical_info: (student.clinical && Object.values(student.clinical).some(v => v !== '' && v !== null && v !== undefined)) ? {
-                diagnosis: student.clinical?.diagnosis || '',
-                cid: student.clinical?.cid || '',
-                medications: student.clinical?.medications || '',
-                allergies: student.clinical?.allergies || '',
-                therapiesHistory: student.clinical?.therapiesHistory || '',
-                gender: student.gender || null,
-                rg: student.rg || null,
-                motherName: student.motherName || null,
-                fatherName: student.fatherName || null,
-                nationality: student.nationality || null,
-                birthPlace: student.birthPlace || null,
-                pp_data: student.clinical?.pp_data || null,
-                psych_data: student.clinical?.psych_data || null,
-                social_data: student.clinical?.social_data || null
-            } : null,
+            // JSONB: dados clínicos — preservar tudo que veio do prontuário + campos da ficha; o upsert substitui
+            // o JSON inteiro: omitir weight/height/specialNeeds apagava dados após "Salvar com sucesso".
+            clinical_info: (() => {
+                const c = student.clinical && typeof student.clinical === 'object' ? { ...student.clinical } : {};
+                const merged: Record<string, unknown> = {
+                    ...c,
+                    diagnosis: (c as any).diagnosis ?? '',
+                    cid: (c as any).cid ?? '',
+                    medications: (c as any).medications ?? '',
+                    allergies: (c as any).allergies ?? '',
+                    therapiesHistory: (c as any).therapiesHistory ?? '',
+                    weight: (c as any).weight ?? '',
+                    height: (c as any).height ?? '',
+                    bloodType: (c as any).bloodType ?? '',
+                    specialNeeds: Array.isArray((c as any).specialNeeds) ? (c as any).specialNeeds : [],
+                    pp_data: (c as any).pp_data ?? null,
+                    psych_data: (c as any).psych_data ?? null,
+                    social_data: (c as any).social_data ?? null,
+                    social_interview: (c as any).social_interview ?? null,
+                    ot_data: (c as any).ot_data ?? null,
+                    st_data: (c as any).st_data ?? null,
+                    pt_data: (c as any).pt_data ?? null,
+                    nutrition_data: (c as any).nutrition_data ?? null,
+                    gender: student.gender ?? (c as any).gender ?? null,
+                    rg: student.rg ?? (c as any).rg ?? null,
+                    motherName: student.motherName ?? (c as any).motherName ?? null,
+                    fatherName: student.fatherName ?? (c as any).fatherName ?? null,
+                    nationality: student.nationality ?? (c as any).nationality ?? null,
+                    birthPlace: student.birthPlace ?? (c as any).birthPlace ?? null,
+                };
+                const hasMeaningfulClinical = Object.values(merged).some((v) => {
+                    if (v === null || v === undefined) return false;
+                    if (typeof v === 'string') return v.trim() !== '';
+                    if (Array.isArray(v)) return v.length > 0;
+                    if (typeof v === 'object') return Object.keys(v).length > 0;
+                    return true;
+                });
+                return hasMeaningfulClinical ? merged : null;
+            })(),
 
             // JSONB: dados sociais
             family_info: (student.socialInfo && (student.socialInfo.nis || student.socialInfo.bolsaFamilia || student.socialInfo.bpc)) ? {

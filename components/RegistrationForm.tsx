@@ -14,6 +14,75 @@ interface RegistrationFormProps {
     currentUser?: any; // Recebe o usuário logado para verificar permissões
 }
 
+function snapshotStudentForMerge(s: Student): Student {
+    try {
+        return JSON.parse(JSON.stringify(s)) as Student;
+    } catch {
+        return { ...s };
+    }
+}
+
+/** Quando o GET completo chega depois do usuário já ter editado, preserva o rascunho e só preenche lacunas do servidor. */
+function mergeFullStudentIntoFormDraft(prev: Partial<Student>, full: Student, snap: Student): Student {
+    const pick = <K extends keyof Student>(k: K): Student[K] => {
+        const p = prev[k];
+        const s = snap[k];
+        if (p !== s) return p as Student[K];
+        return full[k];
+    };
+    const guardiansTouched =
+        JSON.stringify(prev.guardians ?? []) !== JSON.stringify(snap.guardians ?? []);
+    const documentsTouched =
+        JSON.stringify(prev.documents ?? []) !== JSON.stringify(snap.documents ?? []);
+
+    return {
+        ...full,
+        fullName: pick('fullName'),
+        birthDate: pick('birthDate'),
+        cpf: pick('cpf'),
+        gender: pick('gender'),
+        ethnicity: pick('ethnicity'),
+        motherName: pick('motherName'),
+        fatherName: pick('fatherName'),
+        rg: pick('rg'),
+        susCard: pick('susCard'),
+        nationality: pick('nationality'),
+        birthPlace: pick('birthPlace'),
+        unit: pick('unit'),
+        status: pick('status'),
+        photoUrl: pick('photoUrl'),
+        clinical: { ...(full.clinical as object), ...(prev.clinical as object) } as Student['clinical'],
+        school: { ...(full.school as object), ...(prev.school as object) } as Student['school'],
+        address: { ...(full.address as object), ...(prev.address as object) } as Student['address'],
+        socialInfo: { ...(full.socialInfo as object), ...(prev.socialInfo as object) } as Student['socialInfo'],
+        guardians: (guardiansTouched ? prev.guardians : full.guardians) as Student['guardians'],
+        documents: (documentsTouched ? prev.documents : full.documents) as Student['documents'],
+        history: full.history?.length ? full.history : prev.history,
+        id: full.id,
+        createdAt: (full.createdAt ?? prev.createdAt) as string | undefined,
+    } as Student;
+}
+
+function applyBirthPlaceToLocalFields(
+    birthPlace: string | undefined,
+    setBirthCity: (v: string) => void,
+    setBirthState: (v: string) => void
+) {
+    if (birthPlace) {
+        const parts = birthPlace.split('/').map((p) => p.trim());
+        if (parts.length >= 2) {
+            setBirthCity(parts[0]);
+            setBirthState(parts[1]);
+        } else {
+            setBirthCity(birthPlace);
+            setBirthState('');
+        }
+    } else {
+        setBirthCity('');
+        setBirthState('');
+    }
+}
+
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, onCancel, initialData, currentUser }) => {
     // Aba Clínica: apenas usuários que NÃO são recepcionistas veem esse bloqueio.
     // Recepcionistas (SEDE/COCAL/Educação) PODEM preencher diagnóstico/CID no cadastro.
@@ -78,8 +147,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     });
 
     // ... (Effects and handlers remain same until Tab rendering) ...
-    // Load initial data if editing — sempre buscar registro completo por ID ao editar, pois a lista
-    // costuma vir com `compactList` (sem documents, educational_info, etc.) e salvar apagava anexos.
+    // Edição: aplica dados já recebidos e, em seguida, hidrata com GET completo sem sobrescrever o que o usuário já digitou
+    // (corrida getStudentById vs digitação). Depende só do id para não reexecutar a cada nova referência de objeto no pai.
     useEffect(() => {
         let cancelled = false;
 
@@ -96,20 +165,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                 school: src.school || { schoolId: '', schoolName: '', grade: '', hasSpecialAide: false, difficulties: '', shift: 'Manhã', teachingType: 'Regular', schedule: '' }
             };
 
-            if (safeData.birthPlace) {
-                const parts = safeData.birthPlace.split('/').map(p => p.trim());
-                if (parts.length >= 2) {
-                    setBirthCity(parts[0]);
-                    setBirthState(parts[1]);
-                } else {
-                    setBirthCity(safeData.birthPlace);
-                    setBirthState('');
-                }
-            } else {
-                setBirthCity('');
-                setBirthState('');
-            }
-
+            applyBirthPlaceToLocalFields(safeData.birthPlace, setBirthCity, setBirthState);
             setFormData(safeData);
 
             if (safeData.id) {
@@ -126,23 +182,31 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
             return () => { cancelled = true; };
         }
 
+        const snap = snapshotStudentForMerge(initialData as Student);
+        applyStudentToForm(initialData as Student);
+
+        if (!initialData.id) {
+            return () => { cancelled = true; };
+        }
+
         (async () => {
-            if (initialData.id) {
-                try {
-                    const full = await SupabaseService.getStudentById(initialData.id);
-                    if (!cancelled && full) {
-                        applyStudentToForm(full);
-                        return;
-                    }
-                } catch (e) {
-                    console.error('[RegistrationForm] Não foi possível carregar o aluno completo; usando dados da lista.', e);
-                }
+            try {
+                const full = await SupabaseService.getStudentById(initialData.id);
+                if (cancelled || !full) return;
+                setFormData((prev) => {
+                    const merged = mergeFullStudentIntoFormDraft(prev, full, snap);
+                    queueMicrotask(() =>
+                        applyBirthPlaceToLocalFields(merged.birthPlace, setBirthCity, setBirthState)
+                    );
+                    return merged;
+                });
+            } catch (e) {
+                console.error('[RegistrationForm] Não foi possível carregar o aluno completo; mantendo dados já aplicados.', e);
             }
-            applyStudentToForm(initialData as Student);
         })();
 
         return () => { cancelled = true; };
-    }, [initialData]);
+    }, [initialData?.id]);
 
     // Load schools list
     useEffect(() => {
