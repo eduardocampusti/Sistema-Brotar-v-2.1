@@ -652,6 +652,108 @@ export class SupabaseService {
      */
     static async createAccountAsAdmin(newUser: User, passwordRaw: string): Promise<{ success: boolean, error?: string, warning?: string }> {
         try {
+            const normalizedUsername = String(newUser.username || '').trim();
+            const normalizedExplicitEmail = String(newUser.email || '').trim().toLowerCase();
+            const usernameLooksLikeEmail = normalizedUsername.includes('@');
+            const defaultDomain = newUser.role === 'ESCOLA' ? '@escola.brotar' : '@brotar.com';
+            const authEmail = normalizedExplicitEmail
+                ? normalizedExplicitEmail
+                : usernameLooksLikeEmail
+                  ? normalizedUsername.toLowerCase()
+                  : `${normalizedUsername}${defaultDomain}`.toLowerCase();
+
+            if (!normalizedUsername && !authEmail) {
+                return { success: false, error: 'Username/e-mail inválido para criação da conta.' };
+            }
+
+            // Proteção de duplicidade: se já existe perfil pelo username/e-mail, reaproveita.
+            const existingCandidates: any[] = [];
+            if (normalizedUsername) {
+                const { data: byUsername, error: usernameLookupError } = await supabase
+                    .from('profiles')
+                    .select('id, role, email, username, is_active')
+                    .eq('username', normalizedUsername);
+                if (usernameLookupError) {
+                    return { success: false, error: `Falha ao verificar username existente: ${usernameLookupError.message}` };
+                }
+                existingCandidates.push(...(byUsername || []));
+            }
+            if (authEmail) {
+                const { data: byEmail, error: emailLookupError } = await supabase
+                    .from('profiles')
+                    .select('id, role, email, username, is_active')
+                    .eq('email', authEmail);
+                if (emailLookupError) {
+                    return { success: false, error: `Falha ao verificar e-mail existente: ${emailLookupError.message}` };
+                }
+                existingCandidates.push(...(byEmail || []));
+            }
+
+            const existingMap = new Map<string, any>();
+            for (const row of existingCandidates) {
+                if (row?.id) existingMap.set(row.id, row);
+            }
+            const existingProfile = [...existingMap.values()][0];
+
+            if (existingProfile?.id) {
+                const specialtyMap: Record<string, string> = {
+                    'Psicologia': 'PSICOLOGIA',
+                    'Fonoaudiologia': 'FONOAUDIOLOGIA',
+                    'Psicopedagogia': 'PSICOPEDAGOGIA',
+                    'Terapia Ocupacional': 'TERAPIA_OCUPACIONAL',
+                    'Serviço Social': 'SERVICO_SOCIAL',
+                    'Fisioterapia': 'FISIOTERAPIA',
+                    'Enfermagem': 'ENFERMAGEM',
+                    'Nutrição': 'NUTRICAO'
+                };
+                const dbSpecialty = newUser.specialty ? (specialtyMap[newUser.specialty] || null) : null;
+
+                const updatePayload = this.cleanDataForSupabase({
+                    full_name: newUser.name,
+                    username: normalizedUsername || existingProfile.username,
+                    role: newUser.role,
+                    specialty: dbSpecialty,
+                    is_active: true,
+                    scope: newUser.scope,
+                    job_title: newUser.jobTitle,
+                    phone: newUser.phone,
+                    email: authEmail || existingProfile.email,
+                    photo_url: newUser.photoUrl,
+                    address: newUser.address,
+                    school_inep: newUser.schoolInep
+                });
+
+                const { error: reactivateError } = await supabase
+                    .from('profiles')
+                    .update(updatePayload)
+                    .eq('id', existingProfile.id);
+
+                if (reactivateError) {
+                    return { success: false, error: `Conta existente encontrada, mas falhou ao atualizar perfil: ${reactivateError.message}` };
+                }
+
+                // Melhor esforço: sincroniza senha quando possível (não bloqueia o fluxo).
+                try {
+                    const pw = await this.setUserPassword(existingProfile.id, passwordRaw);
+                    if (!pw.success) {
+                        return {
+                            success: true,
+                            warning: `Conta já existente reaproveitada (${authEmail}). Perfil reativado, mas senha não foi sincronizada: ${pw.error || 'erro desconhecido'}.`
+                        };
+                    }
+                } catch {
+                    return {
+                        success: true,
+                        warning: `Conta já existente reaproveitada (${authEmail}). Perfil reativado, mas não foi possível garantir sincronização de senha.`
+                    };
+                }
+
+                return {
+                    success: true,
+                    warning: `Conta já existente reaproveitada (${authEmail}). Perfil atualizado sem criar duplicidade.`
+                };
+            }
+
             // 1. Cria um cliente temporário que NÃO persiste sessão (não afeta o Admin logado)
             // Extrai as chaves do cliente global para evitar usar import.meta.env que dá erro de lint
             const supabaseUrl = (supabase as any).supabaseUrl;
@@ -673,11 +775,6 @@ export class SupabaseService {
                     }
                 }
             );
-
-            // Normaliza username para email
-            const authEmail = newUser.username.includes('@')
-                ? newUser.username
-                : `${newUser.username}@brotar.com`;
 
             // 2. Cria o usuário no Auth
             const { data: authData, error: authError } = await tempClient.auth.signUp({
@@ -740,14 +837,14 @@ export class SupabaseService {
             const profilePayload = {
                 id: authData.user.id,
                 full_name: newUser.name,
-                username: newUser.username,
+                username: normalizedUsername || newUser.username,
                 role: newUser.role,
                 specialty: dbSpecialty, // Usa o valor mapeado
                 is_active: newUser.isActive,
                 scope: newUser.scope,
                 job_title: newUser.jobTitle,
                 phone: newUser.phone,
-                email: newUser.email || authEmail,
+                email: authEmail,
                 photo_url: newUser.photoUrl,
                 address: newUser.address,
                 school_inep: newUser.schoolInep

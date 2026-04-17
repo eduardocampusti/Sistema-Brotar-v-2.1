@@ -52,25 +52,33 @@ const ActionCard = ({ title, description, icon: Icon, onClick, colorClass = "bg-
     </button>
 );
 
-const StatCard = ({ title, value, icon: Icon, gradient, subtext, trend }: any) => (
-    <div className={`relative overflow-hidden p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group bg-white`}>
-        <div className="relative z-10 flex justify-between items-start">
-            <div>
-                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{title}</p>
-                <h3 className="text-3xl font-extrabold text-slate-800 mt-2 tracking-tight">{value}</h3>
-                {subtext && (
-                    <div className="flex items-center gap-1 mt-2">
-                        {trend === 'up' && <TrendingUp size={14} className="text-green-500" />}
-                        <p className="text-xs font-medium text-slate-400">{subtext}</p>
-                    </div>
-                )}
+const StatCard = ({ title, value, icon: Icon, gradient, subtext, trend, onClick }: any) => {
+    const Wrapper = onClick ? 'button' : 'div';
+    return (
+        <Wrapper
+            onClick={onClick}
+            className={`relative overflow-hidden p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group bg-white text-left w-full ${
+                onClick ? 'cursor-pointer hover:border-primary-300' : ''
+            }`}
+        >
+            <div className="relative z-10 flex justify-between items-start">
+                <div>
+                    <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{title}</p>
+                    <h3 className="text-3xl font-extrabold text-slate-800 mt-2 tracking-tight">{value}</h3>
+                    {subtext && (
+                        <div className="flex items-center gap-1 mt-2">
+                            {trend === 'up' && <TrendingUp size={14} className="text-green-500" />}
+                            <p className="text-xs font-medium text-slate-400">{subtext}</p>
+                        </div>
+                    )}
+                </div>
+                <div className={`p-3 rounded-xl shadow-lg text-white bg-gradient-to-br ${gradient}`}>
+                    <Icon size={20} />
+                </div>
             </div>
-            <div className={`p-3 rounded-xl shadow-lg text-white bg-gradient-to-br ${gradient}`}>
-                <Icon size={20} />
-            </div>
-        </div>
-    </div>
-);
+        </Wrapper>
+    );
+};
 
 const formatRelativePt = (iso: string): string => {
     const t = new Date(iso).getTime();
@@ -316,6 +324,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                     icon={Users}
                     gradient="from-teal-500 to-emerald-600"
                     subtext="Ativos vinculados a você (sessões ou agenda)"
+                    onClick={() => onNavigate('list')}
                 />
                 <StatCard
                     title="Agenda hoje"
@@ -323,6 +332,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                     icon={Calendar}
                     gradient="from-sky-500 to-cyan-600"
                     subtext={metrics.todaySub}
+                    onClick={() => onNavigate('scheduling')}
                 />
                 <StatCard
                     title="Esta semana"
@@ -330,6 +340,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                     icon={Activity}
                     gradient="from-amber-500 to-orange-600"
                     subtext="Hoje até +6 dias"
+                    onClick={() => onNavigate('scheduling')}
                 />
                 <StatCard
                     title="Sessões este mês"
@@ -337,6 +348,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                     icon={CheckCircle}
                     gradient="from-slate-600 to-slate-800"
                     subtext="Agendamentos encerrados no mês (ATENDIDO ou ENCERRADO)"
+                    onClick={() => onNavigate('scheduling')}
                 />
                 <StatCard
                     title="Alunos com TEA/Autismo"
@@ -344,6 +356,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                     icon={Puzzle}
                     gradient="from-blue-400 to-blue-600"
                     subtext="Diagnóstico registrado"
+                    onClick={() => onNavigate('list')}
                 />
             </div>
 
@@ -677,13 +690,20 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
             )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <StatCard title="Total de alunos" value={metrics.totalStudents} icon={Users} gradient="from-sky-500 to-blue-600" />
+                <StatCard
+                    title="Total de alunos"
+                    value={metrics.totalStudents}
+                    icon={Users}
+                    gradient="from-sky-500 to-blue-600"
+                    onClick={() => onNavigate('list')}
+                />
                 <StatCard
                     title="Profissionais de apoio"
                     value={metrics.supportTotal}
                     icon={HeartPulse}
                     gradient="from-teal-500 to-emerald-600"
                     subtext={`${metrics.spWithStudent} com aluno · ${metrics.spWithoutStudent} sem aluno`}
+                    onClick={() => onNavigate('support-professionals')}
                 />
                 <StatCard
                     title="Especialistas clínicos"
@@ -691,6 +711,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
                     icon={Stethoscope}
                     gradient="from-cyan-500 to-teal-600"
                     subtext={`${metrics.specialistCount} especialistas · ${metrics.specialtyAreas} áreas`}
+                    onClick={() => onNavigate('admin')}
                 />
                 <StatCard
                     title="Agendamentos do mês"
@@ -698,14 +719,22 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
                     icon={Calendar}
                     gradient="from-amber-500 to-orange-600"
                     subtext={`Encerrados ${metrics.apAttended} · FALTOU ${metrics.apAbsent} · CANCELADO ${metrics.apCancelled}`}
+                    onClick={() => onNavigate('scheduling')}
                 />
-                <StatCard title="Usuários ativos" value={metrics.activeProfiles} icon={UserCheck} gradient="from-emerald-500 to-green-600" />
+                <StatCard
+                    title="Usuários ativos"
+                    value={metrics.activeProfiles}
+                    icon={UserCheck}
+                    gradient="from-emerald-500 to-green-600"
+                    onClick={() => onNavigate('admin')}
+                />
                 <StatCard
                     title="Documentos gerados (mês)"
                     value={metrics.docsThisMonth}
                     icon={FileText}
                     gradient="from-slate-600 to-slate-800"
                     subtext="generated_documents · createdAt"
+                    onClick={() => onNavigate('documents')}
                 />
                 <StatCard
                     title="Alunos com TEA/Autismo"
@@ -713,6 +742,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
                     icon={Puzzle}
                     gradient="from-blue-400 to-blue-600"
                     subtext="Diagnóstico registrado"
+                    onClick={() => onNavigate('list')}
                 />
             </div>
 
@@ -991,6 +1021,7 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                     icon={Users}
                     gradient="from-blue-500 to-indigo-600"
                     subtext={`${strategic.newThisMonth} novos este mês`}
+                    onClick={() => onNavigate('list')}
                 />
                 <StatCard
                     title="Cobertura de apoio"
@@ -998,6 +1029,7 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                     icon={HeartPulse}
                     gradient="from-teal-500 to-emerald-600"
                     subtext="Alunos com profissional vinculado / total"
+                    onClick={() => onNavigate('support-professionals')}
                 />
                 <StatCard
                     title="Alunos sem apoio"
@@ -1007,6 +1039,7 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                     icon={AlertTriangle}
                     gradient="from-orange-400 to-red-500"
                     subtext="Sem vínculo em profissionais de apoio (escopo)"
+                    onClick={() => onNavigate('support-professionals')}
                 />
                 <StatCard
                     title="Agendamentos do mês"
@@ -1014,6 +1047,7 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                     icon={Calendar}
                     gradient="from-amber-500 to-orange-600"
                     subtext={`Referência: ${monthStr}`}
+                    onClick={() => onNavigate('scheduling')}
                 />
                 <StatCard
                     title="Alunos com TEA/Autismo"
@@ -1021,6 +1055,7 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                     icon={Puzzle}
                     gradient="from-blue-400 to-blue-600"
                     subtext="Diagnóstico registrado"
+                    onClick={() => onNavigate('list')}
                 />
             </div>
 
@@ -1565,7 +1600,11 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
             </header>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+                <button
+                    type="button"
+                    onClick={() => onNavigate('list')}
+                    className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] text-left transition-all hover:border-primary-300 hover:shadow-lg"
+                >
                     <div className="relative z-10 flex justify-between items-start">
                         <div>
                             <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Alunos AEE — Sede</p>
@@ -1582,28 +1621,34 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
                             <Users size={20} />
                         </div>
                     </div>
-                </div>
+                </button>
                 <StatCard
                     title="Profissionais de apoio — Sede"
                     value={sedeSupportProfessionals.length}
                     icon={UserCheck}
                     gradient="from-sky-500 to-blue-600"
                     subtext={`${profSemAluno.length} sem aluno vinculado`}
+                    onClick={() => onNavigate('support-professionals')}
                 />
-                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+                <button
+                    type="button"
+                    onClick={() => onNavigate('support-professionals')}
+                    className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] text-left transition-all hover:border-primary-300 hover:shadow-lg"
+                >
                     <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Cobertura média — Sede</p>
                     <h3 className={`mt-2 text-3xl font-extrabold tracking-tight ${coberturaColorClass}`}>{coberturaPct}%</h3>
                     <p className="mt-2 text-xs font-medium text-slate-500">Meta: 100% de cobertura</p>
                     <div className="absolute right-4 top-4 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-3 text-white shadow-lg">
                         <Activity size={20} />
                     </div>
-                </div>
+                </button>
                 <StatCard
                     title="Agendamentos Sede hoje"
                     value={apptsSedeHoje.length}
                     icon={Calendar}
                     gradient="from-orange-400 to-amber-600"
                     subtext={`${apptsSedeHoje.filter(a => a.status === 'CONFIRMADO').length} confirmados`}
+                    onClick={() => onNavigate('scheduling')}
                 />
                 <StatCard
                     title="Alunos com TEA/Autismo"
@@ -1611,6 +1656,7 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
                     icon={Puzzle}
                     gradient="from-blue-400 to-blue-600"
                     subtext="Diagnóstico registrado"
+                    onClick={() => onNavigate('list')}
                 />
             </div>
 
@@ -2024,7 +2070,11 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
             </header>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+                <button
+                    type="button"
+                    onClick={() => onNavigate('list')}
+                    className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] text-left transition-all hover:border-primary-300 hover:shadow-lg"
+                >
                     <div className="relative z-10 flex justify-between items-start">
                         <div>
                             <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Alunos AEE — Cocal</p>
@@ -2041,16 +2091,19 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                             <Users size={20} />
                         </div>
                     </div>
-                </div>
+                </button>
                 <StatCard
                     title="Profissionais de apoio — Cocal"
                     value={cocalSupportProfessionals.length}
                     icon={UserCheck}
                     gradient="from-sky-500 to-blue-600"
                     subtext={`${profSemAluno.length} sem aluno vinculado`}
+                    onClick={() => onNavigate('support-professionals')}
                 />
-                <div
-                    className={`relative overflow-hidden rounded-2xl border bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] ${
+                <button
+                    type="button"
+                    onClick={() => onNavigate('support-professionals')}
+                    className={`relative overflow-hidden rounded-2xl border bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] text-left transition-all hover:shadow-lg ${
                         coberturaBaixa ? 'border-2 border-red-500 ring-2 ring-red-200' : 'border border-slate-200'
                     }`}
                 >
@@ -2063,13 +2116,14 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                     <div className="absolute right-4 top-4 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-3 text-white shadow-lg">
                         <Activity size={20} />
                     </div>
-                </div>
+                </button>
                 <StatCard
                     title="Agendamentos Cocal hoje"
                     value={apptsCocalHoje.length}
                     icon={Calendar}
                     gradient="from-orange-400 to-amber-600"
                     subtext={`${apptsCocalHoje.filter(a => a.status === 'CONFIRMADO').length} confirmados`}
+                    onClick={() => onNavigate('scheduling')}
                 />
                 <StatCard
                     title="Alunos com TEA/Autismo"
@@ -2077,6 +2131,7 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                     icon={Puzzle}
                     gradient="from-blue-400 to-blue-600"
                     subtext="Diagnóstico registrado"
+                    onClick={() => onNavigate('list')}
                 />
             </div>
 
@@ -2347,7 +2402,7 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
                     title="Minha Agenda"
                     description="Verificar visitas e atendimentos futuros"
                     icon={Calendar}
-                    onClick={() => onNavigate('agenda')}
+                    onClick={() => onNavigate('scheduling')}
                     colorClass="bg-indigo-50 text-indigo-600"
                 />
             </div>
@@ -2359,6 +2414,7 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
                     icon={School}
                     gradient="from-cyan-400 to-blue-500"
                     subtext="Total Registrado"
+                    onClick={() => onNavigate('social-service-list')}
                 />
                 <StatCard
                     title="Casos Prioritários"
@@ -2366,6 +2422,7 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
                     icon={AlertTriangle}
                     gradient="from-red-400 to-rose-500"
                     subtext="Alta Prioridade"
+                    onClick={() => onNavigate('social-service-list')}
                 />
                 <StatCard
                     title="Famílias Acomp."
@@ -2373,6 +2430,7 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
                     icon={Users}
                     gradient="from-blue-400 to-indigo-500"
                     subtext="Em Acompanhamento"
+                    onClick={() => onNavigate('social-service-list')}
                 />
                 <StatCard
                     title="Encaminhamentos"
@@ -2380,6 +2438,7 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
                     icon={FileText}
                     gradient="from-teal-400 to-emerald-500"
                     subtext="Rede de Proteção"
+                    onClick={() => onNavigate('social-service-hub')}
                 />
                 <StatCard
                     title="Alunos com TEA/Autismo"
@@ -2387,6 +2446,7 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
                     icon={Puzzle}
                     gradient="from-blue-400 to-blue-600"
                     subtext="Diagnóstico registrado"
+                    onClick={() => onNavigate('list')}
                 />
             </div>
         </div>
@@ -2621,6 +2681,7 @@ export const AssistantDashboard: React.FC<DashboardProps> = ({ students, current
                     icon={Calendar}
                     gradient="from-sky-500 to-blue-600"
                     subtext={`${stats.pendingConfirm} pendente(s) de confirmação`}
+                    onClick={() => onNavigate('scheduling')}
                 />
                 <StatCard
                     title="Alunos ativos (escopo)"
@@ -2628,6 +2689,7 @@ export const AssistantDashboard: React.FC<DashboardProps> = ({ students, current
                     icon={Users}
                     gradient="from-emerald-500 to-teal-600"
                     subtext={scopeUnitLabel(currentUser.scope)}
+                    onClick={() => onNavigate('list')}
                 />
                 <StatCard
                     title="Mensagens não lidas"
@@ -2635,6 +2697,7 @@ export const AssistantDashboard: React.FC<DashboardProps> = ({ students, current
                     icon={Bell}
                     gradient="from-amber-500 to-orange-600"
                     subtext="Diretas e avisos gerais"
+                    onClick={() => onNavigate('my-access')}
                 />
                 <StatCard
                     title="Alunos com TEA/Autismo"
@@ -2642,6 +2705,7 @@ export const AssistantDashboard: React.FC<DashboardProps> = ({ students, current
                     icon={Puzzle}
                     gradient="from-blue-400 to-blue-600"
                     subtext="Diagnóstico registrado"
+                    onClick={() => onNavigate('list')}
                 />
             </div>
 
@@ -3119,26 +3183,42 @@ export const SchoolDashboard: React.FC<DashboardProps> = ({
             ) : null}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <button
+                    type="button"
+                    onClick={() => onNavigate('list')}
+                    className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-left transition-all hover:border-emerald-300 hover:shadow-md"
+                >
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alunos AEE matriculados</p>
                     <p className="mt-2 text-3xl font-extrabold text-slate-900">{myStudents.length}</p>
                     <p className="mt-2 text-xs text-slate-500">
                         Manhã: {morningCount} · Tarde: {afternoonCount}
                     </p>
-                </div>
-                <div className={`rounded-2xl border p-6 shadow-sm ${coverageColorClass}`}>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onNavigate('support-professionals')}
+                    className={`rounded-2xl border p-6 shadow-sm text-left transition-all hover:shadow-md ${coverageColorClass}`}
+                >
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Com profissional de apoio</p>
                     <p className="mt-2 text-3xl font-extrabold text-slate-900">
                         {coverageCount} <span className="text-lg font-bold text-slate-500">de</span> {myStudents.length}
                     </p>
                     <p className="mt-2 text-xs font-semibold text-slate-600">Cobertura: {coveragePct}%</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onNavigate('scheduling')}
+                    className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-left transition-all hover:border-emerald-300 hover:shadow-md"
+                >
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Agendamentos esta semana</p>
                     <p className="mt-2 text-3xl font-extrabold text-slate-900">{appointmentsThisWeekForSchool.length}</p>
                     <p className="mt-2 text-xs text-slate-500">{confirmedThisWeek} confirmados</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onNavigate('list')}
+                    className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm text-left transition-all hover:border-emerald-300 hover:shadow-md"
+                >
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alunos com TEA/Autismo</p>
@@ -3149,7 +3229,7 @@ export const SchoolDashboard: React.FC<DashboardProps> = ({
                             <Puzzle size={22} />
                         </div>
                     </div>
-                </div>
+                </button>
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

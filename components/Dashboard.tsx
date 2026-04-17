@@ -108,7 +108,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser, onN
 
       {/* Cards Row */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onNavigate?.('list')}
+          className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between text-left transition-all hover:border-primary-300 hover:shadow-md"
+        >
           <div>
             <p className="text-sm font-medium text-slate-500">Total de Alunos</p>
             <p className="text-3xl font-bold text-slate-800 mt-1">{stats.total}</p>
@@ -116,9 +120,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser, onN
           <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
             <Users size={24} />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onNavigate?.('scheduling')}
+          className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between text-left transition-all hover:border-primary-300 hover:shadow-md"
+        >
           <div>
             <p className="text-sm font-medium text-slate-500">Atendimentos Ativos</p>
             <p className="text-3xl font-bold text-slate-800 mt-1">{stats.active}</p>
@@ -126,9 +134,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser, onN
           <div className="p-3 bg-green-50 text-green-600 rounded-lg">
             <CheckCircle size={24} />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onNavigate?.('list')}
+          className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between text-left transition-all hover:border-primary-300 hover:shadow-md"
+        >
           <div>
             <p className="text-sm font-medium text-slate-500">Aguardando Avaliação</p>
             <p className="text-3xl font-bold text-slate-800 mt-1">{stats.total - stats.active}</p>
@@ -136,9 +148,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser, onN
           <div className="p-3 bg-orange-50 text-orange-600 rounded-lg">
             <AlertCircle size={24} />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onNavigate?.('list')}
+          className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between text-left transition-all hover:border-primary-300 hover:shadow-md"
+        >
           <div>
             <p className="text-sm font-medium text-slate-500">Alunos com TEA/Autismo</p>
             <p className="text-3xl font-bold text-slate-800 mt-1">{teaAutismCount}</p>
@@ -147,7 +163,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ students, currentUser, onN
           <div className="p-3 bg-gradient-to-br from-blue-400 to-blue-600 text-white rounded-lg shadow-md">
             <Puzzle size={24} />
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Charts Row */}

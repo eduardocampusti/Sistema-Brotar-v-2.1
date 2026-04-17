@@ -53,6 +53,10 @@ export const PsychologyDashboard: React.FC<{
         { id: 'auditoria', label: 'Acessos', icon: ClipboardList },
     ];
 
+    const goToScheduling = () => onNavigate('scheduling');
+    const goToDocuments = () => onNavigate('documents');
+    const goToVault = () => onNavigate('vault');
+
     const renderHeader = () => (
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -108,6 +112,13 @@ export const PsychologyDashboard: React.FC<{
             <div className="h-[400px] border-2 border-dashed border-slate-100 rounded-3xl flex items-center justify-center text-slate-300 flex-col gap-4">
                 <Calendar size={48} />
                 <p className="font-bold uppercase tracking-widest text-sm">Visualização de Grade Integrada</p>
+                <button
+                    type="button"
+                    onClick={goToScheduling}
+                    className="mt-2 rounded-xl border border-purple-200 bg-purple-50 px-4 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100"
+                >
+                    Abrir agenda completa
+                </button>
             </div>
         </div>
     );
@@ -142,10 +153,19 @@ export const PsychologyDashboard: React.FC<{
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button className="p-2 text-slate-400 hover:text-purple-600 transition-colors">
+                            <button
+                                onClick={() => onOpenPatient?.(student.id)}
+                                className="p-2 text-slate-400 hover:text-purple-600 transition-colors"
+                            >
                                 <Eye size={20} />
                             </button>
-                            <button className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-slate-200">
+                            <button
+                                onClick={() => {
+                                    onOpenPatient?.(student.id);
+                                    setActiveTab('pasta-clinica');
+                                }}
+                                className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-slate-200"
+                            >
                                 <Lock size={14} /> PASTA CLÍNICA
                             </button>
                         </div>
@@ -163,8 +183,20 @@ export const PsychologyDashboard: React.FC<{
                     <p className="text-slate-500 text-sm font-medium mt-1">Repositório histórico de atuação profissional</p>
                 </div>
                 <div className="flex gap-2">
-                    <button className="px-4 py-2 bg-purple-50 text-purple-700 rounded-xl text-xs font-bold border border-purple-100">Rascunhos</button>
-                    <button className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold border border-slate-200">Finalizados</button>
+                    <button
+                        type="button"
+                        onClick={goToDocuments}
+                        className="px-4 py-2 bg-purple-50 text-purple-700 rounded-xl text-xs font-bold border border-purple-100"
+                    >
+                        Rascunhos
+                    </button>
+                    <button
+                        type="button"
+                        onClick={goToDocuments}
+                        className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold border border-slate-200"
+                    >
+                        Finalizados
+                    </button>
                 </div>
             </div>
 
@@ -191,7 +223,11 @@ export const PsychologyDashboard: React.FC<{
                                     </span>
                                 </td>
                                 <td className="py-4 text-center">
-                                    <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-purple-600 hover:text-white text-slate-600 rounded-lg text-[10px] font-black transition-all">
+                                    <button
+                                        type="button"
+                                        onClick={goToDocuments}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-purple-600 hover:text-white text-slate-600 rounded-lg text-[10px] font-black transition-all"
+                                    >
                                         <Printer size={14} /> PDF AUDITADO
                                     </button>
                                 </td>
@@ -221,10 +257,18 @@ export const PsychologyDashboard: React.FC<{
                     <p className="text-slate-500 font-medium">Visão 360º do Paciente (Eixo Clínico)</p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="bg-red-50 text-red-600 px-5 py-2.5 rounded-xl font-bold text-sm border border-red-100 hover:bg-red-100 transition-colors">
+                    <button
+                        type="button"
+                        onClick={goToScheduling}
+                        className="bg-red-50 text-red-600 px-5 py-2.5 rounded-xl font-bold text-sm border border-red-100 hover:bg-red-100 transition-colors"
+                    >
                         Alta Técnica / Pausa
                     </button>
-                    <button className="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-slate-200">
+                    <button
+                        type="button"
+                        onClick={goToDocuments}
+                        className="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-slate-200"
+                    >
                         Exportar Prontuário Completo
                     </button>
                 </div>
@@ -246,7 +290,13 @@ export const PsychologyDashboard: React.FC<{
                                 <span className="text-xs font-bold text-slate-400">{item.data}</span>
                             </div>
                             <p className="text-slate-700 text-sm leading-relaxed">{item.desc}</p>
-                            <button className="mt-4 text-xs font-bold text-purple-600 hover:underline">Ver Detalhes</button>
+                            <button
+                                type="button"
+                                onClick={goToDocuments}
+                                className="mt-4 text-xs font-bold text-purple-600 hover:underline"
+                            >
+                                Ver Detalhes
+                            </button>
                         </div>
                     </div>
                 ))}
@@ -351,7 +401,12 @@ export const PsychologyDashboard: React.FC<{
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-1 space-y-3">
                     {['Declaração de Comparecimento', 'Parecer Psicológico', 'Encaminhamento Rede', 'Relatório de Progresso'].map(doc => (
-                        <button key={doc} className="w-full text-left p-4 rounded-2xl bg-slate-50 hover:bg-purple-50 hover:text-purple-700 font-bold text-sm transition-all border border-transparent hover:border-purple-100">
+                        <button
+                            key={doc}
+                            type="button"
+                            onClick={goToDocuments}
+                            className="w-full text-left p-4 rounded-2xl bg-slate-50 hover:bg-purple-50 hover:text-purple-700 font-bold text-sm transition-all border border-transparent hover:border-purple-100"
+                        >
                             {doc}
                         </button>
                     ))}
@@ -370,7 +425,11 @@ export const PsychologyDashboard: React.FC<{
 
                     <div className="absolute bottom-6 left-6 right-6 flex gap-2">
                         <input type="text" placeholder="Dê comandos para a IA (ex: 'Resuma os ganhos da última sessão')" className="flex-1 bg-white border border-slate-200 rounded-2xl text-sm px-4 py-3 shadow-inner" />
-                        <button className="bg-purple-600 text-white p-3 rounded-2xl shadow-lg shadow-purple-200">
+                        <button
+                            type="button"
+                            onClick={goToDocuments}
+                            className="bg-purple-600 text-white p-3 rounded-2xl shadow-lg shadow-purple-200"
+                        >
                             <MessageSquare size={20} />
                         </button>
                     </div>
@@ -389,7 +448,12 @@ export const PsychologyDashboard: React.FC<{
                         </h3>
                         <div className="space-y-2">
                             {['Normativas Secretaria', 'Manual do Sistema', 'Ética Profissional'].map(m => (
-                                <button key={m} className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 text-sm font-medium text-slate-600">
+                                <button
+                                    key={m}
+                                    type="button"
+                                    onClick={goToVault}
+                                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 text-sm font-medium text-slate-600"
+                                >
                                     {m} <Download size={14} />
                                 </button>
                             ))}
@@ -403,10 +467,15 @@ export const PsychologyDashboard: React.FC<{
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="aspect-video bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 text-center group cursor-pointer hover:border-indigo-300 transition-all">
+                            <button
+                                key={i}
+                                type="button"
+                                onClick={goToVault}
+                                className="aspect-video bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 text-center group cursor-pointer hover:border-indigo-300 transition-all"
+                            >
                                 <FileText size={24} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
                                 <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase">Laudo Externo {i}.pdf</p>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 </div>

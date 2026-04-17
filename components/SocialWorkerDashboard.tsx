@@ -173,25 +173,41 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
 
             {/* 1. CARDS INFORMATIVOS (TOPO) */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-[#1E7F85] transition-all">
+                <button
+                    type="button"
+                    onClick={() => onNavigate('scheduling')}
+                    className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-[#1E7F85] transition-all text-left"
+                >
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Hoje</p>
                     <h3 className="text-4xl font-black text-slate-800">{stats.todayCount}</h3>
                     <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Atendimentos</p>
-                </div>
+                </button>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-amber-300 transition-all">
+                <button
+                    type="button"
+                    onClick={() => onNavigate('scheduling')}
+                    className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-amber-300 transition-all text-left"
+                >
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Mensal</p>
                     <h3 className="text-4xl font-black text-slate-800">{stats.monthCount}</h3>
                     <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Produtividade</p>
-                </div>
+                </button>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-rose-300 transition-all">
+                <button
+                    type="button"
+                    onClick={() => onNavigate('scheduling')}
+                    className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-rose-300 transition-all text-left"
+                >
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Faltas</p>
                     <h3 className="text-4xl font-black text-rose-600">{stats.absences}</h3>
                     <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">Absenteísmo</p>
-                </div>
+                </button>
 
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-all">
+                <button
+                    type="button"
+                    onClick={() => onNavigate('list')}
+                    className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-all text-left"
+                >
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Alunos com TEA/Autismo</p>
@@ -202,7 +218,7 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                             <Puzzle size={22} />
                         </div>
                     </div>
-                </div>
+                </button>
 
                 <div className="bg-gradient-to-br from-[#1E7F85] to-[#145f63] p-6 rounded-[2rem] border border-[#1E7F85] shadow-lg text-white relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -220,7 +236,11 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <button
+                    type="button"
+                    onClick={() => onNavigate('social-service-list')}
+                    className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 text-left transition-all hover:border-[#1E7F85] hover:shadow-md"
+                >
                     <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
                         <Users size={24} />
                     </div>
@@ -228,8 +248,12 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                         <p className="text-xs font-bold text-slate-400 uppercase">Casos Ativos</p>
                         <p className="text-xl font-black text-slate-800">{stats.activeCases}</p>
                     </div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onNavigate('social-service-hub')}
+                    className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 text-left transition-all hover:border-[#1E7F85] hover:shadow-md"
+                >
                     <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
                         <AlertCircle size={24} />
                     </div>
@@ -237,8 +261,12 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                         <p className="text-xs font-bold text-slate-400 uppercase">Busca Ativa</p>
                         <p className="text-xl font-black text-slate-800">{stats.pendingSearch}</p>
                     </div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onNavigate('social-interview')}
+                    className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 text-left transition-all hover:border-[#1E7F85] hover:shadow-md"
+                >
                     <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
                         <FileText size={24} />
                     </div>
@@ -246,7 +274,7 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                         <p className="text-xs font-bold text-slate-400 uppercase">Entrevistas</p>
                         <p className="text-xl font-black text-slate-800">{stats.pendingInterview}</p>
                     </div>
-                </div>
+                </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -300,14 +328,15 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                             </button>
 
                             <button
-                                className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-[#1E7F85] hover:bg-[#1E7F85]/5 hover:shadow-md transition-all group text-left cursor-not-allowed opacity-60"
+                                onClick={() => onNavigate('reports')}
+                                className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-[#1E7F85] hover:bg-[#1E7F85]/5 hover:shadow-md transition-all group text-left"
                             >
                                 <div className="p-3 bg-white rounded-xl shadow-sm group-hover:text-[#1E7F85] transition-colors">
                                     <ClipboardList size={24} />
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-slate-800 text-sm">Meus Relatórios</h4>
-                                    <p className="text-xs text-slate-500 mt-1">Em breve</p>
+                                    <p className="text-xs text-slate-500 mt-1">Acessar relatórios</p>
                                 </div>
                             </button>
                         </div>
