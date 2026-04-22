@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, AlertTriangle, Trash2, HelpCircle } from 'lucide-react';
+import { X, AlertTriangle, Trash2, HelpCircle, CheckCircle2 } from 'lucide-react';
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -10,7 +10,7 @@ interface ConfirmModalProps {
     cancelLabel?: string;
     onConfirm: () => void;
     onCancel: () => void;
-    type?: 'danger' | 'warning' | 'info';
+    type?: 'danger' | 'warning' | 'info' | 'success';
     isLoading?: boolean;
     /** Desabilita o botão de confirmação (ex.: validação externa). */
     confirmDisabled?: boolean;
@@ -65,19 +65,22 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     const icons = {
         danger: <Trash2 size={28} className="text-red-500" />,
         warning: <AlertTriangle size={28} className="text-amber-500" />,
-        info: <HelpCircle size={28} className="text-blue-500" />
+        info: <HelpCircle size={28} className="text-blue-500" />,
+        success: <CheckCircle2 size={28} className="text-emerald-500" />
     };
 
     const confirmButtonColors = {
         danger: 'bg-red-500 hover:bg-red-600 focus:ring-red-500 shadow-red-100',
         warning: 'bg-amber-500 hover:bg-amber-600 focus:ring-amber-500 shadow-amber-100',
-        info: 'bg-blue-500 hover:bg-blue-600 focus:ring-blue-500 shadow-blue-100'
+        info: 'bg-blue-500 hover:bg-blue-600 focus:ring-blue-500 shadow-blue-100',
+        success: 'bg-emerald-500 hover:bg-emerald-600 focus:ring-emerald-500 shadow-emerald-100'
     };
 
     const iconBgColors = {
         danger: 'bg-red-50',
         warning: 'bg-amber-50',
-        info: 'bg-blue-50'
+        info: 'bg-blue-50',
+        success: 'bg-emerald-50'
     };
 
     const modal = (
@@ -99,7 +102,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 className={`relative z-10 flex max-h-[min(92dvh,calc(100vh-2rem))] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl transition-all duration-300 ease-out
                             ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-4 scale-[0.98]'}`}
             >
-                <div className={`h-2 w-full shrink-0 ${type === 'danger' ? 'bg-red-500' : type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'}`} />
+                <div className={`h-2 w-full shrink-0 ${type === 'danger' ? 'bg-red-500' : type === 'warning' ? 'bg-amber-500' : type === 'success' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
 
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 sm:p-8">
                     <div className="flex flex-col items-center text-center">

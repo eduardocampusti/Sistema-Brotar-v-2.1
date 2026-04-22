@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { School, UserRole, User } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
-import { formatarNomeBR } from '../utils/formatters';
+import { formatarNomeBR, formatarTelefoneBR } from '../utils/formatters';
 import {
     Save, School as SchoolIcon, X, MapPin, Phone, Building,
     AlertCircle, Wifi, Globe, Upload, FileText, CheckCircle,
@@ -12,36 +12,36 @@ import {
 import { generateSchoolPDF, generateAllSchoolsPDF } from '../utils/pdfExport';
 import { PapelTimbradoConfig } from '../types';
 import { ConfirmModal } from './ConfirmModal';
+import { ToastContainer, ToastMessage, ToastType } from './Toast';
 
 export const SchoolManagement: React.FC = () => {
     const [schools, setSchools] = useState<School[]>([]);
     const [isAdding, setIsAdding] = useState(false);
     const [isGeneratingAccess, setIsGeneratingAccess] = useState(false);
-    const [error, setError] = useState<string>('');
-    const [successMessage, setSuccessMessage] = useState<string>('');
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterDistrict, setFilterDistrict] = useState('Todos');
     const [filterStatus, setFilterStatus] = useState('Todos');
     const [filterInternet, setFilterInternet] = useState('Todos');
     const [letterheadConfig, setLetterheadConfig] = useState<PapelTimbradoConfig | null>(null);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-    const formatPhone = (value: string) => {
-        const numbers = value.replace(/\D/g, '');
-        if (numbers.length <= 10) {
-            return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
-        }
-        return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+
+    const addToast = (type: ToastType, message: string, title?: string) => {
+        const id = crypto.randomUUID();
+        setToasts(prev => [...prev, { id, type, message, title }]);
+    };
+
+    const removeToast = (id: string) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
     };
 
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
-        const rawValue = e.target.value.replace(/\D/g, '');
-        if (rawValue.length <= 11) {
-            const formatted = formatPhone(rawValue);
-            const providers = { ...(formData.internetProviders || {}) };
-            const current = providers[type] || { company: '', contact: '' };
-            providers[type] = { ...current, contact: formatted };
-            setFormData({ ...formData, internetProviders: providers });
-        }
+        const formatted = formatarTelefoneBR(e.target.value);
+        const providers = { ...(formData.internetProviders || {}) };
+        const current = providers[type] || { company: '', contact: '' };
+        providers[type] = { ...current, contact: formatted };
+        setFormData({ ...formData, internetProviders: providers });
     };
 
     const [activeTab, setActiveTab] = useState<'id' | 'connectivity' | 'address'>('id');
@@ -77,7 +77,7 @@ export const SchoolManagement: React.FC = () => {
             setSchools(data || []);
         } catch (err) {
             console.error('Erro ao buscar escolas:', err);
-            setError('Não foi possível carregar a lista de escolas.');
+            addToast('error', 'Não foi possível carregar a lista de escolas.', 'Erro de Carregamento');
         }
     };
 
@@ -105,9 +105,6 @@ export const SchoolManagement: React.FC = () => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        setError('');
-        setSuccessMessage('');
-
         const reader = new FileReader();
         reader.onload = async (e) => {
             let text = e.target?.result as string;
@@ -115,7 +112,7 @@ export const SchoolManagement: React.FC = () => {
 
             const allLines = text.split(/\r?\n/).filter(line => line.trim() !== '');
             if (allLines.length < 2) {
-                setError('O arquivo parece estar vazio.');
+                addToast('warning', 'O arquivo parece estar vazio.', 'Arquivo Vazio');
                 return;
             }
 
@@ -140,7 +137,7 @@ export const SchoolManagement: React.FC = () => {
             const idxTelefone = headers.findIndex(h => h.includes('fone') || h.includes('tel') || h.includes('contato'));
 
             if (idxNome === -1 || idxInep === -1) {
-                setError('As colunas obrigatórias "Escola" e "INEP" não foram encontradas.');
+                addToast('error', 'As colunas obrigatórias "Escola" e "INEP" não foram encontradas.', 'Formato Inválido');
                 return;
             }
 
@@ -188,11 +185,13 @@ export const SchoolManagement: React.FC = () => {
             }
 
             if (successCount > 0) {
-                setSuccessMessage(`Sucesso! ${successCount} escolas importadas.`);
-                if (errorCount > 0) setError(`${errorCount} linhas ignoradas: ${firstErr}`);
+                addToast('success', `${successCount} escolas importadas com sucesso!`, 'Importação Concluída');
+                if (errorCount > 0) {
+                    addToast('warning', `${errorCount} linhas foram ignoradas ou apresentaram erro.`, 'Importação Parcial');
+                }
                 loadSchools();
             } else {
-                setError(`Nenhuma escola importada. Motivo: ${firstErr || 'Formato inválido'}`);
+                addToast('error', `Nenhuma escola foi importada. Verifique o formato do arquivo.`, 'Erro na Importação');
             }
             if (fileInputRef.current) fileInputRef.current.value = '';
         };
@@ -231,8 +230,6 @@ export const SchoolManagement: React.FC = () => {
         setIsConfirmModalOpen(false);
 
         setIsGeneratingAccess(true);
-        setError('');
-        setSuccessMessage('');
 
         let successCount = 0;
         let failCount = 0;
@@ -264,17 +261,22 @@ export const SchoolManagement: React.FC = () => {
         }
 
         setIsGeneratingAccess(false);
-        setSuccessMessage(`Processo finalizado. Novos acessos criados: ${successCount}. Falhas: ${failCount}. Escolas com cadastro existente foram ignoradas sem erro.`);
+        addToast('success', `Processo finalizado. Novos acessos criados: ${successCount}. Falhas: ${failCount}.`, 'Acessos Gerados');
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
 
         if (!formData.name || !formData.inep) {
-            setError('Nome e INEP são obrigatórios.');
+            addToast('warning', 'Nome e INEP são campos obrigatórios.', 'Campos Pendentes');
             return;
         }
+
+        setIsSaveModalOpen(true);
+    };
+
+    const executeSave = async () => {
+        setIsSaveModalOpen(false);
 
         try {
             const newSchool: School = {
@@ -284,20 +286,21 @@ export const SchoolManagement: React.FC = () => {
                 director: formData.director,
                 phone: formData.phone,
                 district: formData.district,
-                address: formData.address,
+                address: formData.address || { street: '', number: '', district: '', city: 'Brotas', state: 'BA', zipCode: '' },
                 isActive: formData.isActive ?? true,
-                hasInternet: formData.hasInternet,
-                internetType: formData.internetType,
+                hasInternet: formData.hasInternet || false,
+                internetType: formData.internetType || '',
                 internetProviders: formData.internetProviders || {}
             };
 
             await SupabaseService.saveSchool(newSchool);
             await loadSchools();
             setIsAdding(false);
-            setSuccessMessage('Escola salva com sucesso!');
+            addToast('success', 'As informações da unidade escolar foram salvas com sucesso!', 'Unidade Salva');
             resetForm();
         } catch (err) {
-            setError('Falha ao salvar escola.');
+            console.error('Erro ao salvar escola:', err);
+            addToast('error', 'Ocorreu um erro ao tentar salvar os dados da escola.', 'Erro ao Salvar');
         }
     };
 
@@ -373,23 +376,7 @@ export const SchoolManagement: React.FC = () => {
                 </div>
             </header>
 
-            {/* Banner de Feedback */}
-            {
-                (successMessage || error) && (
-                    <div className={`p-4 rounded-2xl border flex items-center gap-4 animate-slideDown ${successMessage ? 'bg-green-50 border-green-100 text-green-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
-                        <div className={`p-2 rounded-full ${successMessage ? 'bg-green-100' : 'bg-red-100'}`}>
-                            {successMessage ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-                        </div>
-                        <div className="flex-1">
-                            <p className="font-bold text-sm">{successMessage ? 'Sucesso!' : 'Atenção'}</p>
-                            <p className="text-xs opacity-90">{successMessage || error}</p>
-                        </div>
-                        <button onClick={() => { setSuccessMessage(''); setError(''); }} className="hover:bg-black/5 p-2 rounded-lg transition-colors">
-                            <X size={18} />
-                        </button>
-                    </div>
-                )
-            }
+
 
             {
                 isAdding && (
@@ -457,7 +444,8 @@ export const SchoolManagement: React.FC = () => {
                                         <label className="text-xs font-bold text-slate-500 uppercase">Telefone de Contato</label>
                                         <div className="relative">
                                             <input type="text" className="w-full bg-slate-50 border-slate-200 rounded-xl p-3.5 pl-11 text-slate-800 font-medium focus:bg-white focus:ring-4 focus:ring-primary-50 transition-all border"
-                                                value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                                                placeholder="(00) 00000-0000"
+                                                value={formData.phone} onChange={e => setFormData({ ...formData, phone: formatarTelefoneBR(e.target.value) })} />
                                             <Phone className="absolute left-4 top-4 text-slate-400" size={18} />
                                         </div>
                                     </div>
@@ -741,6 +729,19 @@ export const SchoolManagement: React.FC = () => {
                 onCancel={() => setIsConfirmModalOpen(false)}
                 type="info"
             />
+
+            <ConfirmModal
+                isOpen={isSaveModalOpen}
+                title="Confirmar Salvamento"
+                message={`Deseja salvar as alterações para a unidade "${formData.name}"?`}
+                confirmLabel="Sim, Salvar Dados"
+                cancelLabel="Cancelar"
+                onConfirm={executeSave}
+                onCancel={() => setIsSaveModalOpen(false)}
+                type="success"
+            />
+
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
         </div >
     );
 };

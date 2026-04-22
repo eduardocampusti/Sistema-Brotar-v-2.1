@@ -1564,7 +1564,7 @@ export class SupabaseService {
             // Projeção Estrita: Apenas campos necessários para a lista de escolas.
             const { data, error } = await supabase
                 .from('schools')
-                .select('id, name, inep, director, phone, district, is_active')
+                .select('id, name, inep, director, phone, district, is_active, has_internet, internet_type, internet_providers, address')
                 .order('name');
 
             if (error) throw error;
@@ -1576,7 +1576,11 @@ export class SupabaseService {
                 director: s.director || '',
                 phone: s.phone || '',
                 district: s.district || s.address?.district || 'Sede',
-                isActive: s.is_active === true
+                isActive: s.is_active === true,
+                hasInternet: s.has_internet,
+                internetType: s.internet_type,
+                internetProviders: s.internet_providers || {},
+                address: s.address || { street: '', number: '', district: '', city: 'Brotas', state: 'BA', zipCode: '' }
             }));
 
             this.setInCache(cacheKey, schools, 5 * 60 * 1000);
@@ -1593,7 +1597,7 @@ export class SupabaseService {
         try {
             const { data, error } = await supabase
                 .from('schools')
-                .select('id, name, inep, director, phone, district, is_active')
+                .select('id, name, inep, director, phone, district, is_active, has_internet, internet_type, internet_providers, address')
                 .eq('id', id)
                 .maybeSingle();
             if (error) throw error;
@@ -1607,6 +1611,10 @@ export class SupabaseService {
                 phone: s.phone || '',
                 district: s.district || s.address?.district || 'Sede',
                 isActive: s.is_active === true,
+                hasInternet: s.has_internet,
+                internetType: s.internet_type,
+                internetProviders: s.internet_providers || {},
+                address: s.address || { street: '', number: '', district: '', city: 'Brotas', state: 'BA', zipCode: '' }
             };
         } catch (err) {
             console.error('[SupabaseService] getSchoolById:', err);
@@ -1657,7 +1665,8 @@ export class SupabaseService {
             is_active: school.isActive,
             address: school.address,
             has_internet: school.hasInternet,
-            internet_type: school.internetType
+            internet_type: school.internetType,
+            internet_providers: school.internetProviders || {}
         };
 
         if (school.id) {
