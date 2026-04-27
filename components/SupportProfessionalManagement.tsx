@@ -16,7 +16,7 @@ import {
 } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Link2Off, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart, ListFilter, History } from 'lucide-react';
+import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Link2Off, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart, ListFilter, History, RotateCcw } from 'lucide-react';
 import { RelatorioProfissionais } from '../src/components/reports';
 import { ConfirmModal } from './ConfirmModal';
 import { CSVImporter } from './CSVImporter';
@@ -160,6 +160,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
     const [students, setStudents] = useState<Student[]>([]);
     const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
     const [isUnlinking, setIsUnlinking] = useState(false);
+    const [isReactivating, setIsReactivating] = useState(false);
     const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
     const [pendingUnlinkId, setPendingUnlinkId] = useState<string | null>(null);
     const [unlinkMotivo, setUnlinkMotivo] = useState('');
@@ -594,6 +595,28 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         }
     };
 
+    const handleReactivate = async (prof: SupportProfessional) => {
+        setIsReactivating(true);
+        try {
+            await SupabaseService.reactivateSupportProfessional(prof.id);
+
+            if (currentUser) {
+                const auditMsg = `Reativado: ${prof.name}`;
+                await SupabaseService.logAction(currentUser as any, AuditAction.UPDATE, 'PROFISSIONAIS_APOIO', auditMsg);
+            }
+
+            await loadData();
+            showNotification('Profissional reativado! Agora edite o cadastro para vincular escola e aluno.', 'success');
+            // Navega para edição para o usuário preencher os vínculos
+            navigate(`${SUPPORT_PROF_LIST_PATH}/edit/${prof.id}`);
+        } catch (err) {
+            console.error(err);
+            showNotification('Erro ao reativar profissional.', 'error');
+        } finally {
+            setIsReactivating(false);
+        }
+    };
+
     const handleAddressChange = (field: string, value: string) => {
         setFormData(prev => ({
             ...prev,
@@ -710,7 +733,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         if (!seesSupportProfInactive) return [];
         let rows = professionals.filter(p => !isSupportProfessionalActive(p));
         if (historySchoolFilter !== 'ALL') {
-            rows = rows.filter(p => p.schoolId === historySchoolFilter);
+            rows = rows.filter(p => (p.schoolIdUnlinked || p.schoolId) === historySchoolFilter);
         }
         const fromDt = historyDateFrom ? startOfLocalDay(historyDateFrom) : null;
         const toDt = historyDateTo ? endOfLocalDay(historyDateTo) : null;
@@ -1465,7 +1488,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                         historyFilteredRows.map(prof => (
                                             <tr key={prof.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80">
                                                 <td className="px-4 py-3 font-semibold text-slate-900">{prof.name}</td>
-                                                <td className="px-4 py-3 text-slate-700">{getSchoolName(prof.schoolId)}</td>
+                                                <td className="px-4 py-3 text-slate-700">{getSchoolName(prof.schoolIdUnlinked || prof.schoolId)}</td>
                                                 <td className="px-4 py-3 text-slate-700 whitespace-nowrap font-mono text-[13px]">
                                                     {formatUnlinkedDateTimePt(prof.unlinkedAt)}
                                                 </td>
@@ -1641,6 +1664,17 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                             <Link2Off size={16} />
                                         </button>
                                     ) : null}
+                                    {currentUser && canUnlinkSupportProfessional(currentUser) && !isSupportProfessionalActive(prof) ? (
+                                        <button 
+                                            type="button"
+                                            disabled={isReactivating}
+                                            onClick={(e) => { e.stopPropagation(); handleReactivate(prof); }}
+                                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all disabled:opacity-50"
+                                            title="Reativar profissional"
+                                        >
+                                            {isReactivating ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                                        </button>
+                                    ) : null}
                                 </div>
                             </div>
 
@@ -1648,22 +1682,22 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                             <div className="space-y-2 text-sm">
                                 <div className="flex items-center gap-2 text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-100">
                                     <SchoolIcon size={14} className="text-primary-500" />
-                                    <span className="truncate flex-1 font-medium">{getSchoolName(prof.schoolId)}</span>
+                                    <span className="truncate flex-1 font-medium">{prof.schoolId ? getSchoolName(prof.schoolId) : 'Sem vínculo com escola'}</span>
                                 </div>
                                 
                                 <div className="grid grid-cols-1 gap-1.5 px-1 py-0.5">
                                     <div className="flex items-center gap-2 text-slate-600">
-                                        <User size={14} className={isUnregistered ? "text-amber-500" : "text-emerald-500"} />
+                                        <User size={14} className={isUnregistered ? "text-amber-500" : (prof.studentId ? "text-emerald-500" : "text-slate-300")} />
                                         <span className="text-[12px] truncate">
                                             <span className="text-slate-400 mr-1">Aluno:</span>
-                                            <span className="font-semibold">{studentStr}</span>
+                                            <span className="font-semibold">{prof.studentId ? studentStr : 'Sem vínculo'}</span>
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 text-slate-600">
-                                        <BookOpen size={14} className="text-blue-500" />
+                                        <BookOpen size={14} className={prof.regentTeacher ? "text-blue-500" : "text-slate-300"} />
                                         <span className="text-[12px] truncate">
                                             <span className="text-slate-400 mr-1">Regente:</span>
-                                            {regentStr}
+                                            {prof.regentTeacher ? regentStr : '—'}
                                         </span>
                                     </div>
                                 </div>

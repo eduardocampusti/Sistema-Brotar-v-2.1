@@ -159,6 +159,10 @@ export interface SupportProfessional {
   status?: SupportProfessionalStatus;
   /** ISO: momento do desvinculamento (soft delete). */
   unlinkedAt?: string | null;
+  /** Dados do vínculo original preservados antes da desvinculação (V34). */
+  schoolIdUnlinked?: string | null;
+  studentIdUnlinked?: string | null;
+  regentTeacherUnlinked?: string | null;
 }
 
 export interface Guardian {

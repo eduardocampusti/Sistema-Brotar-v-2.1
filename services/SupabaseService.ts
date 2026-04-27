@@ -241,7 +241,7 @@ export class SupabaseService {
     private static readonly SUPPORT_PRO_LIST_SELECT_PHOTO =
         'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,photo_url,status,unlinked_at';
     private static readonly SUPPORT_PRO_LIST_SELECT_FULL =
-        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,photo_url,attachments,status,unlinked_at';
+        'id,name,cpf,phone,education,school_id,student_id,regent_teacher,contract_start_date,workload,email,address,created_at,photo_url,attachments,status,unlinked_at,school_id_unlinked,student_id_unlinked,regent_teacher_unlinked';
 
     /** Ambiente sem migração V29: remove `status` e `unlinked_at` do SELECT. */
     private static stripSupportProfessionalSoftDeleteSelectCols(selectList: string): string {
@@ -3007,6 +3007,9 @@ export class SupabaseService {
                 attachments: this.parseSupportProfessionalAttachments(p.attachments),
                 status: (p.status as SupportProfessional['status']) || 'ativo',
                 unlinkedAt: p.unlinked_at ?? null,
+                schoolIdUnlinked: p.school_id_unlinked ?? null,
+                studentIdUnlinked: p.student_id_unlinked ?? null,
+                regentTeacherUnlinked: p.regent_teacher_unlinked ?? null,
             }));
         }, 0, 300, 'getSupportProfessionals');
     }
@@ -3098,12 +3101,45 @@ export class SupabaseService {
         });
     }
 
-    /** Desativa o cadastro (exclusão lógica); não remove a linha. */
+    /** Desativa o cadastro (exclusão lógica), preserva vínculos originais em colunas de histórico e limpa os vínculos ativos. */
     static async unlinkSupportProfessional(id: string): Promise<void> {
         const unlinked_at = new Date().toISOString();
+
+        // 1. Buscar dados atuais para preservar no histórico
+        const { data: current, error: fetchError } = await supabase
+            .from('support_professionals')
+            .select('school_id, student_id, regent_teacher')
+            .eq('id', id)
+            .single();
+
+        if (fetchError) throw fetchError;
+        if (!current) throw new Error('Profissional não encontrado.');
+
+        // 2. Preservar dados originais e limpar vínculos ativos
         const { error } = await supabase
             .from('support_professionals')
-            .update({ status: 'desativado', unlinked_at })
+            .update({
+                status: 'desativado',
+                unlinked_at,
+                school_id_unlinked: current.school_id,
+                student_id_unlinked: current.student_id,
+                regent_teacher_unlinked: current.regent_teacher,
+                school_id: null,
+                student_id: null,
+                regent_teacher: null,
+            })
+            .eq('id', id);
+        if (error) throw error;
+    }
+
+    /** Reativa uma profissional desativada, sem vínculos (serão preenchidos via edição/cadastro). */
+    static async reactivateSupportProfessional(id: string): Promise<void> {
+        const { error } = await supabase
+            .from('support_professionals')
+            .update({
+                status: 'ativo',
+                unlinked_at: null,
+            })
             .eq('id', id);
         if (error) throw error;
     }
