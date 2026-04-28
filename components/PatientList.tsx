@@ -68,8 +68,16 @@ const getStudentStatus = (student: Student) => {
 
 export const PatientList: React.FC<StudentListProps> = ({ students, schools, onSelectStudent, onDelete, onRegister, onEdit, currentUser, onRefresh }) => {
   const { user: authUser } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string>('ALL');
+  const [searchTerm, setSearchTerm] = useState(() => sessionStorage.getItem('PatientList_searchTerm') || '');
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>(() => sessionStorage.getItem('PatientList_selectedSchoolId') || 'ALL');
+
+  useEffect(() => {
+    sessionStorage.setItem('PatientList_searchTerm', searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    sessionStorage.setItem('PatientList_selectedSchoolId', selectedSchoolId);
+  }, [selectedSchoolId]);
   const [showImporter, setShowImporter] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [showConfirmFinal, setShowConfirmFinal] = useState(false);
@@ -382,10 +390,11 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
               </button>
               <button
                 onClick={onRegister}
+                data-testid="btn-cadastrar"
                 className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-95 whitespace-nowrap"
               >
                 <UserPlus size={16} />
-                Novo Aluno
+                Cadastrar Aluno
               </button>
             </div>
           )}

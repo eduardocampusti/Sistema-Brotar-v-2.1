@@ -50,9 +50,9 @@ export const PpTriState: React.FC<{
     <div className="flex gap-1.5">
       {(
         [
-          { k: true as const, t: 'Sim' },
-          { k: false as const, t: 'Não' },
-          { k: null as const, t: '—' },
+          { k: true, t: 'Sim' },
+          { k: false, t: 'Não' },
+          { k: null, t: '—' },
         ] as const
       ).map(({ k, t }) => (
         <button

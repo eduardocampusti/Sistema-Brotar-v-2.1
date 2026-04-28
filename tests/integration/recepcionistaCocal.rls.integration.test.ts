@@ -141,7 +141,7 @@ describe.skipIf(!hasRecepCredentials)('RLS — recepcionista (Cocal) / SECRETARI
     const rows = data ?? [];
     if (rows.length === 0) return;
 
-    for (const row of rows as { id: string; schools: { district: string } | { district: string }[] | null }) {
+    for (const row of rows as { id: string; schools: { district: string } | { district: string }[] | null }[]) {
       const sch = row.schools;
       const d = Array.isArray(sch) ? sch[0]?.district : sch?.district;
       expect(normDistrict(d)).toBe('COCAL');

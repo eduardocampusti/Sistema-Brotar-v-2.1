@@ -42,9 +42,9 @@ export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ user, 
         setIsLoading(true);
 
         try {
-            const { success, error } = await SupabaseService.completeFirstAccess(newPassword, user.id);
+            const { error } = await SupabaseService.completeMandatoryPasswordChange(user.id, newPassword);
 
-            if (success) {
+            if (!error) {
                 // Pequeno delay para feedback visual
                 setTimeout(() => {
                     onSuccess();

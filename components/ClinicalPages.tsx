@@ -4845,8 +4845,8 @@ const SocialOverviewDashboard: React.FC<{
                 const priorityB = b.clinical?.social_data?.formData.encaminhamentoInstitucional?.prioridade === 'Alta' || b.clinical?.social_interview?.status === 'Em Análise' ? 2 : 1;
                 if (priorityA !== priorityB) return priorityB - priorityA;
 
-                const dateA = new Date(a.clinical?.social_data?.lastUpdate || a.updatedAt || 0).getTime();
-                const dateB = new Date(b.clinical?.social_data?.lastUpdate || b.updatedAt || 0).getTime();
+                const dateA = new Date(a.clinical?.social_data?.lastUpdate || a.createdAt || 0).getTime();
+                const dateB = new Date(b.clinical?.social_data?.lastUpdate || b.createdAt || 0).getTime();
                 return dateB - dateA;
             })
             .slice(0, 5); // Top 5
@@ -4907,8 +4907,8 @@ const SocialOverviewDashboard: React.FC<{
                                         const social = student.clinical?.social_data?.formData;
                                         const interview = student.clinical?.social_interview;
                                         const priority = social?.encaminhamentoInstitucional?.prioridade || (interview?.status === 'Em Análise' ? 'Alta' : 'Normal');
-                                        const lastUpdateDate = (student.clinical?.social_data?.lastUpdate || student.updatedAt)
-                                            ? new Date(student.clinical?.social_data?.lastUpdate || student.updatedAt || 0).toLocaleDateString()
+                                        const lastUpdateDate = (student.clinical?.social_data?.lastUpdate || student.createdAt)
+                                            ? new Date(student.clinical?.social_data?.lastUpdate || student.createdAt || 0).toLocaleDateString()
                                             : 'N/A';
 
                                         return (

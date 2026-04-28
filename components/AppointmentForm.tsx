@@ -663,30 +663,55 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             return;
         }
 
-        if (bloqueioProfissional) {
-            const c = profConflitosSelecionado[0];
-            const profName = newApt.professionalName || 'O profissional';
-            showError(`${profName} já tem atendimento neste horário.`);
-            return;
-        }
-
-        if (alunoConflitosSelecionado.length > 0 && !confStudentOverride) {
-            showError(
-                'Há conflito de horário do aluno com outro profissional. Confirme em “Confirmar mesmo assim” antes de salvar.'
-            );
-            return;
-        }
-
+        // --- VALIDAÇÃO ON-DEMAND PARA EVITAR CONDIÇÃO DE CORRIDA (TC010) ---
         setLoading(true);
         try {
+            // 1. Verificar conflitos do profissional (Bloqueante)
+            const conflitosProf = await SupabaseService.verificarConflitosProfissional(
+                newApt.professionalId,
+                newApt.date,
+                newApt.startTime,
+                newApt.endTime,
+                { excludeAppointmentId: initialData?.id }
+            );
+
+            if (conflitosProf.length > 0) {
+                const profName = newApt.professionalName || 'O profissional';
+                showError(`${profName} já tem atendimento neste horário.`);
+                setLoading(false);
+                return;
+            }
+
+            // 2. Verificar conflitos do aluno (Aviso/Override)
+            const conflitosAluno = await SupabaseService.verificarConflitosAluno(
+                newApt.studentId,
+                newApt.date,
+                newApt.startTime,
+                newApt.endTime,
+                { excludeAppointmentId: initialData?.id }
+            );
+
+            // Filtramos o profissional atual caso seja edição ou caso o usuário queira confirmar o conflito.
+            const conflitosAlunoOutros = conflitosAluno.filter(a => a.professionalId !== newApt.professionalId);
+
+            if (conflitosAlunoOutros.length > 0 && !confStudentOverride) {
+                const other = conflitosAlunoOutros[0];
+                showError(`O aluno já tem atendimento neste horário com ${other.professionalName}. Marque a opção de confirmar mesmo assim.`);
+                setLoading(false);
+                return;
+            }
+
             const studentData = students.find((s) => s.id === newApt.studentId);
             const guardianPhone = studentData?.guardians?.[0]?.phone || '';
+
+            // Atualizamos o estado para refletir a validação mais recente (caso o save falhe ou precise de interação)
+            setAlunoConflitosSelecionado(conflitosAlunoOutros);
 
             const aptToSave = {
                 ...newApt,
                 telefoneResponsavel: guardianPhone,
                 conflitoHorarioAluno:
-                    alunoConflitosSelecionado.length > 0 && confStudentOverride ? true : undefined,
+                    conflitosAlunoOutros.length > 0 && confStudentOverride ? true : undefined,
             };
             if (initialData?.id) aptToSave.id = initialData.id;
 
