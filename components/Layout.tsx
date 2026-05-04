@@ -119,6 +119,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       { id: 'scheduling', label: 'Central de Agendamentos', icon: <Calendar size={20} /> },
       { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
       { id: 'documents', label: 'Documentos', icon: <FileText size={20} /> },
+      { id: 'frequencia', label: 'Lançamento Frequência', icon: <FileCheck size={20} /> },
       { id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> },
     ];
 
@@ -185,6 +186,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
     // Seção de Gestão Escolar (Escolas e Profissionais)
     if (isInternalRole) {
+      items.push({ id: 'frequencia', label: 'Lançamento Frequência', icon: <FileCheck size={20} /> });
       items.push({ id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> });
 
       // Administradores, Secretárias e Assistentes (Recepção) veem profissionais de apoio
@@ -222,6 +224,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   const getEscolaMenuItems = () => [
     { id: 'dashboard', label: 'Visão Geral', icon: <LayoutDashboard size={20} /> },
     { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
+    { id: 'frequencia', label: 'Lançamento Frequência', icon: <FileCheck size={20} /> },
     { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
   ];
 

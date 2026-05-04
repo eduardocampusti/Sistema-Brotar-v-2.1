@@ -65,6 +65,8 @@ const PsychopedagogyDashboard = React.lazy(() => import('../components/RoleDashb
 const AssistantDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.AssistantDashboard })));
 const SecretariaSedeDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.SecretariaSedeDashboard })));
 const SecretariaCocalDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.SecretariaCocalDashboard })));
+const FrequenciaPage = React.lazy(() => import('./pages/FrequenciaPage'));
+
 
 // Loading Component
 const PageLoading = () => (
@@ -436,6 +438,8 @@ function AppContent() {
           </React.Suspense>} />
 
           <Route path="relatorios-gerenciais" element={<React.Suspense fallback={<PageLoading />}><RelatoriosGerenciais currentUser={user!} students={students} /></React.Suspense>} />
+          <Route path="frequencia" element={<React.Suspense fallback={<PageLoading />}><FrequenciaPage /></React.Suspense>} />
+
 
           <Route
             path="new-appointment"
