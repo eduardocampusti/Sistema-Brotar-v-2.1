@@ -105,6 +105,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
     const [isSearchingCEP, setIsSearchingCEP] = useState(false);
     const [cepError, setCepError] = useState<string | null>(null);
     const [linkedATs, setLinkedATs] = useState<SupportProfessional[]>([]); // Novo estado para exibir ATs
+    const schoolLinkOptionalRoles = new Set(['SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'SECRETARIA_EDUCACAO', 'EDUCATION_SECRETARY', 'ADMIN']);
+    const currentUserRole = String(currentUser?.role || '').toUpperCase();
+    const canCreateWithoutSchoolLink = schoolLinkOptionalRoles.has(currentUserRole);
 
     // Ao trocar de aluno (ou sair de edição → cadastro novo), não manter fila de upload da tela anterior.
     useEffect(() => {
@@ -425,8 +428,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
                 formDataSchoolId: formData.school?.schoolId 
             });
 
-            // Bloqueio Total: Se ainda nulo e não for uma escola "OUTRA" com nome preenchido, barra o envio
-            if (!finalSchoolId && (!finalSchoolName || finalSchoolName.trim() === '')) {
+            // Perfis administrativos de rede podem criar cadastro inicial incompleto sem vínculo escolar.
+            // Perfis escolares continuam exigindo school_id/nome de escola para preservar a regra de vínculo.
+            if (!canCreateWithoutSchoolLink && !finalSchoolId && (!finalSchoolName || finalSchoolName.trim() === '')) {
                 setSaveError('Impossível salvar: Vínculo escolar não localizado. Verifique se o INEP no seu perfil está correto.');
                 setIsSubmitting(false);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
