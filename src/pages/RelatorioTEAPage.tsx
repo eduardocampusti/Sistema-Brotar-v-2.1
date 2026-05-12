@@ -42,7 +42,7 @@ import {
   exportRelatorioContatoTEAPDF,
   exportRelatorioPorBairroPDF
 } from '../../utils/pdfExport';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../../contexts/ToastContext';
 
 // --- Interfaces ---
 interface StudentTEA {
@@ -176,6 +176,7 @@ const ReportCard = ({
 
 const RelatorioTEAPage: React.FC = () => {
   const navigate = useNavigate();
+  const { error: toastError, success: toastSuccess } = useToast();
   
   // States
   const [students, setStudents] = useState<StudentTEA[]>([]);
@@ -190,11 +191,12 @@ const RelatorioTEAPage: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await SupabaseService.getProcessedTEAStudents();
+        // getProcessedTEAStudents é private — usar o wrapper público correto
+        const data = await SupabaseService.getRelatorioTEACompleto();
         setStudents(data);
       } catch (error) {
         console.error('Erro ao carregar dados TEA:', error);
-        toast.error('Não foi possível carregar os dados dos alunos.');
+        toastError('Não foi possível carregar os dados dos alunos.');
       } finally {
         setLoading(false);
       }
@@ -246,23 +248,20 @@ const RelatorioTEAPage: React.FC = () => {
   const handleSpecializedExport = async (reportType: string) => {
     const unitInfo = await SupabaseService.getUnitSettings();
     
-    toast.promise(
-      (async () => {
-        switch(reportType) {
-          case 'completo': await exportRelatorioCompletoTEAPDF(students, unitInfo); break;
-          case 'confirmados': await exportRelatorioConfirmadosTEAPDF(students.filter(s => s.finalStatus === 'Confirmado'), unitInfo); break;
-          case 'suspeitos': await exportRelatorioSuspeitosTEAPDF(students.filter(s => s.status === 'suspeito'), unitInfo); break;
-          case 'escola': await exportRelatorioPorEscolaTEAPDF(students, unitInfo); break;
-          case 'contato': await exportRelatorioContatoTEAPDF(students, unitInfo); break;
-          case 'bairro': await exportRelatorioPorBairroPDF(students, unitInfo); break;
-        }
-      })(),
-      {
-        loading: 'Gerando relatório PDF...',
-        success: 'Relatório gerado com sucesso!',
-        error: 'Erro ao gerar PDF. Tente novamente.'
+    try {
+      switch(reportType) {
+        case 'completo': await exportRelatorioCompletoTEAPDF(students, unitInfo); break;
+        case 'confirmados': await exportRelatorioConfirmadosTEAPDF(students.filter(s => s.finalStatus === 'Confirmado'), unitInfo); break;
+        case 'suspeitos': await exportRelatorioSuspeitosTEAPDF(students.filter(s => s.finalStatus === 'Suspeito'), unitInfo); break;
+        case 'escola': await exportRelatorioPorEscolaTEAPDF(students, unitInfo); break;
+        case 'contato': await exportRelatorioContatoTEAPDF(students, unitInfo); break;
+        case 'bairro': await exportRelatorioPorBairroPDF(students, unitInfo); break;
       }
-    );
+      toastSuccess('Relatório gerado com sucesso!');
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      toastError('Erro ao gerar PDF. Tente novamente.');
+    }
   };
 
   return (
