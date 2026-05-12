@@ -29,3 +29,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Agent and Python internal files
+.agent/
+__pycache__/
+*.pyc

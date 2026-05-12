@@ -34,7 +34,7 @@ import {
   BarChart2,
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission, canViewSystemAuditLogs } from '../types';
-import { APP_VERSION } from '../config/version';
+import { APP_VERSION } from '../src/config/version';
 import { isPerfilRestritoProntuario } from '@/src/config/perfilRestrito';
 
 interface LayoutProps {
@@ -304,7 +304,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
             <LogoComponent />
           </div>
           <div>
-            <h2 className="text-xl font-extrabold tracking-tight text-white leading-none">{systemName}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-extrabold tracking-tight text-white leading-none">Brotar</h2>
+              <span className="bg-white/15 text-white/70 font-mono text-[9px] px-1.5 py-0.5 rounded-md tracking-wider border border-white/20 leading-none">
+                {APP_VERSION.version}
+              </span>
+            </div>
             <p className={`text-xs font-medium opacity-70 mt-1 ${theme.accent}`}>Gestão Premium</p>
           </div>
         </div>

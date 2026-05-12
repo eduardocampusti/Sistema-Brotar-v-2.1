@@ -142,12 +142,15 @@ export default {
       boxShadow: {
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
         'glow': '0 0 15px rgba(var(--color-primary-500-rgb), 0.3)',
+        'glow-green': '0 0 20px rgba(16, 185, 129, 0.4)',
         'card': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+        'premium': '0 10px 40px -10px rgba(0, 0, 0, 0.1)',
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',
         'fadeIn': 'fadeIn 0.5s ease-out forwards',
         'slideUp': 'slideUp 0.5s ease-out forwards',
+        'pulse-subtle': 'pulse-subtle 3s ease-in-out infinite',
       },
       keyframes: {
         float: {
@@ -161,6 +164,10 @@ export default {
         slideUp: {
           '0%': { transform: 'translateY(20px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        'pulse-subtle': {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.8', transform: 'scale(1.02)' },
         }
       }
     }
