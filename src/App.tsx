@@ -36,7 +36,7 @@ const MyAccess = React.lazy(() => import('../components/MyAccess').then(m => ({ 
 const AuditLogs = React.lazy(() => import('../components/AuditLogs').then(m => ({ default: m.AuditLogs })));
 const ChangePassword = React.lazy(() => import('../components/ChangePassword').then(m => ({ default: m.ChangePassword })));
 const RelatoriosGerenciais = React.lazy(() => import('../components/RelatoriosGerenciais').then(m => ({ default: m.RelatoriosGerenciais })));
-const RelatorioTEAPage = React.lazy(() => import('./pages/RelatorioTEAPage'));
+const RelatorioTEAPage = React.lazy(() => import('../components/RelatorioTEAPage'));
 
 // Clinical Pages
 const PsychologyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PsychologyDashboardPage })));
