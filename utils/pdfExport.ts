@@ -374,76 +374,436 @@ export const exportRelatorioTEAPDF = async (data: RelatorioTEAData, config: Pape
     const pageWidth = doc.internal.pageSize.getWidth();
     let currentY = await drawLetterhead(doc, config);
 
-    // Título
-    doc.setFontSize(14);
+    // Título Premium
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 41, 59);
-    doc.text("RELATÓRIO DE ALUNOS COM TEA / ESPECTRO AUTISTA", pageWidth / 2, currentY, { align: 'center' });
-    currentY += 8;
+    doc.setTextColor(139, 26, 58); // Brotar Wine
+    doc.text("MONITORAMENTO E RELATÓRIO TEA", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
 
-    // Filtros aplicados
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100);
-    const filterText = `Filtros: Unidade: ${filters.unit || 'Todas'} | Status: ${filters.status || 'Todos'}`;
-    doc.text(filterText, pageWidth / 2, currentY, { align: 'center' });
-    currentY += 12;
+    doc.text("CONSOLIDADO DA REDE MUNICIPAL DE ENSINO", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 10;
 
-    // Cards de Resumo no PDF
-    const summaryData = [
-        ['Total Confirmados (Laudo)', data.resumo.comLaudo.toString()],
-        ['Total Suspeitos', data.resumo.suspeitos.toString()],
-        ['Total Geral TEA', data.resumo.totalTEA.toString()],
-        ['% da Rede', `${((data.resumo.totalTEA / data.resumo.totalGeralAlunos) * 100).toFixed(2)}%`]
+    // Filtros aplicados em destaque
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(15, currentY, pageWidth - 30, 8, 2, 2, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    const filterText = `FILTROS ATIVOS: Unidade: ${filters.unit || 'Todas'} | Status: ${filters.status || 'Todos'} | Busca: ${filters.searchTerm || 'Nenhuma'}`;
+    doc.text(filterText, pageWidth / 2, currentY + 5, { align: 'center' });
+    currentY += 18;
+
+    // --- Cards de Resumo Premium ---
+    const cardWidth = (pageWidth - 40) / 4;
+    const cardHeight = 22;
+    const cards = [
+        { title: "CONFIRMADOS", value: data.resumo.comLaudo, color: [30, 64, 175], textColor: [255, 255, 255] },
+        { title: "SUSPEITOS", value: data.resumo.suspeitos, color: [96, 165, 250], textColor: [255, 255, 255] },
+        { title: "TOTAL TEA", value: data.resumo.totalTEA, color: [59, 130, 246], textColor: [255, 255, 255] },
+        { title: "PREVALÊNCIA", value: `${((data.resumo.totalTEA / data.resumo.totalGeralAlunos) * 100).toFixed(2)}%`, color: [16, 185, 129], textColor: [255, 255, 255] }
     ];
 
-    autoTable(doc, {
-        startY: currentY,
-        head: [['Métrica', 'Valor']],
-        body: summaryData,
-        theme: 'grid',
-        headStyles: { fillColor: [30, 64, 175], fontSize: 10, halign: 'left' },
-        styles: { fontSize: 9, cellPadding: 3 },
-        margin: { left: 15, right: 15 }
+    cards.forEach((card, i) => {
+        const x = 15 + (i * (cardWidth + 3.3));
+        
+        // Sombra suave/Borda
+        doc.setDrawColor(226, 232, 240);
+        doc.setFillColor(card.color[0], card.color[1], card.color[2]);
+        doc.roundedRect(x, currentY, cardWidth, cardHeight, 2, 2, 'F');
+        
+        // Título do Card
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.text(card.title, x + (cardWidth / 2), currentY + 7, { align: 'center' });
+        
+        // Valor do Card
+        doc.setFontSize(12);
+        doc.text(card.value.toString(), x + (cardWidth / 2), currentY + 16, { align: 'center' });
     });
 
-    currentY = (doc as any).lastAutoTable.finalY + 15;
+    currentY += cardHeight + 15;
 
     // Tabela de Alunos
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
-    doc.text("LISTAGEM DETALHADA", 15, currentY);
+    doc.text("RELAÇÃO NOMINAL DETALHADA", 15, currentY);
     currentY += 5;
 
-    const tableData = data.detalhesAlunos.map(a => [
-        a.nome,
-        a.escola,
-        a.unit,
-        a.idade.toString(),
-        a.status,
-        a.cid || '-'
-    ]);
+    const tableData = data.detalhesAlunos.map(a => {
+        // Truncar CID se necessário
+        const displayCid = (a.cid && a.cid.length > 25) 
+            ? a.cid.substring(0, 22) + '...' 
+            : (a.cid || '-');
+
+        return [
+            a.nome.toUpperCase(),
+            a.escola.toUpperCase(),
+            a.unit,
+            a.idade,
+            a.status.toUpperCase(),
+            displayCid
+        ];
+    });
+
+    const usableWidth = pageWidth - 30; // Margens de 15 cada lado
 
     autoTable(doc, {
         startY: currentY,
         head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'UNID.', 'IDADE', 'STATUS', 'CID']],
         body: tableData,
         theme: 'striped',
-        headStyles: { fillColor: [30, 64, 175], fontSize: 9, halign: 'center' },
-        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { 
+            fillColor: [30, 41, 59], 
+            fontSize: 8, 
+            halign: 'left',
+            fontStyle: 'bold'
+        },
+        styles: { 
+            fontSize: 7.5, 
+            cellPadding: 2.5,
+            overflow: 'ellipsize'
+        },
         columnStyles: {
-            0: { cellWidth: 'auto' },
-            1: { cellWidth: 50 },
-            2: { cellWidth: 15, halign: 'center' },
-            3: { cellWidth: 15, halign: 'center' },
-            4: { cellWidth: 25, halign: 'center' },
-            5: { cellWidth: 20, halign: 'center' }
+            0: { cellWidth: usableWidth * 0.35 }, // 35%
+            1: { cellWidth: usableWidth * 0.25 }, // 25%
+            2: { cellWidth: usableWidth * 0.08, halign: 'center', minCellWidth: 12 }, // 8% - UNID (Nowrap via minCellWidth)
+            3: { cellWidth: usableWidth * 0.07, halign: 'center' }, // 7% - IDADE
+            4: { cellWidth: usableWidth * 0.10, halign: 'center' }, // 10% - STATUS
+            5: { cellWidth: usableWidth * 0.15, halign: 'center' }  // 15% - CID
+        },
+        didParseCell: (data) => {
+            // Impedir quebra nas colunas específicas
+            if (data.section === 'body' && (data.column.index === 2 || data.column.index === 3)) {
+                data.cell.styles.overflow = 'visible';
+            }
         }
     });
 
     // Rodapé
     await drawFooter(doc, config);
 
-    doc.save(`relatorio_tea_${new Date().toISOString().split('T')[0]}.pdf`);
+    const fileName = `relatorio_tea_${new Date().toISOString().split('T')[0]}`;
+    doc.save(`${fileName}.pdf`);
 };
+
+/**
+ * 1. Exporta Relatório Completo (Confirmados + Suspeitos)
+ * Cor: Azul (#3B82F6)
+ */
+export const exportRelatorioCompletoTEAPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(59, 130, 246);
+    doc.text("RELATÓRIO CONSOLIDADO: MONITORAMENTO TEA", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("LISTAGEM GERAL DE ALUNOS (DIAGNÓSTICO CONFIRMADO E CASOS SUSPEITOS)", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    const tableData = data.map(a => [
+        a.fullName.toUpperCase(),
+        a.school?.schoolName?.toUpperCase() || 'NÃO VINCULADA',
+        a.status.toUpperCase(),
+        a.clinical?.cid || 'PENDENTE',
+        a.telefone || '-',
+        a.bairro?.toUpperCase() || '-'
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'STATUS', 'CID', 'CONTATO', 'BAIRRO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [59, 130, 246], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7, cellPadding: 2.5, valign: 'middle' },
+        columnStyles: {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 25, halign: 'center' },
+            5: { cellWidth: 25 }
+        }
+    });
+
+    await drawFooter(doc, config);
+    doc.save(`relatorio_tea_completo_${new Date().getTime()}.pdf`);
+};
+
+/**
+ * 2. Exporta Relatório de Alunos Confirmados
+ * Cor: Verde (#10B981)
+ */
+export const exportRelatorioConfirmadosTEAPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(16, 185, 129);
+    doc.text("RELATÓRIO: DIAGNÓSTICOS TEA CONFIRMADOS", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("ALUNOS COM LAUDO MÉDICO E CID VALIDADO NO SISTEMA", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    const tableData = data.map(a => [
+        a.fullName.toUpperCase(),
+        a.school?.schoolName?.toUpperCase() || 'NÃO VINCULADA',
+        a.clinical?.cid || 'N/I',
+        a.age || '-',
+        a.unit || '-',
+        'LAUDO CONFIRMADO'
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'CID', 'IDADE', 'UNID.', 'SITUAÇÃO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [16, 185, 129], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7.5, cellPadding: 3 },
+        columnStyles: {
+            0: { cellWidth: 60 },
+            1: { cellWidth: 45 },
+            2: { cellWidth: 20, halign: 'center' },
+            3: { cellWidth: 15, halign: 'center' },
+            4: { cellWidth: 15, halign: 'center' },
+            5: { cellWidth: 30, halign: 'center' }
+        }
+    });
+
+    await drawFooter(doc, config);
+    doc.save(`relatorio_tea_confirmados_${new Date().getTime()}.pdf`);
+};
+
+/**
+ * 3. Exporta Relatório de Alunos Suspeitos
+ * Cor: Âmbar (#F59E0B)
+ */
+export const exportRelatorioSuspeitosTEAPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(245, 158, 11);
+    doc.text("RELATÓRIO: INVESTIGAÇÃO DE SUSPEITA TEA", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("ALUNOS EM TRIAGEM OU OBSERVAÇÃO PEDAGÓGICA (AGUARDANDO LAUDO)", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    const tableData = data.map(a => [
+        a.fullName.toUpperCase(),
+        a.school?.schoolName?.toUpperCase() || 'NÃO VINCULADA',
+        a.age || '-',
+        a.unit || '-',
+        a.bairro?.toUpperCase() || '-',
+        'AGUARDANDO LAUDO'
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'IDADE', 'UNID.', 'BAIRRO', 'OBSERVAÇÃO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [245, 158, 11], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7.5, cellPadding: 3 },
+        columnStyles: {
+            0: { cellWidth: 55 },
+            1: { cellWidth: 45 },
+            2: { cellWidth: 15, halign: 'center' },
+            3: { cellWidth: 15, halign: 'center' },
+            4: { cellWidth: 25 },
+            5: { cellWidth: 30, halign: 'center' }
+        }
+    });
+
+    await drawFooter(doc, config);
+    doc.save(`relatorio_tea_suspeitos_${new Date().getTime()}.pdf`);
+};
+
+/**
+ * 4. Exporta Relatório por Unidade Escolar
+ * Cor: Vinho Brotar (#8B1A3A)
+ */
+export const exportRelatorioPorEscolaTEAPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(139, 26, 58);
+    doc.text("RELATÓRIO: DISTRIBUIÇÃO TEA POR UNIDADE", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("QUANTITATIVO DE ALUNOS POR ESCOLA E STATUS DE DIAGNÓSTICO", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    // Agrupar dados por escola para este relatório específico
+    const schoolStats: Record<string, any> = {};
+    data.forEach(a => {
+        const schoolName = a.school?.schoolName || 'NÃO VINCULADA';
+        if (!schoolStats[schoolName]) {
+            schoolStats[schoolName] = { confirmados: 0, suspeitos: 0, unit: a.unit || '-' };
+        }
+        if (a.status === 'Confirmado') schoolStats[schoolName].confirmados++;
+        else schoolStats[schoolName].suspeitos++;
+    });
+
+    const tableData = Object.entries(schoolStats).map(([name, stats]) => [
+        name.toUpperCase(),
+        stats.unit,
+        stats.confirmados,
+        stats.suspeitos,
+        stats.confirmados + stats.suspeitos
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['UNIDADE ESCOLAR', 'UNID.', 'CONFIRMADOS', 'SUSPEITOS', 'TOTAL TEA']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [139, 26, 58], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 8, cellPadding: 4, halign: 'center' },
+        columnStyles: {
+            0: { cellWidth: 90, halign: 'left' },
+            1: { cellWidth: 20 },
+            2: { cellWidth: 25 },
+            3: { cellWidth: 25 },
+            4: { cellWidth: 25, fontStyle: 'bold' }
+        }
+    });
+
+    await drawFooter(doc, config);
+    doc.save(`relatorio_tea_por_escola_${new Date().getTime()}.pdf`);
+};
+
+/**
+ * 5. Exporta Lista de Contatos (Comunicação Direta)
+ * Cor: Indigo (#6366F1)
+ */
+export const exportRelatorioContatoTEAPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(99, 102, 241);
+    doc.text("LISTA DE CONTATO RÁPIDO: ALUNOS TEA", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("RELATÓRIO PARA APOIO À COMUNICAÇÃO COM RESPONSÁVEIS", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    const tableData = data.map(a => [
+        a.fullName.toUpperCase(),
+        a.school?.schoolName?.toUpperCase() || '-',
+        a.responsavel?.toUpperCase() || '-',
+        a.telefone || '-',
+        a.bairro?.toUpperCase() || '-'
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'RESPONSÁVEL', 'TELEFONE', 'BAIRRO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [99, 102, 241], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7, cellPadding: 2.5 },
+        columnStyles: {
+            0: { cellWidth: 45 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 45 },
+            3: { cellWidth: 25, halign: 'center' },
+            4: { cellWidth: 25 }
+        }
+    });
+
+    await drawFooter(doc, config);
+    doc.save(`relatorio_tea_contatos_${new Date().getTime()}.pdf`);
+};
+
+/**
+ * 6. Exporta Relatório por Bairro
+ * Cor: Violet (#8B5CF6)
+ */
+export const exportRelatorioPorBairroPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(139, 92, 246);
+    doc.text("DISTRIBUIÇÃO GEOGRÁFICA TEA POR BAIRRO", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("ANÁLISE DE DEMANDA POR LOCALIDADE E BAIRRO", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    // Agrupar por bairro
+    const neighborhoodStats: Record<string, number> = {};
+    data.forEach(a => {
+        const b = a.bairro?.toUpperCase() || 'NÃO INFORMADO';
+        neighborhoodStats[b] = (neighborhoodStats[b] || 0) + 1;
+    });
+
+    const tableData = Object.entries(neighborhoodStats)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, count]) => [
+            name,
+            count,
+            `${((count / data.length) * 100).toFixed(1)}%`
+        ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['BAIRRO / LOCALIDADE', 'TOTAL DE ALUNOS TEA', 'REPRESENTATIVIDADE']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [139, 92, 246], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 8, cellPadding: 4, halign: 'center' },
+        columnStyles: {
+            0: { cellWidth: 100, halign: 'left' },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 40 }
+        }
+    });
+
+    await drawFooter(doc, config);
+    doc.save(`relatorio_tea_geografico_${new Date().getTime()}.pdf`);
+};
+
