@@ -490,7 +490,6 @@ export const exportRelatorioTEAPDF = async (data: RelatorioTEAData, config: Pape
     const fileName = `relatorio_tea_${new Date().toISOString().split('T')[0]}`;
     doc.save(`${fileName}.pdf`);
 };
-
 /**
  * 1. Exporta Relatório Completo (Confirmados + Suspeitos)
  * Cor: Azul (#3B82F6)
@@ -513,12 +512,12 @@ export const exportRelatorioCompletoTEAPDF = async (data: any[], config: PapelTi
     currentY += 12;
 
     const tableData = data.map(a => [
-        a.fullName.toUpperCase(),
-        a.school?.schoolName?.toUpperCase() || 'NÃO VINCULADA',
-        a.status.toUpperCase(),
+        (a.fullName || 'N/I').toUpperCase(),
+        (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
+        (a.status || a.finalStatus || '-').toUpperCase(),
         a.clinical?.cid || 'PENDENTE',
         a.telefone || '-',
-        a.bairro?.toUpperCase() || '-'
+        (a.bairro || '-').toUpperCase()
     ]);
 
     autoTable(doc, {
@@ -564,8 +563,8 @@ export const exportRelatorioConfirmadosTEAPDF = async (data: any[], config: Pape
     currentY += 12;
 
     const tableData = data.map(a => [
-        a.fullName.toUpperCase(),
-        a.school?.schoolName?.toUpperCase() || 'NÃO VINCULADA',
+        (a.fullName || 'N/I').toUpperCase(),
+        (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
         a.clinical?.cid || 'N/I',
         a.age || '-',
         a.unit || '-',
@@ -615,11 +614,11 @@ export const exportRelatorioSuspeitosTEAPDF = async (data: any[], config: PapelT
     currentY += 12;
 
     const tableData = data.map(a => [
-        a.fullName.toUpperCase(),
-        a.school?.schoolName?.toUpperCase() || 'NÃO VINCULADA',
+        (a.fullName || 'N/I').toUpperCase(),
+        (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
         a.age || '-',
         a.unit || '-',
-        a.bairro?.toUpperCase() || '-',
+        (a.bairro || '-').toUpperCase(),
         'AGUARDANDO LAUDO'
     ]);
 
@@ -672,8 +671,12 @@ export const exportRelatorioPorEscolaTEAPDF = async (data: any[], config: PapelT
         if (!schoolStats[schoolName]) {
             schoolStats[schoolName] = { confirmados: 0, suspeitos: 0, unit: a.unit || '-' };
         }
-        if (a.status === 'Confirmado') schoolStats[schoolName].confirmados++;
-        else schoolStats[schoolName].suspeitos++;
+        // Correção de capitalização conforme solicitado
+        if (a.status === 'Confirmado' || a.finalStatus === 'Confirmado') {
+            schoolStats[schoolName].confirmados++;
+        } else {
+            schoolStats[schoolName].suspeitos++;
+        }
     });
 
     const tableData = Object.entries(schoolStats).map(([name, stats]) => [
@@ -726,11 +729,11 @@ export const exportRelatorioContatoTEAPDF = async (data: any[], config: PapelTim
     currentY += 12;
 
     const tableData = data.map(a => [
-        a.fullName.toUpperCase(),
-        a.school?.schoolName?.toUpperCase() || '-',
-        a.responsavel?.toUpperCase() || '-',
+        (a.fullName || 'N/I').toUpperCase(),
+        (a.school?.schoolName || '-').toUpperCase(),
+        (a.responsavel || '-').toUpperCase(),
         a.telefone || '-',
-        a.bairro?.toUpperCase() || '-'
+        (a.bairro || '-').toUpperCase()
     ]);
 
     autoTable(doc, {
@@ -771,13 +774,13 @@ export const exportRelatorioPorBairroPDF = async (data: any[], config: PapelTimb
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100);
-    doc.text("ANÁLISE DE DEMANDA POR LOCALIDADE E BAIRRO", pageWidth / 2, currentY, { align: 'center' });
+    doc.text("ANÁLISE DE DEMANDA POR LOCALIDADE e BAIRRO", pageWidth / 2, currentY, { align: 'center' });
     currentY += 12;
 
     // Agrupar por bairro
     const neighborhoodStats: Record<string, number> = {};
     data.forEach(a => {
-        const b = a.bairro?.toUpperCase() || 'NÃO INFORMADO';
+        const b = (a.bairro || 'NÃO INFORMADO').toUpperCase();
         neighborhoodStats[b] = (neighborhoodStats[b] || 0) + 1;
     });
 
@@ -798,12 +801,11 @@ export const exportRelatorioPorBairroPDF = async (data: any[], config: PapelTimb
         styles: { fontSize: 8, cellPadding: 4, halign: 'center' },
         columnStyles: {
             0: { cellWidth: 100, halign: 'left' },
-            1: { cellWidth: 40 },
+            1: { cellWidth: 50 },
             2: { cellWidth: 40 }
         }
     });
 
     await drawFooter(doc, config);
-    doc.save(`relatorio_tea_geografico_${new Date().getTime()}.pdf`);
+    doc.save(`relatorio_tea_por_bairro_${new Date().getTime()}.pdf`);
 };
-

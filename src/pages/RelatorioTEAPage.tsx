@@ -47,14 +47,16 @@ import { toast } from 'react-hot-toast';
 // --- Interfaces ---
 interface StudentTEA {
   id: string;
-  name: string;
-  school: string;
-  status: 'confirmado' | 'suspeito';
+  fullName: string;
+  school: { schoolName: string };
+  finalStatus: 'Confirmado' | 'Suspeito';
   cid?: string;
-  birth_date?: string;
-  contact_phone?: string;
-  neighborhood?: string;
-  has_medical_report: boolean;
+  birthDate?: string;
+  telefone?: string;
+  bairro?: string;
+  age?: number;
+  responsavel?: string;
+  clinical?: { cid?: string; laudo?: boolean };
   last_update: string;
 }
 
@@ -203,16 +205,16 @@ const RelatorioTEAPage: React.FC = () => {
   // Memoized Calculations
   const metrics = useMemo(() => {
     const total = students.length;
-    const confirmados = students.filter(s => s.status === 'confirmado').length;
-    const suspeitos = students.filter(s => s.status === 'suspeito').length;
+    const confirmados = students.filter(s => s.finalStatus === 'Confirmado').length;
+    const suspeitos = students.filter(s => s.finalStatus === 'Suspeito').length;
     return { total, confirmados, suspeitos };
   }, [students]);
 
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
-      const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           s.school.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFilter = filterStatus === 'todos' || s.status === filterStatus;
+      const matchesSearch = s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           (s.school?.schoolName || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = filterStatus === 'todos' || s.finalStatus.toLowerCase() === filterStatus;
       return matchesSearch && matchesFilter;
     });
   }, [students, searchTerm, filterStatus]);
@@ -226,7 +228,8 @@ const RelatorioTEAPage: React.FC = () => {
   const schoolData = useMemo(() => {
     const schools: Record<string, number> = {};
     students.forEach(s => {
-      schools[s.school] = (schools[s.school] || 0) + 1;
+      const sName = s.school?.schoolName || 'Não vinculada';
+      schools[sName] = (schools[sName] || 0) + 1;
     });
     return Object.entries(schools)
       .map(([name, value]) => ({ name, value }))
@@ -247,7 +250,7 @@ const RelatorioTEAPage: React.FC = () => {
       (async () => {
         switch(reportType) {
           case 'completo': await exportRelatorioCompletoTEAPDF(students, unitInfo); break;
-          case 'confirmados': await exportRelatorioConfirmadosTEAPDF(students.filter(s => s.status === 'confirmado'), unitInfo); break;
+          case 'confirmados': await exportRelatorioConfirmadosTEAPDF(students.filter(s => s.finalStatus === 'Confirmado'), unitInfo); break;
           case 'suspeitos': await exportRelatorioSuspeitosTEAPDF(students.filter(s => s.status === 'suspeito'), unitInfo); break;
           case 'escola': await exportRelatorioPorEscolaTEAPDF(students, unitInfo); break;
           case 'contato': await exportRelatorioContatoTEAPDF(students, unitInfo); break;
@@ -468,36 +471,36 @@ const RelatorioTEAPage: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-[#8B1A3A]/10 text-[#8B1A3A] flex items-center justify-center font-bold text-sm">
-                            {student.name.charAt(0)}
+                            {s.fullName.charAt(0)}
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-gray-900">{student.name}</p>
-                            <p className="text-xs text-gray-500">Nasc: {student.birth_date}</p>
+                            <p className="text-sm font-bold text-gray-900">{s.fullName}</p>
+                            <p className="text-xs text-gray-500">Nasc: {s.birthDate || '-'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         <div className="flex items-center gap-1.5">
                           <School size={14} className="text-gray-400" />
-                          {student.school}
+                          {student.school?.schoolName || 'Não vinculada'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            student.status === 'confirmado' 
+                            student.finalStatus === 'Confirmado' 
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
                               : 'bg-amber-50 text-amber-700 border border-amber-100'
                           }`}>
-                            {student.status}
+                            {student.finalStatus}
                           </span>
-                          {student.cid && (
-                            <span className="text-xs font-mono text-gray-400 ml-1">CID: {student.cid}</span>
+                          {(student.clinical?.cid || student.cid) && (
+                            <span className="text-xs font-mono text-gray-400 ml-1">CID: {student.clinical?.cid || student.cid}</span>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        {student.has_medical_report ? (
+                        {(student.clinical?.laudo || student.finalStatus === 'Confirmado') ? (
                           <div className="flex items-center gap-1.5 text-emerald-600">
                             <CheckCircle size={14} />
                             <span className="text-xs font-medium">Anexado</span>
@@ -583,40 +586,40 @@ const RelatorioTEAPage: React.FC = () => {
                 <tbody className="divide-y divide-gray-50">
                   {students
                     .filter(s => {
-                      if (selectedReport === 'confirmados') return s.status === 'confirmado';
-                      if (selectedReport === 'suspeitos') return s.status === 'suspeito';
+                      if (selectedReport === 'confirmados') return s.finalStatus === 'Confirmado';
+                      if (selectedReport === 'suspeitos') return s.finalStatus === 'Suspeito';
                       return true;
                     })
                     .map((s) => (
                       <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                         <td className="py-4 px-4">
-                          <span className="text-sm font-bold text-gray-900">{s.name}</span>
+                          <span className="text-sm font-bold text-gray-900">{s.fullName}</span>
                         </td>
                         <td className="py-4 px-4">
-                          <span className="text-sm text-gray-600">{s.school}</span>
+                          <span className="text-sm text-gray-600">{s.school?.schoolName || 'Não vinculada'}</span>
                         </td>
                         {(selectedReport === 'contato' || selectedReport === 'completo') && (
                           <td className="py-4 px-4 text-sm text-gray-500">
                             <div className="flex items-center gap-1.5">
                               <Phone size={12} className="text-gray-400" />
-                              {s.contact_phone || 'Não informado'}
+                              {s.telefone || 'Não informado'}
                             </div>
                           </td>
                         )}
                         {selectedReport === 'bairro' && (
                           <td className="py-4 px-4 text-sm text-gray-600">
-                            {s.neighborhood || 'N/A'}
+                            {s.bairro || 'N/A'}
                           </td>
                         )}
                         <td className="py-4 px-4">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            s.status === 'confirmado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                            s.finalStatus === 'Confirmado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                           }`}>
-                            {s.status.toUpperCase()}
+                            {s.finalStatus.toUpperCase()}
                           </span>
                         </td>
                         <td className="py-4 px-4 text-right text-xs font-mono text-gray-400">
-                          {s.cid || 'PENDENTE'}
+                          {s.clinical?.cid || s.cid || 'PENDENTE'}
                         </td>
                       </tr>
                     ))}
