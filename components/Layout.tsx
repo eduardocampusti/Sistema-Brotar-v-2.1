@@ -34,6 +34,7 @@ import {
   BarChart2,
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission, canViewSystemAuditLogs } from '../types';
+import { APP_VERSION } from '../config/version';
 import { isPerfilRestritoProntuario } from '@/src/config/perfilRestrito';
 
 interface LayoutProps {
@@ -397,6 +398,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                 <LogOut size={14} /> Sair
               </button>
             </div>
+            <p className="text-[10px] text-center text-white/30 font-mono mt-4 tracking-wider uppercase">
+              {APP_VERSION.display}
+            </p>
           </div>
         </div>
       </aside>

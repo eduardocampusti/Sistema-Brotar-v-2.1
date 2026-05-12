@@ -1,8 +1,8 @@
-import React from 'react';
-import { FULL_VERSION } from '../utils/version';
+import { APP_VERSION } from '../src/config/version';
 import {
     Code, Server, Database, Shield, Smartphone, Mail, Globe,
-    CheckCircle, Info, QrCode, Building, User, Cpu, Layers, HeartPulse, ExternalLink
+    CheckCircle, Info, QrCode, Building, User, Cpu, Layers, HeartPulse, ExternalLink,
+    History, Sparkles, TrendingUp, ShieldCheck, Wrench
 } from 'lucide-react';
 
 export const AboutSystem: React.FC = () => {
@@ -24,8 +24,8 @@ export const AboutSystem: React.FC = () => {
                         <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">Sistema Brotar</h1>
                         <p className="text-primary-200 font-medium text-lg mb-4">Gestão Multidisciplinar Educacional e Clínica</p>
                         <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-slate-300">
-                            <span className="bg-white/10 px-3 py-1 rounded-full border border-white/10">Versão {FULL_VERSION}</span>
-                            <span className="bg-white/10 px-3 py-1 rounded-full border border-white/10">Atualizado: {new Date().toLocaleDateString()}</span>
+                            <span className="bg-white/10 px-3 py-1 rounded-full border border-white/10">Versão {APP_VERSION.display}</span>
+                            <span className="bg-white/10 px-3 py-1 rounded-full border border-white/10">Atualizado: {APP_VERSION.changelog[0].date}</span>
                         </div>
                         <div className="mt-6 text-slate-300 max-w-2xl leading-relaxed space-y-4">
                             <p>
@@ -198,7 +198,7 @@ export const AboutSystem: React.FC = () => {
                                 </li>
                                 <li className="flex items-center justify-between text-sm">
                                     <span className="text-slate-300">Versão</span>
-                                    <span className="flex items-center gap-1.5 text-blue-400 font-bold">{FULL_VERSION}</span>
+                                    <span className="flex items-center gap-1.5 text-blue-400 font-bold">{APP_VERSION.version}</span>
                                 </li>
                             </ul>
                         </div>
@@ -215,6 +215,65 @@ export const AboutSystem: React.FC = () => {
                         <h5 className="font-bold text-slate-800 text-sm">Suporte Rápido</h5>
                         <p className="text-xs text-slate-500 mt-1">Escaneie para falar no WhatsApp</p>
                     </div>
+                </div>
+            </div>
+
+            {/* SEÇÃO F - NOTAS DE LANÇAMENTO (CHANGELOG) */}
+            <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                        <History size={24} />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800">Notas de Lançamento</h2>
+                        <p className="text-slate-500 text-sm">Acompanhe a evolução e as melhorias do Sistema Brotar</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                    {APP_VERSION.changelog.map((log, index) => (
+                        <div key={log.version} className={`bg-white rounded-2xl shadow-card border border-slate-100 overflow-hidden ${index === 0 ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}>
+                            <div className="bg-slate-50 p-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-4">
+                                <div className="flex items-center gap-3">
+                                    <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold tracking-wider">
+                                        {log.version}
+                                    </span>
+                                    <h3 className="font-bold text-slate-800">{log.title}</h3>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <span className="text-sm text-slate-500 font-medium flex items-center gap-1.5">
+                                        <History size={14} /> {log.date}
+                                    </span>
+                                    <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                        log.type === 'feature' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                        log.type === 'fix' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                        log.type === 'improvement' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                        log.type === 'security' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                        'bg-slate-50 text-slate-700 border-slate-100'
+                                    }`}>
+                                        {log.type === 'feature' && <Sparkles size={10} />}
+                                        {log.type === 'fix' && <Wrench size={10} />}
+                                        {log.type === 'improvement' && <TrendingUp size={10} />}
+                                        {log.type === 'security' && <ShieldCheck size={10} />}
+                                        {log.type === 'feature' ? 'Nova Funcionalidade' :
+                                         log.type === 'fix' ? 'Correção' :
+                                         log.type === 'improvement' ? 'Melhoria' :
+                                         log.type === 'security' ? 'Segurança' : log.type}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="p-6">
+                                <ul className="space-y-3">
+                                    {log.changes.map((change, i) => (
+                                        <li key={i} className="flex items-start gap-3 text-slate-600 text-sm leading-relaxed">
+                                            <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />
+                                            {change}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
 
