@@ -33,7 +33,7 @@ import {
   Legend
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
-import { SupabaseService } from '../services/SupabaseService';
+import { SupabaseService } from '../../services/SupabaseService';
 import { 
   exportRelatorioCompletoTEAPDF,
   exportRelatorioConfirmadosTEAPDF,
@@ -41,7 +41,7 @@ import {
   exportRelatorioPorEscolaTEAPDF,
   exportRelatorioContatoTEAPDF,
   exportRelatorioPorBairroPDF
-} from '../utils/pdfExport';
+} from '../../utils/pdfExport';
 import { toast } from 'react-hot-toast';
 
 // --- Interfaces ---
