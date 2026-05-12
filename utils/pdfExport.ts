@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Student, School, PapelTimbradoConfig } from '../types';
+import { Student, School, PapelTimbradoConfig, RelatorioTEAData } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 
 export const generateStudentPDF = async (student: Student) => {
@@ -365,3 +365,85 @@ async function fetchImage(url: string): Promise<string | null> {
         return null;
     }
 }
+
+/**
+ * Gera PDF do Relatório TEA
+ */
+export const exportRelatorioTEAPDF = async (data: RelatorioTEAData, config: PapelTimbradoConfig, filters: any) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let currentY = await drawLetterhead(doc, config);
+
+    // Título
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text("RELATÓRIO DE ALUNOS COM TEA / ESPECTRO AUTISTA", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 8;
+
+    // Filtros aplicados
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    const filterText = `Filtros: Unidade: ${filters.unit || 'Todas'} | Status: ${filters.status || 'Todos'}`;
+    doc.text(filterText, pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    // Cards de Resumo no PDF
+    const summaryData = [
+        ['Total Confirmados (Laudo)', data.resumo.comLaudo.toString()],
+        ['Total Suspeitos', data.resumo.suspeitos.toString()],
+        ['Total Geral TEA', data.resumo.totalTEA.toString()],
+        ['% da Rede', `${((data.resumo.totalTEA / data.resumo.totalGeralAlunos) * 100).toFixed(2)}%`]
+    ];
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['Métrica', 'Valor']],
+        body: summaryData,
+        theme: 'grid',
+        headStyles: { fillColor: [30, 64, 175], fontSize: 10, halign: 'left' },
+        styles: { fontSize: 9, cellPadding: 3 },
+        margin: { left: 15, right: 15 }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    // Tabela de Alunos
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text("LISTAGEM DETALHADA", 15, currentY);
+    currentY += 5;
+
+    const tableData = data.detalhesAlunos.map(a => [
+        a.nome,
+        a.escola,
+        a.unit,
+        a.idade.toString(),
+        a.status,
+        a.cid || '-'
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'UNID.', 'IDADE', 'STATUS', 'CID']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [30, 64, 175], fontSize: 9, halign: 'center' },
+        styles: { fontSize: 8, cellPadding: 3 },
+        columnStyles: {
+            0: { cellWidth: 'auto' },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 15, halign: 'center' },
+            3: { cellWidth: 15, halign: 'center' },
+            4: { cellWidth: 25, halign: 'center' },
+            5: { cellWidth: 20, halign: 'center' }
+        }
+    });
+
+    // Rodapé
+    await drawFooter(doc, config);
+
+    doc.save(`relatorio_tea_${new Date().toISOString().split('T')[0]}.pdf`);
+};

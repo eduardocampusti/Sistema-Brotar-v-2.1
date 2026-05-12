@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
-import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog, AgendamentoProfissionalView, statusAgendamentoOcupandoHorarioConflito } from '../types';
+import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog, AgendamentoProfissionalView, statusAgendamentoOcupandoHorarioConflito, RelatorioTEAData } from '../types';
+import { categorizeSecretaryDiagnosis } from '../utils/teaAutismCount';
 import { isPerfilRestritoProntuario, STATUS_AGENDAMENTO_VINCULO_PRONTUARIO } from '@/src/config/perfilRestrito';
 
 /** Retry em timeout (57014 / statement timeout) para plano Supabase com limite rígido. */
@@ -900,7 +901,7 @@ export class SupabaseService {
             // compactList: incluir photo_url (leve) — sem isso a lista vinha sem foto e o formulário de edição
             // partia de estado incompleto e o saveStudent podia gravar photo_url null por engano.
             const studentSelect = options?.compactList
-                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,photo_url,clinical_info,schools(name,district)'
+                ? 'id,full_name,school_id,status,unit,created_at,birth_date,cpf,ethnicity,address,guardians,sus_card,photo_url,clinical_info,documents,schools(name,district)'
                 : '*';
 
             const PAGE = 50;
@@ -957,6 +958,139 @@ export class SupabaseService {
 
             return raw.map(s => mapStudentFromDB(s));
         }, 0, 300, 'getStudents');
+    }
+
+    /**
+     * Gera os dados consolidados para o Relatório TEA.
+     * Cruza as flags explícitas (laudo/suspeita) com a lógica de detecção automática por CID/Texto.
+     * Respeita o escopo de acesso do usuário (Sede/Cocal/Escola).
+     */
+    static async getRelatorioTEA(filters?: { unit?: Unit; schoolId?: string }): Promise<RelatorioTEAData> {
+        return safeCall(async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user) throw new Error('Sessão expirada. Faça login novamente.');
+
+            const profile = await this.getUserProfile(session.user.id);
+            if (!profile) throw new Error('Perfil do usuário não encontrado.');
+
+            // Busca a lista compacta de alunos (já filtrada por RLS e vínculo de escola no getStudents)
+            let students = await this.getStudents(undefined, { compactList: true });
+
+            // Filtros de Escopo (Segunda camada de segurança/conveniência)
+            const role = (profile.role || '').toUpperCase();
+            const scope = (profile.scope || 'GLOBAL').toUpperCase();
+
+            if (role === 'SECRETARIA_SEDE') {
+                students = students.filter(s => s.unit === 'SEDE');
+            } else if (role === 'SECRETARIA_COCAL') {
+                students = students.filter(s => s.unit === 'COCAL');
+            } else if (role === 'ASSISTANT') {
+                if (scope === 'COCAL') {
+                    students = students.filter(s => s.unit === 'COCAL');
+                }
+                // Se for ASSISTANT SEDE, não aplica filtro (visão global)
+            }
+
+            // Filtros manuais da interface
+            if (filters?.unit) {
+                students = students.filter(s => s.unit === filters.unit);
+            }
+            if (filters?.schoolId) {
+                students = students.filter(s => s.school?.schoolId === filters.schoolId);
+            }
+
+            const res: RelatorioTEAData = {
+                resumo: { totalTEA: 0, comLaudo: 0, suspeitos: 0, totalGeralAlunos: students.length },
+                porEscola: [],
+                porFaixaEtaria: [],
+                detalhesAlunos: []
+            };
+
+            const schoolsMap = new Map<string, { escola: string, confirmados: number, suspeitos: number, total: number }>();
+            const ageMap = new Map<string, { faixa: string, confirmados: number, suspeitos: number }>();
+
+            const getAge = (birthDate?: string) => {
+                if (!birthDate) return 0;
+                const today = new Date();
+                const birth = new Date(birthDate.includes('T') ? birthDate : birthDate + 'T00:00:00');
+                let age = today.getFullYear() - birth.getFullYear();
+                const m = today.getMonth() - birth.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+                return age < 0 ? 0 : age;
+            };
+
+            const getFaixa = (age: number) => {
+                if (age <= 3)  return '0-3 anos';
+                if (age <= 6)  return '4-6 anos';
+                if (age <= 10) return '7-10 anos';
+                if (age <= 14) return '11-14 anos';
+                return '15+ anos';
+            };
+
+            students.forEach(s => {
+                const hasExplicitLaudo = s.clinical?.laudo === true;
+                const hasLaudoAnexado = Array.isArray(s.documents) && s.documents.some((doc: any) => doc.type === 'Laudo Médico');
+                const hasExplicitSuspicion = s.clinical?.suspicion === true;
+                
+                let finalStatus: 'Confirmado' | 'Suspeito' | null = null;
+                
+                // Prioridade: 
+                // 1. Flag explícita OU Documento anexado -> Confirmado
+                // 2. Suspeita explícita OU Detecção por CID -> Suspeito
+                if (hasExplicitLaudo || hasLaudoAnexado) {
+                    finalStatus = 'Confirmado';
+                } else if (hasExplicitSuspicion) {
+                    finalStatus = 'Suspeito';
+                } else if (categorizeSecretaryDiagnosis(s) === 'TEA/Autismo') {
+                    finalStatus = 'Suspeito';
+                }
+
+                if (finalStatus) {
+                    const age = getAge(s.birthDate);
+                    const schoolName = s.school?.schoolName || 'Não vinculada';
+                    const faixa = getFaixa(age);
+
+                    res.resumo.totalTEA++;
+                    if (finalStatus === 'Confirmado') res.resumo.comLaudo++;
+                    else res.resumo.suspeitos++;
+
+                    // Agrupamento por Escola
+                    if (!schoolsMap.has(schoolName)) {
+                        schoolsMap.set(schoolName, { escola: schoolName, confirmados: 0, suspeitos: 0, total: 0 });
+                    }
+                    const sch = schoolsMap.get(schoolName)!;
+                    if (finalStatus === 'Confirmado') sch.confirmados++;
+                    else sch.suspeitos++;
+                    sch.total++;
+
+                    // Agrupamento por Faixa Etária
+                    if (!ageMap.has(faixa)) {
+                        ageMap.set(faixa, { faixa, confirmados: 0, suspeitos: 0 });
+                    }
+                    const f = ageMap.get(faixa)!;
+                    if (finalStatus === 'Confirmado') f.confirmados++;
+                    else f.suspeitos++;
+
+                    res.detalhesAlunos.push({
+                        id: s.id,
+                        nome: s.fullName,
+                        escola: schoolName,
+                        unit: s.unit || 'N/A',
+                        idade: age,
+                        status: finalStatus,
+                        cid: s.clinical?.cid
+                    });
+                }
+            });
+
+            res.porEscola = Array.from(schoolsMap.values()).sort((a, b) => b.total - a.total);
+            res.porFaixaEtaria = Array.from(ageMap.values()).sort((a, b) => {
+                const order = ['0-3 anos', '4-6 anos', '7-10 anos', '11-14 anos', '15+ anos'];
+                return order.indexOf(a.faixa) - order.indexOf(b.faixa);
+            });
+
+            return res;
+        }, 1, 300, 'getRelatorioTEA');
     }
 
     /**
@@ -1312,7 +1446,18 @@ export class SupabaseService {
                     console.error(`Erro ao enviar documento:`, docErr);
                 }
             }
-            dbPayload.documents = [...(student.documents || []), ...uploadedDocs];
+            // Filtra o array original para remover quaisquer rascunhos temporários (base64 ou blobs locais)
+            // antes de anexar os novos documentos que acabaram de ser enviados para o Storage.
+            const existingDocs = (student.documents || []).filter(doc => 
+                doc.url && !doc.url.startsWith('data:') && !doc.url.startsWith('blob:')
+            );
+            
+            dbPayload.documents = [...existingDocs, ...uploadedDocs];
+        } else {
+            // Se não houve novos uploads, ainda assim limpamos rascunhos Base64 que possam ter ficado no payload
+            dbPayload.documents = (student.documents || []).filter(doc => 
+                doc.url && !doc.url.startsWith('data:') && !doc.url.startsWith('blob:')
+            );
         }
 
         // Formato JSONB: Garantindo envio como objetos limpos para o banco

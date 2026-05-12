@@ -187,6 +187,8 @@ export interface ClinicalInfo {
   height?: string;
   specialNeeds: string[]; // Altas Habilidades, Auditiva, Física, Mental, etc.
   therapiesHistory: string; // Histórico de terapias anteriores
+  laudo?: boolean; // Confirmado com laudo médico
+  suspicion?: boolean; // Suspeita clínica (sem laudo)
 
   // Dados Específicos por Especialidade (JSONB)
   pp_data?: any; // Psicopedagogia
@@ -250,7 +252,7 @@ export function statusAgendamentoOcupandoHorarioConflito(status: AppointmentStat
   );
 }
 
-export type Unit = 'SEDE' | 'COCAL';
+export type Unit = 'SEDE' | 'COCAL' | 'NAO_VINCULADO';
 
 export interface Appointment {
   id: string;
@@ -455,4 +457,33 @@ export interface AuditLog {
   module: string;  // Ex: 'ALUNOS', 'AGENTAMENTOS', 'PROFISSIONAIS'
   affected_record: string; // Nome do aluno, ou ID do apontamento
   timestamp: string; // Timestamp ISO
+}
+// --- TEA REPORTING ---
+export interface RelatorioTEAData {
+  resumo: {
+    totalTEA: number;
+    comLaudo: number;
+    suspeitos: number;
+    totalGeralAlunos: number;
+  };
+  porEscola: {
+    escola: string;
+    confirmados: number;
+    suspeitos: number;
+    total: number;
+  }[];
+  porFaixaEtaria: {
+    faixa: string;
+    confirmados: number;
+    suspeitos: number;
+  }[];
+  detalhesAlunos: {
+    id: string;
+    nome: string;
+    escola: string;
+    unit: string;
+    idade: number;
+    status: 'Confirmado' | 'Suspeito';
+    cid?: string;
+  }[];
 }

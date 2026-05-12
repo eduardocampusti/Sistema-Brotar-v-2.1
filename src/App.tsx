@@ -36,6 +36,7 @@ const MyAccess = React.lazy(() => import('../components/MyAccess').then(m => ({ 
 const AuditLogs = React.lazy(() => import('../components/AuditLogs').then(m => ({ default: m.AuditLogs })));
 const ChangePassword = React.lazy(() => import('../components/ChangePassword').then(m => ({ default: m.ChangePassword })));
 const RelatoriosGerenciais = React.lazy(() => import('../components/RelatoriosGerenciais').then(m => ({ default: m.RelatoriosGerenciais })));
+const RelatorioTEAPage = React.lazy(() => import('./pages/RelatorioTEAPage'));
 
 // Clinical Pages
 const PsychologyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PsychologyDashboardPage })));
@@ -65,7 +66,6 @@ const PsychopedagogyDashboard = React.lazy(() => import('../components/RoleDashb
 const AssistantDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.AssistantDashboard })));
 const SecretariaSedeDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.SecretariaSedeDashboard })));
 const SecretariaCocalDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.SecretariaCocalDashboard })));
-const FrequenciaPage = React.lazy(() => import('./pages/FrequenciaPage'));
 
 
 // Loading Component
@@ -438,7 +438,7 @@ function AppContent() {
           </React.Suspense>} />
 
           <Route path="relatorios-gerenciais" element={<React.Suspense fallback={<PageLoading />}><RelatoriosGerenciais currentUser={user!} students={students} /></React.Suspense>} />
-          <Route path="frequencia" element={<React.Suspense fallback={<PageLoading />}><FrequenciaPage /></React.Suspense>} />
+          <Route path="relatorio-tea" element={<React.Suspense fallback={<PageLoading />}><RelatorioTEAPage currentUser={user!} /></React.Suspense>} />
 
 
           <Route
@@ -461,7 +461,7 @@ function AppContent() {
           />
 
           <Route path="documents" element={<React.Suspense fallback={<PageLoading />}><DocumentGenerator currentUser={user!} /></React.Suspense>} />
-          <Route path="vault" element={<React.Suspense fallback={<PageLoading />}><DocumentVault currentUser={user!} students={students} onModelSelect={() => handleNavigate('documents')} /></React.Suspense>} />
+          <Route path="vault" element={<React.Suspense fallback={<PageLoading />}><DocumentVault currentUser={user!} students={students} onModelSelect={() => handleNavigate('documents')} onUpdate={refreshData} /></React.Suspense>} />
           <Route path="schools" element={<React.Suspense fallback={<PageLoading />}><SchoolManagement /></React.Suspense>} />
           <Route path="reports" element={<Navigate to="/app/support-professionals?tab=relatorios" replace />} />
           <Route path="support-professionals/new" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />

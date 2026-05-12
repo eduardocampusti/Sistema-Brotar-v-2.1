@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Shield,
     FileText,
@@ -14,20 +14,26 @@ import {
     Eye,
     AlertCircle
 } from 'lucide-react';
-import { Student, User } from '../types';
+import { Student, User, DocumentType } from '../types';
+import { SupabaseService } from '../services/SupabaseService';
+import { useToast } from '../contexts/ToastContext';
 
 interface DocumentVaultProps {
     currentUser: User;
     students: Student[];
     onModelSelect?: (modelName: string) => void;
+    onUpdate?: () => void;
 }
 
 type VaultCategory = 'models' | 'normatives' | 'scanned';
 
-export const DocumentVault: React.FC<DocumentVaultProps> = ({ currentUser, students, onModelSelect }) => {
+export const DocumentVault: React.FC<DocumentVaultProps> = ({ currentUser, students, onModelSelect, onUpdate }) => {
     const [activeCategory, setActiveCategory] = useState<VaultCategory>('models');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { success, error, info } = useToast();
 
     // Mock de normativas (seriam carregadas do banco em uma versão real)
     const normatives = [
@@ -57,8 +63,65 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ currentUser, stude
         }
     };
 
-    const handleDownload = (docTitle: string) => {
-        alert(`Iniciando download seguro de: ${docTitle}\nSelo de Autenticidade verificado.`);
+    const handleDownload = (docUrl: string, fileName: string) => {
+        const link = document.createElement('a');
+        link.href = docUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        info(`Iniciando download seguro de: ${fileName}`);
+    };
+
+    const handleView = (docUrl: string) => {
+        window.open(docUrl, '_blank');
+    };
+
+    const handleUploadClick = () => {
+        if (!selectedStudentId) {
+            error('Selecione um aluno primeiro.');
+            return;
+        }
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedStudent) return;
+
+        const types: DocumentType[] = [
+            'Laudo Médico', 'Receita Médica', 'Cartão de Vacina', 'Cartão SUS', 
+            'Certidão de Nascimento', 'PEI', 'RG', 'CPF', 'Autorização de Uso de Imagem', 'Outros'
+        ];
+        
+        const typeSelected = window.prompt(
+            `Selecione o tipo de documento:\n\n${types.map((t, i) => `${i + 1}. ${t}`).join('\n')}`, 
+            'Outros'
+        );
+
+        let finalType: DocumentType = 'Outros';
+        if (typeSelected) {
+            const index = parseInt(typeSelected) - 1;
+            if (index >= 0 && index < types.length) {
+                finalType = types[index];
+            } else if (types.includes(typeSelected as any)) {
+                finalType = typeSelected as DocumentType;
+            }
+        }
+
+        try {
+            setIsUploading(true);
+            await SupabaseService.saveStudent(selectedStudent, undefined, [{ file, type: finalType }]);
+            success('Documento enviado com sucesso para a nuvem.');
+            if (onUpdate) onUpdate();
+        } catch (err) {
+            console.error('Erro no upload:', err);
+            error('Falha ao enviar documento.');
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
     };
 
     return (
@@ -228,9 +291,25 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ currentUser, stude
                                             <h3 className="text-lg font-bold text-slate-800">{selectedStudent.fullName}</h3>
                                             <p className="text-xs text-slate-500">Documentação Digitalizada no Cofre</p>
                                         </div>
-                                        <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold shadow-md hover:bg-primary-700 transition-all">
-                                            <UploadCloud size={18} /> Novo Arquivo
+                                        <button 
+                                            onClick={handleUploadClick}
+                                            disabled={isUploading}
+                                            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold shadow-md hover:bg-primary-700 transition-all disabled:opacity-50 disabled:cursor-wait"
+                                        >
+                                            {isUploading ? (
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <UploadCloud size={18} />
+                                            )}
+                                            {isUploading ? 'Enviando...' : 'Novo Arquivo'}
                                         </button>
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef} 
+                                            className="hidden" 
+                                            onChange={handleFileChange}
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                        />
                                     </div>
 
                                     {/* Barreira de Sigilo em ação */}
@@ -260,10 +339,18 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ currentUser, stude
                                                                 </div>
                                                             ) : (
                                                                 <>
-                                                                    <button className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded" title="Ver Arquivo">
+                                                                    <button 
+                                                                        onClick={() => handleView(doc.url)}
+                                                                        className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded" 
+                                                                        title="Ver Arquivo"
+                                                                    >
                                                                         <Eye size={16} />
                                                                     </button>
-                                                                    <button className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded" title="Baixar">
+                                                                    <button 
+                                                                        onClick={() => handleDownload(doc.url, doc.fileName)}
+                                                                        className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded" 
+                                                                        title="Baixar"
+                                                                    >
                                                                         <Download size={16} />
                                                                     </button>
                                                                 </>

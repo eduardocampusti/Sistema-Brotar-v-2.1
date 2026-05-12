@@ -119,8 +119,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       { id: 'scheduling', label: 'Central de Agendamentos', icon: <Calendar size={20} /> },
       { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
       { id: 'documents', label: 'Documentos', icon: <FileText size={20} /> },
-      { id: 'frequencia', label: 'Lançamento Frequência', icon: <FileCheck size={20} /> },
       { id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> },
+      { id: 'relatorio-tea', label: 'Relatório TEA', icon: <Puzzle size={20} /> },
     ];
 
     // Grupo 2: Administração
@@ -147,7 +147,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     return { main, administration, settings, clinical };
   };
 
-  // 3. Menu Linear para OUTROS PERFIS (Legacy logic preserved)
+  // 3. Menu Linear para OUTROS PERFIS
   const getStandardMenuItems = () => {
     const items = [
       {
@@ -155,13 +155,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         label: 'Visão Geral',
         icon: <LayoutDashboard size={20} />
       },
-      currentUser.role === 'EDUCATION_SECRETARY'
-        ? {
+      // Relatórios Gerenciais (apenas para Secretaria de Educação e ADMIN)
+      ...(currentUser.role === 'EDUCATION_SECRETARY' || currentUser.role === 'ADMIN'
+        ? [{
             id: 'relatorios-gerenciais',
             label: 'Relatórios Gerenciais',
             icon: <BarChart2 size={20} />,
-          }
-        : {
+          }]
+        : []),
+      // Central de Agendamentos / Minha Agenda
+      ...(currentUser.role !== 'EDUCATION_SECRETARY' && currentUser.role !== 'ADMIN'
+        ? [{
             id: 'scheduling',
             label:
               currentUser.specialty === Specialty.SOCIAL_WORK
@@ -170,7 +174,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                   ? 'Minha Agenda'
                   : 'Central de Agendamentos',
             icon: <Calendar size={20} />,
-          },
+          }]
+        : []),
       {
         id: 'list',
         label: 'Alunos / Prontuários',
@@ -182,12 +187,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       currentUser.role === 'SECRETARIA_SEDE' ||
       currentUser.role === 'SECRETARIA_COCAL' ||
       currentUser.role === 'ASSISTANT' ||
-      currentUser.role === 'ADMIN';
+      currentUser.role === 'ADMIN' ||
+      currentUser.role === 'COORDENADOR';
 
     // Seção de Gestão Escolar (Escolas e Profissionais)
     if (isInternalRole) {
-      items.push({ id: 'frequencia', label: 'Lançamento Frequência', icon: <FileCheck size={20} /> });
       items.push({ id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> });
+
+      // Relatório TEA (para os 4 perfis autorizados - ADMIN já tem menu próprio, aqui para os outros)
+      if (['EDUCATION_SECRETARY', 'COORDENADOR', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'ASSISTANT'].includes(currentUser.role)) {
+        items.push({
+          id: 'relatorio-tea',
+          label: 'Relatório TEA',
+          icon: <Puzzle size={20} />,
+        });
+      }
 
       // Administradores, Secretárias e Assistentes (Recepção) veem profissionais de apoio
       items.push({ id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> });
@@ -224,7 +238,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   const getEscolaMenuItems = () => [
     { id: 'dashboard', label: 'Visão Geral', icon: <LayoutDashboard size={20} /> },
     { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
-    { id: 'frequencia', label: 'Lançamento Frequência', icon: <FileCheck size={20} /> },
     { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
   ];
 
@@ -252,6 +265,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         return 'Secretária Sede';
       case 'SECRETARIA_COCAL':
         return 'Secretária Cocal';
+      case 'COORDENADOR':
+        return 'Coordenador(a)';
       case 'SPECIALIST': return currentUser.specialty || 'Especialista';
       case 'ESCOLA': return 'Escola';
       default: return 'Recepção';
@@ -425,6 +440,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                 ))}
                 <div className="border-t border-white/10 my-2"></div>
                 {adminMenuGroups.settings.map(item => (
+                  <button key={item.id} onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 rounded-lg w-full text-left hover:bg-white/10 text-white/90">
+                    {item.icon} {item.label}
+                  </button>
+                ))}
+                <div className="border-t border-white/10 my-2"></div>
+                {adminMenuGroups.clinical.map(item => (
                   <button key={item.id} onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 rounded-lg w-full text-left hover:bg-white/10 text-white/90">
                     {item.icon} {item.label}
                   </button>

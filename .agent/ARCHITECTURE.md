@@ -283,6 +283,23 @@ For details, see [scripts/README.md](scripts/README.md)
 | Mobile   | `mobile-developer`    | mobile-design                         |
 | Database | `database-architect`  | database-design, prisma-expert        |
 | Security | `security-auditor`    | vulnerability-scanner                 |
-| Testing  | `test-engineer`       | testing-patterns, webapp-testing      |
-| Debug    | `debugger`            | systematic-debugging                  |
 | Plan     | `project-planner`     | brainstorming, plan-writing           |
+| Debug    | `debugger`            | systematic-debugging                  |
+
+---
+
+## 🛑 REGRAS CRÍTICAS DE AMBIENTE (CONTEXTO PERMANENTE)
+
+Estas regras devem ser seguidas por **TODOS** os agentes em **QUALQUER** interação com o banco de dados.
+
+### 1. Banco de Dados Oficial
+O banco de dados oficial do Sistema Brotar v2.1 é EXCLUSIVAMENTE:
+- **Supabase URL:** `https://indshiztdvjgvgnzigqd.supabase.co`
+- **Configuração (.env):** `VITE_SUPABASE_URL=https://indshiztdvjgvgnzigqd.supabase.co`
+
+### 2. Protocolo de Verificação Obrigatória
+Em **TODA** operação de banco de dados (query, migração, RLS, insert, update, delete):
+1. **Verificar primeiro** se o agente está conectado a este projeto específico.
+2. **Consultar o arquivo `.env.local`** para confirmar a URL e as chaves.
+3. **NUNCA assumir** que o banco ativo é o correto sem verificação prévia.
+4. Caso encontre múltiplos ambientes ou URLs diferentes, **priorize sempre** a URL `indshiztdvjgvgnzigqd`.

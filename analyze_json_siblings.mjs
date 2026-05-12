@@ -11,18 +11,34 @@ async function diagnose() {
         password: '123456'
     });
 
-    const { data: students } = await supabase
+    const { data: students, error } = await supabase
         .from('students')
-        .select('id, full_name, school_id, social_info, clinical_info, educational_info')
-        .is('school_id', null);
+        .select(`
+            id, 
+            full_name, 
+            unit, 
+            school_id,
+            schools (
+                name,
+                district
+            )
+        `)
+        .limit(50);
 
-    console.log(`--- ANALISANDO ${students?.length} ÓRFÃOS ---`);
+    if (error) {
+        console.error('Erro ao buscar alunos:', error);
+        return;
+    }
 
-    students?.slice(0, 10).forEach(s => {
-        console.log(`\nAluno: ${s.full_name}`);
-        console.log(`Social: ${JSON.stringify(s.social_info)}`);
-        console.log(`Clinical: ${JSON.stringify(s.clinical_info)}`);
-        console.log(`Edu: ${JSON.stringify(s.educational_info)}`);
+    console.log(`--- ANALISANDO ${students?.length} ALUNOS ---`);
+
+    students?.forEach(s => {
+        console.log(`\nID: ${s.id}`);
+        console.log(`Aluno: ${s.full_name}`);
+        console.log(`Unit Atual: ${s.unit}`);
+        console.log(`Escola ID: ${s.school_id}`);
+        console.log(`Escola Nome: ${s.schools?.name}`);
+        console.log(`Escola Distrito: ${s.schools?.district}`);
     });
 }
 

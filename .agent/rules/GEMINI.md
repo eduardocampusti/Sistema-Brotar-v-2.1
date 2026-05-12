@@ -143,6 +143,16 @@ When user's prompt is NOT in English:
 2. What PRINCIPLES must I apply?
 3. How does this DIFFER from generic output?
 
+### 🛑 REGRA CRÍTICA DE AMBIENTE (Supabase)
+
+**MANDATORY:** O banco de dados oficial do Sistema Brotar v2.1 é EXCLUSIVAMENTE:
+- **URL:** `https://indshiztdvjgvgnzigqd.supabase.co`
+
+Em **TODA** operação de banco (query, migration, RLS, insert, update, delete), você **DEVE**:
+1. Verificar no `.env.local` se a URL corresponde à oficial.
+2. Confirmar a conexão antes de executar qualquer comando.
+3. **NUNCA** assumir que o banco ativo é o correto sem verificar.
+
 ---
 
 ## TIER 1: CODE RULES (When Writing Code)
