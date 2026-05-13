@@ -9,8 +9,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:hostinger": "echo 'Using pre-built dist' && ls dist/",
+    "build": "echo 'Using pre-built dist' && ls dist/",
+    "build:vite": "vite build",
     "preview": "vite preview",
     "test": "vitest",
     "test:rls": "vitest run tests/integration/recepcionistaCocal.rls.integration.test.ts",
