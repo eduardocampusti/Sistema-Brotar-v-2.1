@@ -1,8 +1,23 @@
 export const APP_VERSION = {
-  version: 'v2.1.1',
+  version: 'v2.1.2',
   date: 'Mai 2026',
-  display: 'v2.1.1 • Mai 2026',
+  display: 'v2.1.2 • Mai 2026',
   changelog: [
+    {
+      version: 'v2.1.2',
+      date: '13 Mai 2026',
+      title: 'Central de Relatórios TEA',
+      type: 'feature',
+      changes: [
+        'Central de Relatórios com 6 tipos de PDF especializados',
+        'Modal com preview de dados antes de exportar',
+        'Relatório por escola, bairro, contato e diagnóstico',
+        'Detecção automática de laudo por documento anexado',
+        'Correção do status ACTIVE para Confirmado/Suspeito no PDF',
+        'Modal com createPortal centralizado na viewport',
+        'Nome dos PDFs com data DD-MM-YYYY'
+      ]
+    },
     {
       version: 'v2.1.1',
       date: '12 Mai 2026',
