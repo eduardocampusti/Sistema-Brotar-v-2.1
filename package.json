@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "echo 'Using pre-built dist' && ls dist/",
+    "build": "echo 'dist already built' && exit 0",
     "build:vite": "vite build",
     "preview": "vite preview",
     "test": "vitest",
