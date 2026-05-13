@@ -50,6 +50,7 @@ import { useToast } from '../../contexts/ToastContext';
 interface StudentTEA {
   id: string;
   fullName: string;
+  photoUrl?: string;
   school: { schoolName: string };
   finalStatus: 'Confirmado' | 'Suspeito';
   cid?: string;
@@ -187,6 +188,13 @@ const ReportCard = ({
 
 // --- Componente Principal ---
 
+const getAvatarColor = (nome: string) => {
+  const colors = ['#8B1A3A', '#1E40AF', '#10B981', 
+    '#F59E0B', '#6366F1', '#EC4899'];
+  const index = nome ? nome.charCodeAt(0) % colors.length : 0;
+  return colors[index];
+};
+
 const RelatorioTEAPage: React.FC = () => {
   const navigate = useNavigate();
   const { error: toastError, success: toastSuccess } = useToast();
@@ -293,8 +301,8 @@ const RelatorioTEAPage: React.FC = () => {
       schools[sName] = (schools[sName] || 0) + 1;
     });
     return Object.entries(schools)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
+      .map(([name, value]) => ({ escola: name, totalConfirmados: value, totalSuspeitos: 0 }))
+      .sort((a, b) => b.totalConfirmados - a.totalConfirmados)
       .slice(0, 5);
   }, [students]);
 
@@ -433,7 +441,7 @@ const RelatorioTEAPage: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   layout="vertical"
-                  data={data?.porEscola.slice(0, 8) || schoolData}
+                  data={(data?.porEscola && data.porEscola.length > 0) ? data.porEscola.slice(0, 8) : schoolData}
                   margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
@@ -441,7 +449,7 @@ const RelatorioTEAPage: React.FC = () => {
                   <YAxis 
                     dataKey="escola" 
                     type="category" 
-                    width={100}
+                    width={120}
                     tick={{ fontSize: 10, fill: '#64748b' }}
                   />
                   <Tooltip 
@@ -653,7 +661,7 @@ const RelatorioTEAPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-gray-50/50 text-gray-500 text-xs font-bold uppercase tracking-wider">
@@ -676,8 +684,23 @@ const RelatorioTEAPage: React.FC = () => {
                     <tr key={student.id} className="hover:bg-gray-50/80 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[#8B1A3A]/10 text-[#8B1A3A] flex items-center justify-center font-bold text-sm">
-                            {student.fullName.charAt(0)}
+                          <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-slate-100 relative">
+                            {student.photoUrl ? (
+                              <img 
+                                src={student.photoUrl} 
+                                alt={student.fullName}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-full h-full flex items-center justify-center text-white font-bold text-sm ${student.photoUrl ? 'hidden' : 'flex'}`}
+                              style={{ backgroundColor: getAvatarColor(student.fullName) }}>
+                              {student.fullName.charAt(0).toUpperCase()}
+                            </div>
                           </div>
                           <div>
                             <p className="text-sm font-bold text-gray-900">{student.fullName}</p>
