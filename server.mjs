@@ -37,7 +37,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 
 // Middlewares
-app.use(cors());
+const allowedOrigins = [
+  'https://brotar.smebrotas.com.br',
+  'https://api-brotar.smebrotas.com.br',
+  'http://localhost:5501',
+  'http://localhost:5500',
+  'http://192.168.0.10:5501'
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
 
 // --- ROTAS DO WHATSAPP ---
