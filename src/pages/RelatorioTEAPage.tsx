@@ -242,6 +242,7 @@ const RelatorioTEAPage: React.FC = () => {
         if (resSuspeitos) setRelatorioSuspeitos(resSuspeitos);
         if (resPorEscola) setRelatorioPorEscola(resPorEscola);
         if (resPorBairro) setRelatorioPorBairro(resPorBairro);
+        console.log('dados escola:', (resPorEscola as any[])?.slice(0, 3));
 
       } catch (error) {
         console.error('Erro ao carregar ecossistema de relatórios TEA:', error);
@@ -456,8 +457,8 @@ const RelatorioTEAPage: React.FC = () => {
                     cursor={{ fill: '#f8fafc' }}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   />
-                  <Bar dataKey="totalConfirmados" name="Confirmados" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="totalSuspeitos" name="Suspeitos" stackId="a" fill="#F59E0B" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="confirmados" name="Confirmados" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="suspeitos" name="Suspeitos" stackId="a" fill="#F59E0B" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -697,8 +698,7 @@ const RelatorioTEAPage: React.FC = () => {
                                 }}
                               />
                             ) : null}
-                            <div className={`w-full h-full flex items-center justify-center text-white font-bold text-sm ${student.photoUrl ? 'hidden' : 'flex'}`}
-                              style={{ backgroundColor: getAvatarColor(student.fullName) }}>
+                            <div className={`w-full h-full items-center justify-center bg-slate-100 text-slate-500 font-medium text-sm ${student.photoUrl ? 'hidden' : 'flex'}`}>
                               {student.fullName.charAt(0).toUpperCase()}
                             </div>
                           </div>
