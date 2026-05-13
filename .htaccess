@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Permitir que rotas de API cheguem ao Node.js/Express
+  # O Hostinger Node.js Selector intercepta essas requisições
+  # mas o Apache pode tentar servir arquivos estáticos antes.
+  RewriteCond %{REQUEST_URI} ^/api [NC,OR]
+  RewriteCond %{REQUEST_URI} ^/debug-ping [NC]
+  RewriteRule ^ - [L]
+
+  # 2. Roteamento SPA do React
+  # Envia tudo que não é arquivo real para o index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>

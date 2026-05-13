@@ -161,7 +161,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
                 const reply = message.interactive.button_reply;
                 const replyId = reply.id;
                 rawText = reply.title;
-                console.log(`[Webhook] Botão Interativo Clicado: "${rawText}" (ID: ${replyId})`);
+                console.log(`[WEBHOOK] Botão Interativo | Texto: "${rawText}" | ID: ${replyId} | Tipo: interactive`);
 
                 if (replyId.startsWith('CONFIRM_')) {
                     actionType = 'CONFIRM';
@@ -181,7 +181,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
             else if (msgType === 'button' && message.button?.payload) {
                 const payload = message.button.payload;
                 rawText = message.button.text;
-                console.log(`[Webhook] Botão Template Clicado: "${rawText}" (Payload: ${payload})`);
+                console.log(`[WEBHOOK] Botão Template | Texto: "${rawText}" | Payload: ${payload} | Tipo: button`);
 
                 if (payload.startsWith('CONFIRM_')) {
                     actionType = 'CONFIRM';
