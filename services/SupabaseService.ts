@@ -3565,12 +3565,12 @@ export class SupabaseService {
     }) {
         console.log('[SupabaseService] Enviando WhatsApp via API local...', details);
 
-        const API_BASE_URL =
-            (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BROTAR_API_BASE_URL) ||
+        const API_URL =
+            (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
             'https://api-brotar.smebrotas.com.br';
         const sendSecret =
             typeof import.meta !== 'undefined' ? import.meta.env?.VITE_BROTAR_WHATSAPP_SEND_SECRET : undefined;
-        const url = `${String(API_BASE_URL).replace(/\/$/, '')}/api/whatsapp/send`;
+        const url = `${String(API_URL).replace(/\/$/, '')}/api/whatsapp/send`;
 
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (sendSecret && String(sendSecret).trim()) {
