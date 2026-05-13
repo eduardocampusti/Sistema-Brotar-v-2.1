@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   FileText, 
   Users, 
@@ -17,7 +18,8 @@ import {
   PieChart as PieChartIcon,
   BarChart as BarChartIcon,
   X,
-  FileDown
+  FileDown,
+  TrendingUp
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -58,6 +60,17 @@ interface StudentTEA {
   responsavel?: string;
   clinical?: { cid?: string; laudo?: boolean };
   last_update: string;
+}
+
+interface RelatorioTEAData {
+  resumo: {
+    totalTEA: number;
+    comLaudo: number;
+    suspeitos: number;
+    totalGeralAlunos: number;
+  };
+  porEscola: any[];
+  porFaixaEtaria: any[];
 }
 
 interface ReportCardProps {
@@ -179,7 +192,12 @@ const RelatorioTEAPage: React.FC = () => {
   const { error: toastError, success: toastSuccess } = useToast();
   
   // States
+  const [data, setData] = useState<RelatorioTEAData | null>(null);
   const [students, setStudents] = useState<StudentTEA[]>([]);
+  const [relatorioConfirmados, setRelatorioConfirmados] = useState<StudentTEA[]>([]);
+  const [relatorioSuspeitos, setRelatorioSuspeitos] = useState<any[]>([]);
+  const [relatorioPorEscola, setRelatorioPorEscola] = useState<any[]>([]);
+  const [relatorioPorBairro, setRelatorioPorBairro] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'todos' | 'confirmado' | 'suspeito'>('todos');
@@ -188,29 +206,70 @@ const RelatorioTEAPage: React.FC = () => {
 
   // Fetch Data
   useEffect(() => {
-    const fetchData = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        // getProcessedTEAStudents é private — usar o wrapper público correto
-        const data = await SupabaseService.getRelatorioTEACompleto();
-        setStudents(data);
+
+        const results = await Promise.allSettled([
+          SupabaseService.getRelatorioTEA(),
+          SupabaseService.getRelatorioTEACompleto(),
+          SupabaseService.getRelatorioTEAConfirmados(),
+          SupabaseService.getRelatorioTEASuspeitos(),
+          SupabaseService.getRelatorioTEAPorEscola(),
+          SupabaseService.getRelatorioTEAPorBairro()
+        ]);
+
+        const [
+          resBase,
+          resCompleto,
+          resConfirmados,
+          resSuspeitos,
+          resPorEscola,
+          resPorBairro
+        ] = results.map(r => r.status === 'fulfilled' ? r.value : []);
+
+        if (resBase) setData(resBase as RelatorioTEAData);
+        if (resCompleto) setStudents(resCompleto);
+        if (resConfirmados) setRelatorioConfirmados(resConfirmados);
+        if (resSuspeitos) setRelatorioSuspeitos(resSuspeitos);
+        if (resPorEscola) setRelatorioPorEscola(resPorEscola);
+        if (resPorBairro) setRelatorioPorBairro(resPorBairro);
+
       } catch (error) {
-        console.error('Erro ao carregar dados TEA:', error);
-        toastError('Não foi possível carregar os dados dos alunos.');
+        console.error('Erro ao carregar ecossistema de relatórios TEA:', error);
+        toastError('Não foi possível carregar todos os dados dos relatórios.');
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    loadData();
   }, []);
 
   // Memoized Calculations
   const metrics = useMemo(() => {
+    // Prioriza dados do resumo consolidado se disponível
+    if (data?.resumo) {
+      return {
+        total: data.resumo.totalTEA,
+        confirmados: data.resumo.comLaudo,
+        suspeitos: data.resumo.suspeitos,
+        totalGeral: data.resumo.totalGeralAlunos,
+        percentual: ((data.resumo.totalTEA / data.resumo.totalGeralAlunos) * 100).toFixed(2)
+      };
+    }
+    
+    // Fallback para cálculo local
     const total = students.length;
     const confirmados = students.filter(s => s.finalStatus === 'Confirmado').length;
     const suspeitos = students.filter(s => s.finalStatus === 'Suspeito').length;
-    return { total, confirmados, suspeitos };
-  }, [students]);
+    return { 
+      total, 
+      confirmados, 
+      suspeitos, 
+      totalGeral: 0, 
+      percentual: '0.00' 
+    };
+  }, [students, data]);
 
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
@@ -241,25 +300,60 @@ const RelatorioTEAPage: React.FC = () => {
 
   // Handlers
   const handleViewDetails = (reportId: string) => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
     setSelectedReport(reportId);
     setIsModalOpen(true);
   };
 
   const handleSpecializedExport = async (reportType: string) => {
-    const unitInfo = await SupabaseService.getUnitSettings();
-    
     try {
+      console.log('[PDF] Iniciando export tipo:', reportType);
+      
+      const unitInfo = await SupabaseService.getPapelTimbradoConfig();
+      console.log('[PDF] Config obtida:', unitInfo ? 'ok' : 'null/undefined');
+      console.log('[PDF] Config keys:', unitInfo ? Object.keys(unitInfo) : 'N/A');
+      
+      console.log('[PDF] Dados disponíveis:', {
+        students: students?.length,
+        confirmados: relatorioConfirmados?.length,
+        suspeitos: relatorioSuspeitos?.length,
+        escola: relatorioPorEscola?.length,
+        bairro: relatorioPorBairro?.length
+      });
+
       switch(reportType) {
-        case 'completo': await exportRelatorioCompletoTEAPDF(students, unitInfo); break;
-        case 'confirmados': await exportRelatorioConfirmadosTEAPDF(students.filter(s => s.finalStatus === 'Confirmado'), unitInfo); break;
-        case 'suspeitos': await exportRelatorioSuspeitosTEAPDF(students.filter(s => s.finalStatus === 'Suspeito'), unitInfo); break;
-        case 'escola': await exportRelatorioPorEscolaTEAPDF(students, unitInfo); break;
-        case 'contato': await exportRelatorioContatoTEAPDF(students, unitInfo); break;
-        case 'bairro': await exportRelatorioPorBairroPDF(students, unitInfo); break;
+        case 'completo': 
+          console.log('[PDF] Chamando exportRelatorioCompletoTEAPDF com', students?.length, 'registros');
+          await exportRelatorioCompletoTEAPDF(students, unitInfo); 
+          break;
+        case 'confirmados': 
+          console.log('[PDF] Chamando exportRelatorioConfirmadosTEAPDF com', relatorioConfirmados?.length, 'registros');
+          await exportRelatorioConfirmadosTEAPDF(relatorioConfirmados, unitInfo); 
+          break;
+        case 'suspeitos': 
+          console.log('[PDF] Chamando exportRelatorioSuspeitosTEAPDF com', relatorioSuspeitos?.length, 'registros');
+          await exportRelatorioSuspeitosTEAPDF(relatorioSuspeitos, unitInfo); 
+          break;
+        case 'escola': 
+          console.log('[PDF] Chamando exportRelatorioPorEscolaTEAPDF com', students?.length, 'registros');
+          await exportRelatorioPorEscolaTEAPDF(students, unitInfo); 
+          break;
+        case 'contato': 
+          console.log('[PDF] Chamando exportRelatorioContatoTEAPDF com', students?.length, 'registros');
+          await exportRelatorioContatoTEAPDF(students, unitInfo); 
+          break;
+        case 'bairro': 
+          console.log('[PDF] Chamando exportRelatorioPorBairroPDF com', relatorioPorBairro?.length, 'registros');
+          await exportRelatorioPorBairroPDF(students, unitInfo); 
+          break;
+        default:
+          console.error('[PDF] Tipo não reconhecido:', reportType);
       }
+      console.log('[PDF] Export concluído com sucesso');
       toastSuccess('Relatório gerado com sucesso!');
-    } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
+    } catch (error) {
+      console.error('[PDF] ERRO DETALHADO:', error);
+      console.error('[PDF] Stack:', error instanceof Error ? error.stack : error);
       toastError('Erro ao gerar PDF. Tente novamente.');
     }
   };
@@ -292,7 +386,7 @@ const RelatorioTEAPage: React.FC = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Metric Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard 
             title="Total de Alunos TEA"
             value={metrics.total}
@@ -317,13 +411,120 @@ const RelatorioTEAPage: React.FC = () => {
             onClick={() => setFilterStatus('suspeito')}
             active={filterStatus === 'suspeito'}
           />
+          <MetricCard 
+            title="% de TEA na Rede"
+            value={`${metrics.percentual}%`}
+            icon={TrendingUp}
+            color="indigo"
+            onClick={() => {}}
+            active={false}
+          />
         </div>
 
-        {/* Central de Relatórios Section */}
-        <div className="pt-4">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-1.5 h-8 bg-[#8B1A3A] rounded-full"></div>
-            <h2 className="text-2xl font-bold text-gray-800">Central de Relatórios</h2>
+        {/* Análise Gráfica */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Distribuição por Escola */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <div className="flex items-center gap-2 mb-6">
+              <School size={20} className="text-[#8B1A3A]" />
+              <h3 className="text-lg font-bold text-gray-800">Distribuição por Escola</h3>
+            </div>
+            <div className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={data?.porEscola.slice(0, 8) || schoolData}
+                  margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="escola" 
+                    type="category" 
+                    width={100}
+                    tick={{ fontSize: 10, fill: '#64748b' }}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="totalConfirmados" name="Confirmados" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="totalSuspeitos" name="Suspeitos" stackId="a" fill="#F59E0B" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            {/* Proporção e Faixas */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row gap-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-4">
+                  <PieChartIcon size={20} className="text-[#8B1A3A]" />
+                  <h3 className="text-lg font-bold text-gray-800">Proporção</h3>
+                </div>
+                <div className="h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={statusData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={65}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {statusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-4">
+                  <Calendar size={20} className="text-[#8B1A3A]" />
+                  <h3 className="text-lg font-bold text-gray-800">Faixas Etárias</h3>
+                </div>
+                <div className="h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data?.porFaixaEtaria}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="faixa" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} />
+                      <YAxis hide />
+                      <Tooltip />
+                      <Bar dataKey="confirmados" name="Confirmados" stackId="a" fill="#10B981" />
+                      <Bar dataKey="suspeitos" name="Suspeitos" stackId="a" fill="#F59E0B" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#8B1A3A]/5 border border-[#8B1A3A]/10 p-4 rounded-xl flex items-start gap-3">
+              <TrendingUp className="text-[#8B1A3A] mt-1 shrink-0" size={20} />
+              <div>
+                <h4 className="text-sm font-bold text-[#8B1A3A]">Insight Estratégico</h4>
+                <p className="text-xs text-slate-600 leading-relaxed mt-0.5">
+                  A maior concentração de casos em suspeita na faixa de 0-3 anos indica a necessidade de 
+                  reforço em equipes de triagem precoce para agilizar diagnósticos definitivos.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Central de Relatórios */}
+        <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-200 shadow-inner space-y-6">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-6 bg-[#8B1A3A] rounded-full"/>
+            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+              Central de Relatórios
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -359,9 +560,9 @@ const RelatorioTEAPage: React.FC = () => {
               description="Alunos identificados em triagem ou por observação pedagógica aguardando laudo."
               icon={AlertCircle}
               color="#F59E0B"
-              badge={metrics.suspeitos}
+              badge={relatorioSuspeitos.length || metrics.suspeitos}
               chartType="pie"
-              chartData={[{ name: 'Suspeito', value: metrics.suspeitos, color: '#F59E0B' }]}
+              chartData={[{ name: 'Suspeito', value: relatorioSuspeitos.length || metrics.suspeitos, color: '#F59E0B' }]}
               onViewDetails={() => handleViewDetails('suspeitos')}
               onExportPDF={() => handleSpecializedExport('suspeitos')}
             />
@@ -372,9 +573,12 @@ const RelatorioTEAPage: React.FC = () => {
               description="Análise quantitativa de alunos TEA distribuídos pelas unidades escolares municipais."
               icon={School}
               color="#8B1A3A"
-              badge="Top 5"
+              badge={relatorioPorEscola.length > 0 ? `Total: ${relatorioPorEscola.length} Escolas` : 'Top 5'}
               chartType="bar"
-              chartData={schoolData}
+              chartData={relatorioPorEscola.length > 0 
+                ? relatorioPorEscola.slice(0, 5).map(e => ({ name: e.escola, value: e.totalConfirmados + e.totalSuspeitos }))
+                : schoolData
+              }
               onViewDetails={() => handleViewDetails('escola')}
               onExportPDF={() => handleSpecializedExport('escola')}
             />
@@ -398,9 +602,12 @@ const RelatorioTEAPage: React.FC = () => {
               description="Mapeamento geográfico para identificar áreas de maior demanda de atendimento especializado."
               icon={MapPin}
               color="#4F46E5"
-              badge="Localização"
+              badge={relatorioPorBairro.length > 0 ? `Total: ${relatorioPorBairro.length} Bairros` : 'Localização'}
               chartType="pie"
-              chartData={statusData}
+              chartData={relatorioPorBairro.length > 0
+                ? relatorioPorBairro.slice(0, 5).map(b => ({ name: b.bairro, value: b.totalTEA, color: '#4F46E5' }))
+                : statusData
+              }
               onViewDetails={() => handleViewDetails('bairro')}
               onExportPDF={() => handleSpecializedExport('bairro')}
             />
@@ -470,11 +677,11 @@ const RelatorioTEAPage: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-[#8B1A3A]/10 text-[#8B1A3A] flex items-center justify-center font-bold text-sm">
-                            {s.fullName.charAt(0)}
+                            {student.fullName.charAt(0)}
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-gray-900">{s.fullName}</p>
-                            <p className="text-xs text-gray-500">Nasc: {s.birthDate || '-'}</p>
+                            <p className="text-sm font-bold text-gray-900">{student.fullName}</p>
+                            <p className="text-xs text-gray-500">Nasc: {student.birthDate || '-'}</p>
                           </div>
                         </div>
                       </td>
@@ -544,11 +751,40 @@ const RelatorioTEAPage: React.FC = () => {
       </div>
 
       {/* Details Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+      {isModalOpen && selectedReport && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            padding: '16px'
+          }}
+          onClick={() => { setIsModalOpen(false); setSelectedReport(null); }}
+        >
+          <div
+            style={{
+              background: 'white',
+              width: '100%',
+              maxWidth: '900px',
+              maxHeight: '88vh',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-[#8B1A3A] text-white">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-[#8B1A3A] text-white sticky top-0 z-10 rounded-t-2xl">
               <div>
                 <h2 className="text-xl font-bold flex items-center gap-2">
                   <FileText size={22} />
@@ -562,7 +798,7 @@ const RelatorioTEAPage: React.FC = () => {
                 <p className="text-white/70 text-sm mt-0.5">Visualização detalhada dos registros para análise</p>
               </div>
               <button 
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => { setIsModalOpen(false); setSelectedReport(null); }}
                 className="p-2 hover:bg-white/10 rounded-full transition-colors"
               >
                 <X size={24} />
@@ -570,82 +806,133 @@ const RelatorioTEAPage: React.FC = () => {
             </div>
 
             {/* Modal Table Content */}
-            <div className="overflow-auto flex-1 p-6">
+            <div className="flex-1 overflow-y-auto p-6">
               <table className="w-full text-left">
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b-2 border-gray-100 text-gray-400 text-[10px] font-black uppercase tracking-wider">
                     <th className="pb-3 px-4">Aluno</th>
-                    <th className="pb-3 px-4">Unidade Escolar</th>
-                    {(selectedReport === 'contato' || selectedReport === 'completo') && <th className="pb-3 px-4">Responsável / Fone</th>}
-                    {selectedReport === 'bairro' && <th className="pb-3 px-4">Bairro</th>}
+                    {selectedReport !== 'escola' && <th className="pb-3 px-4">Unidade Escolar</th>}
+                    {selectedReport === 'escola' && <th className="pb-3 px-4">Unidade</th>}
+                    {(selectedReport === 'contato' || selectedReport === 'completo' || selectedReport === 'bairro') && <th className="pb-3 px-4">Responsável / Fone</th>}
+                    {selectedReport === 'bairro' && <th className="pb-3 px-4">Localização</th>}
                     <th className="pb-3 px-4">Status</th>
                     <th className="pb-3 px-4 text-right">Diagnóstico</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {students
-                    .filter(s => {
-                      if (selectedReport === 'confirmados') return s.finalStatus === 'Confirmado';
-                      if (selectedReport === 'suspeitos') return s.finalStatus === 'Suspeito';
-                      return true;
-                    })
-                    .map((s) => (
-                      <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                  {(() => {
+                    let displayData: any[] = [];
+                    if (selectedReport === 'confirmados') displayData = relatorioConfirmados;
+                    else if (selectedReport === 'suspeitos') displayData = relatorioSuspeitos;
+                    else if (selectedReport === 'escola') {
+                      // Achatar a lista de alunos por escola para a tabela
+                      displayData = relatorioPorEscola.flatMap(e => 
+                        (e.alunos || []).map((a: any) => ({
+                          fullName: a.nome,
+                          school: { schoolName: e.escola },
+                          unit: e.unidade,
+                          finalStatus: a.status,
+                          cid: a.cid
+                        }))
+                      );
+                    } else if (selectedReport === 'bairro') {
+                      displayData = relatorioPorBairro.flatMap(b => 
+                        (b.alunos || []).map((a: any) => ({
+                          fullName: a.nome,
+                          school: { schoolName: a.escola },
+                          finalStatus: a.status,
+                          bairro: b.bairro,
+                          telefone: a.telefone,
+                          responsavel: a.responsavel
+                        }))
+                      );
+                    } else {
+                      displayData = students;
+                    }
+
+                    if (displayData.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={6} className="py-16 text-center">
+                            <div className="flex flex-col items-center gap-3 text-gray-400">
+                              <Search size={32} className="text-gray-300" />
+                              <p className="text-sm font-medium">Nenhum registro encontrado para este relatório.</p>
+                              <p className="text-xs">Os dados podem ainda estar sendo carregados ou não há registros nesta categoria.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return displayData.map((s, idx) => (
+                      <tr key={s.id || idx} className="hover:bg-gray-50 transition-colors">
                         <td className="py-4 px-4">
                           <span className="text-sm font-bold text-gray-900">{s.fullName}</span>
                         </td>
                         <td className="py-4 px-4">
-                          <span className="text-sm text-gray-600">{s.school?.schoolName || 'Não vinculada'}</span>
+                          <span className="text-sm text-gray-600">
+                            {s.school?.schoolName || s.schoolName || 'Não vinculada'}
+                            {s.unit && <span className="text-[10px] block text-gray-400">{s.unit}</span>}
+                          </span>
                         </td>
-                        {(selectedReport === 'contato' || selectedReport === 'completo') && (
+                        {(selectedReport === 'contato' || selectedReport === 'completo' || selectedReport === 'bairro') && (
                           <td className="py-4 px-4 text-sm text-gray-500">
-                            <div className="flex items-center gap-1.5">
-                              <Phone size={12} className="text-gray-400" />
-                              {s.telefone || 'Não informado'}
+                            <div className="flex flex-col">
+                              <span className="text-xs font-medium text-gray-700">{s.responsavel || 'N/I'}</span>
+                              <div className="flex items-center gap-1 text-[10px]">
+                                <Phone size={10} className="text-gray-400" />
+                                {s.telefone || 'N/I'}
+                              </div>
                             </div>
                           </td>
                         )}
                         {selectedReport === 'bairro' && (
                           <td className="py-4 px-4 text-sm text-gray-600">
-                            {s.bairro || 'N/A'}
+                            <div className="flex items-center gap-1">
+                              <MapPin size={12} className="text-gray-400" />
+                              {s.bairro || 'N/A'}
+                            </div>
                           </td>
                         )}
                         <td className="py-4 px-4">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            s.finalStatus === 'Confirmado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                            s.finalStatus === 'Confirmado' || s.status === 'Confirmado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                           }`}>
-                            {s.finalStatus.toUpperCase()}
+                            {(s.finalStatus || s.status || '').toUpperCase()}
                           </span>
                         </td>
                         <td className="py-4 px-4 text-right text-xs font-mono text-gray-400">
                           {s.clinical?.cid || s.cid || 'PENDENTE'}
                         </td>
                       </tr>
-                    ))}
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+            <div className="sticky bottom-0 bg-white border-t border-slate-100 p-4 flex justify-end gap-3 rounded-b-2xl">
               <button 
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => { setIsModalOpen(false); setSelectedReport(null); }}
                 className="px-6 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-all"
               >
                 Fechar
               </button>
               <button 
                 onClick={() => {
+                  console.log('[TEA Modal] PDF click, selectedReport:', selectedReport);
                   if (selectedReport) handleSpecializedExport(selectedReport);
                 }}
                 className="flex items-center gap-2 px-6 py-2 text-sm font-bold text-white bg-[#8B1A3A] hover:bg-[#6D142E] rounded-lg shadow-lg shadow-[#8B1A3A]/20 transition-all"
               >
-                <Download size={18} />
-                Baixar PDF Completo
+                <FileDown size={18} />
+                Baixar PDF
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

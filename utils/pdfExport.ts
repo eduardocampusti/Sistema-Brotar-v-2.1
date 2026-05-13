@@ -511,14 +511,17 @@ export const exportRelatorioCompletoTEAPDF = async (data: any[], config: PapelTi
     doc.text("LISTAGEM GERAL DE ALUNOS (DIAGNÓSTICO CONFIRMADO E CASOS SUSPEITOS)", pageWidth / 2, currentY, { align: 'center' });
     currentY += 12;
 
-    const tableData = data.map(a => [
-        (a.fullName || 'N/I').toUpperCase(),
-        (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
-        (a.status || a.finalStatus || '-').toUpperCase(),
-        a.clinical?.cid || 'PENDENTE',
-        a.telefone || '-',
-        (a.bairro || '-').toUpperCase()
-    ]);
+    const tableData = data.map(a => {
+        const statusTEA = a.finalStatus || (a.hasLaudoAnexado ? 'Confirmado' : 'Suspeito');
+        return [
+            (a.fullName || 'N/I').toUpperCase(),
+            (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
+            statusTEA.toUpperCase(),
+            a.clinical?.cid || 'PENDENTE',
+            a.telefone || '-',
+            (a.bairro || '-').toUpperCase()
+        ];
+    });
 
     autoTable(doc, {
         startY: currentY,
@@ -538,7 +541,9 @@ export const exportRelatorioCompletoTEAPDF = async (data: any[], config: PapelTi
     });
 
     await drawFooter(doc, config);
-    doc.save(`relatorio_tea_completo_${new Date().getTime()}.pdf`);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_tea_completo_${dataStr}.pdf`);
 };
 
 /**
@@ -589,7 +594,9 @@ export const exportRelatorioConfirmadosTEAPDF = async (data: any[], config: Pape
     });
 
     await drawFooter(doc, config);
-    doc.save(`relatorio_tea_confirmados_${new Date().getTime()}.pdf`);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_tea_confirmados_${dataStr}.pdf`);
 };
 
 /**
@@ -640,7 +647,9 @@ export const exportRelatorioSuspeitosTEAPDF = async (data: any[], config: PapelT
     });
 
     await drawFooter(doc, config);
-    doc.save(`relatorio_tea_suspeitos_${new Date().getTime()}.pdf`);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_tea_suspeitos_${dataStr}.pdf`);
 };
 
 /**
@@ -704,7 +713,9 @@ export const exportRelatorioPorEscolaTEAPDF = async (data: any[], config: PapelT
     });
 
     await drawFooter(doc, config);
-    doc.save(`relatorio_tea_por_escola_${new Date().getTime()}.pdf`);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_tea_por_escola_${dataStr}.pdf`);
 };
 
 /**
@@ -753,7 +764,9 @@ export const exportRelatorioContatoTEAPDF = async (data: any[], config: PapelTim
     });
 
     await drawFooter(doc, config);
-    doc.save(`relatorio_tea_contatos_${new Date().getTime()}.pdf`);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_tea_contatos_${dataStr}.pdf`);
 };
 
 /**
@@ -807,5 +820,7 @@ export const exportRelatorioPorBairroPDF = async (data: any[], config: PapelTimb
     });
 
     await drawFooter(doc, config);
-    doc.save(`relatorio_tea_por_bairro_${new Date().getTime()}.pdf`);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_tea_geografico_${dataStr}.pdf`);
 };

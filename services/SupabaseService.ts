@@ -1094,6 +1094,173 @@ export class SupabaseService {
     }
 
     /**
+     * Retorna TODOS os alunos TEA (confirmados + suspeitos) com dados completos de contato e endereço.
+     */
+    static async getRelatorioTEACompleto(): Promise<any[]> {
+        return safeCall(async () => {
+            return await this.getProcessedTEAStudents();
+        }, 0, 300, 'getRelatorioTEACompleto');
+    }
+
+    /**
+     * Retorna apenas alunos com status 'Confirmado'.
+     */
+    static async getRelatorioTEAConfirmados(): Promise<any[]> {
+        return safeCall(async () => {
+            const students = await this.getProcessedTEAStudents();
+            return students.filter(s => s.finalStatus === 'Confirmado');
+        }, 0, 300, 'getRelatorioTEAConfirmados');
+    }
+
+    /**
+     * Retorna alunos agrupados por escola com estatísticas rápidas.
+     */
+    static async getRelatorioTEAPorEscola(): Promise<any[]> {
+        return safeCall(async () => {
+            const students = await this.getProcessedTEAStudents();
+            const schoolsMap = new Map<string, any>();
+
+            students.forEach(s => {
+                const schoolName = s.school?.schoolName || 'Não vinculada';
+                if (!schoolsMap.has(schoolName)) {
+                    schoolsMap.set(schoolName, {
+                        escola: schoolName,
+                        unidade: s.unit || 'N/A',
+                        totalConfirmados: 0,
+                        totalSuspeitos: 0,
+                        alunos: []
+                    });
+                }
+                const sch = schoolsMap.get(schoolName);
+                if (s.finalStatus === 'Confirmado') sch.totalConfirmados++;
+                else sch.totalSuspeitos++;
+                
+                sch.alunos.push({
+                    nome: s.fullName,
+                    status: s.finalStatus,
+                    cid: s.clinical?.cid || 'N/A'
+                });
+            });
+
+            return Array.from(schoolsMap.values()).sort((a, b) => b.alunos.length - a.alunos.length);
+        }, 0, 300, 'getRelatorioTEAPorEscola');
+    }
+
+    /**
+     * Retorna apenas alunos com status 'Suspeito'.
+     */
+    static async getRelatorioTEASuspeitos(): Promise<any[]> {
+        return safeCall(async () => {
+            const students = await this.getProcessedTEAStudents();
+            return students
+                .filter(s => s.finalStatus === 'Suspeito')
+                .map(s => ({
+                    ...s,
+                    observacao: "Aguardando laudo"
+                }));
+        }, 0, 300, 'getRelatorioTEASuspeitos');
+    }
+
+    /**
+     * Retorna alunos agrupados por bairro/localidade geográfica.
+     */
+    static async getRelatorioTEAPorBairro(): Promise<any[]> {
+        return safeCall(async () => {
+            const students = await this.getProcessedTEAStudents();
+            const bairroMap = new Map<string, any>();
+
+            students.forEach(s => {
+                const bairro = s.address?.district || 'Não informado';
+                if (!bairroMap.has(bairro)) {
+                    bairroMap.set(bairro, {
+                        bairro,
+                        totalTEA: 0,
+                        alunos: []
+                    });
+                }
+                const b = bairroMap.get(bairro);
+                b.totalTEA++;
+                b.alunos.push({
+                    nome: s.fullName,
+                    escola: s.school?.schoolName || 'N/A',
+                    status: s.finalStatus,
+                    responsavel: s.responsavel,
+                    telefone: s.telefone
+                });
+            });
+
+            return Array.from(bairroMap.values()).sort((a, b) => b.totalTEA - a.totalTEA);
+        }, 0, 300, 'getRelatorioTEAPorBairro');
+    }
+
+    /**
+     * Helper centralizador para processamento de alunos TEA.
+     * Cruza dados clínicos, documentos e flags de diagnóstico.
+     * Respeita RLS e Escopo (Sede/Cocal/Global).
+     */
+    private static async getProcessedTEAStudents(filters?: { unit?: Unit; schoolId?: string }) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) throw new Error('Sessão expirada. Faça login novamente.');
+
+        const profile = await this.getUserProfile(session.user.id);
+        if (!profile) throw new Error('Perfil do usuário não encontrado.');
+
+        // Busca alunos (getStudents já aplica RLS e filtros de papel ESCOLA)
+        let students = await this.getStudents(undefined, { compactList: true });
+
+        // Filtros de Escopo (Segunda camada de segurança alinhada ao getRelatorioTEA base)
+        const role = (profile.role || '').toUpperCase();
+        const scope = (profile.scope || 'GLOBAL').toUpperCase();
+
+        if (role === 'SECRETARIA_SEDE') {
+            students = students.filter(s => s.unit === 'SEDE');
+        } else if (role === 'SECRETARIA_COCAL') {
+            students = students.filter(s => s.unit === 'COCAL');
+        } else if (role === 'ASSISTANT' && scope === 'COCAL') {
+            students = students.filter(s => s.unit === 'COCAL');
+        }
+
+        if (filters?.unit) students = students.filter(s => s.unit === filters.unit);
+        if (filters?.schoolId) students = students.filter(s => s.school?.schoolId === filters.schoolId);
+
+        const getAge = (birthDate?: string) => {
+            if (!birthDate) return 0;
+            const today = new Date();
+            const birth = new Date(birthDate.includes('T') ? birthDate : birthDate + 'T00:00:00');
+            let age = today.getFullYear() - birth.getFullYear();
+            const m = today.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+            return age < 0 ? 0 : age;
+        };
+
+        return students.map(s => {
+            const hasExplicitLaudo = s.clinical?.laudo === true;
+            const hasLaudoAnexado = Array.isArray(s.documents) && s.documents.some((doc: any) => doc.type === 'Laudo Médico');
+            const hasExplicitSuspicion = s.clinical?.suspicion === true;
+            
+            let finalStatus: 'Confirmado' | 'Suspeito' | null = null;
+            
+            // Reutiliza lógica oficial de diagnóstico
+            if (hasExplicitLaudo || hasLaudoAnexado) {
+                finalStatus = 'Confirmado';
+            } else if (hasExplicitSuspicion || categorizeSecretaryDiagnosis(s) === 'TEA/Autismo') {
+                finalStatus = 'Suspeito';
+            }
+
+            if (!finalStatus) return null;
+
+            return {
+                ...s,
+                finalStatus,
+                age: getAge(s.birthDate),
+                responsavel: s.guardians?.[0]?.name || 'Não informado',
+                telefone: s.guardians?.[0]?.phone || 'Não informado',
+                bairro: s.address?.district || 'Não informado'
+            };
+        }).filter((s): s is NonNullable<typeof s> => s !== null);
+    }
+
+    /**
      * Papéis com visão ampla na rede (alinhado ao RLS após V27: secretarias regionais e assistente com escopo não são “rede inteira”).
      */
     static podeVerTodosAlunosNaRede(user: Pick<User, 'role' | 'scope'>): boolean {
