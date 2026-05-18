@@ -3,6 +3,39 @@ import autoTable from 'jspdf-autotable';
 import { Student, School, PapelTimbradoConfig, RelatorioTEAData } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 
+type RGBColor = [number, number, number];
+
+const addReportTotalizer = (doc: jsPDF, y: number, text: string, themeColor: RGBColor, fillColor: RGBColor) => {
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFillColor(fillColor[0], fillColor[1], fillColor[2]);
+    doc.setDrawColor(themeColor[0], themeColor[1], themeColor[2]);
+    doc.roundedRect(15, y, pageWidth - 30, 9, 2, 2, 'FD');
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
+    doc.text(text, pageWidth / 2, y + 6, { align: 'center' });
+    doc.setTextColor(0);
+};
+
+const addPageNumbers = (doc: jsPDF) => {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageCount = doc.getNumberOfPages();
+
+    for (let page = 1; page <= pageCount; page++) {
+        doc.setPage(page);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(`Página ${page} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
+
+    doc.setTextColor(0);
+};
+
+const getTeaStatus = (aluno: any) => aluno.finalStatus || (aluno.hasLaudoAnexado ? 'Confirmado' : 'Suspeito');
+
 export const generateStudentPDF = async (student: Student) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -497,11 +530,13 @@ export const exportRelatorioTEAPDF = async (data: RelatorioTEAData, config: Pape
 export const exportRelatorioCompletoTEAPDF = async (data: any[], config: PapelTimbradoConfig) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const themeColor: RGBColor = [30, 58, 95];
+    const stripeColor: RGBColor = [235, 242, 250];
     let currentY = await drawLetterhead(doc, config);
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(59, 130, 246);
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
     doc.text("RELATÓRIO CONSOLIDADO: MONITORAMENTO TEA", pageWidth / 2, currentY, { align: 'center' });
     currentY += 6;
 
@@ -511,8 +546,13 @@ export const exportRelatorioCompletoTEAPDF = async (data: any[], config: PapelTi
     doc.text("LISTAGEM GERAL DE ALUNOS (DIAGNÓSTICO CONFIRMADO E CASOS SUSPEITOS)", pageWidth / 2, currentY, { align: 'center' });
     currentY += 12;
 
+    const confirmados = data.filter(a => getTeaStatus(a) === 'Confirmado').length;
+    const suspeitos = data.length - confirmados;
+    addReportTotalizer(doc, currentY, `Total de alunos: ${data.length} (Confirmados: ${confirmados} | Suspeitos: ${suspeitos})`, themeColor, stripeColor);
+    currentY += 16;
+
     const tableData = data.map(a => {
-        const statusTEA = a.finalStatus || (a.hasLaudoAnexado ? 'Confirmado' : 'Suspeito');
+        const statusTEA = getTeaStatus(a);
         return [
             (a.fullName || 'N/I').toUpperCase(),
             (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
@@ -528,8 +568,9 @@ export const exportRelatorioCompletoTEAPDF = async (data: any[], config: PapelTi
         head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'STATUS', 'CID', 'CONTATO', 'BAIRRO']],
         body: tableData,
         theme: 'striped',
-        headStyles: { fillColor: [59, 130, 246], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
         styles: { fontSize: 7, cellPadding: 2.5, valign: 'middle' },
+        alternateRowStyles: { fillColor: stripeColor },
         columnStyles: {
             0: { cellWidth: 50 },
             1: { cellWidth: 40 },
@@ -541,6 +582,7 @@ export const exportRelatorioCompletoTEAPDF = async (data: any[], config: PapelTi
     });
 
     await drawFooter(doc, config);
+    addPageNumbers(doc);
     const hoje = new Date();
     const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
     doc.save(`relatorio_tea_completo_${dataStr}.pdf`);
@@ -553,11 +595,13 @@ export const exportRelatorioCompletoTEAPDF = async (data: any[], config: PapelTi
 export const exportRelatorioConfirmadosTEAPDF = async (data: any[], config: PapelTimbradoConfig) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const themeColor: RGBColor = [26, 92, 58];
+    const stripeColor: RGBColor = [232, 245, 238];
     let currentY = await drawLetterhead(doc, config);
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(16, 185, 129);
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
     doc.text("RELATÓRIO: DIAGNÓSTICOS TEA CONFIRMADOS", pageWidth / 2, currentY, { align: 'center' });
     currentY += 6;
 
@@ -566,6 +610,9 @@ export const exportRelatorioConfirmadosTEAPDF = async (data: any[], config: Pape
     doc.setTextColor(100);
     doc.text("ALUNOS COM LAUDO MÉDICO E CID VALIDADO NO SISTEMA", pageWidth / 2, currentY, { align: 'center' });
     currentY += 12;
+
+    addReportTotalizer(doc, currentY, `Total de alunos confirmados: ${data.length}`, themeColor, stripeColor);
+    currentY += 16;
 
     const tableData = data.map(a => [
         (a.fullName || 'N/I').toUpperCase(),
@@ -581,8 +628,9 @@ export const exportRelatorioConfirmadosTEAPDF = async (data: any[], config: Pape
         head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'CID', 'IDADE', 'UNID.', 'SITUAÇÃO']],
         body: tableData,
         theme: 'striped',
-        headStyles: { fillColor: [16, 185, 129], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
         styles: { fontSize: 7.5, cellPadding: 3 },
+        alternateRowStyles: { fillColor: stripeColor },
         columnStyles: {
             0: { cellWidth: 60 },
             1: { cellWidth: 45 },
@@ -594,6 +642,7 @@ export const exportRelatorioConfirmadosTEAPDF = async (data: any[], config: Pape
     });
 
     await drawFooter(doc, config);
+    addPageNumbers(doc);
     const hoje = new Date();
     const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
     doc.save(`relatorio_tea_confirmados_${dataStr}.pdf`);
@@ -606,11 +655,13 @@ export const exportRelatorioConfirmadosTEAPDF = async (data: any[], config: Pape
 export const exportRelatorioSuspeitosTEAPDF = async (data: any[], config: PapelTimbradoConfig) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const themeColor: RGBColor = [184, 75, 0];
+    const stripeColor: RGBColor = [255, 240, 230];
     let currentY = await drawLetterhead(doc, config);
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(245, 158, 11);
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
     doc.text("RELATÓRIO: INVESTIGAÇÃO DE SUSPEITA TEA", pageWidth / 2, currentY, { align: 'center' });
     currentY += 6;
 
@@ -619,6 +670,9 @@ export const exportRelatorioSuspeitosTEAPDF = async (data: any[], config: PapelT
     doc.setTextColor(100);
     doc.text("ALUNOS EM TRIAGEM OU OBSERVAÇÃO PEDAGÓGICA (AGUARDANDO LAUDO)", pageWidth / 2, currentY, { align: 'center' });
     currentY += 12;
+
+    addReportTotalizer(doc, currentY, `Total de casos suspeitos: ${data.length}`, themeColor, stripeColor);
+    currentY += 16;
 
     const tableData = data.map(a => [
         (a.fullName || 'N/I').toUpperCase(),
@@ -634,8 +688,9 @@ export const exportRelatorioSuspeitosTEAPDF = async (data: any[], config: PapelT
         head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'IDADE', 'UNID.', 'BAIRRO', 'OBSERVAÇÃO']],
         body: tableData,
         theme: 'striped',
-        headStyles: { fillColor: [245, 158, 11], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
         styles: { fontSize: 7.5, cellPadding: 3 },
+        alternateRowStyles: { fillColor: stripeColor },
         columnStyles: {
             0: { cellWidth: 55 },
             1: { cellWidth: 45 },
@@ -647,6 +702,7 @@ export const exportRelatorioSuspeitosTEAPDF = async (data: any[], config: PapelT
     });
 
     await drawFooter(doc, config);
+    addPageNumbers(doc);
     const hoje = new Date();
     const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
     doc.save(`relatorio_tea_suspeitos_${dataStr}.pdf`);
@@ -823,4 +879,62 @@ export const exportRelatorioPorBairroPDF = async (data: any[], config: PapelTimb
     const hoje = new Date();
     const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
     doc.save(`relatorio_tea_geografico_${dataStr}.pdf`);
+};
+
+/**
+ * Exporta RelatÃ³rio de Profissionais de Apoio
+ * Cor: Roxo (#4A1A6B)
+ */
+export const exportRelatorioProfissionaisApoioPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const themeColor: RGBColor = [74, 26, 107];
+    const stripeColor: RGBColor = [243, 234, 249];
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
+    doc.text("RELATÃ“RIO: PROFISSIONAIS DE APOIO", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("LISTAGEM DE PROFISSIONAIS VINCULADOS AO APOIO ESCOLAR", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    addReportTotalizer(doc, currentY, `Total de profissionais: ${data.length}`, themeColor, stripeColor);
+    currentY += 16;
+
+    const tableData = data.map(profissional => [
+        (profissional.nome || profissional.fullName || profissional.name || 'N/I').toUpperCase(),
+        (profissional.escola || profissional.school?.schoolName || profissional.unidadeEscolar || '-').toUpperCase(),
+        (profissional.funcao || profissional.cargo || profissional.role || '-').toUpperCase(),
+        profissional.telefone || profissional.phone || profissional.contato || '-',
+        (profissional.situacao || profissional.status || 'ATIVO').toUpperCase()
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['PROFISSIONAL', 'UNIDADE ESCOLAR', 'FUNÃ‡ÃƒO', 'CONTATO', 'SITUAÃ‡ÃƒO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7.5, cellPadding: 3, valign: 'middle' },
+        alternateRowStyles: { fillColor: stripeColor },
+        columnStyles: {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 35 },
+            3: { cellWidth: 25, halign: 'center' },
+            4: { cellWidth: 25, halign: 'center' }
+        }
+    });
+
+    await drawFooter(doc, config);
+    addPageNumbers(doc);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_profissionais_apoio_${dataStr}.pdf`);
 };
