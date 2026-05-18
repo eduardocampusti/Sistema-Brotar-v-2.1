@@ -904,8 +904,10 @@ export const exportRelatorioProfissionaisApoioPDF = async (data: any[], config: 
     doc.text("LISTAGEM DE PROFISSIONAIS VINCULADOS AO APOIO ESCOLAR", pageWidth / 2, currentY, { align: 'center' });
     currentY += 12;
 
-    addReportTotalizer(doc, currentY, `Total de profissionais: ${data.length}`, themeColor, stripeColor);
-    currentY += 16;
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Total de profissionais: ${data.length}`, 15, currentY);
+    currentY += 10;
 
     const tableData = data.map(profissional => [
         (profissional.nome || profissional.fullName || profissional.name || 'N/I').toUpperCase(),
@@ -917,12 +919,13 @@ export const exportRelatorioProfissionaisApoioPDF = async (data: any[], config: 
 
     autoTable(doc, {
         startY: currentY,
-        head: [['PROFISSIONAL', 'UNIDADE ESCOLAR', 'FUNÃ‡ÃƒO', 'CONTATO', 'SITUAÃ‡ÃƒO']],
+        head: [['PROFISSIONAL', 'UNIDADE ESCOLAR', 'FUNÇÃO', 'CONTATO', 'SITUAÇÃO']],
         body: tableData,
         theme: 'striped',
-        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        headStyles: { fillColor: [74, 26, 107], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        bodyStyles: { fillColor: [255, 255, 255] },
         styles: { fontSize: 7.5, cellPadding: 3, valign: 'middle' },
-        alternateRowStyles: { fillColor: stripeColor },
+        alternateRowStyles: { fillColor: [243, 234, 249] },
         columnStyles: {
             0: { cellWidth: 50 },
             1: { cellWidth: 50 },
@@ -933,7 +936,14 @@ export const exportRelatorioProfissionaisApoioPDF = async (data: any[], config: 
     });
 
     await drawFooter(doc, config);
-    addPageNumbers(doc);
+    
+    const pageHeight = doc.internal.pageSize.getHeight();
+    for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Página ${i} de ${doc.getNumberOfPages()}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
     const hoje = new Date();
     const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
     doc.save(`relatorio_profissionais_apoio_${dataStr}.pdf`);
