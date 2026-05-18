@@ -1661,13 +1661,14 @@ export class SupabaseService {
 
         if (error) {
             console.error('ERRO_SUPABASE:', error);
-            window.alert("ERRO DO SUPABASE: " + error.message);
-            throw new Error("ERRO DO SUPABASE: " + error.message);
+            if (error.code === '42501' || error.message?.includes('row-level security')) {
+                throw new Error('Sem permissão para salvar este aluno. Verifique se existe um agendamento ativo vinculado a você.');
+            }
+            throw new Error('Erro ao salvar: ' + error.message);
         }
 
         if (!data || data.length === 0) {
-            window.alert('ERRO DO SUPABASE: O banco não respondeu com o objeto salvo (possível permissão negada RLS).');
-            throw new Error("ERRO DO SUPABASE: O banco não retornou resposta do aluno salvo");
+            throw new Error('Sem permissão para salvar este aluno. Verifique se existe um agendamento ativo vinculado a você.');
         }
 
         this.invalidateCache('students_');
