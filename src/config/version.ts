@@ -1,8 +1,29 @@
 export const APP_VERSION = {
-  version: 'v2.1.4',
+  version: 'v2.1.6',
   date: 'Mai 2026',
-  display: 'v2.1.4 • Mai 2026',
+  display: 'v2.1.6 • Mai 2026',
   changelog: [
+    {
+      version: 'v2.1.6',
+      date: '18 Mai 2026',
+      title: 'Release v2.1.6 — 18 Mai 2026',
+      type: 'feature',
+      changes: [
+        "Atualização da camada de dados",
+        "Atualização de versão do sistema",
+        "Melhorias e correções gerais"
+      ]
+    },
+    {
+      version: 'v2.1.5',
+      date: '18 Mai 2026',
+      title: 'Refresh de JWT Resiliente — 18 Mai 2026',
+      type: 'fix',
+      changes: [
+        "Refresh de JWT resiliente com fallback antes do upsert no método saveStudent",
+        "Prevenção contra erros 403 (Forbidden) por expiração de token em sessões ativas longas"
+      ]
+    },
     {
       version: 'v2.1.4',
       date: '18 Mai 2026',

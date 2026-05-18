@@ -1426,7 +1426,21 @@ export class SupabaseService {
 
     static async saveStudent(student: Student, photoFile?: File, documentFiles?: { file: File, type: string }[]): Promise<string> {
         // [DEBUG] Log user context for RLS
-        const { data: { session } } = await supabase.auth.getSession();
+        // Garante que o JWT está válido antes do upsert de forma resiliente
+        let session = null;
+        try {
+            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+            if (!refreshError && refreshData?.session) {
+                session = refreshData.session;
+            } else {
+                const { data: sessionData } = await supabase.auth.getSession();
+                session = sessionData?.session;
+            }
+        } catch (e) {
+            console.warn('[SupabaseService] Erro ao tentar refreshSession, usando getSession:', e);
+            const { data: sessionData } = await supabase.auth.getSession();
+            session = sessionData?.session;
+        }
         console.log('[SupabaseService] Tentando salvar como usuário:', session?.user?.id);
 
         // Busca o perfil do usuário logado uma única vez
