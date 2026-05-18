@@ -15,6 +15,7 @@
     "test": "vitest",
     "test:rls": "vitest run tests/integration/recepcionistaCocal.rls.integration.test.ts",
     "db:count": "node scripts/count-db-records.mjs",
+    "version:bump": "node scripts/bump-version.mjs",
     "start": "node server.mjs"
   },
   "dependencies": {
