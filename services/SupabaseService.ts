@@ -1661,17 +1661,31 @@ export class SupabaseService {
         let data: any;
         let error: any;
 
-        // Com UUID válido, o conflito DEVE ser sempre `id`. Usar `cpf` aqui fazia o update "pular" para
-        // outro aluno quando vários compartilhavam o mesmo CPF (ex.: placeholder 000.000.000-00).
-        const conflictTarget = hasValidId ? 'id' : dbPayload.cpf ? 'cpf' : 'id';
-        console.log(`[SupabaseService] UPSERT via ${conflictTarget} (school_id é metadado, não chave)...`);
-        
-        const result = await supabase
-            .from('students')
-            .upsert(dbPayload, { onConflict: conflictTarget })
-            .select('*');
-        data = result.data;
-        error = result.error;
+        // Quando o aluno já tem UUID válido, usar UPDATE puro em vez de UPSERT.
+        // O UPSERT (POST com on_conflict) exige que o usuário passe TANTO as policies
+        // de INSERT quanto as de UPDATE. SPECIALISTs têm permissão de UPDATE mas não
+        // de INSERT, causando 403 mesmo para registros que já existem.
+        if (hasValidId) {
+            console.log(`[SupabaseService] UPDATE direto via id (aluno existente)...`);
+            const { id: studentId, ...payloadWithoutId } = dbPayload;
+            const result = await supabase
+                .from('students')
+                .update(payloadWithoutId)
+                .eq('id', studentId)
+                .select('*');
+            data = result.data;
+            error = result.error;
+        } else {
+            // Novo aluno sem UUID: usa UPSERT por CPF (apenas ADMIN/perfis com INSERT chega aqui)
+            const conflictTarget = dbPayload.cpf ? 'cpf' : 'id';
+            console.log(`[SupabaseService] UPSERT via ${conflictTarget} (novo aluno sem UUID)...`);
+            const result = await supabase
+                .from('students')
+                .upsert(dbPayload, { onConflict: conflictTarget })
+                .select('*');
+            data = result.data;
+            error = result.error;
+        }
 
         if (error) {
             console.error('ERRO_SUPABASE:', error);
