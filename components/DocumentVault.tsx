@@ -232,7 +232,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ currentUser, stude
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleDownload(doc.title)}
+                                        onClick={() => handleDownload('#', doc.title)}
                                         className="p-2 text-slate-400 hover:text-primary-600 hover:bg-white rounded-lg transition-all shadow-sm"
                                     >
                                         <Download size={18} />

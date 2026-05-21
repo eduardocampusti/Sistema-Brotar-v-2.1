@@ -948,3 +948,353 @@ export const exportRelatorioProfissionaisApoioPDF = async (data: any[], config: 
     const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
     doc.save(`relatorio_profissionais_apoio_${dataStr}.pdf`);
 };
+
+/**
+ * Normaliza os diagnósticos para fins de exibição nos PDFs.
+ */
+const normalizeDiagnosticoLocal = (cid: string, diagnostico: string): string => {
+    const c = (cid || '').toUpperCase().trim();
+    const d = (diagnostico || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    if (d.includes('autis') || d.includes('tea') || d.includes('espectro') || c.includes('F84') || c.includes('6A02')) {
+        return 'TEA';
+    }
+    if (d.includes('tdah') || d.includes('deficit de atencao') || d.includes('hiperativ') || c.includes('F90') || c.includes('6A05')) {
+        return 'TDAH';
+    }
+    if (d.includes('down') || c.includes('Q90') || d.includes('trissomia')) {
+        return 'Síndrome de Down';
+    }
+    if (d.includes('paralisia') || c.includes('G80')) {
+        return 'Paralisia Cerebral';
+    }
+    if (d.includes('deficiencia intelectual') || d.includes('di') || c.includes('6A00') || d.includes('intelectual')) {
+        const words = d.split(/[\s,./()]+-?/);
+        if (d.includes('deficiencia intelectual') || words.includes('di') || c.includes('6A00') || d.includes('intelectual')) {
+            return 'Deficiência Intelectual';
+        }
+    }
+    if (d.includes('epilepsia') || c.includes('G40')) {
+        return 'Epilepsia';
+    }
+    if (d.includes('opositivo') || d.includes('tod') || c.includes('F91')) {
+        const words = d.split(/[\s,./()]+-?/);
+        if (d.includes('opositivo') || words.includes('tod') || c.includes('F91')) {
+            return 'TOD';
+        }
+    }
+    return 'Outras';
+};
+
+/**
+ * 8. Exporta Relatório de TDAH
+ * Cor: Laranja (#B84B00)
+ */
+export const exportRelatorioTDAHPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const themeColor: RGBColor = [184, 75, 0];
+    const stripeColor: RGBColor = [255, 240, 230];
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
+    doc.text("RELATÓRIO: ALUNOS COM TDAH", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("MONITORAMENTO DE ALUNOS COM TRANSTORNO DE DÉFICIT DE ATENÇÃO E HIPERATIVIDADE", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    const confirmados = data.filter(a => (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')) === 'Confirmado').length;
+    const suspeitos = data.length - confirmados;
+    addReportTotalizer(doc, currentY, `Total de alunos com TDAH: ${data.length} (Confirmados: ${confirmados} | Suspeitos: ${suspeitos})`, themeColor, stripeColor);
+    currentY += 16;
+
+    const tableData = data.map(a => [
+        (a.fullName || 'N/I').toUpperCase(),
+        (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
+        (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')).toUpperCase(),
+        a.clinical?.cid || 'N/I',
+        a.telefone || '-',
+        (a.bairro || '-').toUpperCase()
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'STATUS', 'CID', 'CONTATO', 'BAIRRO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7, cellPadding: 2.5, valign: 'middle' },
+        alternateRowStyles: { fillColor: stripeColor },
+        columnStyles: {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 25, halign: 'center' },
+            5: { cellWidth: 25 }
+        }
+    });
+
+    await drawFooter(doc, config);
+    addPageNumbers(doc);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_tdah_${dataStr}.pdf`);
+};
+
+/**
+ * 9. Exporta Relatório de Síndrome de Down
+ * Cor: Verde (#1A5C3A)
+ */
+export const exportRelatorioDownPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const themeColor: RGBColor = [26, 92, 58];
+    const stripeColor: RGBColor = [232, 245, 238];
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
+    doc.text("RELATÓRIO: SÍNDROME DE DOWN", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("MONITORAMENTO DE ALUNOS COM TRISSOMIA DO 21 / SÍNDROME DE DOWN", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    const confirmados = data.filter(a => (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')) === 'Confirmado').length;
+    const suspeitos = data.length - confirmados;
+    addReportTotalizer(doc, currentY, `Total de alunos com Down: ${data.length} (Confirmados: ${confirmados} | Suspeitos: ${suspeitos})`, themeColor, stripeColor);
+    currentY += 16;
+
+    const tableData = data.map(a => [
+        (a.fullName || 'N/I').toUpperCase(),
+        (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
+        (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')).toUpperCase(),
+        a.clinical?.cid || 'N/I',
+        a.telefone || '-',
+        (a.bairro || '-').toUpperCase()
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'STATUS', 'CID', 'CONTATO', 'BAIRRO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7, cellPadding: 2.5, valign: 'middle' },
+        alternateRowStyles: { fillColor: stripeColor },
+        columnStyles: {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 25, halign: 'center' },
+            5: { cellWidth: 25 }
+        }
+    });
+
+    await drawFooter(doc, config);
+    addPageNumbers(doc);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_down_${dataStr}.pdf`);
+};
+
+/**
+ * 10. Exporta Relatório de Paralisia Cerebral
+ * Cor: Roxo (#4A1A6B)
+ */
+export const exportRelatorioParalisiaCerebralPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const themeColor: RGBColor = [74, 26, 107];
+    const stripeColor: RGBColor = [243, 234, 249];
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
+    doc.text("RELATÓRIO: PARALISIA CEREBRAL", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("MONITORAMENTO DE ALUNOS COM PARALISIA CEREBRAL (G80)", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    const confirmados = data.filter(a => (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')) === 'Confirmado').length;
+    const suspeitos = data.length - confirmados;
+    addReportTotalizer(doc, currentY, `Total de alunos com PC: ${data.length} (Confirmados: ${confirmados} | Suspeitos: ${suspeitos})`, themeColor, stripeColor);
+    currentY += 16;
+
+    const tableData = data.map(a => [
+        (a.fullName || 'N/I').toUpperCase(),
+        (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
+        (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')).toUpperCase(),
+        a.clinical?.cid || 'N/I',
+        a.telefone || '-',
+        (a.bairro || '-').toUpperCase()
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'STATUS', 'CID', 'CONTATO', 'BAIRRO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7, cellPadding: 2.5, valign: 'middle' },
+        alternateRowStyles: { fillColor: stripeColor },
+        columnStyles: {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 25, halign: 'center' },
+            5: { cellWidth: 25 }
+        }
+    });
+
+    await drawFooter(doc, config);
+    addPageNumbers(doc);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_paralisia_cerebral_${dataStr}.pdf`);
+};
+
+/**
+ * 11. Exporta Relatório de Deficiência Intelectual
+ * Cor: Vermelho (#7B1D1D)
+ */
+export const exportRelatorioDeficienciaIntelectualPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const themeColor: RGBColor = [123, 29, 29];
+    const stripeColor: RGBColor = [253, 242, 242];
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
+    doc.text("RELATÓRIO: DEFICIÊNCIA INTELECTUAL", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("MONITORAMENTO DE ALUNOS COM DEFICIÊNCIA INTELECTUAL", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    const confirmados = data.filter(a => (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')) === 'Confirmado').length;
+    const suspeitos = data.length - confirmados;
+    addReportTotalizer(doc, currentY, `Total de alunos com DI: ${data.length} (Confirmados: ${confirmados} | Suspeitos: ${suspeitos})`, themeColor, stripeColor);
+    currentY += 16;
+
+    const tableData = data.map(a => [
+        (a.fullName || 'N/I').toUpperCase(),
+        (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
+        (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')).toUpperCase(),
+        a.clinical?.cid || 'N/I',
+        a.telefone || '-',
+        (a.bairro || '-').toUpperCase()
+    ]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'STATUS', 'CID', 'CONTATO', 'BAIRRO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7, cellPadding: 2.5, valign: 'middle' },
+        alternateRowStyles: { fillColor: stripeColor },
+        columnStyles: {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 25, halign: 'center' },
+            5: { cellWidth: 25 }
+        }
+    });
+
+    await drawFooter(doc, config);
+    addPageNumbers(doc);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_deficiencia_intelectual_${dataStr}.pdf`);
+};
+
+/**
+ * 12. Exporta Relatório Geral ANEE (Todos)
+ * Cor: Azul Escuro (#1E3A5F)
+ */
+export const exportRelatorioGeralANEEPDF = async (data: any[], config: PapelTimbradoConfig) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const themeColor: RGBColor = [30, 58, 95];
+    const stripeColor: RGBColor = [235, 242, 250];
+    let currentY = await drawLetterhead(doc, config);
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
+    doc.text("RELATÓRIO GERAL: ALUNOS ANEE", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text("LISTAGEM GERAL DE ALUNOS COM NECESSIDADES EDUCACIONAIS ESPECIAIS (ANEE)", pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    const confirmados = data.filter(a => (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')) === 'Confirmado').length;
+    const suspeitos = data.length - confirmados;
+    addReportTotalizer(doc, currentY, `Total de alunos ANEE: ${data.length} (Confirmados: ${confirmados} | Suspeitos: ${suspeitos})`, themeColor, stripeColor);
+    currentY += 16;
+
+    const tableData = data.map(a => {
+        const condicao = normalizeDiagnosticoLocal(a.clinical?.cid || a.cid || '', a.clinical?.diagnosis || '');
+        return [
+            (a.fullName || 'N/I').toUpperCase(),
+            (a.school?.schoolName || 'NÃO VINCULADA').toUpperCase(),
+            condicao.toUpperCase(),
+            a.clinical?.cid || 'PENDENTE',
+            (a.finalStatus || (a.clinical?.laudo ? 'Confirmado' : 'Suspeito')).toUpperCase(),
+            a.telefone || '-'
+        ];
+    });
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['NOME DO ALUNO', 'UNIDADE ESCOLAR', 'CONDIÇÃO', 'CID', 'STATUS', 'CONTATO']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: themeColor, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 7, cellPadding: 2.5, valign: 'middle' },
+        alternateRowStyles: { fillColor: stripeColor },
+        columnStyles: {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 30 },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 25, halign: 'center' },
+            5: { cellWidth: 25, halign: 'center' }
+        }
+    });
+
+    await drawFooter(doc, config);
+    addPageNumbers(doc);
+    const hoje = new Date();
+    const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
+    doc.save(`relatorio_geral_anee_${dataStr}.pdf`);
+};

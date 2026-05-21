@@ -1,8 +1,19 @@
 export const APP_VERSION = {
-  version: 'v2.1.15',
+  version: 'v2.1.16',
   date: 'Mai 2026',
-  display: 'v2.1.15 • Mai 2026',
+  display: 'v2.1.16 • Mai 2026',
   changelog: [
+    {
+      version: 'v2.1.16',
+      date: '20 Mai 2026',
+      title: 'Release v2.1.16 — 20 Mai 2026',
+      type: 'feature',
+      changes: [
+        "Painel de Monitoramento TEA",
+        "Exportação PDF atualizada",
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.1.15',
       date: '20 Mai 2026',

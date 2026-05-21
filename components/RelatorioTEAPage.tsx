@@ -58,7 +58,7 @@ const RelatorioTEAPage: React.FC = () => {
     if (!data || isExporting) return;
     setIsExporting(true);
     try {
-      const config = await SupabaseService.getPapelTimbrado();
+      const config = await SupabaseService.getPapelTimbradoConfig();
       await exportRelatorioTEAPDF(data, config, { unit: unitFilter, status: statusFilter });
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
