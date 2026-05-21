@@ -480,11 +480,12 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         return null;
     };
 
-    const renderAppointmentRow = (apt: Appointment, showDate = false) => {
+    const renderAppointmentRow = (apt: Appointment, showDate = false, index = 0) => {
         const style = getStatusStyle(apt.status);
+        const isEven = index % 2 === 0;
 
         return (
-            <div key={apt.id} className="group border-b border-slate-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-slate-50/50">
+            <div key={apt.id} className={`group border-b border-slate-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-blue-50/30 ${isEven ? 'bg-white' : 'bg-slate-50/60'}`}>
                 <div className="flex items-start gap-3">
                     <span className="w-11 shrink-0 text-[11px] font-bold text-slate-600 pt-0.5">{apt.startTime}</span>
                     <span className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${style.dot}`} />
@@ -576,7 +577,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                         <div className="h-px flex-1 bg-slate-100" />
                     </div>
                     <div className="rounded-xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
-                        {nextAppointments.map((apt) => renderAppointmentRow(apt, true))}
+                        {nextAppointments.map((apt, i) => renderAppointmentRow(apt, true, i))}
                     </div>
                     <p className="text-center text-[11px] text-slate-400 mt-3">
                         Mostrando os próximos {nextAppointments.length} agendamentos futuros
@@ -750,7 +751,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             <div className="max-h-[680px] overflow-y-auto">
                                 {selectedDateAppointments.length === 0
                                     ? renderEmptyState('Nenhum atendimento para esta data', true)
-                                    : selectedDateAppointments.map((apt) => renderAppointmentRow(apt))}
+                                    : selectedDateAppointments.map((apt, i) => renderAppointmentRow(apt, false, i))}
                             </div>
                         </div>
 
@@ -766,39 +767,42 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                 </div>
                                 <Users size={18} className="text-slate-400" />
                             </div>
-                            <div className="max-h-[680px] space-y-2 overflow-y-auto p-4">
+                            <div className="max-h-[680px] space-y-2 overflow-y-auto p-3">
                                 {(selectedDateAppointments.length === 0 ? professionalsNextDay : professionalsToday).length === 0
                                     ? renderEmptyState('Nenhum profissional com atendimento')
-                                    : (selectedDateAppointments.length === 0 ? professionalsNextDay : professionalsToday).map((professional) => {
+                                    : (selectedDateAppointments.length === 0 ? professionalsNextDay : professionalsToday).map((professional, idx) => {
                                         const tone = professionalTone(professional.specialty);
                                         const specStyle = getSpecialtyStyle(professional.specialty);
                                         const progress = Math.max(8, Math.round((professional.appointments.length / maxProfessionalAppointments) * 100));
                                         const isExpanded = expandedProfessional === professional.key;
+                                        const cardBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
                                         return (
-                                            <div key={professional.key} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                                            <div key={professional.key} className={`rounded-xl border border-slate-200 ${cardBg} shadow-sm overflow-hidden`}>
                                                 <button
                                                     type="button"
                                                     onClick={() => setExpandedProfessional(isExpanded ? null : professional.key)}
-                                                    className="w-full flex items-center gap-3 p-3.5 hover:bg-slate-50 transition-colors text-left"
+                                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50/30 transition-colors text-left"
                                                 >
-                                                    <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase ${tone}`}>
+                                                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold uppercase ${tone} border-2 border-white shadow-sm`}>
                                                         {getInitials(professional.name)}
                                                     </div>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="truncate text-sm font-bold text-slate-800">{professional.name}</p>
-                                                        <p className="truncate text-xs text-slate-500">{professional.specialty} • {professional.unit}</p>
+                                                        <p className="truncate text-[13px] font-medium text-slate-800">{professional.name}</p>
+                                                        <p className="truncate text-[11px] text-slate-500">{professional.specialty} • {professional.unit}</p>
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
-                                                        <p className="text-[13px] font-bold text-slate-900">{professional.appointments.length} atend.</p>
+                                                        <span className="text-[13px] font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full">{professional.appointments.length}</span>
                                                         <ChevronRight size={14} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                                                     </div>
                                                 </button>
-                                                <div className="mt-0 h-1 mx-3.5 overflow-hidden rounded-full bg-slate-100 mb-2">
-                                                    <div className={`h-full rounded-full ${specStyle.bar}`} style={{ width: `${progress}%` }} />
+                                                <div className="px-4 pb-2">
+                                                    <div className="h-1 overflow-hidden rounded-full bg-slate-100">
+                                                        <div className={`h-full rounded-full ${specStyle.bar}`} style={{ width: `${progress}%` }} />
+                                                    </div>
                                                 </div>
                                                 {isExpanded && (
                                                     <div className="border-t border-slate-100 divide-y divide-slate-50">
-                                                        {professional.appointments.map((apt) => renderAppointmentRow(apt, true))}
+                                                        {professional.appointments.map((apt, i) => renderAppointmentRow(apt, true, i))}
                                                     </div>
                                                 )}
                                             </div>
