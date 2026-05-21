@@ -2096,7 +2096,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         <div className="max-w-6xl mx-auto animate-fadeIn pb-12">
 
             {/* Header */}
-            <div className="bg-gradient-to-r from-pink-600 to-rose-700 rounded-2xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+            <div className="rounded-2xl p-8 text-white shadow-xl mb-8 relative overflow-hidden" style={{background:'linear-gradient(to right,#9F5FC0,#D9ABFF)'}}>
                 <div className="absolute top-0 right-0 p-8 opacity-10"><Brain size={200} /></div>
                 <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="min-w-0">
