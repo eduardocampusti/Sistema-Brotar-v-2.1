@@ -474,6 +474,7 @@ function AppContent() {
           <Route path="support-professionals" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
           <Route path="admin" element={<React.Suspense fallback={<PageLoading />}><UserManagement /></React.Suspense>} />
           <Route path="settings" element={<React.Suspense fallback={<PageLoading />}><SystemSettingsPanel /></React.Suspense>} />
+          <Route path="letterhead-config" element={<React.Suspense fallback={<PageLoading />}><PapelTimbradoConfigPanel /></React.Suspense>} />
           <Route path="backup" element={<React.Suspense fallback={<PageLoading />}><BackupSystem currentUser={user!} /></React.Suspense>} />
           <Route path="about" element={<React.Suspense fallback={<PageLoading />}><AboutSystem /></React.Suspense>} />
           <Route path="my-access" element={<React.Suspense fallback={<PageLoading />}><MyAccess currentUser={user!} /></React.Suspense>} />
