@@ -496,57 +496,57 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                     {formatShortDate(apt.date)}
                                 </span>
                             )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-[11px] text-slate-400">{apt.specialty} • {apt.professionalName} • {apt.unit}</span>
                             <Badge className={`gap-1 px-2 py-0.5 text-[10px] font-medium shrink-0 ${style.badge}`}>
                                 {getStatusIcon(apt.status)}
                                 <span className="ml-0.5">{style.label}</span>
                             </Badge>
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                            {apt.specialty} • {apt.professionalName} • {apt.unit}
                         </div>
                         {getConfirmationBadge(apt) && (
                             <div className="mt-1">{getConfirmationBadge(apt)}</div>
                         )}
                         <div className="flex flex-wrap items-center gap-1.5 mt-2">
                             {apt.status === 'AGENDADO' && (
-                                <button onClick={() => handleStatusUpdate(apt.id, 'CONFIRMADO')}
+                                <button onClick={() => handleStatusUpdate(apt.id, 'CONFIRMADO')} title="Confirmar agendamento"
                                     className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">
                                     <CheckCircle2 size={11} /> Confirmar
                                 </button>
                             )}
                             {(apt.status === 'AGENDADO' || apt.status === 'CONFIRMADO') && (
-                                <button onClick={() => handleStatusUpdate(apt.id, 'EM_ATENDIMENTO')}
+                                <button onClick={() => handleStatusUpdate(apt.id, 'EM_ATENDIMENTO')} title="Iniciar atendimento"
                                     className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
                                     <PlayCircle size={11} /> Iniciar
                                 </button>
                             )}
                             {!statusAgendamentoRealizado(apt.status) && !['CANCELADO','FALTOU','REMARCAR'].includes(apt.status) && (
-                                <button onClick={() => handleStatusUpdate(apt.id, 'ENCERRADO')}
+                                <button onClick={() => handleStatusUpdate(apt.id, 'ENCERRADO')} title="Encerrar atendimento"
                                     className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-colors">
                                     <CheckCircle2 size={11} /> Encerrar
                                 </button>
                             )}
                             {!['CANCELADO','ENCERRADO','ATENDIDO','FALTOU'].includes(apt.status) && (
-                                <button onClick={() => { if (onReschedule) onReschedule(apt); else handleStatusUpdate(apt.id, 'REMARCAR'); }}
+                                <button onClick={() => { if (onReschedule) onReschedule(apt); else handleStatusUpdate(apt.id, 'REMARCAR'); }} title="Remarcar atendimento"
                                     className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition-colors">
                                     <RotateCcw size={11} /> Remarcar
                                 </button>
                             )}
                             {!['CANCELADO','ENCERRADO','ATENDIDO'].includes(apt.status) && (
-                                <button onClick={() => handleStatusUpdate(apt.id, 'FALTOU')}
+                                <button onClick={() => handleStatusUpdate(apt.id, 'FALTOU')} title="Registrar falta do paciente"
                                     className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors">
                                     <XCircle size={11} /> Faltou
                                 </button>
                             )}
                             {['SECRETARIA_SEDE','SECRETARIA_COCAL','ADMIN','COORDENADOR'].includes(currentUser.role) &&
                                 !['CANCELADO','ENCERRADO','ATENDIDO'].includes(apt.status) && (
-                                <button onClick={() => handleStatusUpdate(apt.id, 'CANCELADO')}
+                                <button onClick={() => handleStatusUpdate(apt.id, 'CANCELADO')} title="Cancelar agendamento"
                                     className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors">
                                     <Ban size={11} /> Cancelar
                                 </button>
                             )}
                             {podeExcluirAtendimento && (
-                                <button type="button" onClick={() => { setMotivoExclusao(''); setPendingLogicalDelete(apt); }}
+                                <button type="button" onClick={() => { setMotivoExclusao(''); setPendingLogicalDelete(apt); }} title="Excluir registro de atendimento"
                                     className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-colors">
                                     <Trash2 size={11} /> Excluir
                                 </button>
