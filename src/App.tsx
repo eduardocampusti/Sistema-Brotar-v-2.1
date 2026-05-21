@@ -7,6 +7,7 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { Student, User, Specialty, SystemSettings, Appointment, School, canViewSystemAuditLogs } from '../types';
 import { Loader2 } from 'lucide-react';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import { useSessionTimeout } from './hooks/useSessionTimeout';
 
 // --- Layouts and Pages (inside src/) ---
 import { PublicLayout } from './layouts/PublicLayout';
@@ -276,6 +277,9 @@ function AppContent() {
     navigate('/');
   };
 
+  // Logout automático por inatividade
+  const sessionTimeoutModal = useSessionTimeout(user?.role, handleLogout);
+
   // Helper for Student Selection in Profile
   const handleSelectStudent = async (student: Student) => {
     try {
@@ -322,6 +326,7 @@ function AppContent() {
   return (
     <AuthProvider user={user}>
     <NotificationProvider currentUser={user}>
+      {sessionTimeoutModal}
       <Routes>
         {/* Rotas Públicas */}
         <Route element={<PublicLayout><Outlet /></PublicLayout>}>

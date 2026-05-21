@@ -1,8 +1,29 @@
 export const APP_VERSION = {
-  version: 'v2.1.13',
+  version: 'v2.1.15',
   date: 'Mai 2026',
-  display: 'v2.1.13 • Mai 2026',
+  display: 'v2.1.15 • Mai 2026',
   changelog: [
+    {
+      version: 'v2.1.15',
+      date: '20 Mai 2026',
+      title: 'Release v2.1.15 — 20 Mai 2026',
+      type: 'feature',
+      changes: [
+        "Atualização de versão do sistema",
+        "Melhorias e correções gerais"
+      ]
+    },
+    {
+      version: 'v2.1.14',
+      date: '20 Mai 2026',
+      title: 'Logout por Inatividade Resiliente',
+      type: 'feature',
+      changes: [
+        "Logout automático por inatividade de sessão",
+        "Controles de tempo: 15min para perfis clínicos/secretaria e 30min para administradores",
+        "Modal de aviso premium em vinho (#8B1A3A) com countdown de 60 segundos em tempo real"
+      ]
+    },
     {
       version: 'v2.1.13',
       date: '18 Mai 2026',
