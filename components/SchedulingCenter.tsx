@@ -297,6 +297,13 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         },
     ]), [nextSevenDaysAppointments.length, sortedAppointments, todayAppointments.length]);
 
+    const nextAppointments = useMemo(
+        () => sortedAppointments
+            .filter((apt) => apt.date > selectedDate && !['CANCELADO', 'FALTOU'].includes(apt.status))
+            .slice(0, 5),
+        [selectedDate, sortedAppointments]
+    );
+
     const professionalsToday = useMemo<ProfessionalGroup[]>(() => {
         const groups = new Map<string, ProfessionalGroup>();
         selectedDateAppointments.forEach((apt) => {
@@ -562,11 +569,31 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         );
     };
 
-    const renderEmptyState = (message: string) => (
-        <div className="flex flex-col items-center justify-center px-6 py-16 text-center text-slate-400">
-            <CalendarIcon size={46} className="mb-4 opacity-20" />
-            <p className="font-bold text-slate-500">{message}</p>
-            <p className="text-sm">Ajuste os filtros ou adicione um novo agendamento.</p>
+    const renderEmptyState = (message: string, showNext = false) => (
+        <div className="flex flex-col px-5 py-4">
+            <div className="flex flex-col items-center py-8 text-center">
+                <CalendarIcon size={38} className="mb-3 text-slate-200" />
+                <p className="font-bold text-slate-500 text-sm">{message}</p>
+                <p className="text-xs text-slate-400 mt-1">Nenhum atendimento registrado para esta data.</p>
+            </div>
+            {showNext && nextAppointments.length > 0 && (
+                <div>
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="h-px flex-1 bg-slate-100" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <CalendarIcon size={12} />
+                            Próximos agendamentos
+                        </span>
+                        <div className="h-px flex-1 bg-slate-100" />
+                    </div>
+                    <div className="rounded-xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
+                        {nextAppointments.map((apt) => renderAppointmentRow(apt, true))}
+                    </div>
+                    <p className="text-center text-[11px] text-slate-400 mt-3">
+                        Mostrando os próximos {nextAppointments.length} agendamentos futuros
+                    </p>
+                </div>
+            )}
         </div>
     );
 
@@ -733,7 +760,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             </div>
                             <div className="max-h-[680px] overflow-y-auto">
                                 {selectedDateAppointments.length === 0
-                                    ? renderEmptyState('Nenhum atendimento para esta data')
+                                    ? renderEmptyState('Nenhum atendimento para esta data', true)
                                     : selectedDateAppointments.map((apt) => renderAppointmentRow(apt))}
                             </div>
                         </div>
