@@ -35,7 +35,8 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid,
-  Legend
+  Legend,
+  LabelList
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { SupabaseService } from '../../services/SupabaseService';
@@ -54,6 +55,9 @@ import {
   exportRelatorioGeralANEEPDF
 } from '../../utils/pdfExport';
 import { useToast } from '../../contexts/ToastContext';
+import { Card, CardContent } from '@/src/components/ui/card';
+import { Badge } from '@/src/components/ui/badge';
+import { Separator } from '@/src/components/ui/separator';
 
 // --- Interfaces ---
 interface StudentANEE {
@@ -167,9 +171,47 @@ const CORES_LIGHT_CONDICAO: Record<string, string> = {
 
 // --- Componentes Auxiliares ---
 
+// Tooltip customizado para gráficos Recharts
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div style={{
+      background: '#fff',
+      border: '0.5px solid #e2e8f0',
+      borderRadius: '8px',
+      boxShadow: '0 4px 16px -4px rgba(0,0,0,0.10)',
+      padding: '10px 14px',
+      minWidth: '120px'
+    }}>
+      {label && <p style={{ fontSize: '11px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>{label}</p>}
+      {payload.map((entry: any, i: number) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: entry.color || entry.fill }} />
+          <span style={{ fontSize: '11px', color: '#6b7280' }}>{entry.name || entry.dataKey}:</span>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#111827' }}>{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Legenda customizada para gráfico de pizza
+const CustomPieLegend = ({ data }: { data: Array<{ name: string; value: number; color: string }> }) => (
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '8px' }}>
+    {data.map((entry, idx) => (
+      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px' }}>
+        <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: entry.color, flexShrink: 0 }} />
+        <span style={{ color: '#6b7280', fontWeight: 600 }}>{entry.name}</span>
+        <span style={{ color: '#111827', fontWeight: 700, background: '#f3f4f6', padding: '0 5px', borderRadius: '4px' }}>{entry.value}</span>
+      </div>
+    ))}
+  </div>
+);
+
 interface MetricCardProps {
   title: string;
   value: string | number;
+  trend?: string;
   icon: React.ElementType;
   color: string;
   bgLight: string;
@@ -177,28 +219,45 @@ interface MetricCardProps {
   active?: boolean;
 }
 
-const MetricCard = ({ title, value, icon: Icon, color, bgLight, onClick, active }: MetricCardProps) => (
-  <div 
+// Card Opção A: borda superior colorida por condição, ícone translúcido, tendência abaixo
+const MetricCard = ({ title, value, trend, icon: Icon, color, bgLight, onClick, active }: MetricCardProps) => (
+  <Card
     onClick={onClick}
     style={{
-      borderColor: active ? color : '#f3f4f6',
-      boxShadow: active ? `0 0 0 3px ${color}15` : undefined
+      borderTopColor: color,
+      borderTopWidth: '3px',
+      borderTopStyle: 'solid',
+      boxShadow: active ? `0 0 0 2px ${color}20, 0 4px 16px -4px ${color}30` : undefined,
+      cursor: onClick ? 'pointer' : 'default'
     }}
-    className={`bg-white p-5 rounded-xl border-2 transition-all cursor-pointer hover:shadow-md flex items-center justify-between group`}
+    className={`relative overflow-hidden transition-all duration-200 hover:shadow-md ${
+      active ? 'ring-1' : ''
+    }`}
   >
-    <div>
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</p>
-      <h3 className="text-2xl font-black text-gray-900 mt-1">{value}</h3>
-    </div>
-    <div 
-      style={{ backgroundColor: bgLight, color: color }}
-      className="p-3 rounded-lg group-hover:scale-105 transition-transform duration-200"
-    >
-      <Icon size={22} />
-    </div>
-  </div>
+    <CardContent className="p-5">
+      {/* Ícone translúcido no canto superior direito */}
+      <div
+        style={{ color: color, opacity: 0.15, position: 'absolute', top: '12px', right: '12px' }}
+      >
+        <Icon size={28} />
+      </div>
+
+      <p style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+        {title}
+      </p>
+      <p style={{ fontSize: '24px', fontWeight: 500, color: '#111827', lineHeight: 1.2 }}>
+        {value}
+      </p>
+      {trend && (
+        <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '6px' }}>
+          {trend}
+        </p>
+      )}
+    </CardContent>
+  </Card>
 );
 
+// ReportCard: ícone grande centralizado + badge numérico, sem mini-gráfico
 const ReportCard = ({ 
   title, 
   description, 
@@ -209,74 +268,70 @@ const ReportCard = ({
   chartData, 
   onViewDetails, 
   onExportPDF 
-}: ReportCardProps) => (
-  <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col h-full">
-    {/* Top Border Accent */}
-    <div className="h-1.5 w-full" style={{ backgroundColor: color }}></div>
-    
-    <div className="p-5 flex-1 flex flex-col">
-      <div className="flex justify-between items-start mb-3">
-        <div className={`p-2 rounded-lg text-white`} style={{ backgroundColor: color }}>
-          <Icon size={18} />
+}: ReportCardProps) => {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderColor: hovered ? color : '#e5e7eb',
+        borderTopColor: color,
+        borderTopWidth: '3px',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+        boxShadow: hovered ? `0 4px 20px -4px ${color}30` : '0 1px 3px rgba(0,0,0,0.05)'
+      }}
+      className="bg-white rounded-xl border overflow-hidden flex flex-col h-full"
+    >
+      <div className="p-5 flex-1 flex flex-col">
+        {/* Área do ícone grande + badge */}
+        <div className="flex flex-col items-center justify-center py-4 mb-3 relative">
+          <div
+            style={{ backgroundColor: `${color}12`, borderRadius: '16px', padding: '16px', position: 'relative' }}
+          >
+            <Icon size={32} style={{ color }} />
+            {/* Badge numérico sobre o ícone */}
+            <span
+              style={{
+                position: 'absolute', top: '-8px', right: '-8px',
+                backgroundColor: color, color: '#fff',
+                fontSize: '11px', fontWeight: 700,
+                padding: '2px 7px', borderRadius: '999px',
+                lineHeight: 1.6, border: '2px solid white'
+              }}
+            >
+              {badge}
+            </span>
+          </div>
         </div>
-        <span className="bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-200">
-          {badge}
-        </span>
+
+        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '4px', textAlign: 'center' }}>
+          {title}
+        </h3>
+        <p style={{ fontSize: '11px', color: '#9ca3af', lineHeight: 1.5, textAlign: 'center', flex: 1 }}>
+          {description}
+        </p>
       </div>
-      
-      <h3 className="text-base font-bold text-gray-900 mb-1">{title}</h3>
-      <p className="text-xs text-gray-500 mb-4 leading-relaxed flex-1">{description}</p>
-      
-      {/* Mini Chart Section */}
-      <div className="h-24 w-full mb-2 bg-gray-50/50 rounded-lg p-1.5 border border-gray-100">
-        <ResponsiveContainer width="100%" height="100%">
-          {chartType === 'pie' ? (
-            <PieChart>
-              <Pie
-                data={chartData}
-                innerRadius={15}
-                outerRadius={28}
-                paddingAngle={3}
-                dataKey="value"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color || color} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '6px' }} />
-            </PieChart>
-          ) : (
-            <BarChart data={chartData}>
-              <Bar dataKey="value" radius={[3, 3, 0, 0]}>
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color || color} />
-                ))}
-              </Bar>
-              <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '6px' }} />
-            </BarChart>
-          )}
-        </ResponsiveContainer>
+
+      <div className="p-3.5 bg-gray-50 border-t border-gray-100 flex gap-2">
+        <button
+          onClick={onViewDetails}
+          className="flex-1 flex items-center justify-center gap-1.5 bg-white hover:bg-gray-100 text-gray-700 text-xs font-bold py-1.5 px-3 rounded-lg border border-gray-200 transition-colors"
+        >
+          <Search size={14} />
+          Detalhes
+        </button>
+        <button
+          onClick={onExportPDF}
+          className="flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 p-1.5 rounded-lg border border-gray-200 transition-colors group"
+          title="Exportar PDF"
+        >
+          <FileDown size={16} className="group-hover:text-red-600 transition-colors" />
+        </button>
       </div>
     </div>
-    
-    <div className="p-3.5 bg-gray-50 border-t border-gray-100 flex gap-2">
-      <button 
-        onClick={onViewDetails}
-        className="flex-1 flex items-center justify-center gap-1.5 bg-white hover:bg-gray-100 text-gray-700 text-xs font-bold py-1.5 px-3 rounded-lg border border-gray-200 transition-colors"
-      >
-        <Search size={14} />
-        Detalhes
-      </button>
-      <button 
-        onClick={onExportPDF}
-        className="flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 p-1.5 rounded-lg border border-gray-200 transition-colors group"
-        title="Exportar PDF"
-      >
-        <FileDown size={16} className="group-hover:text-red-600 transition-colors" />
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 // --- Componente Principal ---
 
@@ -666,12 +721,13 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Layers className="text-[#8B1A3A] shrink-0" size={18} />
-            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Consolidado Geral ANEE</h4>
+            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-tight">Consolidado Geral ANEE</h4>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <MetricCard 
               title="Total Alunos ANEE"
               value={aneeStudents.length}
+              trend={`${aneeMetrics.percentual}% da rede`}
               icon={Users}
               color="#8B1A3A"
               bgLight="#8B1A3A10"
@@ -681,14 +737,16 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
             <MetricCard 
               title="% ANEE na Rede"
               value={`${aneeMetrics.percentual}%`}
+              trend={`de ${totalGeralAlunos} alunos`}
               icon={TrendingUp}
-              color="#0F172A"
-              bgLight="#0F172A10"
+              color="#0F6E56"
+              bgLight="#0F6E5610"
               active={false}
             />
             <MetricCard 
               title="TDAH"
               value={tdahStudents.length}
+              trend={`${tdahStudents.filter(s => s.finalStatus === 'Confirmado').length} confirmados`}
               icon={Activity}
               color={CORES_CONDICAO['TDAH']}
               bgLight={CORES_LIGHT_CONDICAO['TDAH']}
@@ -698,6 +756,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
             <MetricCard 
               title="Síndrome de Down"
               value={downStudents.length}
+              trend={`${downStudents.filter(s => s.finalStatus === 'Confirmado').length} confirmados`}
               icon={Award}
               color={CORES_CONDICAO['Síndrome de Down']}
               bgLight={CORES_LIGHT_CONDICAO['Síndrome de Down']}
@@ -707,6 +766,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
             <MetricCard 
               title="Paralisia Cerebral"
               value={pcStudents.length}
+              trend={`${pcStudents.filter(s => s.finalStatus === 'Confirmado').length} confirmados`}
               icon={Layers}
               color={CORES_CONDICAO['Paralisia Cerebral']}
               bgLight={CORES_LIGHT_CONDICAO['Paralisia Cerebral']}
@@ -716,16 +776,19 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
           </div>
         </div>
 
+        <Separator className="my-2" />
+
         {/* Linha 2: Monitoramento Específico TEA */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Activity className="text-[#1E3A5F] shrink-0" size={18} />
-            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Monitoramento TEA</h4>
+            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-tight">Monitoramento TEA</h4>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard 
               title="Total de Alunos TEA"
               value={teaMetrics.total}
+              trend={`${teaMetrics.percentual}% da rede`}
               icon={Users}
               color={CORES_CONDICAO['TEA']}
               bgLight={CORES_LIGHT_CONDICAO['TEA']}
@@ -735,6 +798,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
             <MetricCard 
               title="TEA Confirmados"
               value={teaMetrics.confirmados}
+              trend="com laudo clínico"
               icon={CheckCircle}
               color="#10B981"
               bgLight="#10B98110"
@@ -744,156 +808,164 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
             <MetricCard 
               title="Casos TEA Suspeitos"
               value={teaMetrics.suspeitos}
+              trend="aguardando laudo"
               icon={AlertCircle}
-              color="#F59E0B"
-              bgLight="#F59E0B10"
+              color="#854F0B"
+              bgLight="#854F0B10"
               onClick={() => { setFilterCondicao('TEA'); setFilterStatus('suspeito'); }}
               active={filterCondicao === 'TEA' && filterStatus === 'suspeito'}
             />
             <MetricCard 
               title="% de TEA na Rede"
               value={`${teaMetrics.percentual}%`}
+              trend={`de ${totalGeralAlunos} alunos`}
               icon={TrendingUp}
-              color="#6366F1"
-              bgLight="#6366F110"
+              color={CORES_CONDICAO['TEA']}
+              bgLight={CORES_LIGHT_CONDICAO['TEA']}
               active={false}
             />
           </div>
         </div>
 
+        <Separator className="my-2" />
+
         {/* ================= ANÁLISE GRÁFICA ================= */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* Gráfico 1: Distribuição por Tipo de Condição */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-4">
-              <BarChartIcon size={20} className="text-[#8B1A3A]" />
-              <h3 className="text-base font-bold text-gray-800">Distribuição por Condição</h3>
+          {/* Gráfico 1: Distribuição por Tipo de Condição — barras horizontais com label interno */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col">
+            <div className="flex items-center gap-2 mb-5">
+              <BarChartIcon size={18} className="text-[#8B1A3A]" />
+              <h3 className="text-sm font-medium tracking-tight text-gray-800">Distribuição por Condição</h3>
             </div>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="flex-1" style={{ minHeight: '280px' }}>
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart
                   layout="vertical"
                   data={distribuicaoData}
-                  margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+                  margin={{ top: 4, right: 36, left: 16, bottom: 4 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                   <YAxis 
                     dataKey="name" 
                     type="category" 
-                    width={100}
-                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 'bold' }}
+                    width={108}
+                    tick={{ fontSize: 10, fill: '#374151', fontWeight: 600 }}
                     axisLine={false}
+                    tickLine={false}
                   />
-                  <Tooltip 
-                    cursor={{ fill: '#f8fafc' }}
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}
-                  />
-                  <Bar dataKey="value" name="Alunos" radius={[0, 4, 4, 0]} barSize={16}>
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+                  <Bar dataKey="value" name="Alunos" radius={[0, 4, 4, 0]} barSize={14} isAnimationActive={true}>
                     {distribuicaoData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
+                    <LabelList
+                      dataKey="value"
+                      position="insideRight"
+                      style={{ fontSize: '10px', fontWeight: 700, fill: '#fff' }}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Gráfico 2: Proporção entre Condições */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-4">
-              <PieChartIcon size={20} className="text-[#8B1A3A]" />
-              <h3 className="text-base font-bold text-gray-800">Proporção entre Condições</h3>
+          {/* Gráfico 2: Proporção entre Condições — pizza com label externo % */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col">
+            <div className="flex items-center gap-2 mb-5">
+              <PieChartIcon size={18} className="text-[#8B1A3A]" />
+              <h3 className="text-sm font-medium tracking-tight text-gray-800">Proporção entre Condições</h3>
             </div>
-            <div className="h-[300px] w-full flex flex-col md:flex-row items-center gap-4">
-              <div className="h-[220px] w-full md:w-1/2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={proporcaoData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={75}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {proporcaoData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              {/* Legenda Lateral customizada e limpa */}
-              <div className="w-full md:w-1/2 overflow-y-auto max-h-[220px] space-y-2 pr-2 text-xs">
-                {proporcaoData.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between border-b border-gray-50 pb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="font-semibold text-gray-700">{item.name}</span>
-                    </div>
-                    <span className="font-black text-gray-900 bg-gray-50 px-2 py-0.5 rounded border border-gray-150">{item.value}</span>
-                  </div>
-                ))}
-              </div>
+            <div style={{ minHeight: '200px' }}>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={proporcaoData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={48}
+                    outerRadius={76}
+                    paddingAngle={2}
+                    dataKey="value"
+                    isAnimationActive={true}
+                    label={({ name, percent }) =>
+                      percent > 0.04 ? `${(percent * 100).toFixed(0)}%` : ''
+                    }
+                    labelLine={false}
+                  >
+                    {proporcaoData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
+            <CustomPieLegend data={proporcaoData} />
           </div>
 
-          {/* Gráfico 3: Top 5 Escolas com mais Condições */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-4">
-              <School size={20} className="text-[#8B1A3A]" />
-              <h3 className="text-base font-bold text-gray-800">Top 5 Unidades Escolares ANEE</h3>
+          {/* Gráfico 3: Top 5 Escolas — barras agrupadas com animação */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col">
+            <div className="flex items-center gap-2 mb-5">
+              <School size={18} className="text-[#8B1A3A]" />
+              <h3 className="text-sm font-medium tracking-tight text-gray-800">Top 5 Unidades Escolares ANEE</h3>
             </div>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ minHeight: '280px' }}>
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart
                   data={schoolData}
-                  margin={{ top: 10, right: 10, left: -25, bottom: 5 }}
+                  margin={{ top: 10, right: 8, left: -28, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="escola" tick={{ fontSize: 9, fill: '#64748b', fontWeight: 'bold' }} axisLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-                  <Legend wrapperStyle={{ fontSize: '10px' }} />
-                  <Bar dataKey="TEA" stackId="a" fill={CORES_CONDICAO['TEA']} />
-                  <Bar dataKey="TDAH" stackId="a" fill={CORES_CONDICAO['TDAH']} />
-                  <Bar dataKey="Down" name="S. Down" stackId="a" fill={CORES_CONDICAO['Síndrome de Down']} />
-                  <Bar dataKey="PC" name="P. Cerebral" stackId="a" fill={CORES_CONDICAO['Paralisia Cerebral']} />
-                  <Bar dataKey="DI" name="Def. Intelectual" stackId="a" fill={CORES_CONDICAO['Deficiência Intelectual']} />
+                  <XAxis dataKey="escola" tick={{ fontSize: 8, fill: '#9ca3af', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend
+                    wrapperStyle={{ fontSize: '10px', paddingTop: '8px' }}
+                    iconType="circle"
+                    iconSize={8}
+                  />
+                  <Bar dataKey="TEA" stackId="a" fill={CORES_CONDICAO['TEA']} isAnimationActive={true} />
+                  <Bar dataKey="TDAH" stackId="a" fill={CORES_CONDICAO['TDAH']} isAnimationActive={true} />
+                  <Bar dataKey="Down" name="S. Down" stackId="a" fill={CORES_CONDICAO['Síndrome de Down']} isAnimationActive={true} />
+                  <Bar dataKey="PC" name="P. Cerebral" stackId="a" fill={CORES_CONDICAO['Paralisia Cerebral']} isAnimationActive={true} />
+                  <Bar dataKey="DI" name="Def. Intelectual" stackId="a" fill={CORES_CONDICAO['Deficiência Intelectual']} isAnimationActive={true} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Gráfico 4: Faixa Etária por Condição */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar size={20} className="text-[#8B1A3A]" />
-              <h3 className="text-base font-bold text-gray-800">Faixas Etárias por Condição</h3>
+          {/* Gráfico 4: Faixa Etária — barras empilhadas com animação e "Não informada" */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col">
+            <div className="flex items-center gap-2 mb-5">
+              <Calendar size={18} className="text-[#8B1A3A]" />
+              <h3 className="text-sm font-medium tracking-tight text-gray-800">Faixas Etárias por Condição</h3>
             </div>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ minHeight: '280px' }}>
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart
                   data={faixaEtariaData}
-                  margin={{ top: 10, right: 10, left: -25, bottom: 5 }}
+                  margin={{ top: 10, right: 8, left: -28, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="faixa" tick={{ fontSize: 9, fill: '#64748b', fontWeight: 'bold' }} axisLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-                  <Legend wrapperStyle={{ fontSize: '10px' }} />
-                  <Bar dataKey="TEA" stackId="a" fill={CORES_CONDICAO['TEA']} />
-                  <Bar dataKey="TDAH" stackId="a" fill={CORES_CONDICAO['TDAH']} />
-                  <Bar dataKey="Down" name="S. Down" stackId="a" fill={CORES_CONDICAO['Síndrome de Down']} />
-                  <Bar dataKey="PC" name="P. Cerebral" stackId="a" fill={CORES_CONDICAO['Paralisia Cerebral']} />
-                  <Bar dataKey="DI" name="Def. Intelectual" stackId="a" fill={CORES_CONDICAO['Deficiência Intelectual']} />
+                  <XAxis dataKey="faixa" tick={{ fontSize: 8, fill: '#9ca3af', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend
+                    wrapperStyle={{ fontSize: '10px', paddingTop: '8px' }}
+                    iconType="circle"
+                    iconSize={8}
+                  />
+                  <Bar dataKey="TEA" stackId="a" fill={CORES_CONDICAO['TEA']} isAnimationActive={true} />
+                  <Bar dataKey="TDAH" stackId="a" fill={CORES_CONDICAO['TDAH']} isAnimationActive={true} />
+                  <Bar dataKey="Down" name="S. Down" stackId="a" fill={CORES_CONDICAO['Síndrome de Down']} isAnimationActive={true} />
+                  <Bar dataKey="PC" name="P. Cerebral" stackId="a" fill={CORES_CONDICAO['Paralisia Cerebral']} isAnimationActive={true} />
+                  <Bar dataKey="DI" name="Def. Intelectual" stackId="a" fill={CORES_CONDICAO['Deficiência Intelectual']} isAnimationActive={true} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            <p className="text-[10px] text-gray-400 text-center mt-1 italic">* Coluna "Não informada" inclui alunos sem data de nascimento cadastrada</p>
           </div>
 
         </div>
@@ -1161,24 +1233,20 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                              student.finalStatus === 'Confirmado' 
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                                : 'bg-amber-50 text-amber-700 border border-amber-100'
-                            }`}>
+                            <Badge variant={student.finalStatus === 'Confirmado' ? 'success' : 'warning'}>
                               {student.finalStatus}
-                            </span>
+                            </Badge>
                             {student.condicao && (
-                              <span 
+                              <Badge
                                 style={{ 
                                   backgroundColor: CORES_LIGHT_CONDICAO[student.condicao] || '#f3f4f6', 
                                   color: CORES_CONDICAO[student.condicao] || '#6b7280', 
-                                  borderColor: (CORES_CONDICAO[student.condicao] || '#6b7280') + '20' 
+                                  borderColor: (CORES_CONDICAO[student.condicao] || '#6b7280') + '40'
                                 }}
-                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border"
+                                variant="outline"
                               >
                                 {student.condicao}
-                              </span>
+                              </Badge>
                             )}
                           </div>
                           {(student.clinical?.cid || student.cid) && (

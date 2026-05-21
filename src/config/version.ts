@@ -1,17 +1,37 @@
 export const APP_VERSION = {
-  version: 'v2.1.18',
+  version: 'v2.1.19',
   date: 'Mai 2026',
-  display: 'v2.1.18 • Mai 2026',
+  display: 'v2.1.19 • Mai 2026',
   changelog: [
     {
-      version: 'v2.1.18',
+      version: 'v2.1.19',
       date: '20 Mai 2026',
-      title: 'Release v2.1.18 — 20 Mai 2026',
+      title: 'Release v2.1.19 — 20 Mai 2026',
       type: 'feature',
       changes: [
         "Atualização de versão do sistema",
         "Painel de Monitoramento TEA",
         "Melhorias e correções gerais"
+      ]
+    },
+    {
+      version: 'v2.1.18',
+      date: '20 Mai 2026',
+      title: 'Visual Premium Opção A — Cards shadcn, Tooltips, Badges no Painel ANEE',
+      type: 'feature',
+      changes: [
+        'Cards superiores com borda superior colorida por condição (Opção A)',
+        'Ícone Lucide translúcido (opacity 15%) no canto superior direito dos cards',
+        'Texto de tendência abaixo do número (confirmados, % da rede)',
+        'Componentes UI shadcn-compatible: Card, CardContent, Badge, Separator',
+        'Tooltip customizado com fundo branco e sombra suave nos gráficos Recharts',
+        'Labels numéricos dentro das barras horizontais (LabelList)',
+        'Legenda com bolinhas coloridas (iconType circle, iconSize 8)',
+        'Gráfico de pizza com labels externos de % e CustomPieLegend',
+        'ReportCards com ícone grande + badge numérico colorido (sem mini-gráfico)',
+        'Hover nos ReportCards: borda muda para a cor da condição',
+        'Badge shadcn-compatible nos status (Confirmado/Suspeito) da tabela nominal',
+        'Separator entre seções e tipografia font-medium tracking-tight'
       ]
     },
     {
