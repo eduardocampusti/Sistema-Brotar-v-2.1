@@ -497,7 +497,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                 </span>
                             )}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
                             <span className="text-[11px] text-slate-400">{apt.specialty} • {apt.professionalName} • {apt.unit}</span>
                             <Badge className={`gap-1 px-2 py-0.5 text-[10px] font-medium shrink-0 ${style.badge}`}>
                                 {getStatusIcon(apt.status)}
