@@ -1,8 +1,33 @@
 export const APP_VERSION = {
-  version: 'v2.1.16',
+  version: 'v2.1.18',
   date: 'Mai 2026',
-  display: 'v2.1.16 • Mai 2026',
+  display: 'v2.1.18 • Mai 2026',
   changelog: [
+    {
+      version: 'v2.1.18',
+      date: '20 Mai 2026',
+      title: 'Release v2.1.18 — 20 Mai 2026',
+      type: 'feature',
+      changes: [
+        "Atualização de versão do sistema",
+        "Painel de Monitoramento TEA",
+        "Melhorias e correções gerais"
+      ]
+    },
+    {
+      version: 'v2.1.17',
+      date: '20 Mai 2026',
+      title: 'Painel Completo de Educação Especial ANEE',
+      type: 'feature',
+      changes: [
+        'Suporte a múltiplos diagnósticos: aluno contado em todas as condições detectadas',
+        'Função getAllCondicoes detecta TEA, TDAH, Down, PC, DI, Epilepsia, TOD e Outras',
+        'Gráfico de barras empilhadas por faixa etária com coluna "Não informada"',
+        'Gráfico agrupado por escola (Top 5 unidades ANEE)',
+        'Cards: Total ANEE, % ANEE, TDAH, Síndrome de Down, Paralisia Cerebral',
+        'PDFs especializados por condição com cores oficiais por diagnóstico'
+      ]
+    },
     {
       version: 'v2.1.16',
       date: '20 Mai 2026',

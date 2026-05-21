@@ -97,38 +97,49 @@ interface ReportCardProps {
 }
 
 // --- Função de Normalização dos Diagnósticos ---
+// Retorna a condição primária (compatibilidade com usos existentes)
 const normalizeDiagnostico = (cid: string, diagnostico: string): string => {
+  const condicoes = getAllCondicoes(cid, diagnostico);
+  return condicoes.length > 0 ? condicoes[0] : 'Outras';
+};
+
+// Retorna TODAS as condições detectadas (suporte a múltiplos diagnósticos)
+// Um aluno com TEA + Epilepsia será contado em ambas as listas nos gráficos
+const getAllCondicoes = (cid: string, diagnostico: string): string[] => {
   const c = (cid || '').toUpperCase().trim();
   const d = (diagnostico || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const condicoes: string[] = [];
 
   if (d.includes('autis') || d.includes('tea') || d.includes('espectro') || c.includes('F84') || c.includes('6A02')) {
-    return 'TEA';
+    condicoes.push('TEA');
   }
   if (d.includes('tdah') || d.includes('deficit de atencao') || d.includes('hiperativ') || c.includes('F90') || c.includes('6A05')) {
-    return 'TDAH';
+    condicoes.push('TDAH');
   }
   if (d.includes('down') || c.includes('Q90') || d.includes('trissomia')) {
-    return 'Síndrome de Down';
+    condicoes.push('Síndrome de Down');
   }
   if (d.includes('paralisia') || c.includes('G80')) {
-    return 'Paralisia Cerebral';
+    condicoes.push('Paralisia Cerebral');
   }
-  if (d.includes('deficiencia intelectual') || d.includes('di') || c.includes('6A00') || d.includes('intelectual')) {
-    const words = d.split(/[\s,./()]+-?/);
-    if (d.includes('deficiencia intelectual') || words.includes('di') || c.includes('6A00') || d.includes('intelectual')) {
-      return 'Deficiência Intelectual';
-    }
+  if (
+    d.includes('deficiencia intelectual') || c.includes('6A00') || d.includes('intelectual')
+  ) {
+    condicoes.push('Deficiência Intelectual');
   }
   if (d.includes('epilepsia') || c.includes('G40')) {
-    return 'Epilepsia';
+    condicoes.push('Epilepsia');
   }
-  if (d.includes('opositivo') || d.includes('tod') || c.includes('F91')) {
-    const words = d.split(/[\s,./()]+-?/);
-    if (d.includes('opositivo') || words.includes('tod') || c.includes('F91')) {
-      return 'TOD';
-    }
+  if (d.includes('opositivo') || c.includes('F91') || /\btod\b/.test(d)) {
+    condicoes.push('TOD');
   }
-  return 'Outras';
+
+  // Se nenhuma condição específica foi detectada, mas há CID ou diagnóstico preenchido
+  if (condicoes.length === 0) {
+    condicoes.push('Outras');
+  }
+
+  return condicoes;
 };
 
 // --- Cores Oficiais por Condição ---
@@ -376,6 +387,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
         });
 
         // 5. Filtrar e categorizar alunos por condição ANEE
+        // Alunos com múltiplos diagnósticos são contados em TODAS as condições aplicáveis
         const aneeList: StudentANEE[] = [];
         const teaList: StudentANEE[] = [];
         const tdahList: StudentANEE[] = [];
@@ -392,18 +404,23 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
           
           // Considera aluno ANEE se ele tem diagnóstico ou CID cadastrado no banco
           if (cid.trim() !== '' || diag.trim() !== '') {
-            const condicao = normalizeDiagnostico(cid, diag);
-            s.condicao = condicao;
+            // Detecta TODAS as condições do aluno (suporte a múltiplos diagnósticos)
+            const todasCondicoes = getAllCondicoes(cid, diag);
+            // A condição exibida na tabela é a primária
+            s.condicao = todasCondicoes[0];
             aneeList.push(s);
 
-            if (condicao === 'TEA') teaList.push(s);
-            else if (condicao === 'TDAH') tdahList.push(s);
-            else if (condicao === 'Síndrome de Down') downList.push(s);
-            else if (condicao === 'Paralisia Cerebral') pcList.push(s);
-            else if (condicao === 'Deficiência Intelectual') diList.push(s);
-            else if (condicao === 'Epilepsia') epilepsiaList.push(s);
-            else if (condicao === 'TOD') todList.push(s);
-            else outrasList.push(s);
+            // Aluno é adicionado em TODAS as listas de condições detectadas
+            todasCondicoes.forEach(condicao => {
+              if (condicao === 'TEA') teaList.push(s);
+              else if (condicao === 'TDAH') tdahList.push(s);
+              else if (condicao === 'Síndrome de Down') downList.push(s);
+              else if (condicao === 'Paralisia Cerebral') pcList.push(s);
+              else if (condicao === 'Deficiência Intelectual') diList.push(s);
+              else if (condicao === 'Epilepsia') epilepsiaList.push(s);
+              else if (condicao === 'TOD') todList.push(s);
+              else outrasList.push(s);
+            });
           }
         });
 
