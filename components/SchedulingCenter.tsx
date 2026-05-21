@@ -1,36 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Calendar as CalendarIcon,
-    Plus,
-    Search,
-    Filter,
     CheckCircle2,
-    Clock,
-    XCircle,
-    RotateCcw,
-    MoreHorizontal,
-    MapPin,
-    User as UserIcon,
     ChevronLeft,
     ChevronRight,
+    Clock,
     Loader2,
-    Trash2,
+    MapPin,
     MessageSquare,
-    Smartphone,
     PlayCircle,
+    Plus,
+    RotateCcw,
+    Smartphone,
+    Trash2,
+    User as UserIcon,
+    Users,
+    XCircle,
 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { useAuth } from '@/src/hooks/useAuth';
+import { Card, CardContent } from '@/src/components/ui/card';
+import { Badge } from '@/src/components/ui/badge';
 import { ConfirmModal } from './ConfirmModal';
 import {
     Appointment,
     AppointmentStatus,
-    Unit,
+    AuditAction,
     Specialty,
     Student,
+    Unit,
     User,
-    AuditAction,
     statusAgendamentoRealizado,
 } from '../types';
 import { useToast } from '../contexts/ToastContext';
@@ -42,11 +42,124 @@ interface SchedulingCenterProps {
     onReschedule?: (appointment: Appointment) => void;
 }
 
-function formatarDataAgendaPtBr(isoDate: string): string {
+type AgendaTab = 'DAY' | 'PROFESSIONAL' | 'WEEK' | 'CALENDAR';
+
+interface ProfessionalGroup {
+    key: string;
+    name: string;
+    specialty: Specialty;
+    unit: Unit;
+    appointments: Appointment[];
+}
+
+const STATUS_STYLES: Record<string, { badge: string; dot: string; bar: string; label: string }> = {
+    EM_ATENDIMENTO: {
+        badge: 'bg-[#10B981]/10 text-[#047857] border-[#10B981]/25',
+        dot: 'bg-[#10B981]',
+        bar: 'bg-[#10B981]',
+        label: 'Em atendimento',
+    },
+    CONFIRMADO: {
+        badge: 'bg-[#3B82F6]/10 text-[#1D4ED8] border-[#3B82F6]/25',
+        dot: 'bg-[#3B82F6]',
+        bar: 'bg-[#3B82F6]',
+        label: 'Confirmado',
+    },
+    AGENDADO: {
+        badge: 'bg-[#6B7280]/10 text-[#4B5563] border-[#6B7280]/25',
+        dot: 'bg-[#6B7280]',
+        bar: 'bg-[#6B7280]',
+        label: 'Agendado',
+    },
+    CANCELADO: {
+        badge: 'bg-[#EF4444]/10 text-[#B91C1C] border-[#EF4444]/25',
+        dot: 'bg-[#EF4444]',
+        bar: 'bg-[#EF4444]',
+        label: 'Cancelado',
+    },
+    ENCERRADO: {
+        badge: 'bg-[#374151]/10 text-[#374151] border-[#374151]/25',
+        dot: 'bg-[#374151]',
+        bar: 'bg-[#374151]',
+        label: 'Encerrado',
+    },
+    ATENDIDO: {
+        badge: 'bg-[#374151]/10 text-[#374151] border-[#374151]/25',
+        dot: 'bg-[#374151]',
+        bar: 'bg-[#374151]',
+        label: 'Atendido',
+    },
+    FALTOU: {
+        badge: 'bg-[#EF4444]/10 text-[#B91C1C] border-[#EF4444]/25',
+        dot: 'bg-[#EF4444]',
+        bar: 'bg-[#EF4444]',
+        label: 'Faltou',
+    },
+    REMARCAR: {
+        badge: 'bg-[#F59E0B]/10 text-[#B45309] border-[#F59E0B]/25',
+        dot: 'bg-[#F59E0B]',
+        bar: 'bg-[#F59E0B]',
+        label: 'Remarcar',
+    },
+};
+
+const SPECIALTY_COLORS = [
+    'bg-emerald-100 text-emerald-700',
+    'bg-blue-100 text-blue-700',
+    'bg-amber-100 text-amber-700',
+    'bg-rose-100 text-rose-700',
+    'bg-cyan-100 text-cyan-700',
+    'bg-indigo-100 text-indigo-700',
+    'bg-slate-100 text-slate-700',
+];
+
+function formatLocalDate(date = new Date()): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function parseISODate(isoDate: string): Date {
     const [y, m, d] = isoDate.split('-').map(Number);
-    if (!y || !m || !d) return isoDate;
-    const dt = new Date(y, m - 1, d);
+    return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function addDays(isoDate: string, amount: number): string {
+    const dt = parseISODate(isoDate);
+    dt.setDate(dt.getDate() + amount);
+    return formatLocalDate(dt);
+}
+
+function formatarDataAgendaPtBr(isoDate: string): string {
+    const dt = parseISODate(isoDate);
     return dt.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatShortDate(isoDate: string): string {
+    return parseISODate(isoDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+function relativeDayLabel(isoDate: string, today: string): string {
+    if (isoDate === today) return 'Hoje';
+    if (isoDate === addDays(today, 1)) return 'Amanha';
+    return parseISODate(isoDate).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+}
+
+function getInitials(name: string): string {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase() || 'PR';
+}
+
+function professionalTone(specialty: Specialty): string {
+    const specialties = Object.values(Specialty);
+    const index = Math.max(0, specialties.indexOf(specialty));
+    return SPECIALTY_COLORS[index % SPECIALTY_COLORS.length];
 }
 
 export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser, students, onNavigate, onReschedule }) => {
@@ -54,72 +167,154 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
     const location = useLocation();
     const navigate = useNavigate();
     const podeExcluirAtendimento = authUser?.role === 'ADMIN';
+    const today = useMemo(() => formatLocalDate(), []);
 
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [viewMode, setViewMode] = useState<'DAILY' | 'UPCOMING'>('DAILY');
+    const [selectedDate, setSelectedDate] = useState(today);
+    const [activeTab, setActiveTab] = useState<AgendaTab>('DAY');
+    const [expandedProfessional, setExpandedProfessional] = useState<string | null>(null);
+    const [calendarMonth, setCalendarMonth] = useState(() => parseISODate(today));
     const { success, error: showError } = useToast();
 
-    // Filtros
-    // CORREÇÃO: scope=GLOBAL não é uma unidade válida — tratamos como 'ALL'
     const resolveInitialUnit = (): Unit | 'ALL' => {
         if (currentUser.role === 'ADMIN') return 'ALL';
         const scope = currentUser.scope as string;
         if (!scope || scope === 'GLOBAL') return 'ALL';
         return scope as Unit;
     };
+
     const [filterUnit, setFilterUnit] = useState<Unit | 'ALL'>(resolveInitialUnit());
     const [filterSpecialty, setFilterSpecialty] = useState<Specialty | 'ALL'>('ALL');
     const [filterStatus, setFilterStatus] = useState<AppointmentStatus | 'ALL'>('ALL');
+    const [pendingLogicalDelete, setPendingLogicalDelete] = useState<Appointment | null>(null);
+    const [motivoExclusao, setMotivoExclusao] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         const st = location.state as { focusAppointmentDate?: string } | null | undefined;
         const d = st?.focusAppointmentDate;
         if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
         setSelectedDate(d);
+        setCalendarMonth(parseISODate(d));
         navigate('.', { replace: true, state: {} });
     }, [location.state, navigate]);
 
-    const loadAppointments = async () => {
+    const loadAppointments = useCallback(async () => {
         setLoading(true);
         try {
             const data = await SupabaseService.getAppointments({
-                date: viewMode === 'DAILY' ? selectedDate : undefined,
-                fromDate: viewMode === 'UPCOMING' ? new Date().toISOString().split('T')[0] : undefined,
                 unit: filterUnit === 'ALL' ? undefined : filterUnit as Unit,
                 specialty: filterSpecialty === 'ALL' ? undefined : filterSpecialty as Specialty,
-                status: filterStatus === 'ALL' ? undefined : filterStatus as AppointmentStatus
+                status: filterStatus === 'ALL' ? undefined : filterStatus as AppointmentStatus,
             });
             setAppointments(data);
         } catch (err) {
-            showError("Erro ao carregar agendamentos");
+            showError('Erro ao carregar agendamentos');
         } finally {
             setLoading(false);
         }
-    };
+    }, [filterSpecialty, filterStatus, filterUnit, showError]);
 
     useEffect(() => {
-        // Se o usuário for regional, travar a unidade
         if (currentUser.role === 'SECRETARIA_COCAL' || (currentUser.role === 'EDUCATION_SECRETARY' && currentUser.scope === 'COCAL')) {
             setFilterUnit('COCAL');
         } else if (currentUser.role === 'SECRETARIA_SEDE' || (currentUser.role === 'EDUCATION_SECRETARY' && currentUser.scope === 'SEDE')) {
             setFilterUnit('SEDE');
         }
-        loadAppointments();
-    }, [selectedDate, filterUnit, filterSpecialty, filterStatus, viewMode, currentUser]);
+    }, [currentUser]);
 
-    // Auto-refresh a cada 30 segundos para capturar confirmações de WhatsApp em tempo real
+    useEffect(() => {
+        loadAppointments();
+    }, [loadAppointments]);
+
     useEffect(() => {
         const interval = setInterval(() => {
             loadAppointments();
         }, 30000);
         return () => clearInterval(interval);
-    }, [selectedDate, filterUnit, filterSpecialty, filterStatus, viewMode]);
+    }, [loadAppointments]);
 
-    const [pendingLogicalDelete, setPendingLogicalDelete] = useState<Appointment | null>(null);
-    const [motivoExclusao, setMotivoExclusao] = useState('');
-    const [deleting, setDeleting] = useState(false);
+    const sortedAppointments = useMemo(
+        () => [...appointments].sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`)),
+        [appointments]
+    );
+
+    const selectedDateAppointments = useMemo(
+        () => sortedAppointments.filter((apt) => apt.date === selectedDate),
+        [selectedDate, sortedAppointments]
+    );
+
+    const todayAppointments = useMemo(
+        () => sortedAppointments.filter((apt) => apt.date === today),
+        [sortedAppointments, today]
+    );
+
+    const weekEndDate = useMemo(() => addDays(today, 6), [today]);
+    const nextSevenDaysAppointments = useMemo(
+        () => sortedAppointments.filter((apt) => apt.date >= today && apt.date <= weekEndDate),
+        [sortedAppointments, today, weekEndDate]
+    );
+
+    const summaryCards = useMemo(() => ([
+        { title: 'Hoje', value: todayAppointments.length, color: '#10B981', icon: CalendarIcon },
+        { title: 'Confirmados', value: sortedAppointments.filter((apt) => apt.status === 'CONFIRMADO').length, color: '#3B82F6', icon: CheckCircle2 },
+        { title: 'Proximos 7 dias', value: nextSevenDaysAppointments.length, color: '#64748B', icon: Clock },
+        {
+            title: 'Pendentes',
+            value: sortedAppointments.filter((apt) => ['AGENDADO', 'REMARCAR', 'CANCELADO'].includes(apt.status)).length,
+            color: '#F59E0B',
+            icon: Users,
+        },
+    ]), [nextSevenDaysAppointments.length, sortedAppointments, todayAppointments.length]);
+
+    const professionalsToday = useMemo<ProfessionalGroup[]>(() => {
+        const groups = new Map<string, ProfessionalGroup>();
+        selectedDateAppointments.forEach((apt) => {
+            const key = apt.professionalId || `${apt.professionalName}-${apt.specialty}-${apt.unit}`;
+            const current = groups.get(key) ?? {
+                key,
+                name: apt.professionalName,
+                specialty: apt.specialty,
+                unit: apt.unit,
+                appointments: [],
+            };
+            current.appointments.push(apt);
+            groups.set(key, current);
+        });
+        return Array.from(groups.values()).sort((a, b) => b.appointments.length - a.appointments.length || a.name.localeCompare(b.name));
+    }, [selectedDateAppointments]);
+
+    const maxProfessionalAppointments = Math.max(1, ...professionalsToday.map((item) => item.appointments.length));
+
+    const weekGroups = useMemo(() => {
+        return Array.from({ length: 7 }, (_, index) => {
+            const date = addDays(today, index);
+            return {
+                date,
+                label: relativeDayLabel(date, today),
+                appointments: nextSevenDaysAppointments.filter((apt) => apt.date === date),
+            };
+        });
+    }, [nextSevenDaysAppointments, today]);
+
+    const calendarDays = useMemo(() => {
+        const year = calendarMonth.getFullYear();
+        const month = calendarMonth.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const leadingBlanks = firstDay.getDay();
+        const daysWithAppointments = new Set(sortedAppointments.map((apt) => apt.date));
+
+        return [
+            ...Array.from({ length: leadingBlanks }, (_, index) => ({ key: `blank-${index}`, date: '', day: 0, hasAppointments: false })),
+            ...Array.from({ length: daysInMonth }, (_, index) => {
+                const day = index + 1;
+                const date = formatLocalDate(new Date(year, month, day));
+                return { key: date, date, day, hasAppointments: daysWithAppointments.has(date) };
+            }),
+        ];
+    }, [calendarMonth, sortedAppointments]);
 
     const handleStatusUpdate = async (id: string, newStatus: AppointmentStatus) => {
         try {
@@ -127,7 +322,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             success(`Status atualizado para ${newStatus}`);
             loadAppointments();
         } catch (err) {
-            showError("Erro ao atualizar status");
+            showError('Erro ao atualizar status');
         }
     };
 
@@ -147,10 +342,10 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                 currentUser as any,
                 AuditAction.DELETE,
                 'AGENDAMENTOS',
-                `Exclusão lógica: ${apt.studentName} (${apt.date} ${apt.startTime})${motivoExclusao.trim() ? ` — Motivo: ${motivoExclusao.trim()}` : ''}`
+                `Exclusao logica: ${apt.studentName} (${apt.date} ${apt.startTime})${motivoExclusao.trim() ? ` - Motivo: ${motivoExclusao.trim()}` : ''}`
             );
 
-            success('Atendimento excluído');
+            success('Atendimento excluido');
             setAppointments((prev) => prev.filter((a) => a.id !== apt.id));
             setPendingLogicalDelete(null);
             setMotivoExclusao('');
@@ -161,19 +356,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         }
     };
 
-    const getStatusColor = (status: AppointmentStatus) => {
-        switch (status) {
-            case 'AGENDADO': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-            case 'CONFIRMADO': return 'bg-teal-50 text-teal-700 border-teal-200';
-            case 'EM_ATENDIMENTO': return 'bg-violet-50 text-violet-700 border-violet-200';
-            case 'ATENDIDO':
-            case 'ENCERRADO': return 'bg-blue-50 text-blue-600 border-blue-200';
-            case 'FALTOU': return 'bg-red-50 text-red-600 border-red-200';
-            case 'REMARCAR': return 'bg-orange-50 text-orange-600 border-orange-200';
-            case 'CANCELADO': return 'bg-slate-100 text-slate-500 border-slate-200';
-            default: return 'bg-slate-50 text-slate-600 border-slate-200';
-        }
-    };
+    const getStatusStyle = (status: AppointmentStatus) => STATUS_STYLES[status] ?? STATUS_STYLES.AGENDADO;
 
     const getStatusIcon = (status: AppointmentStatus) => {
         switch (status) {
@@ -182,9 +365,9 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             case 'EM_ATENDIMENTO': return <PlayCircle size={14} />;
             case 'ATENDIDO':
             case 'ENCERRADO': return <CheckCircle2 size={14} />;
-            case 'FALTOU': return <XCircle size={14} />;
-            case 'REMARCAR': return <RotateCcw size={14} />;
+            case 'FALTOU':
             case 'CANCELADO': return <XCircle size={14} />;
+            case 'REMARCAR': return <RotateCcw size={14} />;
             default: return <Clock size={14} />;
         }
     };
@@ -193,48 +376,47 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         const status = apt.statusConfirmacao;
         const hasPhone = !!apt.telefoneResponsavel;
 
-        // Sem telefone cadastrado
         if (!hasPhone) {
             return (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-orange-50 text-orange-500 border border-orange-200 text-[9px] font-black uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-orange-500">
                     <Smartphone size={12} />
-                    Sem Tel. Cadastrado
+                    Sem tel. cadastrado
                 </div>
             );
         }
 
         if (!status || status === 'PENDENTE') {
             return (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 text-slate-400 border border-slate-200 text-[9px] font-black uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-400">
                     <MessageSquare size={12} className="opacity-50" />
-                    WhatsApp: Pendente
+                    WhatsApp pendente
                 </div>
             );
         }
 
         if (status === 'CONFIRMADO') {
             return (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 text-[9px] font-black uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-600">
                     <CheckCircle2 size={12} />
-                    WhatsApp: Confirmado ✓
+                    WhatsApp confirmado
                 </div>
             );
         }
 
         if (status === 'CANCELADO') {
             return (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50 text-red-600 border border-red-200 text-[9px] font-black uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-red-600">
                     <XCircle size={12} />
-                    WhatsApp: Cancelado
+                    WhatsApp cancelado
                 </div>
             );
         }
 
         if (status === 'REMARCAR') {
             return (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-orange-50 text-orange-600 border border-orange-200 text-[9px] font-black uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-orange-600">
                     <RotateCcw size={12} />
-                    WhatsApp: Pediu Remarcar
+                    Pediu remarcar
                 </div>
             );
         }
@@ -242,16 +424,142 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         return null;
     };
 
+    const renderAppointmentRow = (apt: Appointment, showDate = false) => {
+        const style = getStatusStyle(apt.status);
+
+        return (
+            <div key={apt.id} className="group flex flex-col gap-3 border-b border-slate-100 px-4 py-4 transition-colors last:border-b-0 hover:bg-slate-50/80 lg:flex-row lg:items-center">
+                <div className="flex items-center gap-3 lg:w-[88px]">
+                    <div className="flex min-w-[68px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 py-1.5 transition-all group-hover:bg-white group-hover:shadow-sm">
+                        <span className="text-sm font-black text-slate-800">{apt.startTime}</span>
+                        <span className="text-[10px] font-bold uppercase text-slate-400">{apt.endTime}</span>
+                    </div>
+                    <span className={`h-3 w-3 rounded-full ${style.dot}`} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate text-sm font-bold text-slate-800">{apt.studentName}</h3>
+                        {showDate && (
+                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                                {formatShortDate(apt.date)}
+                            </span>
+                        )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500">
+                        <span>{apt.specialty}</span>
+                        <span className="flex items-center gap-1">
+                            <UserIcon size={12} className="text-primary-500" />
+                            {apt.professionalName}
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <MapPin size={12} className="text-amber-500" />
+                            {apt.unit}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 lg:justify-end">
+                    <div className="flex flex-col items-start gap-1.5 lg:items-end">
+                        <Badge className={`gap-1.5 px-3 py-1.5 ${style.badge}`}>
+                            {getStatusIcon(apt.status)}
+                            {style.label}
+                        </Badge>
+                        {getConfirmationBadge(apt)}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                        {apt.status === 'AGENDADO' && (
+                            <button
+                                onClick={() => handleStatusUpdate(apt.id, 'CONFIRMADO')}
+                                className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-blue-50 hover:text-[#3B82F6]"
+                                title="Confirmar agendamento"
+                            >
+                                <MessageSquare size={18} />
+                            </button>
+                        )}
+                        {(apt.status === 'AGENDADO' || apt.status === 'CONFIRMADO') && (
+                            <button
+                                onClick={() => handleStatusUpdate(apt.id, 'EM_ATENDIMENTO')}
+                                className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-emerald-50 hover:text-[#10B981]"
+                                title="Marcar como em atendimento"
+                            >
+                                <PlayCircle size={18} />
+                            </button>
+                        )}
+                        {!statusAgendamentoRealizado(apt.status) &&
+                            apt.status !== 'CANCELADO' &&
+                            apt.status !== 'FALTOU' &&
+                            apt.status !== 'REMARCAR' && (
+                                <button
+                                    onClick={() => handleStatusUpdate(apt.id, 'ENCERRADO')}
+                                    className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"
+                                    title="Encerrar atendimento"
+                                >
+                                    <CheckCircle2 size={18} />
+                                </button>
+                            )}
+                        <button
+                            onClick={() => handleStatusUpdate(apt.id, 'FALTOU')}
+                            className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                            title="Paciente faltou"
+                        >
+                            <XCircle size={18} />
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (onReschedule) onReschedule(apt);
+                                else handleStatusUpdate(apt.id, 'REMARCAR');
+                            }}
+                            className={`rounded-xl p-2.5 transition-all ${apt.status === 'FALTOU'
+                                ? 'bg-orange-500 font-bold text-white shadow-md shadow-orange-100 hover:bg-orange-600'
+                                : 'text-slate-400 hover:bg-orange-50 hover:text-orange-600'
+                                }`}
+                            title={apt.status === 'FALTOU' ? 'Remarcar paciente' : 'Solicitar remarcacao'}
+                        >
+                            <RotateCcw size={18} />
+                        </button>
+                        {podeExcluirAtendimento && (
+                            <>
+                                <div className="mx-1 hidden h-6 w-px bg-slate-100 sm:block" />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setMotivoExclusao('');
+                                        setPendingLogicalDelete(apt);
+                                    }}
+                                    className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                                    title="Excluir atendimento"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderEmptyState = (message: string) => (
+        <div className="flex flex-col items-center justify-center px-6 py-16 text-center text-slate-400">
+            <CalendarIcon size={46} className="mb-4 opacity-20" />
+            <p className="font-bold text-slate-500">{message}</p>
+            <p className="text-sm">Ajuste os filtros ou adicione um novo agendamento.</p>
+        </div>
+    );
+
+    const filterSelectClass = 'mt-2 w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-black text-slate-800 outline-none transition-all focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100';
+
     return (
-        <div className="flex flex-col h-full space-y-4">
-            {/* 1. TOPO DA TELA */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex h-full flex-col space-y-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">Central de Agendamentos</h1>
-                    <p className="text-slate-500 text-sm font-medium">Visão operacional dos atendimentos da rede</p>
+                    <h1 className="text-2xl font-black tracking-tight text-slate-800">Central de Agendamentos</h1>
+                    <p className="text-sm font-medium text-slate-500">Visao operacional dos atendimentos da rede</p>
                 </div>
                 <button
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-2xl font-bold shadow-lg shadow-primary-200 hover:bg-primary-700 transition-all active:scale-95"
+                    className="flex items-center justify-center gap-2 rounded-2xl bg-primary-600 px-6 py-3 font-bold text-white shadow-lg shadow-primary-200 transition-all hover:bg-primary-700 active:scale-95"
                     onClick={() => onNavigate && onNavigate('new-appointment')}
                 >
                     <Plus size={20} />
@@ -259,243 +567,317 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                 </button>
             </div>
 
-            {/* 2. FILTROS OPERACIONAIS */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_15px_50px_-12px_rgba(0,0,0,0.08)] space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Unidade */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Unidade</label>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                {summaryCards.map((card) => {
+                    const Icon = card.icon;
+                    return (
+                        <Card key={card.title} className="rounded-2xl border-slate-100">
+                            <CardContent className="flex items-center justify-between p-4">
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-wide text-slate-400">{card.title}</p>
+                                    <p className="mt-1 text-2xl font-black text-slate-900">{card.value}</p>
+                                </div>
+                                <div className="rounded-2xl p-3 text-white" style={{ backgroundColor: card.color }}>
+                                    <Icon size={20} />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <Card className="rounded-2xl border-slate-100">
+                    <CardContent className="p-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Unidade</label>
                         <select
-                            className="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 transition-all"
+                            className={filterSelectClass}
                             value={filterUnit}
                             onChange={(e) => setFilterUnit(e.target.value as Unit | 'ALL')}
                             disabled={currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'SECRETARIA_SEDE'}
                         >
-                            {(currentUser.role === 'ADMIN' || currentUser.role === 'SPECIALIST') && <option value="ALL">Todas Unidades</option>}
+                            {(currentUser.role === 'ADMIN' || currentUser.role === 'SPECIALIST') && <option value="ALL">Todas as unidades</option>}
                             {(!currentUser.role.includes('COCAL') && !currentUser.scope?.includes('COCAL')) && <option value="SEDE">Sede</option>}
                             {(!currentUser.role.includes('SEDE') && !currentUser.scope?.includes('SEDE')) && <option value="COCAL">Cocal</option>}
                         </select>
-                    </div>
+                    </CardContent>
+                </Card>
 
-                    {/* Especialidade */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Especialidade</label>
+                <Card className="rounded-2xl border-slate-100">
+                    <CardContent className="p-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Especialidade</label>
                         <select
                             value={filterSpecialty}
-                            onChange={(e) => setFilterSpecialty(e.target.value as any)}
-                            className="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 transition-all"
+                            onChange={(e) => setFilterSpecialty(e.target.value as Specialty | 'ALL')}
+                            className={filterSelectClass}
                         >
-                            <option value="ALL">Todos os Profissionais</option>
-                            {Object.values(Specialty).map(s => <option key={s} value={s}>{s}</option>)}
+                            <option value="ALL">Todas as especialidades</option>
+                            {Object.values(Specialty).map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
-                    </div>
+                    </CardContent>
+                </Card>
 
-                    {/* Status */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Status</label>
+                <Card className="rounded-2xl border-slate-100">
+                    <CardContent className="p-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</label>
                         <select
                             value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value as any)}
-                            className="w-full p-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 transition-all"
+                            onChange={(e) => setFilterStatus(e.target.value as AppointmentStatus | 'ALL')}
+                            className={filterSelectClass}
                         >
-                            <option value="ALL">Todos os Status</option>
-                            <option value="AGENDADO">🟢 Agendado</option>
-                            <option value="CONFIRMADO">✅ Confirmado</option>
-                            <option value="EM_ATENDIMENTO">▶ Em atendimento</option>
-                            <option value="ENCERRADO">🏁 Encerrado</option>
-                            <option value="ATENDIDO">🔵 Atendido (legado)</option>
-                            <option value="FALTOU">🔴 Faltou</option>
-                            <option value="REMARCAR">🟠 Remarcar</option>
-                            <option value="CANCELADO">⛔ Cancelado</option>
+                            <option value="ALL">Todos os status</option>
+                            <option value="AGENDADO">Agendado</option>
+                            <option value="CONFIRMADO">Confirmado</option>
+                            <option value="EM_ATENDIMENTO">Em atendimento</option>
+                            <option value="ENCERRADO">Encerrado</option>
+                            <option value="ATENDIDO">Atendido</option>
+                            <option value="FALTOU">Faltou</option>
+                            <option value="REMARCAR">Remarcar</option>
+                            <option value="CANCELADO">Cancelado</option>
                         </select>
-                    </div>
+                    </CardContent>
+                </Card>
 
-                    {/* Data / Calendário Simples */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Data</label>
-                        <div className="flex items-center gap-2">
+                <Card className="rounded-2xl border-slate-100">
+                    <CardContent className="p-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Data</label>
+                        <div className="mt-2 flex items-center gap-2">
                             <input
                                 type="date"
                                 value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="flex-1 p-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 transition-all"
+                                onChange={(e) => {
+                                    setSelectedDate(e.target.value);
+                                    setCalendarMonth(parseISODate(e.target.value));
+                                }}
+                                className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-black text-slate-800 outline-none transition-all focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100"
                             />
                             <button
-                                onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-                                className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all"
-                                title="Voltar para Hoje"
+                                onClick={() => {
+                                    setSelectedDate(today);
+                                    setCalendarMonth(parseISODate(today));
+                                }}
+                                className="rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-all hover:bg-slate-200"
+                                title="Voltar para hoje"
                             >
-                                <CalendarIcon size={20} />
+                                <CalendarIcon size={18} />
                             </button>
                         </div>
-                    </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="rounded-2xl bg-slate-100 p-1">
+                <div className="grid grid-cols-2 gap-1 md:grid-cols-4">
+                    {[
+                        { id: 'DAY' as const, label: 'Agenda do dia' },
+                        { id: 'PROFESSIONAL' as const, label: 'Por profissional' },
+                        { id: 'WEEK' as const, label: 'Proximos 7 dias' },
+                        { id: 'CALENDAR' as const, label: 'Calendario' },
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`rounded-xl border px-3 py-2.5 text-xs font-black uppercase tracking-wide transition-all ${activeTab === tab.id
+                                ? 'border-slate-200 bg-white text-slate-900 shadow-sm'
+                                : 'border-transparent text-slate-500 hover:bg-white/60 hover:text-slate-700'
+                                }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* 3. LISTA OPERACIONAL */}
-            <div className="flex-1 overflow-hidden bg-white rounded-3xl border border-slate-100 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] flex flex-col">
-                <div className="p-4 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => setViewMode('DAILY')}
-                            className={`text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'DAILY' ? 'text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Agenda do Dia
-                        </button>
-                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
-                        <button
-                            onClick={() => setViewMode('UPCOMING')}
-                            className={`text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'UPCOMING' ? 'text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Próximos Agendamentos
-                        </button>
+            <div className="min-h-[420px] flex-1 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                        <Loader2 size={40} className="mb-4 animate-spin text-primary-500" />
+                        <p className="text-sm font-bold">Carregando agenda...</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight">
-                            {appointments.length} registros
-                        </span>
-                        <button
-                            onClick={loadAppointments}
-                            title="Atualizar agendamentos"
-                            className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-slate-100 rounded-lg transition-all"
-                        >
-                            <RotateCcw size={14} />
-                        </button>
+                ) : activeTab === 'DAY' ? (
+                    <div className="grid h-full grid-cols-1 lg:grid-cols-2">
+                        <div className="border-b border-slate-100 lg:border-b-0 lg:border-r">
+                            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+                                <div>
+                                    <h2 className="font-black text-slate-800">Agenda do dia</h2>
+                                    <p className="text-xs font-semibold text-slate-500">{formatarDataAgendaPtBr(selectedDate)}</p>
+                                </div>
+                                <Badge variant="secondary">{selectedDateAppointments.length} registros</Badge>
+                            </div>
+                            <div className="max-h-[680px] overflow-y-auto">
+                                {selectedDateAppointments.length === 0
+                                    ? renderEmptyState('Nenhum atendimento para esta data')
+                                    : selectedDateAppointments.map((apt) => renderAppointmentRow(apt))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+                                <div>
+                                    <h2 className="font-black text-slate-800">Por profissional</h2>
+                                    <p className="text-xs font-semibold text-slate-500">Distribuicao dos atendimentos do dia</p>
+                                </div>
+                                <Users size={18} className="text-slate-400" />
+                            </div>
+                            <div className="max-h-[680px] space-y-3 overflow-y-auto p-4">
+                                {professionalsToday.length === 0 ? renderEmptyState('Nenhum profissional com atendimento') : professionalsToday.map((professional) => {
+                                    const tone = professionalTone(professional.specialty);
+                                    const progress = Math.max(8, Math.round((professional.appointments.length / maxProfessionalAppointments) * 100));
+                                    return (
+                                        <div key={professional.key} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-black ${tone}`}>
+                                                    {getInitials(professional.name)}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-sm font-black text-slate-800">{professional.name}</p>
+                                                    <p className="truncate text-xs font-semibold text-slate-500">{professional.specialty} - {professional.unit}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xl font-black text-slate-900">{professional.appointments.length}</p>
+                                                    <p className="text-[10px] font-bold uppercase text-slate-400">atend.</p>
+                                                </div>
+                                            </div>
+                                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                                                <div className="h-full rounded-full bg-[#10B981]" style={{ width: `${progress}%` }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto">
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-slate-400 animate-pulse">
-                            <Loader2 size={40} className="animate-spin mb-4 text-primary-500" />
-                            <p className="font-bold text-sm">Carregando agenda...</p>
+                ) : activeTab === 'PROFESSIONAL' ? (
+                    <div>
+                        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+                            <div>
+                                <h2 className="font-black text-slate-800">Por profissional</h2>
+                                <p className="text-xs font-semibold text-slate-500">Clique para expandir a agenda do dia</p>
+                            </div>
+                            <Badge variant="secondary">{professionalsToday.length} profissionais</Badge>
                         </div>
-                    ) : appointments.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 px-6 text-center text-slate-400">
-                            <CalendarIcon size={48} className="mb-4 opacity-20" />
-                            <p className="font-bold text-slate-500">Nenhum atendimento para esta data</p>
-                            <p className="text-sm">Tente mudar os filtros ou adicione um novo agendamento.</p>
+                        <div className="max-h-[720px] space-y-3 overflow-y-auto p-4">
+                            {professionalsToday.length === 0 ? renderEmptyState('Nenhum atendimento agrupado') : professionalsToday.map((professional) => {
+                                const isOpen = expandedProfessional === professional.key;
+                                return (
+                                    <div key={professional.key} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedProfessional(isOpen ? null : professional.key)}
+                                            className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50"
+                                        >
+                                            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-black ${professionalTone(professional.specialty)}`}>
+                                                {getInitials(professional.name)}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-sm font-black text-slate-800">{professional.name}</p>
+                                                <p className="truncate text-xs font-semibold text-slate-500">{professional.specialty} - {professional.unit}</p>
+                                            </div>
+                                            <Badge variant="secondary">{professional.appointments.length} atendimentos</Badge>
+                                            <ChevronRight size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                                        </button>
+                                        {isOpen && (
+                                            <div className="border-t border-slate-100">
+                                                {professional.appointments.map((apt) => renderAppointmentRow(apt))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
-                    ) : (
-                        <div className="divide-y divide-slate-50">
-                            {appointments.map((apt) => (
-                                <div key={apt.id} className="p-4 hover:bg-slate-50/80 transition-all flex items-center gap-4 group">
-                                    {/* Horário */}
-                                    <div className="flex flex-col items-center justify-center min-w-[70px] py-1 bg-slate-100 rounded-2xl border border-slate-200/50 group-hover:bg-white group-hover:shadow-sm transition-all">
-                                        <span className="text-sm font-black text-slate-800">{apt.startTime}</span>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{apt.endTime}</span>
-                                    </div>
-
-                                    {/* Aluno e Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-sm font-bold text-slate-800 truncate">{apt.studentName}</h3>
-                                            {viewMode === 'UPCOMING' && (
-                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-bold">
-                                                    {apt.date.split('-').reverse().join('/')}
-                                                </span>
-                                            )}
+                    </div>
+                ) : activeTab === 'WEEK' ? (
+                    <div>
+                        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+                            <div>
+                                <h2 className="font-black text-slate-800">Proximos 7 dias</h2>
+                                <p className="text-xs font-semibold text-slate-500">{formatShortDate(today)} ate {formatShortDate(weekEndDate)}</p>
+                            </div>
+                            <Badge variant="secondary">{nextSevenDaysAppointments.length} registros</Badge>
+                        </div>
+                        <div className="max-h-[720px] overflow-y-auto">
+                            {weekGroups.map((group) => (
+                                <div key={group.date} className="border-b border-slate-100 last:border-b-0">
+                                    <div className="sticky top-0 z-10 flex items-center justify-between bg-slate-50 px-5 py-3">
+                                        <div>
+                                            <p className="text-sm font-black capitalize text-slate-800">{group.label}</p>
+                                            <p className="text-xs font-semibold text-slate-500">{formatarDataAgendaPtBr(group.date)}</p>
                                         </div>
-                                        <div className="flex items-center gap-3 mt-0.5">
-                                            <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
-                                                <UserIcon size={12} className="text-primary-500" />
-                                                {apt.professionalName} ({apt.specialty})
-                                            </span>
-                                            <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
-                                                <MapPin size={12} className="text-orange-500" />
-                                                {apt.unit}
-                                            </span>
-                                        </div>
+                                        <Badge variant="outline">{group.appointments.length}</Badge>
                                     </div>
-
-                                    {/* Status Badge */}
-                                    <div className="hidden sm:flex flex-col items-end gap-1.5">
-                                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${getStatusColor(apt.status)}`}>
-                                            {getStatusIcon(apt.status)}
-                                            {apt.status === 'REMARCAR' ? 'REMARCADO' : apt.status}
-                                            {apt.status === 'REMARCAR' && apt.notes?.includes('Remarcado para') && (
-                                                <span className="opacity-75 relative pl-1.5 ml-1.5 border-l border-current">
-                                                    PARA {apt.notes.split('para ')[1]}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {getConfirmationBadge(apt)}
-                                    </div>
-
-                                    {/* Ações Rápidas — fluxo: Confirmar → Em atendimento → Encerrar */}
-                                    <div className="flex items-center gap-1 flex-wrap justify-end">
-                                        {apt.status === 'AGENDADO' && (
-                                            <button
-                                                onClick={() => handleStatusUpdate(apt.id, 'CONFIRMADO')}
-                                                className="p-2.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-all"
-                                                title="Confirmar agendamento"
-                                            >
-                                                <MessageSquare size={18} />
-                                            </button>
-                                        )}
-                                        {(apt.status === 'AGENDADO' || apt.status === 'CONFIRMADO') && (
-                                            <button
-                                                onClick={() => handleStatusUpdate(apt.id, 'EM_ATENDIMENTO')}
-                                                className="p-2.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all"
-                                                title="Marcar como em atendimento"
-                                            >
-                                                <PlayCircle size={18} />
-                                            </button>
-                                        )}
-                                        {!statusAgendamentoRealizado(apt.status) &&
-                                            apt.status !== 'CANCELADO' &&
-                                            apt.status !== 'FALTOU' &&
-                                            apt.status !== 'REMARCAR' && (
-                                                <button
-                                                    onClick={() => handleStatusUpdate(apt.id, 'ENCERRADO')}
-                                                    className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                                                    title="Encerrar atendimento (concluído)"
-                                                >
-                                                    <CheckCircle2 size={18} />
-                                                </button>
-                                            )}
-                                        <button
-                                            onClick={() => handleStatusUpdate(apt.id, 'FALTOU')}
-                                            className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                            title="Paciente Faltou"
-                                        >
-                                            <XCircle size={18} />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                if (onReschedule) onReschedule(apt);
-                                                else handleStatusUpdate(apt.id, 'REMARCAR');
-                                            }}
-                                            className={`p-2.5 rounded-xl transition-all ${apt.status === 'FALTOU'
-                                                ? 'text-white bg-orange-500 hover:bg-orange-600 shadow-md animate-pulse font-bold'
-                                                : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
-                                                }`}
-                                            title={apt.status === 'FALTOU' ? "Remarcar Paciente (Faltou)" : "Solicitar Remarcação"}
-                                        >
-                                            <RotateCcw size={18} />
-                                        </button>
-                                        {podeExcluirAtendimento && (
-                                            <>
-                                                <div className="w-px h-6 bg-slate-100 mx-1 hidden sm:block" />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setMotivoExclusao('');
-                                                        setPendingLogicalDelete(apt);
-                                                    }}
-                                                    className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                                    title="Excluir atendimento (exclusão lógica)"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
+                                    {group.appointments.length === 0
+                                        ? <p className="px-5 py-5 text-sm font-semibold text-slate-400">Sem atendimentos.</p>
+                                        : group.appointments.map((apt) => renderAppointmentRow(apt, true))}
                                 </div>
                             ))}
                         </div>
-                    )}
-                </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr]">
+                        <div className="border-b border-slate-100 p-5 lg:border-b-0 lg:border-r">
+                            <div className="mb-4 flex items-center justify-between">
+                                <button
+                                    type="button"
+                                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
+                                    className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                                    title="Mes anterior"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <h2 className="text-lg font-black capitalize text-slate-800">
+                                    {calendarMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
+                                    className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                                    title="Proximo mes"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-wide text-slate-400">
+                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((day) => <span key={day} className="py-2">{day}</span>)}
+                            </div>
+                            <div className="grid grid-cols-7 gap-1">
+                                {calendarDays.map((item) => item.date ? (
+                                    <button
+                                        key={item.key}
+                                        type="button"
+                                        onClick={() => setSelectedDate(item.date)}
+                                        className={`relative flex aspect-square flex-col items-center justify-center rounded-xl border text-sm font-black transition-all ${item.date === today
+                                            ? 'border-[#10B981] bg-[#10B981] text-white'
+                                            : item.date === selectedDate
+                                                ? 'border-[#3B82F6] bg-blue-50 text-[#1D4ED8]'
+                                                : 'border-transparent text-slate-700 hover:bg-slate-50'
+                                            }`}
+                                    >
+                                        {item.day}
+                                        {item.hasAppointments && (
+                                            <span className={`absolute bottom-2 h-1.5 w-1.5 rounded-full ${item.date === today ? 'bg-white' : 'bg-[#3B82F6]'}`} />
+                                        )}
+                                    </button>
+                                ) : (
+                                    <div key={item.key} className="aspect-square" />
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+                                <div>
+                                    <h2 className="font-black text-slate-800">{formatarDataAgendaPtBr(selectedDate)}</h2>
+                                    <p className="text-xs font-semibold text-slate-500">Atendimentos do dia selecionado</p>
+                                </div>
+                                <Badge variant="secondary">{selectedDateAppointments.length} registros</Badge>
+                            </div>
+                            <div className="max-h-[680px] overflow-y-auto">
+                                {selectedDateAppointments.length === 0
+                                    ? renderEmptyState('Nenhum atendimento neste dia')
+                                    : selectedDateAppointments.map((apt) => renderAppointmentRow(apt))}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <ConfirmModal
@@ -507,13 +889,13 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                 confirmButtonClassName="bg-red-500 hover:bg-red-600 focus:ring-red-500 shadow-red-100"
                 message={
                     pendingLogicalDelete
-                        ? `⚠️ Tem certeza que deseja excluir o atendimento de ${pendingLogicalDelete.studentName} agendado para ${formatarDataAgendaPtBr(pendingLogicalDelete.date)} às ${pendingLogicalDelete.startTime}?\n\nEsta ação não poderá ser desfeita pela interface.`
+                        ? `Tem certeza que deseja excluir o atendimento de ${pendingLogicalDelete.studentName} agendado para ${formatarDataAgendaPtBr(pendingLogicalDelete.date)} as ${pendingLogicalDelete.startTime}?\n\nEsta acao nao podera ser desfeita pela interface.`
                         : ''
                 }
                 footerExtra={
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide" htmlFor="motivo-exclusao-atendimento">
-                            Motivo da exclusão (opcional)
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-500" htmlFor="motivo-exclusao-atendimento">
+                            Motivo da exclusao (opcional)
                         </label>
                         <textarea
                             id="motivo-exclusao-atendimento"
@@ -521,7 +903,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             onChange={(e) => setMotivoExclusao(e.target.value)}
                             placeholder="Descreva o motivo..."
                             rows={3}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none resize-none"
+                            className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                         />
                     </div>
                 }

@@ -1,8 +1,27 @@
 export const APP_VERSION = {
-  version: 'v2.1.26',
+  version: 'v2.1.28',
   date: 'Mai 2026',
-  display: 'v2.1.26 • Mai 2026',
+  display: 'v2.1.28 • Mai 2026',
   changelog: [
+    {
+      version: 'v2.1.28',
+      date: '21 Mai 2026',
+      title: 'Release v2.1.28 — 21 Mai 2026',
+      type: 'feature',
+      changes: [
+        "Atualização de versão do sistema",
+        "Melhorias e correções gerais"
+      ]
+    },
+    {
+      version: 'v2.1.27',
+      date: '21 Mai 2026',
+      title: 'Release v2.1.27 - 21 Mai 2026',
+      type: 'feature',
+      changes: [
+        "Redesign da Central de Agendamentos com cards, abas, visao por profissional e calendario"
+      ]
+    },
     {
       version: 'v2.1.26',
       date: '21 Mai 2026',
