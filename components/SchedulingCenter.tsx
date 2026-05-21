@@ -304,6 +304,25 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         [selectedDate, sortedAppointments]
     );
 
+    const nextAppointmentDate = useMemo(
+        () => nextAppointments.length > 0 ? nextAppointments[0].date : null,
+        [nextAppointments]
+    );
+
+    const professionalsNextDay = useMemo<ProfessionalGroup[]>(() => {
+        if (!nextAppointmentDate) return [];
+        const groups = new Map<string, ProfessionalGroup>();
+        sortedAppointments
+            .filter((apt) => apt.date === nextAppointmentDate && !['CANCELADO', 'FALTOU'].includes(apt.status))
+            .forEach((apt) => {
+                const key = apt.professionalId || `${apt.professionalName}-${apt.specialty}`;
+                const current = groups.get(key) ?? { key, name: apt.professionalName, specialty: apt.specialty, unit: apt.unit, appointments: [] };
+                current.appointments.push(apt);
+                groups.set(key, current);
+            });
+        return Array.from(groups.values()).sort((a, b) => b.appointments.length - a.appointments.length);
+    }, [nextAppointmentDate, sortedAppointments]);
+
     const professionalsToday = useMemo<ProfessionalGroup[]>(() => {
         const groups = new Map<string, ProfessionalGroup>();
         selectedDateAppointments.forEach((apt) => {
@@ -769,35 +788,52 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
                                 <div>
                                     <h2 className="font-black text-slate-800">Por profissional</h2>
-                                    <p className="text-xs font-semibold text-slate-500">Distribuicao dos atendimentos do dia</p>
+                                    <p className="text-xs font-semibold text-slate-500">
+                                        {selectedDateAppointments.length === 0 && nextAppointmentDate
+                                            ? `Próximo dia com atendimentos: ${formatarDataAgendaPtBr(nextAppointmentDate)}`
+                                            : 'Distribuicao dos atendimentos do dia'}
+                                    </p>
                                 </div>
                                 <Users size={18} className="text-slate-400" />
                             </div>
-                            <div className="max-h-[680px] space-y-3 overflow-y-auto p-4">
-                                {professionalsToday.length === 0 ? renderEmptyState('Nenhum profissional com atendimento') : professionalsToday.map((professional) => {
-                                    const tone = professionalTone(professional.specialty);
-                                    const specStyle = getSpecialtyStyle(professional.specialty);
-                                    const progress = Math.max(8, Math.round((professional.appointments.length / maxProfessionalAppointments) * 100));
-                                    return (
-                                        <div key={professional.key} className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase ${tone}`}>
-                                                    {getInitials(professional.name)}
+                            <div className="max-h-[680px] space-y-2 overflow-y-auto p-4">
+                                {(selectedDateAppointments.length === 0 ? professionalsNextDay : professionalsToday).length === 0
+                                    ? renderEmptyState('Nenhum profissional com atendimento')
+                                    : (selectedDateAppointments.length === 0 ? professionalsNextDay : professionalsToday).map((professional) => {
+                                        const tone = professionalTone(professional.specialty);
+                                        const specStyle = getSpecialtyStyle(professional.specialty);
+                                        const progress = Math.max(8, Math.round((professional.appointments.length / maxProfessionalAppointments) * 100));
+                                        const isExpanded = expandedProfessional === professional.key;
+                                        return (
+                                            <div key={professional.key} className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setExpandedProfessional(isExpanded ? null : professional.key)}
+                                                    className="w-full flex items-center gap-3 p-3.5 hover:bg-slate-50 transition-colors text-left"
+                                                >
+                                                    <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase ${tone}`}>
+                                                        {getInitials(professional.name)}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-sm font-bold text-slate-800">{professional.name}</p>
+                                                        <p className="truncate text-xs text-slate-500">{professional.specialty} • {professional.unit}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <p className="text-[13px] font-bold text-slate-900">{professional.appointments.length} atend.</p>
+                                                        <ChevronRight size={14} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                                    </div>
+                                                </button>
+                                                <div className="mt-0 h-1 mx-3.5 overflow-hidden rounded-full bg-slate-100 mb-2">
+                                                    <div className={`h-full rounded-full ${specStyle.bar}`} style={{ width: `${progress}%` }} />
                                                 </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-bold text-slate-800">{professional.name}</p>
-                                                    <p className="truncate text-xs text-slate-500">{professional.specialty} • {professional.unit}</p>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <p className="text-[13px] font-bold text-slate-900">{professional.appointments.length} atend.</p>
-                                                </div>
+                                                {isExpanded && (
+                                                    <div className="border-t border-slate-100 divide-y divide-slate-50">
+                                                        {professional.appointments.map((apt) => renderAppointmentRow(apt, true))}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-slate-100">
-                                                <div className={`h-full rounded-full ${specStyle.bar}`} style={{ width: `${progress}%` }} />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
                             </div>
                         </div>
                     </div>
