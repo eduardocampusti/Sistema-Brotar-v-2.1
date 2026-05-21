@@ -156,10 +156,39 @@ function getInitials(name: string): string {
         .toUpperCase() || 'PR';
 }
 
+interface SpecialtyStyle {
+    avatar: string;
+    bar: string;
+}
+
+function getSpecialtyStyle(specialty: string): SpecialtyStyle {
+    const spec = String(specialty).toUpperCase();
+    if (spec.includes('PSICOPEDAGOGIA')) {
+        return { avatar: 'bg-pink-100 text-pink-700', bar: 'bg-pink-500' };
+    }
+    if (spec.includes('PSICOLOGIA')) {
+        return { avatar: 'bg-purple-100 text-purple-700', bar: 'bg-purple-500' };
+    }
+    if (spec.includes('FONOAUDIOLOGIA') || spec.includes('FONO')) {
+        return { avatar: 'bg-cyan-100 text-cyan-700', bar: 'bg-cyan-500' };
+    }
+    if (spec.includes('OCUPACIONAL') || spec.includes('T.O') || spec.includes('TO')) {
+        return { avatar: 'bg-indigo-100 text-indigo-700', bar: 'bg-indigo-500' };
+    }
+    if (spec.includes('FISIOTERAPIA') || spec.includes('FISIO')) {
+        return { avatar: 'bg-green-100 text-green-700', bar: 'bg-green-500' };
+    }
+    if (spec.includes('NUTRICAO') || spec.includes('NUTRIÇÃO') || spec.includes('NUTRI')) {
+        return { avatar: 'bg-emerald-100 text-emerald-700', bar: 'bg-emerald-500' };
+    }
+    if (spec.includes('SERVICO') || spec.includes('SERVIÇO') || spec.includes('SOCIAL')) {
+        return { avatar: 'bg-orange-100 text-orange-700', bar: 'bg-orange-500' };
+    }
+    return { avatar: 'bg-slate-100 text-slate-700', bar: 'bg-slate-500' };
+}
+
 function professionalTone(specialty: Specialty): string {
-    const specialties = Object.values(Specialty);
-    const index = Math.max(0, specialties.indexOf(specialty));
-    return SPECIALTY_COLORS[index % SPECIALTY_COLORS.length];
+    return getSpecialtyStyle(specialty).avatar;
 }
 
 export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser, students, onNavigate, onReschedule }) => {
@@ -257,14 +286,14 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
     );
 
     const summaryCards = useMemo(() => ([
-        { title: 'Hoje', value: todayAppointments.length, color: '#10B981', icon: CalendarIcon },
-        { title: 'Confirmados', value: sortedAppointments.filter((apt) => apt.status === 'CONFIRMADO').length, color: '#3B82F6', icon: CheckCircle2 },
-        { title: 'Proximos 7 dias', value: nextSevenDaysAppointments.length, color: '#64748B', icon: Clock },
+        { title: 'Hoje', value: todayAppointments.length, borderClass: 'border-l-[#10B981]', subtext: 'Agendamentos hoje' },
+        { title: 'Confirmados', value: sortedAppointments.filter((apt) => apt.status === 'CONFIRMADO').length, borderClass: 'border-l-[#3B82F6]', subtext: 'Pacientes confirmados' },
+        { title: 'Próximos 7 dias', value: nextSevenDaysAppointments.length, borderClass: 'border-l-[#64748B]', subtext: 'Próximos 7 dias' },
         {
             title: 'Pendentes',
             value: sortedAppointments.filter((apt) => ['AGENDADO', 'REMARCAR', 'CANCELADO'].includes(apt.status)).length,
-            color: '#F59E0B',
-            icon: Users,
+            borderClass: 'border-l-[#F59E0B]',
+            subtext: 'Aguardando retorno',
         },
     ]), [nextSevenDaysAppointments.length, sortedAppointments, todayAppointments.length]);
 
@@ -428,63 +457,55 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         const style = getStatusStyle(apt.status);
 
         return (
-            <div key={apt.id} className="group flex flex-col gap-3 border-b border-slate-100 px-4 py-4 transition-colors last:border-b-0 hover:bg-slate-50/80 lg:flex-row lg:items-center">
-                <div className="flex items-center gap-3 lg:w-[88px]">
-                    <div className="flex min-w-[68px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 py-1.5 transition-all group-hover:bg-white group-hover:shadow-sm">
-                        <span className="text-sm font-black text-slate-800">{apt.startTime}</span>
-                        <span className="text-[10px] font-bold uppercase text-slate-400">{apt.endTime}</span>
-                    </div>
-                    <span className={`h-3 w-3 rounded-full ${style.dot}`} />
+            <div key={apt.id} className="group flex flex-col gap-2 border-b border-slate-100 px-4 py-3.5 transition-colors last:border-b-0 hover:bg-slate-50/50 md:flex-row md:items-center">
+                {/* Horário à esquerda e Bolinha status */}
+                <div className="flex items-center gap-3 shrink-0">
+                    <span className="w-12 shrink-0 text-[11px] font-bold text-slate-700">{apt.startTime}</span>
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${style.dot}`} />
                 </div>
 
-                <div className="min-w-0 flex-1">
+                {/* Nome do aluno + Especialidade, Profissional, Unidade abaixo */}
+                <div className="min-w-0 flex-1 pl-1 md:pl-2">
                     <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-sm font-bold text-slate-800">{apt.studentName}</h3>
+                        <h3 className="truncate text-[13px] font-medium text-slate-800">{apt.studentName}</h3>
                         {showDate && (
-                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                                 {formatShortDate(apt.date)}
                             </span>
                         )}
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500">
-                        <span>{apt.specialty}</span>
-                        <span className="flex items-center gap-1">
-                            <UserIcon size={12} className="text-primary-500" />
-                            {apt.professionalName}
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <MapPin size={12} className="text-amber-500" />
-                            {apt.unit}
-                        </span>
+                    <div className="mt-0.5 text-[11px] text-slate-500 font-normal">
+                        <span>{apt.specialty} • {apt.professionalName} • {apt.unit}</span>
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 lg:justify-end">
-                    <div className="flex flex-col items-start gap-1.5 lg:items-end">
-                        <Badge className={`gap-1.5 px-3 py-1.5 ${style.badge}`}>
+                {/* Badge de status à direita & Botões de ação */}
+                <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end shrink-0">
+                    <div className="flex flex-col items-start gap-1 lg:items-end">
+                        <Badge className={`gap-1 px-2.5 py-1 text-[10px] font-medium ${style.badge}`}>
                             {getStatusIcon(apt.status)}
-                            {style.label}
+                            <span className="ml-1">{style.label}</span>
                         </Badge>
                         {getConfirmationBadge(apt)}
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-1">
+                    <div className="flex flex-wrap items-center justify-end gap-0.5">
                         {apt.status === 'AGENDADO' && (
                             <button
                                 onClick={() => handleStatusUpdate(apt.id, 'CONFIRMADO')}
-                                className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-blue-50 hover:text-[#3B82F6]"
+                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-[#3B82F6]"
                                 title="Confirmar agendamento"
                             >
-                                <MessageSquare size={18} />
+                                <MessageSquare size={16} />
                             </button>
                         )}
                         {(apt.status === 'AGENDADO' || apt.status === 'CONFIRMADO') && (
                             <button
                                 onClick={() => handleStatusUpdate(apt.id, 'EM_ATENDIMENTO')}
-                                className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-emerald-50 hover:text-[#10B981]"
+                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-emerald-50 hover:text-[#10B981]"
                                 title="Marcar como em atendimento"
                             >
-                                <PlayCircle size={18} />
+                                <PlayCircle size={16} />
                             </button>
                         )}
                         {!statusAgendamentoRealizado(apt.status) &&
@@ -493,45 +514,45 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             apt.status !== 'REMARCAR' && (
                                 <button
                                     onClick={() => handleStatusUpdate(apt.id, 'ENCERRADO')}
-                                    className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"
+                                    className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"
                                     title="Encerrar atendimento"
                                 >
-                                    <CheckCircle2 size={18} />
+                                    <CheckCircle2 size={16} />
                                 </button>
                             )}
                         <button
                             onClick={() => handleStatusUpdate(apt.id, 'FALTOU')}
-                            className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
                             title="Paciente faltou"
                         >
-                            <XCircle size={18} />
+                            <XCircle size={16} />
                         </button>
                         <button
                             onClick={() => {
                                 if (onReschedule) onReschedule(apt);
                                 else handleStatusUpdate(apt.id, 'REMARCAR');
                             }}
-                            className={`rounded-xl p-2.5 transition-all ${apt.status === 'FALTOU'
+                            className={`rounded-lg p-2 transition-all ${apt.status === 'FALTOU'
                                 ? 'bg-orange-500 font-bold text-white shadow-md shadow-orange-100 hover:bg-orange-600'
                                 : 'text-slate-400 hover:bg-orange-50 hover:text-orange-600'
                                 }`}
                             title={apt.status === 'FALTOU' ? 'Remarcar paciente' : 'Solicitar remarcacao'}
                         >
-                            <RotateCcw size={18} />
+                            <RotateCcw size={16} />
                         </button>
                         {podeExcluirAtendimento && (
                             <>
-                                <div className="mx-1 hidden h-6 w-px bg-slate-100 sm:block" />
+                                <div className="mx-1 hidden h-5 w-px bg-slate-100 sm:block" />
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setMotivoExclusao('');
                                         setPendingLogicalDelete(apt);
                                     }}
-                                    className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                                    className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
                                     title="Excluir atendimento"
                                 >
-                                    <Trash2 size={18} />
+                                    <Trash2 size={16} />
                                 </button>
                             </>
                         )}
@@ -569,17 +590,12 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
 
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 {summaryCards.map((card) => {
-                    const Icon = card.icon;
                     return (
-                        <Card key={card.title} className="rounded-2xl border-slate-100">
-                            <CardContent className="flex items-center justify-between p-4">
-                                <div>
-                                    <p className="text-xs font-black uppercase tracking-wide text-slate-400">{card.title}</p>
-                                    <p className="mt-1 text-2xl font-black text-slate-900">{card.value}</p>
-                                </div>
-                                <div className="rounded-2xl p-3 text-white" style={{ backgroundColor: card.color }}>
-                                    <Icon size={20} />
-                                </div>
+                        <Card key={card.title} className={`rounded-2xl border-y-slate-100 border-r-slate-100 border-l-4 ${card.borderClass} bg-white shadow-sm`}>
+                            <CardContent className="flex flex-col p-4">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{card.title}</span>
+                                <span className="mt-1 text-[28px] font-medium text-slate-900 leading-none">{card.value}</span>
+                                <span className="mt-1 text-[11px] text-slate-500 font-medium">{card.subtext}</span>
                             </CardContent>
                         </Card>
                     );
@@ -587,11 +603,12 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             </div>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                <Card className="rounded-2xl border-slate-100">
-                    <CardContent className="p-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Unidade</label>
+                {/* UNIDADE */}
+                <div className="rounded-2xl border-[0.5px] border-slate-200 bg-white p-4 flex flex-col justify-between shadow-sm">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Unidade</label>
+                    <div className="relative mt-1">
                         <select
-                            className={filterSelectClass}
+                            className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-2 focus:ring-slate-100 pr-8"
                             value={filterUnit}
                             onChange={(e) => setFilterUnit(e.target.value as Unit | 'ALL')}
                             disabled={currentUser.role === 'SECRETARIA_COCAL' || currentUser.role === 'SECRETARIA_SEDE'}
@@ -600,30 +617,38 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             {(!currentUser.role.includes('COCAL') && !currentUser.scope?.includes('COCAL')) && <option value="SEDE">Sede</option>}
                             {(!currentUser.role.includes('SEDE') && !currentUser.scope?.includes('SEDE')) && <option value="COCAL">Cocal</option>}
                         </select>
-                    </CardContent>
-                </Card>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                        </div>
+                    </div>
+                </div>
 
-                <Card className="rounded-2xl border-slate-100">
-                    <CardContent className="p-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Especialidade</label>
+                {/* ESPECIALIDADE */}
+                <div className="rounded-2xl border-[0.5px] border-slate-200 bg-white p-4 flex flex-col justify-between shadow-sm">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Especialidade</label>
+                    <div className="relative mt-1">
                         <select
+                            className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-2 focus:ring-slate-100 pr-8"
                             value={filterSpecialty}
                             onChange={(e) => setFilterSpecialty(e.target.value as Specialty | 'ALL')}
-                            className={filterSelectClass}
                         >
                             <option value="ALL">Todas as especialidades</option>
                             {Object.values(Specialty).map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
-                    </CardContent>
-                </Card>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                        </div>
+                    </div>
+                </div>
 
-                <Card className="rounded-2xl border-slate-100">
-                    <CardContent className="p-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</label>
+                {/* STATUS */}
+                <div className="rounded-2xl border-[0.5px] border-slate-200 bg-white p-4 flex flex-col justify-between shadow-sm">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</label>
+                    <div className="relative mt-1">
                         <select
+                            className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-2 focus:ring-slate-100 pr-8"
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value as AppointmentStatus | 'ALL')}
-                            className={filterSelectClass}
                         >
                             <option value="ALL">Todos os status</option>
                             <option value="AGENDADO">Agendado</option>
@@ -635,35 +660,37 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             <option value="REMARCAR">Remarcar</option>
                             <option value="CANCELADO">Cancelado</option>
                         </select>
-                    </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl border-slate-100">
-                    <CardContent className="p-4">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Data</label>
-                        <div className="mt-2 flex items-center gap-2">
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => {
-                                    setSelectedDate(e.target.value);
-                                    setCalendarMonth(parseISODate(e.target.value));
-                                }}
-                                className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-black text-slate-800 outline-none transition-all focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100"
-                            />
-                            <button
-                                onClick={() => {
-                                    setSelectedDate(today);
-                                    setCalendarMonth(parseISODate(today));
-                                }}
-                                className="rounded-xl bg-slate-100 p-2.5 text-slate-500 transition-all hover:bg-slate-200"
-                                title="Voltar para hoje"
-                            >
-                                <CalendarIcon size={18} />
-                            </button>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                            <ChevronRight className="h-4 w-4 text-slate-400" />
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
+
+                {/* DATA */}
+                <div className="rounded-2xl border-[0.5px] border-slate-200 bg-white p-4 flex flex-col justify-between shadow-sm">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Data</label>
+                    <div className="mt-1 flex items-center gap-2">
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => {
+                                setSelectedDate(e.target.value);
+                                setCalendarMonth(parseISODate(e.target.value));
+                            }}
+                            className="min-w-0 flex-1 appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
+                        />
+                        <button
+                            onClick={() => {
+                                setSelectedDate(today);
+                                setCalendarMonth(parseISODate(today));
+                            }}
+                            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-700"
+                            title="Voltar para hoje"
+                        >
+                            <CalendarIcon size={16} />
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div className="rounded-2xl bg-slate-100 p-1">
@@ -722,24 +749,24 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             <div className="max-h-[680px] space-y-3 overflow-y-auto p-4">
                                 {professionalsToday.length === 0 ? renderEmptyState('Nenhum profissional com atendimento') : professionalsToday.map((professional) => {
                                     const tone = professionalTone(professional.specialty);
+                                    const specStyle = getSpecialtyStyle(professional.specialty);
                                     const progress = Math.max(8, Math.round((professional.appointments.length / maxProfessionalAppointments) * 100));
                                     return (
-                                        <div key={professional.key} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                                        <div key={professional.key} className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-sm">
                                             <div className="flex items-center gap-3">
-                                                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-black ${tone}`}>
+                                                <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase ${tone}`}>
                                                     {getInitials(professional.name)}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-black text-slate-800">{professional.name}</p>
-                                                    <p className="truncate text-xs font-semibold text-slate-500">{professional.specialty} - {professional.unit}</p>
+                                                    <p className="truncate text-sm font-bold text-slate-800">{professional.name}</p>
+                                                    <p className="truncate text-xs text-slate-500">{professional.specialty} • {professional.unit}</p>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-xl font-black text-slate-900">{professional.appointments.length}</p>
-                                                    <p className="text-[10px] font-bold uppercase text-slate-400">atend.</p>
+                                                <div className="text-right shrink-0">
+                                                    <p className="text-[13px] font-bold text-slate-900">{professional.appointments.length} atend.</p>
                                                 </div>
                                             </div>
-                                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                                                <div className="h-full rounded-full bg-[#10B981]" style={{ width: `${progress}%` }} />
+                                            <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-slate-100">
+                                                <div className={`h-full rounded-full ${specStyle.bar}`} style={{ width: `${progress}%` }} />
                                             </div>
                                         </div>
                                     );
@@ -759,6 +786,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                         <div className="max-h-[720px] space-y-3 overflow-y-auto p-4">
                             {professionalsToday.length === 0 ? renderEmptyState('Nenhum atendimento agrupado') : professionalsToday.map((professional) => {
                                 const isOpen = expandedProfessional === professional.key;
+                                const tone = professionalTone(professional.specialty);
                                 return (
                                     <div key={professional.key} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
                                         <button
@@ -766,15 +794,17 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                             onClick={() => setExpandedProfessional(isOpen ? null : professional.key)}
                                             className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50"
                                         >
-                                            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-black ${professionalTone(professional.specialty)}`}>
+                                            <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase ${tone}`}>
                                                 {getInitials(professional.name)}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <p className="truncate text-sm font-black text-slate-800">{professional.name}</p>
-                                                <p className="truncate text-xs font-semibold text-slate-500">{professional.specialty} - {professional.unit}</p>
+                                                <p className="truncate text-sm font-bold text-slate-800">{professional.name}</p>
+                                                <p className="truncate text-xs text-slate-500">{professional.specialty} • {professional.unit}</p>
                                             </div>
-                                            <Badge variant="secondary">{professional.appointments.length} atendimentos</Badge>
-                                            <ChevronRight size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                                            <div className="shrink-0 flex items-center gap-2">
+                                                <span className="text-[13px] font-bold text-slate-900">{professional.appointments.length} atend.</span>
+                                                <ChevronRight size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                                            </div>
                                         </button>
                                         {isOpen && (
                                             <div className="border-t border-slate-100">
@@ -836,8 +866,8 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                     <ChevronRight size={20} />
                                 </button>
                             </div>
-                            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-wide text-slate-400">
-                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((day) => <span key={day} className="py-2">{day}</span>)}
+                            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => <span key={day} className="py-2">{day}</span>)}
                             </div>
                             <div className="grid grid-cols-7 gap-1">
                                 {calendarDays.map((item) => item.date ? (
@@ -845,16 +875,16 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                         key={item.key}
                                         type="button"
                                         onClick={() => setSelectedDate(item.date)}
-                                        className={`relative flex aspect-square flex-col items-center justify-center rounded-xl border text-sm font-black transition-all ${item.date === today
-                                            ? 'border-[#10B981] bg-[#10B981] text-white'
+                                        className={`relative flex aspect-square flex-col items-center justify-center text-sm font-semibold transition-all ${item.date === today
+                                            ? 'bg-[#10B981] text-white rounded-full shadow-sm'
                                             : item.date === selectedDate
-                                                ? 'border-[#3B82F6] bg-blue-50 text-[#1D4ED8]'
-                                                : 'border-transparent text-slate-700 hover:bg-slate-50'
+                                                ? 'bg-blue-50 text-[#3B82F6] rounded-full border border-blue-100 font-bold'
+                                                : 'text-slate-700 hover:bg-slate-50 rounded-full'
                                             }`}
                                     >
-                                        {item.day}
+                                        <span>{item.day}</span>
                                         {item.hasAppointments && (
-                                            <span className={`absolute bottom-2 h-1.5 w-1.5 rounded-full ${item.date === today ? 'bg-white' : 'bg-[#3B82F6]'}`} />
+                                            <span className={`absolute bottom-1 h-[4px] w-[4px] rounded-full ${item.date === today ? 'bg-white' : 'bg-[#3B82F6]'}`} />
                                         )}
                                     </button>
                                 ) : (
