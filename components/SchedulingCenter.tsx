@@ -489,28 +489,28 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             const scope = currentUser.scope;
 
             if (role === 'ADMIN')
-                return ['bg-white border-slate-200','bg-slate-100/80 border-slate-200','bg-slate-50/80 border-slate-200','bg-white border-slate-200','bg-slate-100/80 border-slate-200'];
+                return ['bg-white border-slate-300','bg-slate-200 border-slate-300','bg-white border-slate-300','bg-slate-200 border-slate-300','bg-white border-slate-300'];
             if (role === 'ESCOLA')
-                return ['bg-white border-emerald-100','bg-emerald-50/60 border-emerald-100','bg-teal-50/60 border-teal-100','bg-white border-emerald-100','bg-emerald-50/60 border-emerald-100'];
+                return ['bg-white border-emerald-300','bg-emerald-100 border-emerald-300','bg-white border-emerald-300','bg-emerald-100 border-emerald-300','bg-white border-emerald-300'];
             if (role === 'SECRETARIA_COCAL' || scope === 'COCAL')
-                return ['bg-white border-orange-100','bg-orange-50/60 border-orange-100','bg-amber-50/60 border-amber-100','bg-white border-orange-100','bg-orange-50/60 border-orange-100'];
+                return ['bg-white border-orange-300','bg-orange-100 border-orange-300','bg-white border-orange-300','bg-orange-100 border-orange-300','bg-white border-orange-300'];
             if (role === 'SECRETARIA_SEDE' || role === 'EDUCATION_SECRETARY' || role === 'ASSISTANT')
-                return ['bg-white border-blue-100','bg-blue-50/60 border-blue-100','bg-indigo-50/60 border-indigo-100','bg-white border-blue-100','bg-blue-50/60 border-blue-100'];
+                return ['bg-white border-blue-300','bg-blue-100 border-blue-300','bg-white border-blue-300','bg-blue-100 border-blue-300','bg-white border-blue-300'];
             if (specialty === 'PSYCHOLOGY')
-                return ['bg-white border-purple-100','bg-purple-50/60 border-purple-100','bg-indigo-50/60 border-indigo-100','bg-white border-purple-100','bg-purple-50/60 border-purple-100'];
+                return ['bg-white border-purple-300','bg-purple-100 border-purple-300','bg-white border-purple-300','bg-purple-100 border-purple-300','bg-white border-purple-300'];
             if (specialty === 'SPEECH_THERAPY')
-                return ['bg-white border-cyan-100','bg-cyan-50/60 border-cyan-100','bg-blue-50/60 border-blue-100','bg-white border-cyan-100','bg-cyan-50/60 border-cyan-100'];
+                return ['bg-white border-cyan-300','bg-cyan-100 border-cyan-300','bg-white border-cyan-300','bg-cyan-100 border-cyan-300','bg-white border-cyan-300'];
             if (specialty === 'OCCUPATIONAL_THERAPY')
-                return ['bg-white border-indigo-100','bg-indigo-50/60 border-indigo-100','bg-violet-50/60 border-violet-100','bg-white border-indigo-100','bg-indigo-50/60 border-indigo-100'];
+                return ['bg-white border-indigo-300','bg-indigo-100 border-indigo-300','bg-white border-indigo-300','bg-indigo-100 border-indigo-300','bg-white border-indigo-300'];
             if (specialty === 'PSYCHOPEDAGOGY')
-                return ['bg-white border-pink-100','bg-pink-50/60 border-pink-100','bg-rose-50/60 border-rose-100','bg-white border-pink-100','bg-pink-50/60 border-pink-100'];
+                return ['bg-white border-pink-300','bg-pink-100 border-pink-300','bg-white border-pink-300','bg-pink-100 border-pink-300','bg-white border-pink-300'];
             if (specialty === 'NUTRITION')
-                return ['bg-white border-green-100','bg-green-50/60 border-green-100','bg-emerald-50/60 border-emerald-100','bg-white border-green-100','bg-green-50/60 border-green-100'];
+                return ['bg-white border-green-300','bg-green-100 border-green-300','bg-white border-green-300','bg-green-100 border-green-300','bg-white border-green-300'];
             if (specialty === 'PHYSIOTHERAPY')
-                return ['bg-white border-teal-100','bg-teal-50/60 border-teal-100','bg-cyan-50/60 border-cyan-100','bg-white border-teal-100','bg-teal-50/60 border-teal-100'];
+                return ['bg-white border-teal-300','bg-teal-100 border-teal-300','bg-white border-teal-300','bg-teal-100 border-teal-300','bg-white border-teal-300'];
             if (specialty === 'SOCIAL_WORK')
-                return ['bg-white border-amber-100','bg-amber-50/60 border-amber-100','bg-yellow-50/60 border-yellow-100','bg-white border-amber-100','bg-amber-50/60 border-amber-100'];
-            return ['bg-white border-slate-200','bg-slate-50/80 border-slate-200','bg-white border-slate-200','bg-slate-50/80 border-slate-200','bg-white border-slate-200'];
+                return ['bg-white border-amber-300','bg-amber-100 border-amber-300','bg-white border-amber-300','bg-amber-100 border-amber-300','bg-white border-amber-300'];
+            return ['bg-white border-slate-300','bg-slate-200 border-slate-300','bg-white border-slate-300','bg-slate-200 border-slate-300','bg-white border-slate-300'];
         };
 
         const cardColors = getThemeCardColors();
