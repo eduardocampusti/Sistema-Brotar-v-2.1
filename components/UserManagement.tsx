@@ -107,6 +107,7 @@ export const UserManagement: React.FC = () => {
             password: formData.password,
             role: formData.role as UserRole,
             isActive: formData.isActive ?? true,
+            mustChangePassword: formData.id ? (formData.mustChangePassword ?? false) : true,
             scope: (formData.role === 'ASSISTANT' || formData.role === 'SECRETARIA_COCAL') ? formData.scope : 'GLOBAL',
             specialty: formData.role === 'SPECIALIST' ? formData.specialty : undefined,
             email: formData.email,
@@ -183,9 +184,12 @@ export const UserManagement: React.FC = () => {
         setResettingPassword(true);
         try {
             await SupabaseService.setUserPassword(resetPasswordUser.id!, newPassword.trim());
-            success(`Senha de ${resetPasswordUser.name} redefinida com sucesso!`);
+            // Marca must_change_password = true para forçar troca no próximo login
+            await SupabaseService.saveUser({ ...resetPasswordUser, mustChangePassword: true });
+            success(`Senha de ${resetPasswordUser.name} redefinida! Ela deverá criar uma nova senha no próximo login.`);
             setResetPasswordUser(null);
             setNewPassword('');
+            loadUsers();
         } catch (err) {
             showError('Erro ao redefinir senha. Tente novamente.', 'Erro');
         } finally {
@@ -574,111 +578,87 @@ export const UserManagement: React.FC = () => {
                         ? `${users.length} usuário(s) cadastrado(s).`
                         : `Mostrando ${filteredUsers.length} de ${users.length} usuário(s) com os filtros atuais.`}
                 </p>
-                <div className="max-h-[600px] overflow-y-auto">
-                <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50 sticky top-0 z-10">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Profissional</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Contato</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Acesso</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {filteredUsers.length === 0 && (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center text-slate-500 text-sm">
-                                    Nenhum usuário encontrado com os filtros selecionados.
-                                </td>
-                            </tr>
-                        )}
-                        {filteredUsers.map((user, idx) => (
-                            <tr key={user.id} className={`hover:bg-blue-50/30 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 overflow-hidden">
-                                            {user.photoUrl ? (
-                                                <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <span className="text-slate-500 font-bold">{user.name.charAt(0)}</span>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <div className="font-medium text-slate-900">{user.name}</div>
-                                            <div className="text-xs text-slate-500 flex items-center gap-1">
-                                                <Briefcase size={10} /> {user.jobTitle || 'Sem cargo definido'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="text-sm text-slate-600">
-                                        {user.email && <div className="flex items-center gap-1"><Mail size={12} className="text-slate-400" /> {user.email}</div>}
-                                        {user.phone && <div className="flex items-center gap-1 mt-0.5"><Phone size={12} className="text-slate-400" /> {user.phone}</div>}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-col gap-1">
-                                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium w-fit ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
-                                            user.role === 'SPECIALIST' ? 'bg-blue-100 text-blue-800' :
-                                                user.role === 'EDUCATION_SECRETARY' ? 'bg-orange-100 text-orange-800' :
-                                                    user.role === 'ESCOLA' ? 'bg-emerald-100 text-emerald-800' :
-                                                        user.role === 'COORDENADOR' ? 'bg-indigo-100 text-indigo-800' :
-                                                            user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' ? 'bg-amber-100 text-amber-900' :
-                                                                'bg-slate-100 text-slate-800'
-                                            }`}>
-                                            {user.role === 'ADMIN' && <Shield size={12} />}
-                                            {user.role === 'ADMIN' ? getRoleLabel('ADMIN') :
-                                                user.role === 'SPECIALIST' ? getRoleLabel('SPECIALIST') :
-                                                    user.role === 'EDUCATION_SECRETARY' ? 'Secretária Educ.' :
-                                                        user.role === 'ESCOLA' ? getRoleLabel('ESCOLA') :
-                                                            user.role === 'COORDENADOR' ? getRoleLabel('COORDENADOR') :
-                                                                user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL'
-                                                                    ? (user.role === 'SECRETARIA_SEDE' ? 'Sec. Sede' : 'Sec. Cocal')
-                                                                    : getRoleLabel('ASSISTANT')}
-                                        </span>
-                                        <span className="text-xs text-slate-400">Login: {user.username}</span>
-                                        {(user.role === 'EDUCATION_SECRETARY' || user.role === 'ASSISTANT' || user.role === 'SECRETARIA_COCAL') && (
-                                            <span className={`text-[10px] uppercase font-bold ${user.scope === 'COCAL' ? 'text-orange-600' : 'text-blue-600'}`}>
-                                                {user.scope === 'COCAL' ? '• Apenas Cocal' : '• Acesso Sede'}
-                                            </span>
-                                        )}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <button onClick={() => toggleStatus(user)} disabled={user.username === 'admin'} className={`px-2 py-1 rounded text-xs font-bold ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                        }`}>
-                                        {user.isActive ? 'Ativo' : 'Inativo'}
-                                    </button>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => handleEdit(user)}
-                                        className="text-primary-600 hover:text-primary-800 text-sm font-medium mr-3"
-                                    >
+                <div className="max-h-[620px] overflow-y-auto p-4 space-y-2">
+                    {filteredUsers.length === 0 && (
+                        <div className="py-12 text-center text-slate-400 text-sm">
+                            Nenhum usuário encontrado com os filtros selecionados.
+                        </div>
+                    )}
+                    {filteredUsers.map((user, idx) => {
+                        const cardBg = [
+                            'bg-white border-slate-200',
+                            'bg-blue-50/40 border-blue-100',
+                            'bg-emerald-50/40 border-emerald-100',
+                            'bg-purple-50/40 border-purple-100',
+                            'bg-amber-50/40 border-amber-100',
+                        ][idx % 5];
+                        const avatarBg = [
+                            'bg-blue-100 text-blue-700',
+                            'bg-emerald-100 text-emerald-700',
+                            'bg-purple-100 text-purple-700',
+                            'bg-amber-100 text-amber-700',
+                            'bg-rose-100 text-rose-700',
+                        ][idx % 5];
+                        return (
+                            <div key={user.id} className={`flex items-center gap-4 px-4 py-3 rounded-xl border shadow-sm ${cardBg} hover:shadow-md transition-all`}>
+                                {/* Avatar */}
+                                <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border-2 border-white shadow-sm overflow-hidden ${!user.photoUrl ? avatarBg : ''}`}>
+                                    {user.photoUrl
+                                        ? <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
+                                        : user.name.charAt(0).toUpperCase()
+                                    }
+                                </div>
+                                {/* Nome + cargo */}
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-medium text-slate-800 text-[13px] truncate">{user.name}</p>
+                                    <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+                                        <Briefcase size={10} /> {user.jobTitle || 'Sem cargo definido'}
+                                    </p>
+                                </div>
+                                {/* Contato */}
+                                <div className="hidden md:block min-w-0 w-44">
+                                    {user.email && <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate"><Mail size={10} /> {user.email}</p>}
+                                    {user.phone && <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate mt-0.5"><Phone size={10} /> {user.phone}</p>}
+                                </div>
+                                {/* Perfil */}
+                                <div className="hidden lg:block w-36 shrink-0">
+                                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium ${
+                                        user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
+                                        user.role === 'SPECIALIST' ? 'bg-blue-100 text-blue-800' :
+                                        user.role === 'EDUCATION_SECRETARY' ? 'bg-orange-100 text-orange-800' :
+                                        user.role === 'ESCOLA' ? 'bg-emerald-100 text-emerald-800' :
+                                        user.role === 'COORDENADOR' ? 'bg-indigo-100 text-indigo-800' :
+                                        user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' ? 'bg-amber-100 text-amber-900' :
+                                        'bg-slate-100 text-slate-700'
+                                    }`}>
+                                        {user.role === 'ADMIN' && <Shield size={10} />}
+                                        {getRoleLabel(user.role)}
+                                    </span>
+                                    <p className="text-[10px] text-slate-400 mt-1 truncate">Login: {user.username}</p>
+                                </div>
+                                {/* Status */}
+                                <button onClick={() => toggleStatus(user)} disabled={user.username === 'admin'}
+                                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 disabled:cursor-not-allowed ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    {user.isActive ? 'Ativo' : 'Inativo'}
+                                </button>
+                                {/* Ações */}
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button onClick={() => handleEdit(user)} title="Editar usuário"
+                                        className="text-[11px] font-medium text-primary-600 hover:text-primary-800 border border-primary-200 hover:bg-primary-50 px-2.5 py-1 rounded-md transition-colors">
                                         Editar
                                     </button>
-                                    <button
-                                        onClick={() => { setResetPasswordUser(user); setNewPassword(''); }}
-                                        className="text-amber-500 hover:text-amber-700 transition-colors"
-                                        title="Redefinir senha"
-                                    >
-                                        <KeyRound size={16} />
+                                    <button onClick={() => { setResetPasswordUser(user); setNewPassword(''); }} title="Redefinir senha"
+                                        className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors">
+                                        <KeyRound size={15} />
                                     </button>
-                                    <button
-                                        onClick={() => handleDelete(user)}
-                                        disabled={user.username === 'admin'}
-                                        className="text-red-500 hover:text-red-700 text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-                                        title="Excluir Usuário"
-                                    >
-                                        <Trash2 size={16} />
+                                    <button onClick={() => handleDelete(user)} disabled={user.username === 'admin'} title="Excluir usuário"
+                                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                                        <Trash2 size={15} />
                                     </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
             {/* Modal Redefinir Senha */}
