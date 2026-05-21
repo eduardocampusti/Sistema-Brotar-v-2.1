@@ -67,18 +67,14 @@ export const SchedulingRoutePage: React.FC<SchedulingRoutePageProps> = ({
 
     if (isPerfilRestritoProntuario(user as Pick<User, 'role' | 'specialty'>)) {
         return (
-            <AgendaProfissional
+            <SchedulingCenter
                 currentUser={user}
                 students={students}
-                onSelectStudent={onSelectStudent}
-                onSelectStudentAfterIniciar={(st) => {
-                    if (!user.specialty) {
-                        onSelectStudent(st);
-                        return;
-                    }
-                    const target = clinicalRouteStateAfterAgendaStart(user.specialty, st.id);
+                onNavigate={onNavigate}
+                onReschedule={(apt) => {
+                    if (!user.specialty) { onSelectStudent(students.find(s => s.id === apt.studentId)!); return; }
+                    const target = clinicalRouteStateAfterAgendaStart(user.specialty, apt.studentId);
                     if (target) navigate(target.path, { state: target.state });
-                    else onSelectStudent(st);
                 }}
             />
         );

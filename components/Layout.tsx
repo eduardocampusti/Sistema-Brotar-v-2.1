@@ -224,8 +224,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         { id: 'about', label: 'Sobre o Sistema', icon: <Info size={20} /> }
       );
     } else if (currentUser.role === 'SPECIALIST') {
-      // Especialistas veem o menu de documentos padrão
-      items.push({ id: 'documents', label: 'Documentos', icon: <FileText size={20} /> });
+      // Especialistas veem o menu de documentos padrão e painel ANEE sem dados nominais
+      items.push(
+        { id: 'relatorio-tea', label: 'Painel ANEE', icon: <Puzzle size={20} /> },
+        { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
+        { id: 'documents', label: 'Documentos', icon: <FileText size={20} /> },
+        { id: 'about', label: 'Sobre o Sistema', icon: <Info size={20} /> }
+      );
     }
 
     return items;
