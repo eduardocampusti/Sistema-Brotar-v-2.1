@@ -482,13 +482,38 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
 
     const renderAppointmentRow = (apt: Appointment, showDate = false, index = 0) => {
         const style = getStatusStyle(apt.status);
-        const cardColors = [
-            'bg-white border-slate-200',
-            'bg-blue-50/50 border-blue-100',
-            'bg-emerald-50/50 border-emerald-100',
-            'bg-purple-50/50 border-purple-100',
-            'bg-amber-50/40 border-amber-100',
-        ];
+
+        const getThemeCardColors = () => {
+            const role = currentUser.role;
+            const specialty = currentUser.specialty;
+            const scope = currentUser.scope;
+
+            if (role === 'ADMIN')
+                return ['bg-white border-slate-200','bg-slate-100/80 border-slate-200','bg-slate-50/80 border-slate-200','bg-white border-slate-200','bg-slate-100/80 border-slate-200'];
+            if (role === 'ESCOLA')
+                return ['bg-white border-emerald-100','bg-emerald-50/60 border-emerald-100','bg-teal-50/60 border-teal-100','bg-white border-emerald-100','bg-emerald-50/60 border-emerald-100'];
+            if (role === 'SECRETARIA_COCAL' || scope === 'COCAL')
+                return ['bg-white border-orange-100','bg-orange-50/60 border-orange-100','bg-amber-50/60 border-amber-100','bg-white border-orange-100','bg-orange-50/60 border-orange-100'];
+            if (role === 'SECRETARIA_SEDE' || role === 'EDUCATION_SECRETARY' || role === 'ASSISTANT')
+                return ['bg-white border-blue-100','bg-blue-50/60 border-blue-100','bg-indigo-50/60 border-indigo-100','bg-white border-blue-100','bg-blue-50/60 border-blue-100'];
+            if (specialty === 'PSYCHOLOGY')
+                return ['bg-white border-purple-100','bg-purple-50/60 border-purple-100','bg-indigo-50/60 border-indigo-100','bg-white border-purple-100','bg-purple-50/60 border-purple-100'];
+            if (specialty === 'SPEECH_THERAPY')
+                return ['bg-white border-cyan-100','bg-cyan-50/60 border-cyan-100','bg-blue-50/60 border-blue-100','bg-white border-cyan-100','bg-cyan-50/60 border-cyan-100'];
+            if (specialty === 'OCCUPATIONAL_THERAPY')
+                return ['bg-white border-indigo-100','bg-indigo-50/60 border-indigo-100','bg-violet-50/60 border-violet-100','bg-white border-indigo-100','bg-indigo-50/60 border-indigo-100'];
+            if (specialty === 'PSYCHOPEDAGOGY')
+                return ['bg-white border-pink-100','bg-pink-50/60 border-pink-100','bg-rose-50/60 border-rose-100','bg-white border-pink-100','bg-pink-50/60 border-pink-100'];
+            if (specialty === 'NUTRITION')
+                return ['bg-white border-green-100','bg-green-50/60 border-green-100','bg-emerald-50/60 border-emerald-100','bg-white border-green-100','bg-green-50/60 border-green-100'];
+            if (specialty === 'PHYSIOTHERAPY')
+                return ['bg-white border-teal-100','bg-teal-50/60 border-teal-100','bg-cyan-50/60 border-cyan-100','bg-white border-teal-100','bg-teal-50/60 border-teal-100'];
+            if (specialty === 'SOCIAL_WORK')
+                return ['bg-white border-amber-100','bg-amber-50/60 border-amber-100','bg-yellow-50/60 border-yellow-100','bg-white border-amber-100','bg-amber-50/60 border-amber-100'];
+            return ['bg-white border-slate-200','bg-slate-50/80 border-slate-200','bg-white border-slate-200','bg-slate-50/80 border-slate-200','bg-white border-slate-200'];
+        };
+
+        const cardColors = getThemeCardColors();
         const cardColor = cardColors[index % cardColors.length];
 
         return (
