@@ -1,8 +1,17 @@
 export const APP_VERSION = {
-  version: 'v2.1.50',
+  version: 'v2.1.51',
   date: 'Mai 2026',
-  display: 'v2.1.50 • Mai 2026',
+  display: 'v2.1.51 • Mai 2026',
   changelog: [
+    {
+      version: 'v2.1.51',
+      date: '21 Mai 2026',
+      title: 'Release v2.1.51 — 21 Mai 2026',
+      type: 'feature',
+      changes: [
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.1.50',
       date: '21 Mai 2026',
