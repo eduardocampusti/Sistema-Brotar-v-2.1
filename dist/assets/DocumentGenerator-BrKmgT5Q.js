@@ -1,4 +1,4 @@
-import{j as e}from"./vendor-utils-3apNT2X0.js";import{b as d,R as M,S as z,c as G,a6 as T,p as B,G as F,aA as q,m as U,V,ab as H,aY as Y,aZ as Z,aq as Q,a_ as W,au as X}from"./vendor-ui-DKEpN6kX.js";import{b as J,a as N}from"./index-C-M5PqWc.js";import{G as K}from"./vendor-ai-BER3QIUg.js";import"./vendor-pdf-DEkZUei3.js";import"./vendor-supabase-CbM-anGD.js";const ee=new K({apiKey:"AIzaSyCyp09yV8UF1pYLx3ztn1B4LFakUEMmXIU"}),te=`
+import{j as e}from"./vendor-utils-3apNT2X0.js";import{b as d,R as M,S as z,c as G,a6 as T,p as B,G as F,aA as q,m as U,V,ab as H,aY as Y,aZ as Z,aq as Q,a_ as W,au as X}from"./vendor-ui-DKEpN6kX.js";import{b as J,a as N}from"./index-D5i55VoX.js";import{G as K}from"./vendor-ai-BER3QIUg.js";import"./vendor-pdf-DEkZUei3.js";import"./vendor-supabase-CbM-anGD.js";const ee=new K({apiKey:"AIzaSyCyp09yV8UF1pYLx3ztn1B4LFakUEMmXIU"}),te=`
 Você é o REDATOR OFICIAL do SISTEMA BROTAR.
 Sua tarefa é gerar documentos profissionais (Relatórios, Ofícios, Declarações).
 REGRAS:
