@@ -378,9 +378,10 @@ const ReportCard = ({
 
 interface RelatorioTEAPageProps {
   currentUser?: any;
+  restricted?: boolean;
 }
 
-const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
+const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser, restricted = false }) => {
   const navigate = useNavigate();
   const { error: toastError, success: toastSuccess } = useToast();
   
@@ -1030,7 +1031,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
         </div>
 
         {/* ================= CENTRAL DE RELATÓRIOS ================= */}
-        <div className="bg-slate-100/50 p-6 rounded-3xl border border-slate-200 shadow-inner space-y-6">
+        {!restricted && <div className="bg-slate-100/50 p-6 rounded-3xl border border-slate-200 shadow-inner space-y-6">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-6 bg-[#8B1A3A] rounded-full"/>
             <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider">
@@ -1165,10 +1166,10 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
             />
 
           </div>
-        </div>
+        </div>}
 
         {/* ================= LISTA NOMINAL DE ALUNOS ANEE ================= */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mt-8">
+        {!restricted && <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mt-8">
           <div className="p-6 border-b border-gray-100 bg-gray-50/50">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -1347,7 +1348,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               Total de registros listados: <span className="font-bold text-gray-600">{filteredStudents.length}</span>
             </p>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Details Modal */}

@@ -230,6 +230,8 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         navigate('.', { replace: true, state: {} });
     }, [location.state, navigate]);
 
+    const isRestrictedProfessional = currentUser.role === 'SPECIALIST';
+
     const loadAppointments = useCallback(async () => {
         setLoading(true);
         try {
@@ -237,6 +239,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                 unit: filterUnit === 'ALL' ? undefined : filterUnit as Unit,
                 specialty: filterSpecialty === 'ALL' ? undefined : filterSpecialty as Specialty,
                 status: filterStatus === 'ALL' ? undefined : filterStatus as AppointmentStatus,
+                ...(isRestrictedProfessional ? { professionalId: currentUser.id } : {}),
             });
             setAppointments(data);
         } catch (err) {
@@ -244,7 +247,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         } finally {
             setLoading(false);
         }
-    }, [filterSpecialty, filterStatus, filterUnit, showError]);
+    }, [filterSpecialty, filterStatus, filterUnit, showError, isRestrictedProfessional, currentUser.id]);
 
     useEffect(() => {
         if (currentUser.role === 'SECRETARIA_COCAL' || (currentUser.role === 'EDUCATION_SECRETARY' && currentUser.scope === 'COCAL')) {
@@ -772,7 +775,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                     </div>
                 ) : activeTab === 'DAY' ? (
                     <div className="grid h-full grid-cols-1 lg:grid-cols-2">
-                        <div className="border-b border-slate-100 lg:border-b-0 lg:border-r">
+                        <div className={`border-b border-slate-100 ${isRestrictedProfessional ? '' : 'lg:border-b-0 lg:border-r'}`}>
                             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
                                 <div>
                                     <h2 className="font-black text-slate-800">Agenda do dia</h2>
@@ -787,7 +790,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             </div>
                         </div>
 
-                        <div>
+                        {!isRestrictedProfessional && <div>
                             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-4">
                                 <div>
                                     <h2 className="font-black text-slate-800">Por profissional</h2>
@@ -843,7 +846,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                         );
                                     })}
                             </div>
-                        </div>
+                        </div>}
                     </div>
                 ) : activeTab === 'PROFESSIONAL' ? (
                     <div>
@@ -860,14 +863,8 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                 const tone = professionalTone(professional.specialty);
                                 return (
                                     <div key={professional.key} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-                                        <button
-                                            type="button"
-                                            onClick={() => setExpandedProfessional(isOpen ? null : professional.key)}
-                                            className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50"
-                                        >
-                                            <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase ${tone}`}>
-                                                {getInitials(professional.name)}
-                                            </div>
+                                        <button type="button" onClick={() => setExpandedProfessional(isOpen ? null : professional.key)} className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50">
+                                            <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase ${tone}`}>{getInitials(professional.name)}</div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="truncate text-sm font-bold text-slate-800">{professional.name}</p>
                                                 <p className="truncate text-xs text-slate-500">{professional.specialty} • {professional.unit}</p>
@@ -877,11 +874,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                                 <ChevronRight size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
                                             </div>
                                         </button>
-                                        {isOpen && (
-                                            <div className="border-t border-slate-100">
-                                                {professional.appointments.map((apt) => renderAppointmentRow(apt))}
-                                            </div>
-                                        )}
+                                        {isOpen && <div className="border-t border-slate-100">{professional.appointments.map((apt, i) => renderAppointmentRow(apt, false, i))}</div>}
                                     </div>
                                 );
                             })}
