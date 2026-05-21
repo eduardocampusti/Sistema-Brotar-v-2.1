@@ -503,7 +503,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             if (specialty === 'OCCUPATIONAL_THERAPY')
                 return ['bg-white border-indigo-300','bg-indigo-100 border-indigo-300','bg-white border-indigo-300','bg-indigo-100 border-indigo-300','bg-white border-indigo-300'];
             if (specialty === 'PSYCHOPEDAGOGY')
-                return ['bg-white border-pink-300','bg-pink-100 border-pink-300','bg-white border-pink-300','bg-pink-100 border-pink-300','bg-white border-pink-300'];
+                return ['bg-white border-[#D9ABFF]','bg-[#FFABAB]/30 border-[#FFABAB]','bg-[#FFDAAB]/30 border-[#FFDAAB]','bg-[#DDFFAB]/30 border-[#DDFFAB]','bg-[#ABE4FF]/30 border-[#ABE4FF]'];
             if (specialty === 'NUTRITION')
                 return ['bg-white border-green-300','bg-green-100 border-green-300','bg-white border-green-300','bg-green-100 border-green-300','bg-white border-green-300'];
             if (specialty === 'PHYSIOTHERAPY')

@@ -95,7 +95,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       case Specialty.PSYCHOLOGY: return { sidebar: 'bg-gradient-to-br from-purple-900 to-indigo-900 text-white', active: 'bg-white/20 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)]', hover: 'hover:bg-white/10 text-purple-100', accent: 'text-purple-200' };
       case Specialty.SPEECH_THERAPY: return { sidebar: 'bg-gradient-to-br from-cyan-900 to-blue-900 text-white', active: 'bg-white/20 text-white shadow-[0_0_15px_rgba(34,211,238,0.5)]', hover: 'hover:bg-white/10 text-cyan-100', accent: 'text-cyan-200' };
       case Specialty.OCCUPATIONAL_THERAPY: return { sidebar: 'bg-gradient-to-br from-indigo-900 to-violet-900 text-white', active: 'bg-white/20 text-white shadow-[0_0_15px_rgba(129,140,248,0.5)]', hover: 'hover:bg-white/10 text-indigo-100', accent: 'text-indigo-200' };
-      case Specialty.PSYCHOPEDAGOGY: return { sidebar: 'bg-gradient-to-br from-pink-900 to-rose-900 text-white', active: 'bg-white/20 text-white shadow-[0_0_15px_rgba(244,114,182,0.5)]', hover: 'hover:bg-white/10 text-pink-100', accent: 'text-pink-200' };
+      case Specialty.PSYCHOPEDAGOGY: return { sidebar: 'text-white', sidebarStyle: { background: 'linear-gradient(to bottom right, #9F5FC0, #D9ABFF)' }, active: 'bg-white/20 text-white shadow-[0_0_15px_rgba(217,171,255,0.5)]', hover: 'hover:bg-white/10 text-purple-100', accent: 'text-purple-100' };
       case Specialty.NUTRITION: return { sidebar: 'bg-gradient-to-br from-green-900 to-emerald-900 text-white', active: 'bg-white/20 text-white shadow-[0_0_15px_rgba(34,197,94,0.5)]', hover: 'hover:bg-white/10 text-green-100', accent: 'text-green-200' };
       default: return { sidebar: 'bg-gradient-to-b from-primary-900 to-primary-800 text-white', active: 'bg-white/20 text-white', hover: 'hover:bg-white/10 text-primary-100', accent: 'text-primary-100' };
     }
@@ -319,7 +319,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   return (
     <div className="flex min-h-screen bg-[#EEF2F8] font-sans selection:bg-primary-500 selection:text-white">
       {/* Sidebar - Desktop */}
-      <aside className={`hidden lg:flex flex-col w-72 fixed h-full z-30 transition-all duration-300 shadow-2xl ${theme.sidebar}`}>
+      <aside className={`hidden lg:flex flex-col w-72 fixed h-full z-30 transition-all duration-300 shadow-2xl ${theme.sidebar}`} style={(theme as any).sidebarStyle || {}}>
         <div className="p-8 flex items-center gap-3">
           <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 shadow-lg flex items-center justify-center">
             <LogoComponent />
@@ -453,7 +453,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       )}
 
       {/* Mobile Sidebar - Menu móvel de alta fidelidade e idêntico ao desktop */}
-      <aside className={`lg:hidden fixed inset-y-0 left-0 w-72 ${theme.sidebar} z-50 transform transition-transform duration-300 shadow-2xl flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`lg:hidden fixed inset-y-0 left-0 w-72 ${theme.sidebar} z-50 transform transition-transform duration-300 shadow-2xl flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} style={(theme as any).sidebarStyle || {}}>
         <div className="p-6 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-center">
