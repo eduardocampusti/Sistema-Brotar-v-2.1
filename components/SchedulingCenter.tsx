@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+    Ban,
     Calendar as CalendarIcon,
     CheckCircle2,
     ChevronLeft,
@@ -506,7 +507,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                 </div>
 
                 {/* Badge de status à direita & Botões de ação */}
-                <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end shrink-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 md:justify-end shrink-0">
                     <div className="flex flex-col items-start gap-1 lg:items-end">
                         <Badge className={`gap-1 px-2.5 py-1 text-[10px] font-medium ${style.badge}`}>
                             {getStatusIcon(apt.status)}
@@ -515,23 +516,21 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                         {getConfirmationBadge(apt)}
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-0.5">
+                    <div className="flex flex-wrap items-center justify-end gap-1.5">
                         {apt.status === 'AGENDADO' && (
                             <button
                                 onClick={() => handleStatusUpdate(apt.id, 'CONFIRMADO')}
-                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-blue-50 hover:text-[#3B82F6]"
-                                title="Confirmar agendamento"
+                                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
                             >
-                                <MessageSquare size={16} />
+                                <CheckCircle2 size={12} /> Confirmar
                             </button>
                         )}
                         {(apt.status === 'AGENDADO' || apt.status === 'CONFIRMADO') && (
                             <button
                                 onClick={() => handleStatusUpdate(apt.id, 'EM_ATENDIMENTO')}
-                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-emerald-50 hover:text-[#10B981]"
-                                title="Marcar como em atendimento"
+                                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors"
                             >
-                                <PlayCircle size={16} />
+                                <PlayCircle size={12} /> Iniciar
                             </button>
                         )}
                         {!statusAgendamentoRealizado(apt.status) &&
@@ -540,32 +539,39 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                             apt.status !== 'REMARCAR' && (
                                 <button
                                     onClick={() => handleStatusUpdate(apt.id, 'ENCERRADO')}
-                                    className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"
-                                    title="Encerrar atendimento"
+                                    className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-colors"
                                 >
-                                    <CheckCircle2 size={16} />
+                                    <CheckCircle2 size={12} /> Encerrar
                                 </button>
                             )}
-                        <button
-                            onClick={() => handleStatusUpdate(apt.id, 'FALTOU')}
-                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
-                            title="Paciente faltou"
-                        >
-                            <XCircle size={16} />
-                        </button>
-                        <button
-                            onClick={() => {
-                                if (onReschedule) onReschedule(apt);
-                                else handleStatusUpdate(apt.id, 'REMARCAR');
-                            }}
-                            className={`rounded-lg p-2 transition-all ${apt.status === 'FALTOU'
-                                ? 'bg-orange-500 font-bold text-white shadow-md shadow-orange-100 hover:bg-orange-600'
-                                : 'text-slate-400 hover:bg-orange-50 hover:text-orange-600'
-                                }`}
-                            title={apt.status === 'FALTOU' ? 'Remarcar paciente' : 'Solicitar remarcacao'}
-                        >
-                            <RotateCcw size={16} />
-                        </button>
+                        {!['CANCELADO', 'ENCERRADO', 'ATENDIDO', 'FALTOU'].includes(apt.status) && (
+                            <button
+                                onClick={() => {
+                                    if (onReschedule) onReschedule(apt);
+                                    else handleStatusUpdate(apt.id, 'REMARCAR');
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition-colors"
+                            >
+                                <RotateCcw size={12} /> Remarcar
+                            </button>
+                        )}
+                        {!['CANCELADO', 'ENCERRADO', 'ATENDIDO'].includes(apt.status) && (
+                            <button
+                                onClick={() => handleStatusUpdate(apt.id, 'FALTOU')}
+                                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors"
+                            >
+                                <XCircle size={12} /> Faltou
+                            </button>
+                        )}
+                        {['SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'ADMIN', 'COORDENADOR'].includes(currentUser.role) &&
+                            !['CANCELADO', 'ENCERRADO', 'ATENDIDO'].includes(apt.status) && (
+                            <button
+                                onClick={() => handleStatusUpdate(apt.id, 'CANCELADO')}
+                                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors"
+                            >
+                                <Ban size={12} /> Cancelar
+                            </button>
+                        )}
                         {podeExcluirAtendimento && (
                             <>
                                 <div className="mx-1 hidden h-5 w-px bg-slate-100 sm:block" />
