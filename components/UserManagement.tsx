@@ -4,7 +4,7 @@ import { User, UserRole, Specialty, UserScope } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { useToast } from '../contexts/ToastContext';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle, Eye, EyeOff, Search } from 'lucide-react';
+import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle, Eye, EyeOff, Search, KeyRound } from 'lucide-react';
 
 const ROLE_FILTER_ALL = 'ALL' as const;
 type RoleFilterValue = typeof ROLE_FILTER_ALL | UserRole;
@@ -44,8 +44,12 @@ export const UserManagement: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [isAdding, setIsAdding] = useState(false);
     const [isLoading, setIsLoading] = useState(false); // [NEW] Bloqueio de envio
-    const [userToDelete, setUserToDelete] = useState<User | null>(null); // [NEW] Modal de Exclusão
-    const [showPassword, setShowPassword] = useState(false); // [NEW] Toggle de senha
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
+    const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+    const [newPassword, setNewPassword] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [resettingPassword, setResettingPassword] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState<RoleFilterValue>(ROLE_FILTER_ALL);
@@ -171,6 +175,22 @@ export const UserManagement: React.FC = () => {
                 [field]: value
             }
         }));
+    };
+
+    const handleResetPassword = async () => {
+        if (!resetPasswordUser || !newPassword.trim()) return;
+        if (newPassword.trim().length < 6) { showError('A senha deve ter pelo menos 6 caracteres.', 'Senha fraca'); return; }
+        setResettingPassword(true);
+        try {
+            await SupabaseService.setUserPassword(resetPasswordUser.id!, newPassword.trim());
+            success(`Senha de ${resetPasswordUser.name} redefinida com sucesso!`);
+            setResetPasswordUser(null);
+            setNewPassword('');
+        } catch (err) {
+            showError('Erro ao redefinir senha. Tente novamente.', 'Erro');
+        } finally {
+            setResettingPassword(false);
+        }
     };
 
     const toggleStatus = async (user: User) => {
@@ -554,8 +574,9 @@ export const UserManagement: React.FC = () => {
                         ? `${users.length} usuário(s) cadastrado(s).`
                         : `Mostrando ${filteredUsers.length} de ${users.length} usuário(s) com os filtros atuais.`}
                 </p>
+                <div className="max-h-[600px] overflow-y-auto">
                 <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
+                    <thead className="bg-slate-50 sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Profissional</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Contato</th>
@@ -568,12 +589,12 @@ export const UserManagement: React.FC = () => {
                         {filteredUsers.length === 0 && (
                             <tr>
                                 <td colSpan={5} className="px-6 py-12 text-center text-slate-500 text-sm">
-                                    Nenhum usuário encontrado com os filtros selecionados. Ajuste a pesquisa ou o tipo de perfil.
+                                    Nenhum usuário encontrado com os filtros selecionados.
                                 </td>
                             </tr>
                         )}
-                        {filteredUsers.map(user => (
-                            <tr key={user.id} className="hover:bg-slate-50">
+                        {filteredUsers.map((user, idx) => (
+                            <tr key={user.id} className={`hover:bg-blue-50/30 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 overflow-hidden">
@@ -639,6 +660,13 @@ export const UserManagement: React.FC = () => {
                                         Editar
                                     </button>
                                     <button
+                                        onClick={() => { setResetPasswordUser(user); setNewPassword(''); }}
+                                        className="text-amber-500 hover:text-amber-700 transition-colors"
+                                        title="Redefinir senha"
+                                    >
+                                        <KeyRound size={16} />
+                                    </button>
+                                    <button
                                         onClick={() => handleDelete(user)}
                                         disabled={user.username === 'admin'}
                                         className="text-red-500 hover:text-red-700 text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
@@ -651,7 +679,52 @@ export const UserManagement: React.FC = () => {
                         ))}
                     </tbody>
                 </table>
-            </div>
+                </div>
+            {/* Modal Redefinir Senha */}
+            {resetPasswordUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+                        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <KeyRound size={18} className="text-amber-500" />
+                                <h3 className="font-bold text-slate-800">Redefinir Senha</h3>
+                            </div>
+                            <button onClick={() => setResetPasswordUser(null)} className="text-slate-400 hover:text-red-500">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm text-slate-600">
+                                Definindo nova senha para <span className="font-bold text-slate-800">{resetPasswordUser.name}</span>
+                            </p>
+                            <div className="relative">
+                                <input
+                                    type={showNewPassword ? 'text' : 'password'}
+                                    placeholder="Nova senha (mínimo 6 caracteres)"
+                                    value={newPassword}
+                                    onChange={e => setNewPassword(e.target.value)}
+                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm pr-10 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+                                    autoFocus
+                                />
+                                <button type="button" onClick={() => setShowNewPassword(!showNewPassword)}
+                                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={() => setResetPasswordUser(null)}
+                                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+                                    Cancelar
+                                </button>
+                                <button onClick={handleResetPassword} disabled={resettingPassword || newPassword.trim().length < 6}
+                                    className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                    {resettingPassword ? 'Salvando...' : <><KeyRound size={14} /> Redefinir Senha</>}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Modal de Confirmação de Exclusão */}
             {userToDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
