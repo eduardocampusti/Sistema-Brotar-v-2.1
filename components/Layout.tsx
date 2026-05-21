@@ -178,12 +178,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                 : isPerfilRestritoProntuario(currentUser)
                   ? 'Minha Agenda'
                   : 'Central de Agendamentos',
+            sub: isPerfilRestritoProntuario(currentUser) ? 'Seus atendimentos do dia' : 'Visão operacional da rede',
             icon: <Calendar size={20} />,
           }]
         : []),
       {
         id: 'list',
         label: 'Alunos / Prontuários',
+        sub: isPerfilRestritoProntuario(currentUser) ? 'Acesse os prontuários' : undefined,
         icon: <Users size={20} />
       },
     ];
@@ -224,12 +226,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         { id: 'about', label: 'Sobre o Sistema', icon: <Info size={20} /> }
       );
     } else if (currentUser.role === 'SPECIALIST') {
-      // Especialistas veem o menu de documentos padrão e painel ANEE sem dados nominais
       items.push(
-        { id: 'relatorio-tea', label: 'Painel ANEE', icon: <Puzzle size={20} /> },
-        { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
-        { id: 'documents', label: 'Documentos', icon: <FileText size={20} /> },
-        { id: 'about', label: 'Sobre o Sistema', icon: <Info size={20} /> }
+        { id: 'relatorio-tea', label: 'Painel ANEE', sub: 'Dados gerais da rede', icon: <Puzzle size={20} /> },
+        { id: 'documents', label: 'Documentos', sub: 'Relatórios e laudos', icon: <FileText size={20} /> },
+        { id: 'about', label: 'Sobre o Sistema', sub: 'Versão e novidades', icon: <Info size={20} /> }
       );
     }
 
@@ -258,6 +258,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   const standardMenuItems = (!isAdmin && !isEscola) ? getStandardMenuItems() : [];
   const standardSpecialtyItems = (!isAdmin && !isEscola) ? getStandardSpecialtyItems() : [];
   const escolaMenuItems = isEscola ? getEscolaMenuItems() : [];
+
+  const getStandardExtraItems = () => {
+    if (currentUser.role !== 'SPECIALIST') return [];
+    return [
+      { id: 'relatorio-tea', label: 'Painel ANEE', sub: 'Dados gerais da rede', icon: <Puzzle size={18} /> },
+      { id: 'documents', label: 'Documentos', sub: 'Relatórios e laudos', icon: <FileText size={18} /> },
+      { id: 'about', label: 'Sobre o Sistema', sub: 'Versão e novidades', icon: <Info size={18} /> },
+    ];
+  };
 
   const isItemActive = (itemId: string) => {
     if (activePage === itemId) return true;
@@ -296,6 +305,39 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       <span className="relative z-10">{item.label}</span>
     </button>
   );
+
+  const MenuCardButton: React.FC<{ item: any }> = ({ item }) => {
+    const isActive = isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id));
+    return (
+      <button
+        onClick={() => onNavigate(item.id)}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 border ${
+          isActive
+            ? 'bg-white/20 border-white/30 shadow-sm'
+            : 'bg-white/8 border-white/10 hover:bg-white/15 hover:border-white/20'
+        }`}
+        style={isActive ? {} : {background: 'rgba(255,255,255,0.06)'}}
+      >
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isActive ? 'bg-white/25' : 'bg-white/12'}`}
+          style={{background: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'}}>
+          <span className="text-white">{item.icon}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={`text-[13px] leading-tight truncate ${isActive ? 'font-semibold text-white' : 'font-medium text-white/85'}`}>
+            {item.label}
+          </p>
+          {item.sub && (
+            <p className="text-[10px] text-white/55 mt-0.5 truncate">{item.sub}</p>
+          )}
+        </div>
+        {item.badge && (
+          <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-white/90 text-[10px] font-bold flex items-center justify-center" style={{color: '#9F5FC0'}}>
+            {item.badge}
+          </span>
+        )}
+      </button>
+    );
+  };
 
   const MenuButtonMobile: React.FC<{ item: any }> = ({ item }) => (
     <button
@@ -382,13 +424,24 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
           ) : (
             <>
               <SectionHeader title="Navegação Principal" />
-              {standardMenuItems.map(item => <MenuButton key={item.id} item={item} />)}
+              {standardMenuItems.map(item =>
+                currentUser.role === 'SPECIALIST'
+                  ? <MenuCardButton key={item.id} item={item} />
+                  : <MenuButton key={item.id} item={item} />
+              )}
 
               {standardSpecialtyItems.length > 0 && (
                 <>
-                  <div className="my-6 border-t border-white/10 mx-2"></div>
+                  <div className="my-4 border-t border-white/10 mx-2"></div>
                   <SectionHeader title="Módulos Clínicos" icon={Sparkles} />
-                  {standardSpecialtyItems.map(item => <MenuButton key={item.id} item={item} />)}
+                  {standardSpecialtyItems.map(item =>
+                    currentUser.role === 'SPECIALIST'
+                      ? <MenuCardButton key={item.id} item={item} />
+                      : <MenuButton key={item.id} item={item} />
+                  )}
+                  <div className="my-4 border-t border-white/10 mx-2"></div>
+                  <SectionHeader title="Sistema" />
+                  {getStandardExtraItems().map(item => <MenuCardButton key={item.id} item={item} />)}
                 </>
               )}
             </>
