@@ -148,25 +148,31 @@ const getAllCondicoes = (cid: string, diagnostico: string): string[] => {
 
 // --- Cores Oficiais por Condição ---
 const CORES_CONDICAO: Record<string, string> = {
-  'TEA': '#1E3A5F',
-  'TDAH': '#B84B00',
-  'Síndrome de Down': '#1A5C3A',
-  'Paralisia Cerebral': '#4A1A6B',
-  'Deficiência Intelectual': '#7B1D1D',
-  'Epilepsia': '#374151',
-  'TOD': '#4B5563',
-  'Outras': '#6B7280'
+  'TEA': '#3B82F6',
+  'TDAH': '#F97316',
+  'Síndrome de Down': '#22C55E',
+  'Paralisia Cerebral': '#A855F7',
+  'Deficiência Intelectual': '#EF4444',
+  'Epilepsia': '#6B7280',
+  'TOD': '#8B5CF6',
+  'Outras': '#9CA3AF'
+};
+
+const CORES_INDICADORES = {
+  totalAnee: '#06B6D4',
+  percentualAnee: '#10B981',
+  suspeitos: '#F59E0B'
 };
 
 const CORES_LIGHT_CONDICAO: Record<string, string> = {
-  'TEA': '#EBF2FA',
-  'TDAH': '#FFF0E6',
-  'Síndrome de Down': '#E8F5EE',
-  'Paralisia Cerebral': '#F3EAF9',
-  'Deficiência Intelectual': '#FDF2F2',
-  'Epilepsia': '#F1F5F9',
-  'TOD': '#FEF9C3',
-  'Outras': '#F3F4F6'
+  'TEA': '#EFF6FF',
+  'TDAH': '#FFF7ED',
+  'Síndrome de Down': '#F0FDF4',
+  'Paralisia Cerebral': '#FAF5FF',
+  'Deficiência Intelectual': '#FEF2F2',
+  'Epilepsia': '#F3F4F6',
+  'TOD': '#F5F3FF',
+  'Outras': '#F9FAFB'
 };
 
 // --- Componentes Auxiliares ---
@@ -257,7 +263,7 @@ const MetricCard = ({ title, value, trend, icon: Icon, color, bgLight, onClick, 
   </Card>
 );
 
-// ReportCard: ícone grande centralizado + badge numérico, sem mini-gráfico
+// ReportCard: mini-preview colorido, contador no topo e ações embaixo.
 const ReportCard = ({ 
   title, 
   description, 
@@ -276,41 +282,62 @@ const ReportCard = ({
       onMouseLeave={() => setHovered(false)}
       style={{
         borderColor: hovered ? color : '#e5e7eb',
-        borderTopColor: color,
-        borderTopWidth: '3px',
         transition: 'border-color 0.2s, box-shadow 0.2s',
         boxShadow: hovered ? `0 4px 20px -4px ${color}30` : '0 1px 3px rgba(0,0,0,0.05)'
       }}
       className="bg-white rounded-xl border overflow-hidden flex flex-col h-full"
     >
+      <div className="h-1.5 w-full" style={{ backgroundColor: color }} />
+
       <div className="p-5 flex-1 flex flex-col">
-        {/* Área do ícone grande + badge */}
-        <div className="flex flex-col items-center justify-center py-4 mb-3 relative">
-          <div
-            style={{ backgroundColor: `${color}12`, borderRadius: '16px', padding: '16px', position: 'relative' }}
-          >
-            <Icon size={32} style={{ color }} />
-            {/* Badge numérico sobre o ícone */}
-            <span
-              style={{
-                position: 'absolute', top: '-8px', right: '-8px',
-                backgroundColor: color, color: '#fff',
-                fontSize: '11px', fontWeight: 700,
-                padding: '2px 7px', borderRadius: '999px',
-                lineHeight: 1.6, border: '2px solid white'
-              }}
-            >
-              {badge}
-            </span>
+        <div className="flex justify-between items-start mb-3">
+          <div className="p-2 rounded-lg text-white" style={{ backgroundColor: color }}>
+            <Icon size={18} />
           </div>
+          <span className="bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-200">
+            {badge}
+          </span>
         </div>
 
-        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '4px', textAlign: 'center' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '4px' }}>
           {title}
         </h3>
-        <p style={{ fontSize: '11px', color: '#9ca3af', lineHeight: 1.5, textAlign: 'center', flex: 1 }}>
+        <p style={{ fontSize: '11px', color: '#9ca3af', lineHeight: 1.5, flex: 1, marginBottom: '14px' }}>
           {description}
         </p>
+
+        <div
+          className="h-24 w-full mb-2 rounded-lg p-1.5 border"
+          style={{ backgroundColor: `${color}16`, borderColor: `${color}33` }}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            {chartType === 'pie' ? (
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  innerRadius={15}
+                  outerRadius={28}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || color} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            ) : (
+              <BarChart data={chartData}>
+                <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || color} />
+                  ))}
+                </Bar>
+                <Tooltip content={<CustomTooltip />} />
+              </BarChart>
+            )}
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <div className="p-3.5 bg-gray-50 border-t border-gray-100 flex gap-2">
@@ -729,8 +756,8 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               value={aneeStudents.length}
               trend={`${aneeMetrics.percentual}% da rede`}
               icon={Users}
-              color="#8B1A3A"
-              bgLight="#8B1A3A10"
+              color={CORES_INDICADORES.totalAnee}
+              bgLight={`${CORES_INDICADORES.totalAnee}10`}
               onClick={() => { setFilterCondicao('todos'); setFilterStatus('todos'); }}
               active={filterCondicao === 'todos' && filterStatus === 'todos'}
             />
@@ -739,8 +766,8 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               value={`${aneeMetrics.percentual}%`}
               trend={`de ${totalGeralAlunos} alunos`}
               icon={TrendingUp}
-              color="#0F6E56"
-              bgLight="#0F6E5610"
+              color={CORES_INDICADORES.percentualAnee}
+              bgLight={`${CORES_INDICADORES.percentualAnee}10`}
               active={false}
             />
             <MetricCard 
@@ -781,7 +808,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
         {/* Linha 2: Monitoramento Específico TEA */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Activity className="text-[#1E3A5F] shrink-0" size={18} />
+            <Activity className="shrink-0" style={{ color: CORES_CONDICAO['TEA'] }} size={18} />
             <h4 className="text-xs font-medium text-gray-500 uppercase tracking-tight">Monitoramento TEA</h4>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -800,8 +827,8 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               value={teaMetrics.confirmados}
               trend="com laudo clínico"
               icon={CheckCircle}
-              color="#10B981"
-              bgLight="#10B98110"
+              color={CORES_INDICADORES.percentualAnee}
+              bgLight={`${CORES_INDICADORES.percentualAnee}10`}
               onClick={() => { setFilterCondicao('TEA'); setFilterStatus('confirmado'); }}
               active={filterCondicao === 'TEA' && filterStatus === 'confirmado'}
             />
@@ -810,8 +837,8 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               value={teaMetrics.suspeitos}
               trend="aguardando laudo"
               icon={AlertCircle}
-              color="#854F0B"
-              bgLight="#854F0B10"
+              color={CORES_INDICADORES.suspeitos}
+              bgLight={`${CORES_INDICADORES.suspeitos}10`}
               onClick={() => { setFilterCondicao('TEA'); setFilterStatus('suspeito'); }}
               active={filterCondicao === 'TEA' && filterStatus === 'suspeito'}
             />
@@ -930,7 +957,10 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
                   <Bar dataKey="TDAH" stackId="a" fill={CORES_CONDICAO['TDAH']} isAnimationActive={true} />
                   <Bar dataKey="Down" name="S. Down" stackId="a" fill={CORES_CONDICAO['Síndrome de Down']} isAnimationActive={true} />
                   <Bar dataKey="PC" name="P. Cerebral" stackId="a" fill={CORES_CONDICAO['Paralisia Cerebral']} isAnimationActive={true} />
-                  <Bar dataKey="DI" name="Def. Intelectual" stackId="a" fill={CORES_CONDICAO['Deficiência Intelectual']} isAnimationActive={true} radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="DI" name="Def. Intelectual" stackId="a" fill={CORES_CONDICAO['Deficiência Intelectual']} isAnimationActive={true} />
+                  <Bar dataKey="Epilepsia" stackId="a" fill={CORES_CONDICAO['Epilepsia']} isAnimationActive={true} />
+                  <Bar dataKey="TOD" stackId="a" fill={CORES_CONDICAO['TOD']} isAnimationActive={true} />
+                  <Bar dataKey="Outras" stackId="a" fill={CORES_CONDICAO['Outras']} isAnimationActive={true} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -961,7 +991,10 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
                   <Bar dataKey="TDAH" stackId="a" fill={CORES_CONDICAO['TDAH']} isAnimationActive={true} />
                   <Bar dataKey="Down" name="S. Down" stackId="a" fill={CORES_CONDICAO['Síndrome de Down']} isAnimationActive={true} />
                   <Bar dataKey="PC" name="P. Cerebral" stackId="a" fill={CORES_CONDICAO['Paralisia Cerebral']} isAnimationActive={true} />
-                  <Bar dataKey="DI" name="Def. Intelectual" stackId="a" fill={CORES_CONDICAO['Deficiência Intelectual']} isAnimationActive={true} radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="DI" name="Def. Intelectual" stackId="a" fill={CORES_CONDICAO['Deficiência Intelectual']} isAnimationActive={true} />
+                  <Bar dataKey="Epilepsia" stackId="a" fill={CORES_CONDICAO['Epilepsia']} isAnimationActive={true} />
+                  <Bar dataKey="TOD" stackId="a" fill={CORES_CONDICAO['TOD']} isAnimationActive={true} />
+                  <Bar dataKey="Outras" stackId="a" fill={CORES_CONDICAO['Outras']} isAnimationActive={true} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -998,7 +1031,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               title="Relatório Geral ANEE"
               description="Visão consolidada de toda a rede de Educação Especial (todos os diagnósticos)."
               icon={FileText}
-              color="#0F172A"
+              color={CORES_INDICADORES.totalAnee}
               badge={aneeStudents.length}
               chartType="pie"
               chartData={distribuicaoData}
@@ -1015,8 +1048,8 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               badge={teaMetrics.total}
               chartType="pie"
               chartData={[
-                { name: 'Confirmados', value: teaMetrics.confirmados, color: '#10B981' },
-                { name: 'Suspeitos', value: teaMetrics.suspeitos, color: '#F59E0B' }
+                { name: 'Confirmados', value: teaMetrics.confirmados, color: CORES_INDICADORES.percentualAnee },
+                { name: 'Suspeitos', value: teaMetrics.suspeitos, color: CORES_INDICADORES.suspeitos }
               ]}
               onViewDetails={() => handleViewDetails('completo')}
               onExportPDF={() => handleSpecializedExport('completo')}
@@ -1027,10 +1060,10 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               title="TEA Confirmados"
               description="Listagem exclusiva de alunos TEA com laudo médico validado no sistema."
               icon={CheckCircle}
-              color="#10B981"
+              color={CORES_INDICADORES.percentualAnee}
               badge={teaMetrics.confirmados}
               chartType="pie"
-              chartData={[{ name: 'Confirmado', value: teaMetrics.confirmados, color: '#10B981' }]}
+              chartData={[{ name: 'Confirmado', value: teaMetrics.confirmados, color: CORES_INDICADORES.percentualAnee }]}
               onViewDetails={() => handleViewDetails('confirmados')}
               onExportPDF={() => handleSpecializedExport('confirmados')}
             />
@@ -1092,10 +1125,10 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               title="Distribuição por Escola"
               description="Análise quantitativa de alunos TEA distribuídos pelas unidades municipais."
               icon={School}
-              color="#8B1A3A"
+              color={CORES_INDICADORES.totalAnee}
               badge={schoolData.length > 0 ? `Total: ${schoolData.length} Escolas` : 'Top 5'}
               chartType="bar"
-              chartData={schoolData.map(e => ({ name: e.escola, value: e.total }))}
+              chartData={schoolData.map(e => ({ name: e.escola, value: e.total, color: CORES_INDICADORES.totalAnee }))}
               onViewDetails={() => handleViewDetails('escola')}
               onExportPDF={() => handleSpecializedExport('escola')}
             />
@@ -1105,10 +1138,10 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               title="Lista de Contato Rápido"
               description="Relatório com telefones e responsáveis para comunicação com famílias TEA."
               icon={Phone}
-              color="#6366F1"
+              color={CORES_CONDICAO['Outras']}
               badge="Contatos"
               chartType="bar"
-              chartData={schoolData.map(d => ({ name: d.escola, value: d.total }))}
+              chartData={schoolData.map(d => ({ name: d.escola, value: d.total, color: CORES_CONDICAO['Outras'] }))}
               onViewDetails={() => handleViewDetails('contato')}
               onExportPDF={() => handleSpecializedExport('contato')}
             />
