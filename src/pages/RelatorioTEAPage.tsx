@@ -96,6 +96,7 @@ interface ReportCardProps {
   badge: string | number;
   chartType: 'pie' | 'bar';
   chartData: any[];
+  simplePreview?: boolean;
   onViewDetails: () => void;
   onExportPDF: () => void;
 }
@@ -272,6 +273,7 @@ const ReportCard = ({
   badge, 
   chartType, 
   chartData, 
+  simplePreview = false,
   onViewDetails, 
   onExportPDF 
 }: ReportCardProps) => {
@@ -310,33 +312,45 @@ const ReportCard = ({
           className="h-24 w-full mb-2 rounded-lg p-1.5 border"
           style={{ backgroundColor: `${color}16`, borderColor: `${color}33` }}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            {chartType === 'pie' ? (
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  innerRadius={15}
-                  outerRadius={28}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            ) : (
-              <BarChart data={chartData}>
-                <Bar dataKey="value" radius={[3, 3, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || color} />
-                  ))}
-                </Bar>
-                <Tooltip content={<CustomTooltip />} />
-              </BarChart>
-            )}
-          </ResponsiveContainer>
+          {simplePreview ? (
+            <div
+              style={{
+                width: '100%',
+                height: '80px',
+                backgroundColor: color,
+                borderRadius: '8px',
+                opacity: 0.9
+              }}
+            />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              {chartType === 'pie' ? (
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    innerRadius={15}
+                    outerRadius={28}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color || color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              ) : (
+                <BarChart data={chartData}>
+                  <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color || color} />
+                    ))}
+                  </Bar>
+                  <Tooltip content={<CustomTooltip />} />
+                </BarChart>
+              )}
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
@@ -1077,6 +1091,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               badge={tdahStudents.length}
               chartType="bar"
               chartData={[{ name: 'TDAH', value: tdahStudents.length, color: CORES_CONDICAO['TDAH'] }]}
+              simplePreview
               onViewDetails={() => handleViewDetails('tdah')}
               onExportPDF={() => handleSpecializedExport('tdah')}
             />
@@ -1090,6 +1105,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               badge={downStudents.length}
               chartType="bar"
               chartData={[{ name: 'Down', value: downStudents.length, color: CORES_CONDICAO['Síndrome de Down'] }]}
+              simplePreview
               onViewDetails={() => handleViewDetails('down')}
               onExportPDF={() => handleSpecializedExport('down')}
             />
@@ -1103,6 +1119,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               badge={pcStudents.length}
               chartType="bar"
               chartData={[{ name: 'PC', value: pcStudents.length, color: CORES_CONDICAO['Paralisia Cerebral'] }]}
+              simplePreview
               onViewDetails={() => handleViewDetails('pc')}
               onExportPDF={() => handleSpecializedExport('pc')}
             />
@@ -1116,6 +1133,7 @@ const RelatorioTEAPage: React.FC<RelatorioTEAPageProps> = ({ currentUser }) => {
               badge={diStudents.length}
               chartType="bar"
               chartData={[{ name: 'DI', value: diStudents.length, color: CORES_CONDICAO['Deficiência Intelectual'] }]}
+              simplePreview
               onViewDetails={() => handleViewDetails('di')}
               onExportPDF={() => handleSpecializedExport('di')}
             />
