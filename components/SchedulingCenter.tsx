@@ -485,7 +485,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
         const isEven = index % 2 === 0;
 
         return (
-            <div key={apt.id} className={`group border-b border-slate-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-blue-50/30 ${isEven ? 'bg-white' : 'bg-slate-50/60'}`}>
+            <div key={apt.id} className={`group border-b border-slate-100 px-4 py-3 transition-colors last:border-b-0 ${isEven ? 'bg-white hover:bg-blue-50/40' : 'bg-emerald-50/30 hover:bg-emerald-50/60'}`}>
                 <div className="flex items-start gap-3">
                     <span className="w-11 shrink-0 text-[11px] font-bold text-slate-600 pt-0.5">{apt.startTime}</span>
                     <span className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${style.dot}`} />
@@ -775,9 +775,11 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                                         const specStyle = getSpecialtyStyle(professional.specialty);
                                         const progress = Math.max(8, Math.round((professional.appointments.length / maxProfessionalAppointments) * 100));
                                         const isExpanded = expandedProfessional === professional.key;
-                                        const cardBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
+                                        const cardBg = idx % 2 === 0 
+                                            ? 'bg-white border-slate-200' 
+                                            : 'bg-blue-50/40 border-blue-100';
                                         return (
-                                            <div key={professional.key} className={`rounded-xl border border-slate-200 ${cardBg} shadow-sm overflow-hidden`}>
+                                            <div key={professional.key} className={`rounded-xl ${cardBg} shadow-sm overflow-hidden`}>
                                                 <button
                                                     type="button"
                                                     onClick={() => setExpandedProfessional(isExpanded ? null : professional.key)}
