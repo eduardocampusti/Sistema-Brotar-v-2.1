@@ -17,7 +17,7 @@ import {
 import { StorageService } from '../services/storageService';
 import { SupabaseService } from '../services/SupabaseService';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer, ShieldAlert, Bell, ClipboardList, MessageSquare, UserCheck, Phone, Loader2, Send, Building2, Link2, Wifi, WifiOff, Info } from 'lucide-react';
+import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer, ShieldAlert, Bell, ClipboardList, MessageSquare, UserCheck, Phone, Loader2, Send, Building2, Link2, Wifi, WifiOff, Info, ChevronRight, Sparkles } from 'lucide-react';
 import { PatientList } from './PatientList';
 import { WelcomeHeader } from './WelcomeHeader';
 import { countTeaAutismStudents } from '../utils/teaAutismCount';
@@ -295,215 +295,240 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
         else onNavigate('list');
     };
 
+    const specialtyTheme = useMemo(() => {
+        const s = currentUser.specialty;
+        if (s === Specialty.PSYCHOPEDAGOGY) return { gradient: 'linear-gradient(to right,#9F5FC0,#D9ABFF)', icon: <Brain size={22} />, accent: '#7F77DD', light: '#EEEDFE', text: '#3C3489', badgeBg: '#EEEDFE', badgeText: '#3C3489' };
+        if (s === Specialty.PSYCHOLOGY)     return { gradient: 'linear-gradient(to right,#534AB7,#AFA9EC)', icon: <Puzzle size={22} />, accent: '#534AB7', light: '#EEEDFE', text: '#26215C', badgeBg: '#EEEDFE', badgeText: '#3C3489' };
+        if (s === Specialty.SPEECH_THERAPY) return { gradient: 'linear-gradient(to right,#0F6E56,#5DCAA5)', icon: <Activity size={22} />, accent: '#1D9E75', light: '#E1F5EE', text: '#085041', badgeBg: '#E1F5EE', badgeText: '#085041' };
+        if (s === Specialty.OCCUPATIONAL_THERAPY) return { gradient: 'linear-gradient(to right,#185FA5,#85B7EB)', icon: <CheckCircle size={22} />, accent: '#378ADD', light: '#E6F1FB', text: '#0C447C', badgeBg: '#E6F1FB', badgeText: '#0C447C' };
+        if (s === Specialty.PHYSIOTHERAPY) return { gradient: 'linear-gradient(to right,#0F6E56,#9FE1CB)', icon: <Users size={22} />, accent: '#1D9E75', light: '#E1F5EE', text: '#085041', badgeBg: '#E1F5EE', badgeText: '#085041' };
+        if (s === Specialty.NUTRITION)     return { gradient: 'linear-gradient(to right,#3B6D11,#97C459)', icon: <FileText size={22} />, accent: '#639922', light: '#EAF3DE', text: '#27500A', badgeBg: '#EAF3DE', badgeText: '#27500A' };
+        if (s === Specialty.SOCIAL_WORK)   return { gradient: 'linear-gradient(to right,#854F0B,#EF9F27)', icon: <Users size={22} />, accent: '#BA7517', light: '#FAEEDA', text: '#633806', badgeBg: '#FAEEDA', badgeText: '#633806' };
+        return { gradient: 'linear-gradient(to right,#5F5E5A,#B4B2A9)', icon: <Users size={22} />, accent: '#888780', light: '#F1EFE8', text: '#444441', badgeBg: '#F1EFE8', badgeText: '#444441' };
+    }, [currentUser.specialty]);
+
+    const specialtyLabel = useMemo(() => {
+        const s = currentUser.specialty;
+        if (s === Specialty.PSYCHOPEDAGOGY)     return 'Psicopedagogia Clínica';
+        if (s === Specialty.PSYCHOLOGY)         return 'Psicologia';
+        if (s === Specialty.SPEECH_THERAPY)     return 'Fonoaudiologia';
+        if (s === Specialty.OCCUPATIONAL_THERAPY) return 'Terapia Ocupacional';
+        if (s === Specialty.PHYSIOTHERAPY)      return 'Fisioterapia';
+        if (s === Specialty.NUTRITION)          return 'Nutrição';
+        if (s === Specialty.SOCIAL_WORK)        return 'Serviço Social';
+        return 'Módulo Clínico';
+    }, [currentUser.specialty]);
+
+    const pendingLaudos = useMemo(() =>
+        students.filter(s => {
+            const ids = new Set(myAppointments.map(a => a.studentId));
+            return ids.has(s.id) && !s.documents?.some((d: any) => d.type === 'laudo');
+        }).length
+    , [students, myAppointments]);
+
+    const absentThisMonth = useMemo(() => {
+        const monthStr = todayY.slice(0, 7);
+        return myAppointments.filter(a => a.date.startsWith(monthStr) && a.status === 'FALTOU').length;
+    }, [myAppointments, todayY]);
+
     return (
-        <div className="space-y-8 animate-slideUp">
-            <div className="rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
-                <p className="text-sm font-semibold text-slate-500">Olá,</p>
-                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{currentUser.name}</h1>
-                <p className="mt-1 text-sm text-slate-600">Sua agenda e seus pacientes</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-bold text-teal-900">
-                        {currentUser.specialty ?? 'Especialista'}
-                    </span>
-                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700">
-                        {scopeUnitLabel(currentUser.scope)}
-                    </span>
+        <div className="space-y-4 animate-slideUp">
+            {/* HEADER */}
+            <div className="rounded-2xl p-5 text-white relative overflow-hidden" style={{background: specialtyTheme.gradient}}>
+                <div className="absolute top-0 right-0 p-6 opacity-10" style={{fontSize: 120}}>
+                    {specialtyTheme.icon}
                 </div>
-            </div>
-
-            {loading && (
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm text-slate-500">
-                    Carregando sua agenda…
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                <StatCard
-                    title="Meus pacientes"
-                    value={metrics.myPatientsActive}
-                    icon={Users}
-                    gradient="from-teal-500 to-emerald-600"
-                    subtext="Ativos vinculados a você (sessões ou agenda)"
-                    onClick={() => onNavigate('list')}
-                />
-                <StatCard
-                    title="Agenda hoje"
-                    value={metrics.todayTotal}
-                    icon={Calendar}
-                    gradient="from-sky-500 to-cyan-600"
-                    subtext={metrics.todaySub}
-                    onClick={() => onNavigate('scheduling')}
-                />
-                <StatCard
-                    title="Esta semana"
-                    value={metrics.weekTotal}
-                    icon={Activity}
-                    gradient="from-amber-500 to-orange-600"
-                    subtext="Hoje até +6 dias"
-                    onClick={() => onNavigate('scheduling')}
-                />
-                <StatCard
-                    title="Sessões este mês"
-                    value={metrics.monthAttended}
-                    icon={CheckCircle}
-                    gradient="from-slate-600 to-slate-800"
-                    subtext="Agendamentos encerrados no mês (ATENDIDO ou ENCERRADO)"
-                    onClick={() => onNavigate('scheduling')}
-                />
-                <StatCard
-                    title="Alunos com TEA/Autismo"
-                    value={teaAutismInStudentList}
-                    icon={Puzzle}
-                    gradient="from-blue-400 to-blue-600"
-                    subtext="Diagnóstico registrado"
-                    onClick={() => onNavigate('list')}
-                />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
-                    <div className="mb-4 flex items-center justify-between gap-2">
-                        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                            <Clock size={20} className="text-teal-600" />
-                            Agenda de hoje
-                        </h3>
-                        <span className="text-xs font-semibold text-slate-400">{todayY}</span>
+                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{background:'rgba(255,255,255,0.2)'}}>
+                            {specialtyTheme.icon}
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-bold text-white leading-tight">{specialtyLabel}</h1>
+                            <p className="text-[12px] mt-0.5" style={{color:'rgba(255,255,255,0.75)'}}>
+                                {currentUser.name} · {scopeUnitLabel(currentUser.scope)} · {new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'short'})}
+                            </p>
+                        </div>
                     </div>
-                    {agendaToday.length === 0 ? (
-                        <p className="text-sm text-slate-400">Sem agendamentos para hoje.</p>
-                    ) : (
-                        <ul className="space-y-3">
-                            {agendaToday.map(apt => (
-                                <li
-                                    key={apt.id}
-                                    className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-bold text-slate-800">
-                                            {(apt.startTime || '—').slice(0, 5)} – {(apt.endTime || '—').slice(0, 5)}
-                                        </p>
-                                        <p className="truncate text-sm font-semibold text-slate-700">{apt.studentName}</p>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span
-                                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${appointmentStatusBadgeClass(apt.status)}`}
-                                        >
-                                            {apt.status}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => openProntuario(apt.studentId)}
-                                            className="rounded-xl border border-teal-200 bg-white px-3 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-50"
-                                        >
-                                            Ver prontuário
-                                        </button>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
-                    <h3 className="mb-4 font-bold text-lg text-slate-800 flex items-center gap-2">
-                        <Calendar size={20} className="text-amber-600" />
-                        Próximos agendamentos
-                    </h3>
-                    <p className="mb-3 text-xs font-semibold text-slate-500">Amanhã até +3 dias · até 5 itens</p>
-                    {upcomingWindow.length === 0 ? (
-                        <p className="text-sm text-slate-400">Nenhum agendamento neste período.</p>
-                    ) : (
-                        <ul className="space-y-2 text-sm">
-                            {upcomingWindow.map(apt => (
-                                <li key={apt.id} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2 last:border-0">
-                                    <span className="font-semibold text-slate-700">
-                                        {new Date(apt.date + 'T12:00:00').toLocaleDateString('pt-BR', {
-                                            day: '2-digit',
-                                            month: '2-digit',
-                                        })}{' '}
-                                        · {(apt.startTime || '').slice(0, 5)} ·{' '}
-                                        <span className="text-slate-600">{apt.studentName}</span>
-                                    </span>
-                                    <span
-                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${appointmentStatusBadgeClass(apt.status)}`}
-                                    >
-                                        {apt.status}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
                     <button
                         type="button"
                         onClick={() => onNavigate('scheduling')}
-                        className="mt-4 text-xs font-bold text-teal-700 hover:underline"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium shrink-0"
+                        style={{background:'rgba(255,255,255,0.2)', border:'0.5px solid rgba(255,255,255,0.3)', color:'white'}}
                     >
-                        Ver agenda completa
+                        <Calendar size={15} /> Nova sessão
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
-                    <h3 className="mb-4 font-bold text-lg text-slate-800">Ações rápidas</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button
-                            type="button"
-                            onClick={() => onNavigate(registerSessionRoute)}
-                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
-                        >
-                            Registrar atendimento
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => onNavigate('documents')}
-                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
-                        >
-                            Gerar documento
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => onNavigate('scheduling')}
-                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
-                        >
-                            Ver agenda completa
-                        </button>
-                        {extraAction && (
-                            <button
-                                type="button"
-                                onClick={() => onNavigate(extraAction.route)}
-                                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 hover:border-teal-300 hover:bg-teal-50/60"
-                            >
-                                {extraAction.label}
-                            </button>
-                        )}
+            {/* STATS */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <button type="button" onClick={() => onNavigate('list')}
+                    className="bg-slate-50 rounded-xl p-3 text-left hover:bg-slate-100 transition-colors border border-slate-100">
+                    <p className="text-[11px] text-slate-500 mb-1">Meus alunos</p>
+                    <p className="text-2xl font-medium" style={{color: specialtyTheme.accent}}>{metrics.myPatientsActive}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">ativos na rede</p>
+                </button>
+                <button type="button" onClick={() => onNavigate('scheduling')}
+                    className="bg-slate-50 rounded-xl p-3 text-left hover:bg-slate-100 transition-colors border border-slate-100">
+                    <p className="text-[11px] text-slate-500 mb-1">Hoje</p>
+                    <p className="text-2xl font-medium" style={{color:'#1D9E75'}}>{metrics.todayTotal}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">agendados</p>
+                </button>
+                <button type="button" onClick={() => onNavigate('documents')}
+                    className="bg-slate-50 rounded-xl p-3 text-left hover:bg-slate-100 transition-colors border border-slate-100">
+                    <p className="text-[11px] text-slate-500 mb-1">Laudos pendentes</p>
+                    <p className="text-2xl font-medium" style={{color:'#BA7517'}}>{pendingLaudos}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">aguardando</p>
+                </button>
+                <button type="button" onClick={() => onNavigate('scheduling')}
+                    className="bg-slate-50 rounded-xl p-3 text-left hover:bg-slate-100 transition-colors border border-slate-100">
+                    <p className="text-[11px] text-slate-500 mb-1">Faltas este mês</p>
+                    <p className="text-2xl font-medium" style={{color:'#E24B4A'}}>{absentThisMonth}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">sem justificativa</p>
+                </button>
+            </div>
+
+            {/* GRID PRINCIPAL */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* AGENDA DO DIA */}
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100" style={{background:'#F8F8F8'}}>
+                        <div className="flex items-center gap-2 text-[13px] font-medium text-slate-700">
+                            <Clock size={15} style={{color: specialtyTheme.accent}} />
+                            Agenda de hoje
+                        </div>
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{background: specialtyTheme.badgeBg, color: specialtyTheme.badgeText}}>
+                            {metrics.todayTotal} atend.
+                        </span>
                     </div>
+                    {loading ? (
+                        <div className="px-4 py-8 text-center text-sm text-slate-400">Carregando agenda…</div>
+                    ) : agendaToday.length === 0 ? (
+                        <div className="px-4 py-6 text-center">
+                            <p className="text-sm text-slate-400">Sem agendamentos para hoje.</p>
+                            {upcomingWindow.length > 0 && (
+                                <div className="mt-3 text-[11px] text-slate-400">
+                                    Próximo: {new Date(upcomingWindow[0].date + 'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · {(upcomingWindow[0].startTime||'').slice(0,5)} · {upcomingWindow[0].studentName}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-slate-100">
+                            {agendaToday.map((apt, i) => (
+                                <div key={apt.id} className={`flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors ${i % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}>
+                                    <span className="text-[11px] font-medium text-slate-500 w-10 shrink-0">{(apt.startTime||'—').slice(0,5)}</span>
+                                    <div className="w-2 h-2 rounded-full shrink-0" style={{background: apt.status === 'EM_ATENDIMENTO' ? '#1D9E75' : apt.status === 'CONFIRMADO' ? specialtyTheme.accent : '#888780'}}></div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-medium text-slate-800 truncate">{apt.studentName}</p>
+                                        <p className="text-[10px] text-slate-400">{apt.unit}</p>
+                                    </div>
+                                    <button type="button" onClick={() => openProntuario(apt.studentId)}
+                                        className="text-[10px] font-medium px-2.5 py-1 rounded-lg border shrink-0"
+                                        style={{background: specialtyTheme.badgeBg, color: specialtyTheme.badgeText, borderColor: specialtyTheme.accent + '40'}}>
+                                        Prontuário
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
-                    <div className="mb-4 flex items-center justify-between gap-2">
-                        <h3 className="font-bold text-lg text-slate-800">Meus pacientes recentes</h3>
-                        <button
-                            type="button"
-                            onClick={() => onNavigate('list')}
-                            className="text-xs font-bold text-teal-700 hover:underline"
-                        >
-                            Ver todos
-                        </button>
+                {/* COLUNA DIREITA */}
+                <div className="flex flex-col gap-4">
+                    {/* BUSCA RÁPIDA */}
+                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 text-[13px] font-medium text-slate-700" style={{background:'#F8F8F8'}}>
+                            <Search size={15} style={{color: specialtyTheme.accent}} /> Meus alunos recentes
+                        </div>
+                        {recentPatients.length === 0 ? (
+                            <div className="px-4 py-4 text-sm text-slate-400 text-center">Nenhum paciente recente.</div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {recentPatients.slice(0, 4).map(({ student, lastLabel }) => {
+                                    const initials = student.fullName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
+                                    return (
+                                        <button key={student.id} type="button" onClick={() => openProntuario(student.id)}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left">
+                                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-medium shrink-0" style={{background: specialtyTheme.badgeBg, color: specialtyTheme.badgeText}}>
+                                                {initials}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[13px] font-medium text-slate-800 truncate">{student.fullName}</p>
+                                                <p className="text-[10px] text-slate-400">{lastLabel}</p>
+                                            </div>
+                                            <ChevronRight size={14} className="text-slate-300 shrink-0" />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        <div className="px-4 py-2 border-t border-slate-100">
+                            <button type="button" onClick={() => onNavigate('list')} className="text-[11px] font-medium hover:underline" style={{color: specialtyTheme.accent}}>
+                                Ver todos os alunos →
+                            </button>
+                        </div>
                     </div>
-                    {recentPatients.length === 0 ? (
-                        <p className="text-sm text-slate-400">Nenhum paciente com agendamento recente.</p>
-                    ) : (
-                        <ul className="space-y-3">
-                            {recentPatients.map(({ student, lastLabel }) => (
-                                <li key={student.id} className="border-b border-slate-100 pb-3 last:border-0">
-                                    <p className="font-bold text-slate-800">{student.fullName}</p>
-                                    <p className="text-xs text-slate-500 line-clamp-2">{studentDiagnosisLine(student)}</p>
-                                    <p className="mt-1 text-[11px] font-semibold text-slate-400">Último agendamento: {lastLabel}</p>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+
+                    {/* AÇÕES RÁPIDAS */}
+                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 text-[13px] font-medium text-slate-700" style={{background:'#F8F8F8'}}>
+                            <Sparkles size={15} style={{color: specialtyTheme.accent}} /> Ações rápidas
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 p-3">
+                            <button type="button" onClick={() => onNavigate(registerSessionRoute)}
+                                className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors text-left">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background: specialtyTheme.badgeBg}}>
+                                    <FileText size={14} style={{color: specialtyTheme.badgeText}} />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-medium text-slate-700">Nova anamnese</p>
+                                    <p className="text-[10px] text-slate-400">Iniciar ficha</p>
+                                </div>
+                            </button>
+                            <button type="button" onClick={() => onNavigate('scheduling')}
+                                className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors text-left">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background:'#E1F5EE'}}>
+                                    <Calendar size={14} style={{color:'#0F6E56'}} />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-medium text-slate-700">Agendar sessão</p>
+                                    <p className="text-[10px] text-slate-400">Marcar horário</p>
+                                </div>
+                            </button>
+                            <button type="button" onClick={() => onNavigate('documents')}
+                                className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors text-left">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background:'#FAEEDA'}}>
+                                    <FileText size={14} style={{color:'#854F0B'}} />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-medium text-slate-700">Gerar relatório</p>
+                                    <p className="text-[10px] text-slate-400">PDF do aluno</p>
+                                </div>
+                            </button>
+                            <button type="button" onClick={() => onNavigate('list')}
+                                className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors text-left">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background:'#EEEDFE'}}>
+                                    <Users size={14} style={{color:'#534AB7'}} />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-medium text-slate-700">Ver alunos</p>
+                                    <p className="text-[10px] text-slate-400">Lista completa</p>
+                                </div>
+                            </button>
+                            {extraAction && (
+                                <button type="button" onClick={() => onNavigate(extraAction.route)}
+                                    className="flex items-center gap-2 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors text-left col-span-2">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background: specialtyTheme.badgeBg}}>
+                                        <Activity size={14} style={{color: specialtyTheme.badgeText}} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-medium text-slate-700">{extraAction.label}</p>
+                                    </div>
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
