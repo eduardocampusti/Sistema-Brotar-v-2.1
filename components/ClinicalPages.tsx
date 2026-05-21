@@ -202,7 +202,7 @@ const extractPsychData = (student: Student): PsychPrivateData => {
 // --- REUSABLE COMPONENTS ---
 const StyledInput = ({ label, value, onChange, type = "text", rows, placeholder, icon: Icon }: any) => (
     <div className="mb-6 group">
-        <label className="flex items-center gap-2 text-[12px] font-bold text-[#333333] uppercase tracking-wider mb-2.5 px-1 group-focus-within:text-[#1E7F85] transition-colors">
+        <label className="flex items-center gap-2 text-sm font-bold text-[#333333] uppercase tracking-wider mb-2.5 px-1 group-focus-within:text-[#1E7F85] transition-colors">
             {Icon && <Icon size={14} className="text-[#1E7F85]" />}
             {label}
         </label>
@@ -228,7 +228,7 @@ const StyledInput = ({ label, value, onChange, type = "text", rows, placeholder,
 
 const TriStateField: React.FC<{ label: string, value: boolean | null, onChange: (val: boolean | null) => void }> = ({ label, value, onChange }) => (
     <div className="flex flex-col gap-3 p-6 bg-white rounded-[20px] border-[1.5px] border-[#1E7F85] hover:shadow-md transition-all duration-300 h-full group">
-        <span className="text-[12px] font-bold text-[#333333] uppercase tracking-wider w-full text-left ml-1 group-focus-within:text-[#1E7F85]">{label}</span>
+        <span className="text-sm font-bold text-[#333333] uppercase tracking-wider w-full text-left ml-1 group-focus-within:text-[#1E7F85]">{label}</span>
         <div className="flex w-full bg-[#F7F5F0] p-1.5 rounded-full border border-[#1E7F85]/20 gap-1.5 mt-auto">
             <button
                 type="button"
@@ -982,7 +982,7 @@ const PremiumConfirmModal = ({ title, message, onConfirm, onCancel }: { title: s
             </div>
             <h3 className="text-2xl font-black text-slate-800 text-center mb-2 tracking-tight">{title}</h3>
             <p className="text-slate-500 text-center leading-relaxed mb-8">{message}</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button onClick={onCancel} className="p-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Cancelar</button>
                 <button onClick={onConfirm} className="p-4 rounded-2xl font-bold bg-pink-600 text-white shadow-lg shadow-pink-200 hover:bg-pink-700 transition-all">Confirmar</button>
             </div>
@@ -993,7 +993,7 @@ const PremiumConfirmModal = ({ title, message, onConfirm, onCancel }: { title: s
 const PremiumFormSection = ({ title, icon: Icon, children, color = "text-slate-800", isPrivate = false }: any) => (
     <div className={`bg-slate-200 rounded-[1.5rem] shadow-md border-2 border-slate-400/60 overflow-hidden mb-8 animate-fadeIn`}>
         <div className={`px-6 py-5 flex items-center gap-4 border-b-2 border-slate-300 ${isPrivate ? 'bg-indigo-200' : 'bg-slate-300'}`}>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border-2 border-slate-400 bg-slate-100 ${isPrivate ? 'text-indigo-800' : 'text-slate-800'}`}>
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-sm border-2 border-slate-400 bg-slate-100 ${isPrivate ? 'text-indigo-800' : 'text-slate-800'}`}>
                 {Icon && <Icon size={20} />}
             </div>
             <h3 className={`font-black text-sm uppercase tracking-widest ${color}`}>{title}</h3>
@@ -1011,7 +1011,7 @@ const PremiumFormSection = ({ title, icon: Icon, children, color = "text-slate-8
 
 const PremiumStyledInput = ({ label, value, onChange, type = "text", placeholder = "", rows = 1 }: any) => (
     <div className="mb-6 group relative">
-        <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2.5 ml-1">{label}</label>
+        <label className="block text-sm font-black text-slate-700 uppercase tracking-wider mb-2.5 ml-1">{label}</label>
         <div className="relative">
             {rows > 1 ? (
                 <textarea
@@ -1036,7 +1036,7 @@ const PremiumStyledInput = ({ label, value, onChange, type = "text", placeholder
 
 const PremiumTriStateField: React.FC<{ label: string, value: boolean | null, onChange: (val: boolean | null) => void }> = ({ label, value, onChange }) => (
     <div className="flex flex-col gap-3 p-5 bg-slate-200 rounded-2xl border-2 border-slate-400/80 hover:border-slate-500 transition-all duration-200 h-full">
-        <span className="text-xs font-black text-slate-800 uppercase tracking-wider w-full text-left ml-1">{label}</span>
+        <span className="text-sm font-black text-slate-800 uppercase tracking-wider w-full text-left ml-1">{label}</span>
         <div className="flex w-full bg-slate-300 p-2 rounded-xl border-2 border-slate-400 gap-2 mt-auto">
             <button
                 type="button"
@@ -1067,7 +1067,7 @@ const PremiumTriStateField: React.FC<{ label: string, value: boolean | null, onC
 
 const PPAnamnesisV1LegacyView: React.FC<{ data: PPAnamnesisForm, onMigrate: () => void }> = ({ data, onMigrate }) => (
     <div className="space-y-6 animate-fadeIn pb-20">
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-6 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
             <div className="flex items-center gap-4 text-amber-800">
                 <div className="p-3 bg-white rounded-2xl shadow-sm text-amber-600">
                     <AlertCircle size={28} />
@@ -1086,7 +1086,7 @@ const PPAnamnesisV1LegacyView: React.FC<{ data: PPAnamnesisForm, onMigrate: () =
             </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {Object.entries(data).map(([key, value]) => (
                 <div key={key} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -1168,9 +1168,9 @@ const PPAnamnesisV2Form: React.FC<{
                     <ChevronRight size={10} className="text-slate-300" />
                     <span className="text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">Anamnese Psico</span>
                 </div>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-3xl font-bold text-slate-800 tracking-tight">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight truncate max-w-full sm:max-w-xl">
                             {student.fullName}
                         </h2>
                         <p className="text-sm text-slate-500 mt-1 font-medium">Ficha de Acompanhamento Integrado</p>
@@ -1179,7 +1179,7 @@ const PPAnamnesisV2Form: React.FC<{
             </div>
 
             {/* STEPPER NAVIGATION REFINADO */}
-            <div className="flex w-full bg-white/80 backdrop-blur-md rounded-2xl p-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 mb-10 sticky top-2 z-40">
+            <div className="grid grid-cols-1 min-[480px]:grid-cols-2 sm:flex w-full bg-white/80 backdrop-blur-md rounded-2xl p-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 mb-10 sticky top-2 z-40 gap-1 sm:gap-0">
                 {steps.map((step, idx) => {
                     const isActive = activeStep === step.id;
                     const isCompleted = activeStep > step.id;
@@ -1187,7 +1187,7 @@ const PPAnamnesisV2Form: React.FC<{
                         <button
                             key={step.id}
                             onClick={() => setActiveStep(step.id)}
-                            className={`flex-1 flex items-center justify-center gap-3 py-3 px-4 rounded-xl transition-all duration-500 relative group overflow-hidden ${isActive
+                            className={`min-h-[44px] flex-1 flex items-center justify-center gap-3 py-3 px-4 rounded-xl transition-all duration-500 relative group overflow-hidden ${isActive
                                 ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/10 scale-[1.03] border-0'
                                 : 'bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 border border-transparent hover:border-slate-200'
                                 }`}
@@ -1216,7 +1216,7 @@ const PPAnamnesisV2Form: React.FC<{
                         <PremiumFormSection title="I. Dinâmica e Composição Familiar" icon={Users} bgColor="bg-white">
                             <SectionHeader icon={Home} title="Núcleo Familiar" subtitle="Pessoas que residem com o aluno e dinâmica de parentesco." />
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
                                 {data.composicaoFamiliar.map((parent, idx) => (
                                     <div key={idx} className="bg-white rounded-[20px] p-6 border-2 border-slate-200 p-6 shadow-sm hover:shadow-lg hover:border-teal-300 hover:scale-[1.01] transition-all duration-300 relative group flex flex-col gap-6">
                                         <div className="flex items-start gap-4">
@@ -1251,7 +1251,7 @@ const PPAnamnesisV2Form: React.FC<{
 
                                         <div className="h-[2px] bg-slate-100 w-full" />
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] font-black text-slate-500 uppercase block mb-2 ml-1">Idade</label>
                                                 <input
@@ -1291,7 +1291,7 @@ const PPAnamnesisV2Form: React.FC<{
                                                         newList[idx].problemaAprendizagem = true;
                                                         updatePath('composicaoFamiliar', newList);
                                                     }}
-                                                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${parent.problemaAprendizagem === true ? 'bg-rose-500 text-white shadow-lg shadow-rose-200 ring-2 ring-rose-100 transform scale-110' : 'bg-white text-slate-300 hover:text-rose-400 border-2 border-slate-200'}`}
+                                                    className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${parent.problemaAprendizagem === true ? 'bg-rose-500 text-white shadow-lg shadow-rose-200 ring-2 ring-rose-100 transform scale-110' : 'bg-white text-slate-300 hover:text-rose-400 border-2 border-slate-200'}`}
                                                 ><CheckCircle size={16} strokeWidth={3} /></button>
                                                 <button
                                                     onClick={() => {
@@ -1299,7 +1299,7 @@ const PPAnamnesisV2Form: React.FC<{
                                                         newList[idx].problemaAprendizagem = false;
                                                         updatePath('composicaoFamiliar', newList);
                                                     }}
-                                                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${parent.problemaAprendizagem === false ? 'bg-teal-500 text-white shadow-lg shadow-teal-200 ring-2 ring-teal-100 transform scale-110' : 'bg-white text-slate-300 hover:text-teal-400 border-2 border-slate-200'}`}
+                                                    className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${parent.problemaAprendizagem === false ? 'bg-teal-500 text-white shadow-lg shadow-teal-200 ring-2 ring-teal-100 transform scale-110' : 'bg-white text-slate-300 hover:text-teal-400 border-2 border-slate-200'}`}
                                                 ><X size={16} strokeWidth={3} /></button>
                                             </div>
                                         </div>
@@ -1357,7 +1357,7 @@ const PPAnamnesisV2Form: React.FC<{
 
                         {/* DESENVOLVIMENTO COMPLETO */}
                         <FormSection title="IV. Desenvolvimento Integrado" icon={Activity}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                                 {/* Marcos */}
                                 <div className="space-y-6">
                                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-6 ml-1">
@@ -1457,7 +1457,7 @@ const PPAnamnesisV2Form: React.FC<{
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-100">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-100">
                                 <StyledInput label="Dificuldades na Escola" value={data.escolaridade.dificuldadesEscola} onChange={(e: any) => updatePath('escolaridade.dificuldadesEscola', e.target.value)} rows={3} />
                                 <StyledInput label="Relacionamento Social" value={data.escolaridade.relacaoSocialEscolar} onChange={(e: any) => updatePath('escolaridade.relacaoSocialEscolar', e.target.value)} rows={3} />
                             </div>
@@ -1465,7 +1465,7 @@ const PPAnamnesisV2Form: React.FC<{
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <FormSection title="VI. Áreas de Dificuldade" icon={AlertTriangle}>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {['leitura', 'escrita', 'matematica', 'atencao', 'memoria', 'organizacao'].map((key) => (
                                         <TriStateField key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} value={(data.dificuldadesAprendizagem as any)[key]} onChange={(v: any) => updatePath(`dificuldadesAprendizagem.${key}`, v)} />
                                     ))}
@@ -1473,7 +1473,7 @@ const PPAnamnesisV2Form: React.FC<{
                             </FormSection>
                             <FormSection title="VII. Conhecimentos Básicos" icon={Puzzle}>
 
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {['letras', 'numeros', 'cores', 'formas', 'lateralidade', 'espacoTempo'].map((key) => (
                                         <TriStateField key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} value={(data.conhecimentosBasicos as any)[key]} onChange={(v: any) => updatePath(`conhecimentosBasicos.${key}`, v)} />
                                     ))}
@@ -1506,8 +1506,8 @@ const PPAnamnesisV2Form: React.FC<{
                         </div>
 
                         <FormSection title="X. Uso de Telas" icon={Smartphone}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <TriStateField label="Celular" value={data.estimulacaoTelas.celular} onChange={(v: any) => updatePath('estimulacaoTelas.celular', v)} />
                                     <TriStateField label="TV" value={data.estimulacaoTelas.tv} onChange={(v: any) => updatePath('estimulacaoTelas.tv', v)} />
                                 </div>
@@ -1519,7 +1519,7 @@ const PPAnamnesisV2Form: React.FC<{
                         </FormSection>
 
                         <FormSection title="XI. Dados Sensíveis / Comportamento" icon={Lock} isPrivate={true}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <StyledInput label="Descrição do Comportamento" value={data.comportamento.descricao} onChange={(e: any) => updatePath('comportamento.descricao', e.target.value)} rows={4} />
                                 <StyledInput label="Sexualidade / Obs. Sigilosas" value={data.sexualidade.obs} onChange={(e: any) => updatePath('sexualidade.obs', e.target.value)} rows={4} />
                             </div>
@@ -2098,17 +2098,17 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
             {/* Header */}
             <div className="bg-gradient-to-r from-pink-600 to-rose-700 rounded-2xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10"><Brain size={200} /></div>
-                <div className="relative z-10 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-3xl font-extrabold flex items-center gap-3">
+                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="min-w-0">
+                        <h2 className="text-2xl sm:text-3xl font-extrabold flex items-center gap-3">
                             <Brain size={32} /> Psicopedagogia Clínica
                         </h2>
                         <p className="text-pink-100 mt-2">Avaliação, Diagnóstico e Intervenção de Aprendizagem</p>
                     </div>
                     {selectedStudent && (
-                        <div className="bg-white/20 backdrop-blur-md rounded-xl p-4 border border-white/20">
+                        <div className="w-full sm:w-auto max-w-full sm:max-w-xs bg-white/20 backdrop-blur-md rounded-xl p-4 border border-white/20">
                             <p className="text-xs uppercase font-bold text-pink-100">Paciente</p>
-                            <p className="text-xl font-bold">{selectedStudent.fullName}</p>
+                            <p className="text-lg sm:text-xl font-bold truncate">{selectedStudent.fullName}</p>
                         </div>
                     )}
                 </div>
@@ -2149,7 +2149,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
                             {/* Resultados da Busca */}
                             {searchTerm && (
-                                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-slideUp">
+                                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-slideUp">
                                     {filteredStudents.length > 0 ? (
                                         filteredStudents.map(student => (
                                             <button
@@ -2189,7 +2189,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                 </h4>
 
                                 {upcomingAgenda.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {upcomingAgenda.map((item, idx) => {
                                             const student = students.find(s => s.id === item.studentId);
                                             if (!student) return null;
@@ -2234,7 +2234,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                 <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                                     <History size={16} /> Atendimentos Recentes
                                 </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     {recentActivity.slice(0, 4).map((activity, idx) => {
                                         const student = students.find(s => s.id === activity.studentId);
                                         if (!student) return null;
@@ -2263,10 +2263,11 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                     </div>
                 </div>
             ) : (
-                <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden min-h-[600px] flex flex-col md:flex-row">
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden min-h-[600px] flex flex-col sm:flex-row">
 
                     {/* Sidebar Tabs */}
-                    <div className="w-full md:w-64 bg-slate-50 border-r border-slate-200 flex flex-col">
+                    <div className="w-full sm:w-64 bg-slate-50 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col">
+                        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 sm:grid-cols-1 gap-1 p-2 sm:p-0">
                         {[
                             { id: 'diagnostic', label: 'Diagnóstico', icon: FileText },
                             { id: 'anamnesis', label: 'Anamnese', icon: Users },
@@ -2277,24 +2278,25 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as any)}
-                                className={`p-4 flex items-center gap-3 text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-white text-pink-600 border-l-4 border-pink-600 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
+                                className={`min-h-[44px] p-3 sm:p-4 flex items-center justify-center sm:justify-start gap-2 sm:gap-3 text-xs sm:text-sm font-bold rounded-xl sm:rounded-none transition-all ${activeTab === tab.id ? 'bg-white text-pink-600 sm:border-l-4 border-pink-600 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
                             >
                                 <tab.icon size={18} /> {tab.label}
                             </button>
                         ))}
+                        </div>
                     </div>
 
                     {/* Content Area */}
-                    <div className="flex-1 p-8 bg-slate-50/50">
+                    <div className="flex-1 p-4 sm:p-8 bg-slate-50/50 min-w-0">
 
                         {/* TAB 1: DIAGNÓSTICO */}
                         {activeTab === 'diagnostic' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><FileText className="text-pink-600" /> Queixa e Diagnóstico</h3>
-                                    <button onClick={handleSaveGeneral} className="bg-pink-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-pink-700"><Save size={18} /> Salvar</button>
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-pink-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-pink-700"><Save size={18} /> Salvar</button>
                                 </div>
-                                <div className="bg-slate-200 p-8 rounded-2xl shadow-sm border-2 border-slate-400 space-y-6">
+                                <div className="bg-slate-200 p-4 sm:p-8 rounded-2xl shadow-sm border-2 border-slate-400 space-y-6">
                                     <StyledInput label="Queixa Principal" rows={2} value={ppData.diagnosis.queixaPrincipal} onChange={(e: any) => updateDiagnosis('queixaPrincipal', e.target.value)} />
                                     <StyledInput label="Queixa Secundária" value={ppData.diagnosis.queixaSecundaria} onChange={(e: any) => updateDiagnosis('queixaSecundaria', e.target.value)} />
                                     <StyledInput label="Contexto da Demanda" rows={3} value={ppData.diagnosis.contextoDemanda} onChange={(e: any) => updateDiagnosis('contextoDemanda', e.target.value)} />
@@ -2311,15 +2313,15 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                         {/* TAB 2: ANAMNESE */}
                         {activeTab === 'anamnesis' && (
                             <div className="space-y-6 animate-fadeIn pb-32">
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 pr-4">
                                         <Users className="text-pink-600" /> Anamnese Psicopedagógica
                                     </h3>
-                                    <div className="flex flex-wrap gap-3 justify-end">
+                                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-end w-full sm:w-auto">
                                         {(ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "2" && (
                                             <button
                                                 onClick={handleMigrateV2ToV3}
-                                                className="bg-amber-100 text-amber-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-200 transition-all text-xs"
+                                                className="w-full sm:w-auto bg-amber-100 text-amber-700 px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-200 transition-all text-xs"
                                             >
                                                 <Zap size={16} /> Migrar V2 → ficha atual (v3)
                                             </button>
@@ -2327,12 +2329,12 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                         {!((ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "2" || (ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === "3") && (
                                             <button
                                                 onClick={handleMigrateV1ToV3}
-                                                className="bg-amber-100 text-amber-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-200 transition-all text-xs"
+                                                className="w-full sm:w-auto bg-amber-100 text-amber-700 px-4 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-200 transition-all text-xs"
                                             >
                                                 <Zap size={16} /> Migrar legado (V1) → v3
                                             </button>
                                         )}
-                                        <button onClick={handleSaveGeneral} className="bg-pink-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-pink-700 shadow-lg shadow-pink-200"><Save size={18} /> Salvar Ficha</button>
+                                        <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-pink-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-pink-700 shadow-lg shadow-pink-200"><Save size={18} /> Salvar Ficha</button>
                                     </div>
                                 </div>
 
@@ -2384,15 +2386,15 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                         {/* TAB 3: SESSÕES */}
                         {activeTab === 'sessions' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><History className="text-pink-600" /> Registro de Atendimentos</h3>
                                     {!isEditingSession && (
-                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="bg-pink-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-pink-700"><Plus size={18} /> Nova Sessão</button>
+                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="w-full sm:w-auto bg-pink-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-pink-700"><Plus size={18} /> Nova Sessão</button>
                                     )}
                                 </div>
 
                                 {isEditingSession ? (
-                                    <div className="bg-slate-200 p-8 rounded-2xl shadow-lg border-2 border-slate-400 animate-slideUp">
+                                    <div className="bg-slate-200 p-4 sm:p-8 rounded-2xl shadow-lg border-2 border-slate-400 animate-slideUp">
                                         <h4 className="font-black text-slate-800 mb-6 border-b-2 border-slate-300 pb-2 uppercase tracking-wide">Detalhes da Sessão</h4>
 
                                         {!currentSession.id && ppData.sessions.length > 0 && (
@@ -2403,7 +2405,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                                 <p className="text-pink-700 italic">"{ppData.sessions[0].observacoes || 'Sem observações registradas'}"</p>
                                             </div>
                                         )}
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                                             <StyledInput label="Data" type="date" value={currentSession.date} onChange={(e: any) => setCurrentSession({ ...currentSession, date: e.target.value })} />
                                             <div>
                                                 <label className="block text-xs font-black text-slate-800 uppercase mb-2.5 ml-1">Humor do Aluno</label>
@@ -2419,14 +2421,14 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                             </div>
                                         </div>
                                         <StyledInput label="Objetivo da Sessão" value={currentSession.objetivo} onChange={(e: any) => setCurrentSession({ ...currentSession, objetivo: e.target.value })} />
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
                                             <StyledInput label="Estratégias / Instrumentos" rows={3} value={currentSession.estrategias} onChange={(e: any) => setCurrentSession({ ...currentSession, estrategias: e.target.value })} />
                                             <StyledInput label="Observações Clínicas" rows={3} value={currentSession.observacoes} onChange={(e: any) => setCurrentSession({ ...currentSession, observacoes: e.target.value })} />
                                         </div>
                                         <StyledInput label="Evolução Percebida" rows={2} value={currentSession.evolucao} onChange={(e: any) => setCurrentSession({ ...currentSession, evolucao: e.target.value })} />
-                                        <div className="flex justify-end gap-3 mt-8">
-                                            <button onClick={() => setIsEditingSession(false)} className="px-6 py-3 text-slate-700 hover:bg-slate-300 rounded-xl font-bold transition-all">Cancelar</button>
-                                            <button onClick={handleSaveSession} className="px-8 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-900 font-bold shadow-lg shadow-slate-400/20">Salvar Sessão</button>
+                                        <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8">
+                                            <button onClick={() => setIsEditingSession(false)} className="w-full sm:w-auto px-6 py-3 text-slate-700 hover:bg-slate-300 rounded-xl font-bold transition-all">Cancelar</button>
+                                            <button onClick={handleSaveSession} className="w-full sm:w-auto px-8 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-900 font-bold shadow-lg shadow-slate-400/20">Salvar Sessão</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -2446,8 +2448,8 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                                             <span className="text-[10px] bg-slate-300 text-slate-800 px-2.5 py-1 rounded-md border border-slate-400 font-bold uppercase">{sess.humor}</span>
                                                         </div>
                                                         <div className="flex gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => handlePrintPP(sess)} className="text-slate-500 hover:text-slate-800 transition-all p-2 hover:bg-slate-300 rounded-lg" title="Imprimir registro"><Printer size={18} /></button>
-                                                            <button onClick={() => { setCurrentSession(sess); setIsEditingSession(true); }} className="text-slate-500 hover:text-slate-800 transition-all p-2 hover:bg-slate-300 rounded-lg"><Edit2 size={18} /></button>
+                                                            <button onClick={() => handlePrintPP(sess)} className="min-h-[44px] min-w-[44px] text-slate-500 hover:text-slate-800 transition-all p-2 hover:bg-slate-300 rounded-lg" title="Imprimir registro"><Printer size={18} /></button>
+                                                            <button onClick={() => { setCurrentSession(sess); setIsEditingSession(true); }} className="min-h-[44px] min-w-[44px] text-slate-500 hover:text-slate-800 transition-all p-2 hover:bg-slate-300 rounded-lg"><Edit2 size={18} /></button>
                                                         </div>
                                                     </div>
                                                     <div className="space-y-2">
@@ -2486,7 +2488,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                         {/* TAB 5: RELATÓRIOS (Central Unificada) */}
                         {activeTab === 'reports' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Printer className="text-pink-600" /> Central de Relatórios</h3>
                                 </div>
                                 <div className="bg-white p-12 rounded-2xl shadow-sm text-center border border-slate-200">
@@ -2735,7 +2737,7 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
         <div className="max-w-6xl mx-auto animate-fadeIn pb-12">
             <div className="bg-gradient-to-r from-cyan-600 to-teal-700 rounded-2xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10"><Activity size={200} /></div>
-                <div className="relative z-10 flex justify-between items-center">
+                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                         <h2 className="text-3xl font-extrabold flex items-center gap-3">
                             <Activity size={32} /> Fonoaudiologia Clínica
@@ -2767,8 +2769,8 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                     </div>
                 </div>
             ) : (
-                <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col md:flex-row min-h-[600px]">
-                    <div className="w-full md:w-64 bg-slate-50 border-r border-slate-200 flex flex-col">
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col sm:flex-row min-h-[600px]">
+                    <div className="w-full sm:w-64 bg-slate-50 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col">
                         {[
                             { id: 'anamnese', label: 'Anamnese', icon: Users },
                             { id: 'avaliacao', label: 'Avaliação Clínica', icon: Search },
@@ -2786,17 +2788,17 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                         ))}
                     </div>
 
-                    <div className="flex-1 p-8 bg-slate-50/50">
+                    <div className="flex-1 p-4 sm:p-8 bg-slate-50/50 min-w-0">
                         {activeTab === 'anamnese' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-cyan-600" /> Anamnese Fonoaudiológica</h3>
-                                    <button onClick={handleSaveGeneral} className="bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Save size={18} /> Salvar</button>
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Save size={18} /> Salvar</button>
                                 </div>
                                 <div className="grid grid-cols-1 gap-4">
                                     <StyledInput label="Queixa Principal" rows={2} value={speechData.anamnese.queixaPrincipal} onChange={(e: any) => setSpeechData({ ...speechData, anamnese: { ...speechData.anamnese, queixaPrincipal: e.target.value } })} />
                                     <StyledInput label="Desenvolvimento da Linguagem" rows={3} value={speechData.anamnese.historicoDesenvolvimentoLinguagem} onChange={(e: any) => setSpeechData({ ...speechData, anamnese: { ...speechData.anamnese, historicoDesenvolvimentoLinguagem: e.target.value } })} />
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <StyledInput label="Alimentação / Mastigação" rows={2} value={speechData.anamnese.alimentacaoMastigacao} onChange={(e: any) => setSpeechData({ ...speechData, anamnese: { ...speechData.anamnese, alimentacaoMastigacao: e.target.value } })} />
                                         <StyledInput label="Sono / Respiração" rows={2} value={speechData.anamnese.sonoRespiracao} onChange={(e: any) => setSpeechData({ ...speechData, anamnese: { ...speechData.anamnese, sonoRespiracao: e.target.value } })} />
                                     </div>
@@ -2807,11 +2809,11 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
 
                         {activeTab === 'avaliacao' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Search className="text-cyan-600" /> Avaliação Clínica</h3>
-                                    <button onClick={handleSaveGeneral} className="bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Save size={18} /> Salvar</button>
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Save size={18} /> Salvar</button>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <FormSection title="Sistema Estomatognático" icon={Activity} color="text-cyan-700">
                                         <StyledInput label="Motricidade Orofacial" rows={4} value={speechData.avaliacao.motricidadeOrofacial} onChange={(e: any) => setSpeechData({ ...speechData, avaliacao: { ...speechData.avaliacao, motricidadeOrofacial: e.target.value } })} />
                                     </FormSection>
@@ -2829,10 +2831,10 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
 
                         {activeTab === 'sessions' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center bg-white/50 p-4 rounded-xl backdrop-blur-sm border border-white/40 shadow-sm">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white/50 p-4 rounded-xl backdrop-blur-sm border border-white/40 shadow-sm">
                                     <h3 className="font-bold text-cyan-900 text-xl">Sessões Realizadas</h3>
                                     {!isEditingSession && (
-                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Plus size={18} /> Nova Sessão</button>
+                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="w-full sm:w-auto bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Plus size={18} /> Nova Sessão</button>
                                     )}
                                 </div>
 
@@ -2849,13 +2851,13 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                             </div>
                                         )}
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <StyledInput label="Data" type="date" value={currentSession.date} onChange={(e: any) => setCurrentSession({ ...currentSession, date: e.target.value })} />
                                             <StyledInput label="Objetivo" value={currentSession.objetivo} onChange={(e: any) => setCurrentSession({ ...currentSession, objetivo: e.target.value })} />
                                         </div>
                                         <StyledInput label="Fonemas Trabalhados" value={currentSession.fonemasTrabalhados} onChange={(e: any) => setCurrentSession({ ...currentSession, fonemasTrabalhados: e.target.value })} placeholder="Ex: /r/ vibrante, grupos consonantais..." />
                                         <StyledInput label="Atividades / Técnicas" rows={2} value={currentSession.atividades} onChange={(e: any) => setCurrentSession({ ...currentSession, atividades: e.target.value })} />
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5 ml-1">Evolução</label>
                                                 <select className="w-full rounded-lg border-slate-300 bg-slate-50 p-2.5 text-sm" value={currentSession.evolucao} onChange={(e) => setCurrentSession({ ...currentSession, evolucao: e.target.value as any })}>
@@ -2872,7 +2874,7 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                         <StyledInput label="Observações de Resposta" rows={3} value={currentSession.observacoes} onChange={(e: any) => setCurrentSession({ ...currentSession, observacoes: e.target.value })} />
                                         <div className="flex justify-end gap-3 mt-6">
                                             <button onClick={() => setIsEditingSession(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all">Cancelar</button>
-                                            <button onClick={handleSaveSession} className="px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 font-bold shadow-md transition-all">Salvar Sessão</button>
+                                            <button onClick={handleSaveSession} className="w-full sm:w-auto px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 font-bold shadow-md transition-all">Salvar Sessão</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -2915,7 +2917,7 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
 
                         {activeTab === 'reports' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Printer className="text-cyan-600" /> Central de Relatórios</h3>
                                 </div>
                                 <div className="bg-white p-12 rounded-2xl shadow-sm text-center border border-slate-200">
@@ -3156,7 +3158,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
         <div className="max-w-6xl mx-auto animate-fadeIn pb-12">
             <div className="bg-gradient-to-r from-indigo-600 to-violet-700 rounded-2xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10"><Puzzle size={200} /></div>
-                <div className="relative z-10 flex justify-between items-center">
+                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                         <h2 className="text-3xl font-extrabold flex items-center gap-3">
                             <Puzzle size={32} /> Terapia Ocupacional
@@ -3232,7 +3234,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                         <label className="block text-sm font-bold text-slate-700 mb-1">Perfil Sensorial Prévio</label>
                                         <textarea className="w-full p-3 rounded-lg border border-slate-300 min-h-[80px]" value={otData.anamnese.perfilSensorialPrevia} onChange={e => setOtData({ ...otData, anamnese: { ...otData.anamnese, perfilSensorialPrevia: e.target.value } })} />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1">O Brincar (Desenvolvimento)</label>
                                             <textarea className="w-full p-3 rounded-lg border border-slate-300 min-h-[80px]" value={otData.anamnese.brincarDesenvolvimento} onChange={e => setOtData({ ...otData, anamnese: { ...otData.anamnese, brincarDesenvolvimento: e.target.value } })} />
@@ -3244,7 +3246,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                     </div>
                                 </div>
                                 <div className="mt-8 flex justify-end">
-                                    <button onClick={handleSaveGeneral} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-md flex items-center justify-center gap-2">
                                         <Save size={20} /> Salvar Histórico
                                     </button>
                                 </div>
@@ -3257,7 +3259,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                     <ClipboardCheck className="text-indigo-600" /> Avaliação Clínica Especializada
                                 </h3>
                                 <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1">Motricidade Fina</label>
                                             <textarea className="w-full p-3 rounded-lg border border-slate-300 min-h-[100px]" value={otData.avaliacao.motricidadeFina} onChange={e => setOtData({ ...otData, avaliacao: { ...otData.avaliacao, motricidadeFina: e.target.value } })} />
@@ -3281,7 +3283,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                     </div>
                                 </div>
                                 <div className="mt-8 flex justify-end">
-                                    <button onClick={handleSaveGeneral} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-md flex items-center justify-center gap-2">
                                         <Save size={20} /> Salvar Avaliação
                                     </button>
                                 </div>
@@ -3292,7 +3294,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                             <div className="space-y-6 animate-fadeIn">
                                 {isEditingSession ? (
                                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-                                        <div className="flex justify-between items-center mb-6">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                                             <h3 className="text-xl font-bold text-slate-800">Registrar Sessão T.O.</h3>
                                             <button onClick={() => setIsEditingSession(false)} className="text-slate-400 hover:text-red-500"><X size={24} /></button>
                                         </div>
@@ -3305,7 +3307,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                                 <p className="text-indigo-700 italic">"{otData.sessions[0].observacoes || 'Sem observações registradas'}"</p>
                                             </div>
                                         )}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
                                             <div>
                                                 <label className="block text-sm font-bold text-slate-700 mb-1">Data</label>
                                                 <input type="date" className="w-full p-2.5 rounded-lg border border-slate-300" value={currentSession.date} onChange={e => setCurrentSession({ ...currentSession, date: e.target.value })} />
@@ -3331,7 +3333,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                                 <label className="block text-sm font-bold text-slate-700 mb-1">Atividades Realizadas e Recursos</label>
                                                 <textarea className="w-full p-3 rounded-lg border border-slate-300 min-h-[80px]" value={currentSession.atividades} onChange={e => setCurrentSession({ ...currentSession, atividades: e.target.value })} />
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div>
                                                     <label className="block text-sm font-bold text-slate-700 mb-1">Resposta Sensorial</label>
                                                     <textarea className="w-full p-3 rounded-lg border border-slate-300 min-h-[80px]" value={currentSession.respostaSensorial} onChange={e => setCurrentSession({ ...currentSession, respostaSensorial: e.target.value })} />
@@ -3354,16 +3356,16 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                         </div>
                                         <div className="mt-8 flex justify-end gap-3">
                                             <button onClick={() => setIsEditingSession(false)} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50">Cancelar</button>
-                                            <button onClick={handleSaveSession} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                                            <button onClick={handleSaveSession} className="w-full sm:w-auto bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-md flex items-center justify-center gap-2">
                                                 <CheckCircle size={20} /> Salvar Sessão
                                             </button>
                                         </div>
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="flex justify-between items-center">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                             <h3 className="text-xl font-bold text-slate-800">Histórico de Atendimentos</h3>
-                                            <button onClick={() => { setCurrentSession({}); setIsEditingSession(true); }} className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                                            <button onClick={() => { setCurrentSession({}); setIsEditingSession(true); }} className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 shadow-md flex items-center justify-center gap-2">
                                                 <Plus size={20} /> Novo Registro
                                             </button>
                                         </div>
@@ -3385,7 +3387,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
                                                                 <span className={`text-sm font-bold ${sess.evolucao.includes('Melhora') ? 'text-green-600' : 'text-slate-600'}`}>{sess.evolucao}</span>
                                                             </div>
                                                         </div>
-                                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                                                             <div>
                                                                 <p className="font-bold text-slate-600">Objetivo:</p>
                                                                 <p className="text-slate-500 line-clamp-2">{sess.objetivos}</p>
@@ -3669,7 +3671,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
             {/* Institucional Header */}
             <div className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-2xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10"><Activity size={200} /></div>
-                <div className="relative z-10 flex justify-between items-center">
+                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                         <h2 className="text-3xl font-extrabold flex items-center gap-3">
                             <Activity size={32} /> Fisioterapia Funcional
@@ -3705,9 +3707,9 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                     </div>
                 </div>
             ) : (
-                <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden min-h-[600px] flex flex-col md:flex-row">
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden min-h-[600px] flex flex-col sm:flex-row">
                     {/* Sidebar Tabs */}
-                    <div className="w-full md:w-64 bg-slate-50 border-r border-slate-200 flex flex-col">
+                    <div className="w-full sm:w-64 bg-slate-50 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col">
                         {[
                             { id: 'anamnese', label: 'Anamnese', icon: FileText },
                             { id: 'avaliacao', label: 'Avaliação Motora', icon: Activity },
@@ -3727,29 +3729,29 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                     </div>
 
                     {/* Content Area */}
-                    <div className="flex-1 p-8 bg-slate-50/50">
+                    <div className="flex-1 p-4 sm:p-8 bg-slate-50/50 min-w-0">
                         {/* TAB: ANAMNESE */}
                         {activeTab === 'anamnese' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                     <h3 className="text-xl font-bold text-slate-800">Anamnese Fisioterapêutica Funcional</h3>
-                                    <button onClick={handleSaveGeneral} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-blue-700"><Save size={18} /> Salvar</button>
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700"><Save size={18} /> Salvar</button>
                                 </div>
                                 <div className="space-y-4">
                                     <StyledInput label="Queixa Principal (impacto na funcionalidade)" rows={2} value={ptData.anamnese.queixaPrincipal} onChange={(e: any) => setPtData({ ...ptData, anamnese: { ...ptData.anamnese, queixaPrincipal: e.target.value } })} />
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <StyledInput label="Início da Queixa" value={ptData.anamnese.dataInicioQueixa} onChange={(e: any) => setPtData({ ...ptData, anamnese: { ...ptData.anamnese, dataInicioQueixa: e.target.value } })} />
                                         <StyledInput label="Diagnóstico Informado (Documentos)" value={ptData.anamnese.diagnosticoInformado} onChange={(e: any) => setPtData({ ...ptData, anamnese: { ...ptData.anamnese, diagnosticoInformado: e.target.value } })} />
                                     </div>
                                     <StyledInput label="Histórico Funcional e Saúde Relevante" rows={3} value={ptData.anamnese.historicoFuncional} onChange={(e: any) => setPtData({ ...ptData, anamnese: { ...ptData.anamnese, historicoFuncional: e.target.value } })} />
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <StyledInput label="Dispositivos de Apoio (Cadeira, Órtese, etc)" value={ptData.anamnese.dispositivosApoio} onChange={(e: any) => setPtData({ ...ptData, anamnese: { ...ptData.anamnese, dispositivosApoio: e.target.value } })} />
                                         <StyledInput label="Cirurgias Prévias" value={ptData.anamnese.cirurgiasPrevias} onChange={(e: any) => setPtData({ ...ptData, anamnese: { ...ptData.anamnese, cirurgiasPrevias: e.target.value } })} />
                                     </div>
 
                                     <div className="p-4 bg-white rounded-lg border border-slate-200">
                                         <label className="block text-xs font-bold text-slate-700 uppercase mb-3">Registro de Dor</label>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                             <div>
                                                 <label className="text-xs text-slate-400 block mb-1">Existe Dor?</label>
                                                 <select className="w-full p-2 bg-slate-50 border rounded" value={ptData.anamnese.dor.existe} onChange={e => setPtData({ ...ptData, anamnese: { ...ptData.anamnese, dor: { ...ptData.anamnese.dor, existe: e.target.value } } })}>
@@ -3766,7 +3768,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <StyledInput label="Nível de Independência (AVDs)" value={ptData.anamnese.nivelIndependencia} onChange={(e: any) => setPtData({ ...ptData, anamnese: { ...ptData.anamnese, nivelIndependencia: e.target.value } })} />
                                         <StyledInput label="Dificuldades de Locomocao" value={ptData.anamnese.dificuldadesLocomocao} onChange={(e: any) => setPtData({ ...ptData, anamnese: { ...ptData.anamnese, dificuldadesLocomocao: e.target.value } })} />
                                     </div>
@@ -3787,13 +3789,13 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                         {/* TAB: AVALIAÇÃO MOTORA */}
                         {activeTab === 'avaliacao' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                     <h3 className="text-xl font-bold text-slate-800">Avaliação Fisioterapêutica Funcional</h3>
-                                    <button onClick={handleSaveGeneral} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-blue-700"><Save size={18} /> Salvar</button>
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700"><Save size={18} /> Salvar</button>
                                 </div>
 
                                 <FormSection title="Classificação GMFCS" icon={Activity} color="text-blue-700">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-2">Nível GMFCS (Função Motora Grossa)</label>
                                             <div className="flex gap-2 flex-wrap">
@@ -3829,7 +3831,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                 </FormSection>
 
                                 <FormSection title="I. Postura" icon={AlignLeft}>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <StyledInput label="Postura em Pé" value={ptData.avaliacao.postura.emPe} onChange={(e: any) => setPtData({ ...ptData, avaliacao: { ...ptData.avaliacao, postura: { ...ptData.avaliacao.postura, emPe: e.target.value } } })} />
                                         <StyledInput label="Postura Sentada" value={ptData.avaliacao.postura.sentada} onChange={(e: any) => setPtData({ ...ptData, avaliacao: { ...ptData.avaliacao, postura: { ...ptData.avaliacao.postura, sentada: e.target.value } } })} />
                                     </div>
@@ -3837,18 +3839,18 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                 </FormSection>
 
                                 <FormSection title="II. Mobilidade e Equilíbrio" icon={Zap}>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <StyledInput label="Amplitude de Movimento (ADM)" value={ptData.avaliacao.mobilidade.adm} onChange={(e: any) => setPtData({ ...ptData, avaliacao: { ...ptData.avaliacao, mobilidade: { ...ptData.avaliacao.mobilidade, adm: e.target.value } } })} />
                                         <StyledInput label="Coordenação Motora Grossa" value={ptData.avaliacao.mobilidade.coordMotorGrossa} onChange={(e: any) => setPtData({ ...ptData, avaliacao: { ...ptData.avaliacao, mobilidade: { ...ptData.avaliacao.mobilidade, coordMotorGrossa: e.target.value } } })} />
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <StyledInput label="Equilíbrio Estático" value={ptData.avaliacao.equilibrio.estatico} onChange={(e: any) => setPtData({ ...ptData, avaliacao: { ...ptData.avaliacao, equilibrio: { ...ptData.avaliacao.equilibrio, estatico: e.target.value } } })} />
                                         <StyledInput label="Equilíbrio Dinâmico" value={ptData.avaliacao.equilibrio.dinamico} onChange={(e: any) => setPtData({ ...ptData, avaliacao: { ...ptData.avaliacao, equilibrio: { ...ptData.avaliacao.equilibrio, dinamico: e.target.value } } })} />
                                     </div>
                                 </FormSection>
 
                                 <FormSection title="III. Força e Marcha" icon={TrendingUp}>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                         <div>
                                             <label className="text-xs font-bold text-slate-700 uppercase block mb-2">Força Muscular Adequada para Idade?</label>
                                             <div className="flex gap-2">
@@ -3863,7 +3865,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                     </div>
                                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                                         <label className="block text-xs font-bold text-slate-700 uppercase mb-3">Marcha / Locomoção</label>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                                             {['independente', 'comApoio', 'cadeiraRodas'].map(field => (
                                                 <div key={field} className="flex items-center justify-between bg-white p-2 rounded border">
                                                     <span className="text-xs font-bold text-slate-600">{field === 'independente' ? 'Independente' : field === 'comApoio' ? 'Com Apoio' : 'Cadeira de Rodas'}</span>
@@ -3882,9 +3884,9 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                         {/* TAB: FUNCIONALIDADE ESCOLAR */}
                         {activeTab === 'funcionalidade' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                     <h3 className="text-xl font-bold text-slate-800">Participação e Funcionalidade Escolar</h3>
-                                    <button onClick={handleSaveGeneral} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-blue-700"><Save size={18} /> Salvar</button>
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700"><Save size={18} /> Salvar</button>
                                 </div>
                                 <div className="bg-white p-6 rounded-xl shadow-sm border border-blue-100 space-y-4">
                                     <StyledInput label="Deslocamento dentro da Escola (Salas, Pátio)" rows={2} value={ptData.avaliacao.funcionalidadeEscolar.deslocamento} onChange={(e: any) => setPtData({ ...ptData, avaliacao: { ...ptData.avaliacao, funcionalidadeEscolar: { ...ptData.avaliacao.funcionalidadeEscolar, deslocamento: e.target.value } } })} />
@@ -3902,10 +3904,10 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                         {/* TAB: ATENDIMENTOS (SESSÕES) */}
                         {activeTab === 'sessions' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                     <h3 className="text-xl font-bold text-slate-800">Histórico de Atendimentos</h3>
                                     {!isEditingSession && (
-                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-blue-700"><Plus size={18} /> Novo Atendimento</button>
+                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700"><Plus size={18} /> Novo Atendimento</button>
                                     )}
                                 </div>
 
@@ -3921,7 +3923,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                                 <p className="text-blue-700 italic">"{ptData.sessions[0].observacoesClinicas || 'Sem observações registradas'}"</p>
                                             </div>
                                         )}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                             <StyledInput label="Data" type="date" value={currentSession.date} onChange={(e: any) => setCurrentSession({ ...currentSession, date: e.target.value })} />
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5 ml-1">Evolução Percebida</label>
@@ -3935,7 +3937,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                         </div>
                                         <StyledInput label="Objetivo do Atendimento" value={currentSession.objetivoAtendimento} onChange={(e: any) => setCurrentSession({ ...currentSession, objetivoAtendimento: e.target.value })} />
                                         <StyledInput label="Atividades Realizadas" rows={2} value={currentSession.atividadesRealizadas} onChange={(e: any) => setCurrentSession({ ...currentSession, atividadesRealizadas: e.target.value })} />
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <StyledInput label="Resposta Motora Observada" value={currentSession.respostaMotora} onChange={(e: any) => setCurrentSession({ ...currentSession, respostaMotora: e.target.value })} />
                                             <StyledInput label="Níveis de Dor Pós-Atendimento" value={currentSession.niveisDorPos} onChange={(e: any) => setCurrentSession({ ...currentSession, niveisDorPos: e.target.value })} />
                                         </div>
@@ -3943,7 +3945,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
 
                                         <div className="flex justify-end gap-3 mt-6">
                                             <button onClick={() => setIsEditingSession(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
-                                            <button onClick={handleSaveSession} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold">Salvar Atendimento</button>
+                                            <button onClick={handleSaveSession} className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold">Salvar Atendimento</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -3976,11 +3978,11 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                         {/* TAB: CONCLUSÃO FUNCIONAL */}
                         {activeTab === 'conclusao' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><ClipboardCheck className="text-blue-600" /> Síntese e Conclusão Funcional</h3>
-                                    <button onClick={handleSaveGeneral} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-blue-700"><Save size={18} /> Salvar Conclusão</button>
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700"><Save size={18} /> Salvar Conclusão</button>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <FormSection title="Limitações e Potencialidades" icon={TrendingUp} color="text-blue-700">
                                         <StyledInput label="Limitações Funcionais Observadas" rows={3} value={ptData.conclusao.limitacoes} onChange={(e: any) => setPtData({ ...ptData, conclusao: { ...ptData.conclusao, limitacoes: e.target.value } })} />
                                         <StyledInput label="Potencialidades do Aluno" rows={3} value={ptData.conclusao.potencialidades} onChange={(e: any) => setPtData({ ...ptData, conclusao: { ...ptData.conclusao, potencialidades: e.target.value } })} />
@@ -4023,7 +4025,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                         {/* TAB: RELATÓRIOS (Central Fisioterapia) */}
                         {activeTab === 'reports' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                                     <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Printer className="text-blue-600" /> Central de Relatórios</h3>
                                 </div>
                                 <div className="bg-white p-12 rounded-2xl shadow-sm text-center border border-slate-200">
@@ -4319,7 +4321,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                         {/* Left Column: Actions & Chart */}
                         <div className="lg:col-span-2 space-y-8">
                             {/* Action Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <ActionCard
                                     title="Nova Sessão"
                                     icon={Brain}
@@ -4430,9 +4432,9 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     </div>
                 </div>
             ) : (
-                <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col md:flex-row min-h-[700px]">
+                <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col sm:flex-row min-h-[700px]">
                     {/* Sidebar Tabs */}
-                    <div className="w-full md:w-64 bg-slate-50 border-r border-slate-200 flex flex-col">
+                    <div className="w-full sm:w-64 bg-slate-50 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col">
                         <div className="p-6 border-b border-slate-200 bg-white">
                             <button onClick={() => setSelectedStudent(null)} className="flex items-center gap-2 text-xs font-bold text-purple-600 mb-4 hover:underline"><TrendingUp size={14} /> Voltar ao Painel</button>
                             <h3 className="font-black text-slate-900 leading-tight">{selectedStudent.fullName}</h3>
@@ -4460,11 +4462,11 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     <div className="flex-1 p-8 bg-white overflow-y-auto max-h-[700px]">
                         {activeTab === 'anamnese' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center mb-6">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                                     <h3 className="text-2xl font-black text-slate-800">Identificação e Queixa</h3>
-                                    <button onClick={handleSaveGeneral} className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-purple-700 shadow-md"><Save size={18} /> Salvar Alterações</button>
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-purple-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-700 shadow-md"><Save size={18} /> Salvar Alterações</button>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <FormSection title="Origem" icon={AlignLeft} color="text-purple-700">
                                         <StyledInput label="Encaminhado por" value={publicData.identificacao.encaminhadoPor} onChange={e => handlePublicChange('identificacao', 'encaminhadoPor', e.target.value)} />
                                         <StyledInput label="Queixa Principal / Motivo" rows={3} value={publicData.motivoEncaminhamento.queixa} onChange={e => handlePublicChange('motivoEncaminhamento', 'queixa', e.target.value)} />
@@ -4479,9 +4481,9 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 
                         {activeTab === 'prontuario' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center mb-6">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                                     <h3 className="text-2xl font-black text-slate-800">Prontuário Clínico Seguro</h3>
-                                    <button onClick={handleSaveGeneral} className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-purple-700 shadow-md"><Save size={18} /> Salvar Prontuário</button>
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-purple-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-700 shadow-md"><Save size={18} /> Salvar Prontuário</button>
                                 </div>
                                 <div className="grid grid-cols-1 gap-6">
                                     <FormSection title="Análise Psicológica" icon={Brain} color="text-purple-700">
@@ -4501,7 +4503,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                                 {isEditingSession ? (
                                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                                         <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Clock className="text-purple-600" /> Registro de Atendimento</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                                             <StyledInput label="Data e Hora" type="datetime-local" value={currentSession.dataHoraISO} onChange={e => setCurrentSession({ ...currentSession, dataHoraISO: e.target.value })} />
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Humor Predominante</label>
@@ -4525,14 +4527,14 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 
                                         <div className="mt-6 flex justify-end gap-3">
                                             <button onClick={() => setIsEditingSession(false)} className="px-4 py-2 text-slate-500 font-bold">Cancelar</button>
-                                            <button onClick={handleSaveSession} className="bg-purple-600 text-white px-8 py-2 rounded-xl font-bold hover:bg-purple-700 shadow-lg">Salvar Sessão</button>
+                                            <button onClick={handleSaveSession} className="w-full sm:w-auto bg-purple-600 text-white px-8 py-2 rounded-xl font-bold hover:bg-purple-700 shadow-lg">Salvar Sessão</button>
                                         </div>
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="flex justify-between items-center">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                             <h3 className="text-2xl font-black text-slate-800">Histórico de Evoluções</h3>
-                                            <button onClick={() => { setCurrentSession({ dataHoraISO: new Date().toISOString().slice(0, 16), humor: 'neutro', status: 'Realizado', duracaoMin: 50 }); setIsEditingSession(true); }} className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-purple-700 shadow-md"><Plus size={18} /> Novo Registro</button>
+                                            <button onClick={() => { setCurrentSession({ dataHoraISO: new Date().toISOString().slice(0, 16), humor: 'neutro', status: 'Realizado', duracaoMin: 50 }); setIsEditingSession(true); }} className="w-full sm:w-auto bg-purple-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-700 shadow-md"><Plus size={18} /> Novo Registro</button>
                                         </div>
                                         <div className="space-y-4">
                                             {privateData.sessions.length === 0 ? (
@@ -4611,7 +4613,7 @@ const SocialSection = ({ title, isOpen, onToggle, children, icon: Icon, color = 
                         {isOpen && <div className={`h-1.5 w-12 bg-gradient-to-r from-${color}-500 to-${color}-300 rounded-full mt-2 shadow-sm animate-pulse`}></div>}
                     </div>
                 </div>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${isOpen ? 'bg-slate-900 text-white rotate-180' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'}`}>
+                <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500 ${isOpen ? 'bg-slate-900 text-white rotate-180' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'}`}>
                     <ChevronDown size={20} strokeWidth={3} />
                 </div>
             </button>
@@ -4855,7 +4857,7 @@ const SocialOverviewDashboard: React.FC<{
     return (
         <div className="space-y-10 animate-fadeIn pb-20">
             {/* HEADER */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start md:items-end gap-6">
                 <div>
                     <h2 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Visão Geral da Rede</h2>
                     <p className="text-slate-500 font-medium mt-2">Painel de Monitoramento de Busca Ativa e Proteção Social</p>
@@ -4867,7 +4869,7 @@ const SocialOverviewDashboard: React.FC<{
             </div>
 
             {/* KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
                 <StatCard title="Em Busca Ativa" value={stats.activeSearch} icon={Search} gradient="from-blue-400 to-blue-600" />
                 <StatCard title="Casos Pendentes" value={stats.pending} icon={Clock} gradient="from-amber-400 to-amber-600" />
                 <StatCard title="Conselho Tutelar" value={stats.council} icon={ShieldAlert} gradient="from-rose-400 to-rose-600" />
@@ -4878,14 +4880,14 @@ const SocialOverviewDashboard: React.FC<{
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* LISTA DE PRIORIDADES */}
                 <div className="lg:col-span-2 bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                         <h3 className="font-bold text-slate-700 uppercase tracking-widest text-sm flex items-center gap-3">
                             <Flag className="text-rose-500" size={18} /> Minhas Prioridades de Ação
                         </h3>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
+                    <div className="overflow-x-auto w-full">
+                        <table className="min-w-[500px] w-full text-left">
                             <thead>
                                 <tr className="border-b border-slate-100 text-slate-400 text-[10px] uppercase font-bold tracking-widest">
                                     <th className="pb-4 pl-2">Aluno / Escola</th>
@@ -4984,7 +4986,7 @@ const SocialOverviewDashboard: React.FC<{
             </div>
 
             {/* GRÁFICOS VISÃO DE REDE */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
                     <h3 className="font-bold text-slate-700 uppercase tracking-widest text-sm mb-6 flex items-center gap-3">
                         <PieIcon className="text-indigo-500" size={18} /> Motivos de Evasão
@@ -5054,7 +5056,7 @@ const SocialServiceStrategicDashboard: React.FC<BaseDashboardProps> = ({ title, 
 
     return (
         <div className="max-w-7xl mx-auto p-6 animate-fadeIn">
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-8">
                 <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
                     <div className="p-3 bg-purple-100 rounded-2xl text-purple-600"><Activity size={32} /></div>
                     {title}
@@ -5393,7 +5395,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
 
                 <div className="bg-white rounded-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-[#1E7F85]/10 overflow-hidden">
                     <div className="bg-[#1E7F85] text-white p-10">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start md:items-center gap-6">
                             <div className="flex items-center gap-5">
                                 <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-inner">
                                     <Heart size={36} className="text-[#F5C474]" />
@@ -5517,7 +5519,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
 
                             {/* Content Area */}
                             <div className="p-10">
-                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-start md:items-center mb-12 gap-4">
                                     <div className="flex items-center gap-4">
                                         <div className="w-2 h-10 bg-[#1E7F85] rounded-full" />
                                         <div>
@@ -5546,20 +5548,20 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                 <div className="animate-fadeIn">
                                     {activeTab === 1 && (
                                         <div className="space-y-8">
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                                                 <StyledInput icon={UserIcon} label="Gênero" value={socialData.identificacao.genero} onChange={(e: any) => handleChange('identificacao', 'genero', e.target.value)} placeholder="Masculino / Feminino / Outro" />
                                                 <StyledInput icon={Users} label="Responsável Legal" value={socialData.identificacao.nomeResponsavel} onChange={(e: any) => handleChange('identificacao', 'nomeResponsavel', e.target.value)} />
                                                 <StyledInput icon={Briefcase} label="Grau de Parentesco" value={socialData.identificacao.grauParentesco} onChange={(e: any) => handleChange('identificacao', 'grauParentesco', e.target.value)} />
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                                 <StyledInput icon={Home} label="Nº de Pessoas na Residência" value={socialData.identificacao.numeroPessoasResidencia} onChange={(e: any) => handleChange('identificacao', 'numeroPessoasResidencia', e.target.value)} type="number" />
                                                 <StyledInput icon={Smartphone} label="Telefones de Contato" value={socialData.identificacao.telefonesContato} onChange={(e: any) => handleChange('identificacao', 'telefonesContato', e.target.value)} />
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                                 <StyledInput icon={FileText} label="Documento (RG ou CPF)" value={socialData.identificacao.documento} onChange={(e: any) => handleChange('identificacao', 'documento', e.target.value)} />
                                                 <StyledInput icon={Zap} label="Número do NIS (Opcional)" value={socialData.identificacao.nis} onChange={(e: any) => handleChange('identificacao', 'nis', e.target.value)} />
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-10 bg-[#F7F5F0] rounded-[30px] border border-[#1E7F85]/10 shadow-inner">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 p-10 bg-[#F7F5F0] rounded-[30px] border border-[#1E7F85]/10 shadow-inner">
                                                 <StyledInput icon={GraduationCap} label="Está matriculado?" value={socialData.identificacao.matriculado} onChange={(e: any) => handleChange('identificacao', 'matriculado', e.target.value)} placeholder="Sim / Não" />
                                                 {socialData.identificacao.matriculado.toLowerCase() === 'sim' && (
                                                     <StyledInput icon={SchoolIcon} label="Nome da Escola" value={socialData.identificacao.nomeEscola} onChange={(e: any) => handleChange('identificacao', 'nomeEscola', e.target.value)} />
@@ -5576,7 +5578,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                                 <h3 className="text-indigo-800 font-bold uppercase tracking-widest mb-6 flex items-center gap-3 relative z-10">
                                                     <Brain size={20} /> Indicadores Educacionais Observados
                                                 </h3>
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
                                                     <TriStateField
                                                         label="Barreiras de acesso à escola observadas"
                                                         value={socialData.indicadoresEducacionais.barreirasAcesso}
@@ -5596,18 +5598,18 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                                 <p className="mt-4 text-[10px] text-indigo-400 font-bold uppercase tracking-wider text-center">* Sinalização estritamente educacional. Não constitui diagnóstico clínico.</p>
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                                 <StyledInput label="Já frequentou a escola anteriormente?" value={socialData.historicoEscolar.frequentouAnteriormente} onChange={(e: any) => handleChange('historicoEscolar', 'frequentouAnteriormente', e.target.value)} placeholder="Sim / Não" />
                                                 <StyledInput label="Nome da última escola frequentada" value={socialData.historicoEscolar.ultimaEscola} onChange={(e: any) => handleChange('historicoEscolar', 'ultimaEscola', e.target.value)} />
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                                 <StyledInput label="Último ano/série cursado" value={socialData.historicoEscolar.ultimoAnoSerie} onChange={(e: any) => handleChange('historicoEscolar', 'ultimoAnoSerie', e.target.value)} />
                                                 <StyledInput label="Ano em que parou de frequentar" value={socialData.historicoEscolar.anoParou} onChange={(e: any) => handleChange('historicoEscolar', 'anoParou', e.target.value)} />
                                                 <StyledInput label="Idade ao sair da escola" value={socialData.historicoEscolar.idadeSaiu} onChange={(e: any) => handleChange('historicoEscolar', 'idadeSaiu', e.target.value)} />
                                             </div>
                                             <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
                                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Motivos da Saída (Múltipla Escolha)</label>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                                     {['Dificuldades de aprendizagem', 'Falta de transporte escolar', 'Trabalho infantil', 'Gravidez / maternidade / paternidade', 'Cuidado com familiares', 'Violência ou bullying escolar', 'Uso de álcool ou drogas', 'Mudança de endereço', 'Doença', 'Falta de documentos', 'Desinteresse', 'Reprovação consecutiva', 'Questões religiosas/culturais'].map(opt => (
                                                         <label key={opt} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${socialData.historicoEscolar.motivosSaida.includes(opt) ? 'bg-[#1E7F85] border-[#1E7F85] text-white shadow-lg' : 'bg-white border-slate-200 hover:border-[#1E7F85]/20 text-slate-600'}`}>
                                                             <input type="checkbox" checked={socialData.historicoEscolar.motivosSaida.includes(opt)} onChange={() => toggleMultiSelect('historicoEscolar', 'motivosSaida', opt)} className="hidden" />
@@ -5625,7 +5627,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
 
                                     {activeTab === 3 && (
                                         <div className="space-y-8">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                                 <StyledInput label="Responsáveis Legais" value={socialData.condicoesFamiliares.responsaveisLegais} onChange={(e: any) => handleChange('condicoesFamiliares', 'responsaveisLegais', e.target.value)} />
                                                 <StyledInput label="Principal fonte de renda da família" value={socialData.condicoesFamiliares.fonteRenda} onChange={(e: any) => handleChange('condicoesFamiliares', 'fonteRenda', e.target.value)} />
                                             </div>
@@ -5640,7 +5642,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                                     ))}
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                                 <div className="space-y-4">
                                                     <TriStateField
                                                         label="Há pessoa com deficiência ou mobilidade reduzida no domicílio?"
@@ -5662,7 +5664,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                                 <label className="block text-[10px] font-black text-rose-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                                                     <AlertTriangle size={14} strokeWidth={3} /> Situações enfrentadas pela família
                                                 </label>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                                     {['Situação de rua', 'Violência doméstica', 'Trabalho infantil', 'Dependência química', 'Conflitos com a Justiça', 'Outros'].map(opt => (
                                                         <label key={opt} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${socialData.condicoesFamiliares.situacoesEnfrentadas.includes(opt) ? 'bg-rose-600 border-rose-700 text-white shadow-lg' : 'bg-white border-slate-200 hover:border-rose-200 text-slate-600'}`}>
                                                             <input type="checkbox" checked={socialData.condicoesFamiliares.situacoesEnfrentadas.includes(opt)} onChange={() => toggleMultiSelect('condicoesFamiliares', 'situacoesEnfrentadas', opt)} className="hidden" />
@@ -5671,7 +5673,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                                     ))}
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                                 <TriStateField
                                                     label="Há adultos alfabetizados na casa?"
                                                     value={socialData.condicoesFamiliares.adultosAlfabetizados === 'Sim' ? true : socialData.condicoesFamiliares.adultosAlfabetizados === 'Não' ? false : null}
@@ -5688,7 +5690,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
 
                                     {activeTab === 4 && (
                                         <div className="space-y-8">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                                 <TriStateField
                                                     label="Acompanhamento médico regular?"
                                                     value={socialData.saudeAcompanhamentos.acompanhamentoMedico === 'Sim' ? true : socialData.saudeAcompanhamentos.acompanhamentoMedico === 'Não' ? false : null}
@@ -5703,7 +5705,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                                     {socialData.saudeAcompanhamentos.medicacaoContinua === 'Sim' && <StyledInput label="Observações sobre medicação (Impacto escolar/rotina)" value={socialData.saudeAcompanhamentos.qualMedicacao} onChange={(e: any) => handleChange('saudeAcompanhamentos', 'qualMedicacao', e.target.value)} />}
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                                 <TriStateField
                                                     label="Acompanhamento em Saúde Mental (Psicologia/Psiquiatria)?"
                                                     value={socialData.saudeAcompanhamentos.acompanhamentoPsi === 'Sim' ? true : socialData.saudeAcompanhamentos.acompanhamentoPsi === 'Não' ? false : null}
@@ -5732,7 +5734,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
 
                                     {activeTab === 5 && (
                                         <div className="space-y-8">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                                 <TriStateField
                                                     label="Desejo do aluno em retornar à escola?"
                                                     value={socialData.situacaoAtual.desejoRetornar === 'Sim' ? true : socialData.situacaoAtual.desejoRetornar === 'Não' ? false : null}
@@ -5746,7 +5748,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                             </div>
                                             <div className="p-8 bg-orange-50 rounded-3xl border border-orange-100">
                                                 <label className="block text-[10px] font-black text-orange-400 uppercase tracking-widest mb-6">Fatores que dificultam o retorno</label>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                                     {['Falta de transporte', 'Falta de vaga', 'Medo de bullying ou violência', 'Necessidade de trabalhar', 'Desinteresse', 'Situação emocional/psicológica', 'Gravidez/maternidade'].map(opt => (
                                                         <label key={opt} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${socialData.situacaoAtual.fatoresDificultam.includes(opt) ? 'bg-orange-500 border-orange-600 text-white shadow-lg' : 'bg-white border-slate-200 hover:border-orange-200 text-slate-600'}`}>
                                                             <input type="checkbox" checked={socialData.situacaoAtual.fatoresDificultam.includes(opt)} onChange={() => toggleMultiSelect('situacaoAtual', 'fatoresDificultam', opt)} className="hidden" />
@@ -5758,7 +5760,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                             </div>
                                             <div className="p-8 bg-cyan-50 rounded-3xl border border-cyan-100">
                                                 <label className="block text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-6">Apoios necessários para retorno e permanência</label>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                                     {['Transporte escolar', 'Atendimento psicológico', 'Apoio pedagógico', 'Atendimento especializado', 'Apoio material', 'Visitas domiciliares'].map(opt => (
                                                         <label key={opt} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${socialData.situacaoAtual.apoiosNecessarios.includes(opt) ? 'bg-[#1E7F85] border-[#1E7F85] text-white shadow-lg' : 'bg-white border-slate-200 hover:border-[#1E7F85]/20 text-slate-600'}`}>
                                                             <input type="checkbox" checked={socialData.situacaoAtual.apoiosNecessarios.includes(opt)} onChange={() => toggleMultiSelect('situacaoAtual', 'apoiosNecessarios', opt)} className="hidden" />
@@ -5837,7 +5839,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                                                 onChange={(e: any) => handleChange('encaminhamentoInstitucional', 'motivo', e.target.value)}
                                                             />
 
-                                                            <div className="grid grid-cols-2 gap-6">
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                                                 <StyledInput
                                                                     label="Data de Encaminhamento"
                                                                     type="date"
@@ -5886,7 +5888,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
                                     )}
                                 </div>
 
-                                <div className="mt-8 flex justify-between items-center bg-white p-6 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100">
+                                <div className="mt-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-6 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100">
                                     <p className="text-xs font-bold text-slate-400 italic">O salvamento ocorre automaticamente ao trocar de aba ou clicando no botão ao lado.</p>
                                     <div className="flex gap-4">
                                         <button
@@ -5945,7 +5947,7 @@ const BaseDashboard: React.FC<BaseDashboardProps> = ({ title, specialty, onNavig
 
     return (
         <div className="space-y-6 animate-fadeIn">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800">{title}</h2>
                     <p className="text-slate-500">Painel da especialidade</p>
@@ -5972,8 +5974,8 @@ const BaseDashboard: React.FC<BaseDashboardProps> = ({ title, specialty, onNavig
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
+                <div className="overflow-x-auto w-full">
+                    <table className="min-w-[500px] divide-y divide-slate-200">
                         <thead className="bg-slate-50">
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Data</th>
@@ -6015,7 +6017,7 @@ const BaseDashboard: React.FC<BaseDashboardProps> = ({ title, specialty, onNavig
                                                 {summary}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button className="text-primary-600 hover:text-primary-900">Ver</button>
+                                                <button className="min-h-[44px] min-w-[44px] text-primary-600 hover:text-primary-900">Ver</button>
                                             </td>
                                         </tr>
                                     );
@@ -6079,7 +6081,7 @@ const BaseSessionForm: React.FC<BaseSessionFormProps> = ({ title, specialty, onC
                 <form onSubmit={handleSubmit} className="p-8 space-y-6">
                     <div className="grid grid-cols-1 gap-6">
                         <div><label className="block text-sm font-medium text-slate-700 mb-1">Aluno</label><select className="block w-full rounded-lg border-slate-300 p-2.5 border bg-white" value={selectedStudentId} onChange={(e) => setSelectedStudentId(e.target.value)}><option value="">Selecione...</option>{students.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}</select></div>
-                        <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-slate-700 mb-1">Data</label><input type="date" className="block w-full rounded-lg border-slate-300 p-2 border" value={date} onChange={(e) => setDate(e.target.value)} /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label><select className="block w-full rounded-lg border-slate-300 p-2 border bg-white" value={serviceType} onChange={(e) => setServiceType(e.target.value)}><option>Consulta Individual</option><option>Grupo</option><option>Avaliação</option></select></div></div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-slate-700 mb-1">Data</label><input type="date" className="block w-full rounded-lg border-slate-300 p-2 border" value={date} onChange={(e) => setDate(e.target.value)} /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label><select className="block w-full rounded-lg border-slate-300 p-2 border bg-white" value={serviceType} onChange={(e) => setServiceType(e.target.value)}><option>Consulta Individual</option><option>Grupo</option><option>Avaliação</option></select></div></div>
                         <div><label className="block text-sm font-medium text-slate-700 mb-1">Evolução</label><textarea rows={6} className="block w-full rounded-lg border-slate-300 p-3 border" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
                     </div>
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-100"><button type="button" onClick={onCancel} className="px-6 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancelar</button><button type="submit" className="px-8 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium">Salvar</button></div>
@@ -6442,7 +6444,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
             <div className="flex items-center gap-2 mb-6 text-slate-500 hover:text-purple-600 cursor-pointer w-fit transition-colors" onClick={onCancel}><X size={18} /> Cancelar e Voltar</div>
             <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
                 <div className="relative bg-gradient-to-r from-purple-700 to-indigo-800 text-white p-8">
-                    <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start md:items-center gap-6">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 shadow-lg"><Brain size={32} className="text-purple-200" /></div>
                             <div>
@@ -6499,7 +6501,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                     <div className="mb-8">
                                         <h3 className="text-purple-900 font-bold text-lg mb-4 flex items-center gap-2 uppercase tracking-wide opacity-80"><Globe size={18} /> Dados Gerais (Público)</h3>
                                         <FormSection title="I. Identificação e Encaminhamento" icon={UserIcon}>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <StyledInput label="Encaminhado Por" value={publicData.identificacao.encaminhadoPor} onChange={(e: any) => handlePublicChange('identificacao', 'encaminhadoPor', e.target.value)} />
                                                 <StyledInput label="Data Triagem" type="date" value={publicData.identificacao.dataTriagem} onChange={(e: any) => handlePublicChange('identificacao', 'dataTriagem', e.target.value)} />
                                                 <StyledInput label="Especialista Resp." value={publicData.identificacao.especialistaResponsavel} onChange={(e: any) => handlePublicChange('identificacao', 'especialistaResponsavel', e.target.value)} />
@@ -6508,7 +6510,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
 
                                         <FormSection title="II. Motivo do Encaminhamento" icon={AlertCircle}>
                                             <StyledInput label="Queixa Principal" value={publicData.motivoEncaminhamento.queixa} onChange={(e: any) => handlePublicChange('motivoEncaminhamento', 'queixa', e.target.value)} />
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <StyledInput label="Há quanto tempo?" value={publicData.motivoEncaminhamento.haQuantoTempo} onChange={(e: any) => handlePublicChange('motivoEncaminhamento', 'haQuantoTempo', e.target.value)} />
                                                 <StyledInput label="Situações / Intensidade" value={publicData.motivoEncaminhamento.situacoesIntensidade} onChange={(e: any) => handlePublicChange('motivoEncaminhamento', 'situacoesIntensidade', e.target.value)} />
                                             </div>
@@ -6521,7 +6523,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                         </FormSection>
 
                                         <FormSection title="IV. Histórico Escolar" icon={SchoolIcon}>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <StyledInput label="Desempenho" value={publicData.historicoEscolar.desempenho} onChange={(e: any) => handlePublicChange('historicoEscolar', 'desempenho', e.target.value)} />
                                                 <StyledInput label="Dificuldades" value={publicData.historicoEscolar.dificuldades} onChange={(e: any) => handlePublicChange('historicoEscolar', 'dificuldades', e.target.value)} />
                                             </div>
@@ -6536,7 +6538,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                             <h3 className="text-purple-900 font-bold text-lg mb-4 flex items-center gap-2 uppercase tracking-wide ml-2"><Lock size={18} /> Prontuário Clínico (Privado)</h3>
 
                                             <FormSection title="V. Comportamento Observado" icon={EyeOff} isPrivate>
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                                     <StyledInput label="Estado Emocional" value={privateData.formData.comportamentoObservado.estadoEmocional} onChange={(e: any) => handlePrivateChange('comportamentoObservado', 'estadoEmocional', e.target.value)} />
                                                     <StyledInput label="Contato Visual" value={privateData.formData.comportamentoObservado.contatoVisual} onChange={(e: any) => handlePrivateChange('comportamentoObservado', 'contatoVisual', e.target.value)} />
                                                     <StyledInput label="Linguagem" value={privateData.formData.comportamentoObservado.linguagem} onChange={(e: any) => handlePrivateChange('comportamentoObservado', 'linguagem', e.target.value)} />
@@ -6549,7 +6551,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                             <FormSection title="VI. Triagem Psicológica" icon={Activity} isPrivate>
                                                 <StyledInput label="Comportamentos Observados na Triagem" rows={3} value={privateData.formData.triagemPsicologica.comportamentosObservados} onChange={(e: any) => handlePrivateChange('triagemPsicologica', 'comportamentosObservados', e.target.value)} />
                                                 <StyledInput label="Hipóteses Iniciais" rows={2} value={privateData.formData.triagemPsicologica.hipotesesIniciais} onChange={(e: any) => handlePrivateChange('triagemPsicologica', 'hipotesesIniciais', e.target.value)} />
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                                                     <StyledInput label="Avaliação Aprofundada?" value={privateData.formData.triagemPsicologica.necessidadeAvaliacaoAprofundada} onChange={(e: any) => handlePrivateChange('triagemPsicologica', 'necessidadeAvaliacaoAprofundada', e.target.value)} />
                                                     <StyledInput label="Encaminhamentos Sugeridos" value={privateData.formData.triagemPsicologica.encaminhamentosSugeridos} onChange={(e: any) => handlePrivateChange('triagemPsicologica', 'encaminhamentosSugeridos', e.target.value)} />
                                                 </div>
@@ -6568,7 +6570,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                                 <StyledInput label="Motivo da Alta" value={privateData.formData.encerramento.motivoAlta} onChange={(e: any) => handlePrivateChange('encerramento', 'motivoAlta', e.target.value)} />
                                                 <StyledInput label="Resumo dos Ganhos" rows={2} value={privateData.formData.encerramento.resumoGanhos} onChange={(e: any) => handlePrivateChange('encerramento', 'resumoGanhos', e.target.value)} />
 
-                                                <div className="mt-8 p-6 bg-purple-50 rounded-2xl border border-purple-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                                                <div className="mt-8 p-6 bg-purple-50 rounded-2xl border border-purple-100 flex flex-col sm:flex-row items-center justify-between gap-6">
                                                     <div className="flex items-center gap-4 text-purple-900">
                                                         <div className="p-3 bg-white rounded-xl shadow-sm text-purple-600"><Flag size={24} /></div>
                                                         <div>
@@ -6610,12 +6612,12 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
 
                                 {viewMode === 'list' && (
                                     <>
-                                        <div className="flex justify-between items-center bg-white/50 p-4 rounded-xl backdrop-blur-sm border border-white/40 shadow-sm">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white/50 p-4 rounded-xl backdrop-blur-sm border border-white/40 shadow-sm">
                                             <div>
                                                 <h3 className="font-bold text-purple-900 text-xl">Sessões Realizadas</h3>
                                                 <p className="text-purple-800 text-sm">{privateData.sessions.length} registros encontrados</p>
                                             </div>
-                                            <button onClick={startNewSession} className="bg-purple-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-purple-800 shadow-md transition-all">
+                                            <button onClick={startNewSession} className="w-full sm:w-auto bg-purple-700 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-purple-800 shadow-md transition-all">
                                                 <Plus size={20} /> Nova Sessão
                                             </button>
                                         </div>
@@ -6628,7 +6630,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                                 </div>
                                             ) : (
                                                 privateData.sessions.map(sess => (
-                                                    <div key={sess.id} className="bg-white p-5 rounded-xl shadow-sm border border-purple-100 hover:shadow-md transition-all flex flex-col md:flex-row gap-4 relative overflow-hidden group">
+                                                    <div key={sess.id} className="bg-white p-5 rounded-xl shadow-sm border border-purple-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-4 relative overflow-hidden group">
                                                         <div className={`absolute left-0 top-0 bottom-0 w-2 ${sess.humor === 'feliz' ? 'bg-green-400' :
                                                             sess.humor === 'triste' ? 'bg-blue-400' :
                                                                 sess.humor === 'ansioso' ? 'bg-purple-400' :
@@ -6657,13 +6659,13 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                                             </div>
                                                             <div className="flex gap-2">
                                                                 {/* BOTÃO IMPRIMIR SESSÃO INDIVIDUAL */}
-                                                                <button onClick={() => handlePrintPsychology(sess)} className="p-2 bg-slate-100 rounded-lg hover:bg-blue-100 text-slate-600 hover:text-blue-700 transition-colors" title="Imprimir Sessão">
+                                                                <button onClick={() => handlePrintPsychology(sess)} className="min-h-[44px] min-w-[44px] p-2 bg-slate-100 rounded-lg hover:bg-blue-100 text-slate-600 hover:text-blue-700 transition-colors" title="Imprimir Sessão">
                                                                     <Printer size={16} />
                                                                 </button>
-                                                                <button onClick={() => { setCurrentSession(sess); setViewMode('form'); }} className="p-2 bg-slate-100 rounded-lg hover:bg-purple-100 text-slate-600 hover:text-purple-700 transition-colors">
+                                                                <button onClick={() => { setCurrentSession(sess); setViewMode('form'); }} className="min-h-[44px] min-w-[44px] p-2 bg-slate-100 rounded-lg hover:bg-purple-100 text-slate-600 hover:text-purple-700 transition-colors">
                                                                     <Edit2 size={16} />
                                                                 </button>
-                                                                <button onClick={() => deleteSession(sess.id)} className="p-2 bg-slate-100 rounded-lg hover:bg-red-100 text-slate-600 hover:text-red-700 transition-colors">
+                                                                <button onClick={() => deleteSession(sess.id)} className="min-h-[44px] min-w-[44px] p-2 bg-slate-100 rounded-lg hover:bg-red-100 text-slate-600 hover:text-red-700 transition-colors">
                                                                     <Trash2 size={16} />
                                                                 </button>
                                                             </div>
@@ -6677,18 +6679,18 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
 
                                 {viewMode === 'form' && (
                                     <div className="bg-white p-6 rounded-xl shadow-lg border border-purple-200 animate-slideUp">
-                                        <div className="flex justify-between items-center mb-6">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                                             <h3 className="font-bold text-purple-900 text-lg">{currentSession.id ? 'Editar Sessão' : 'Nova Sessão'}</h3>
                                             <button onClick={() => setViewMode('list')} className="text-slate-400 hover:text-purple-600"><X size={20} /></button>
                                         </div>
                                         <form onSubmit={saveSession} className="space-y-6">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <label className="block">
                                                     <span className="text-sm font-bold text-slate-700">Título do Atendimento</span>
                                                     <input required type="text" className="w-full rounded-lg border-slate-300 p-2 border"
                                                         value={currentSession.titulo} onChange={e => setCurrentSession({ ...currentSession, titulo: e.target.value })} placeholder="Ex: Atendimento Individual" />
                                                 </label>
-                                                <div className="grid grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                     <label className="block">
                                                         <span className="text-sm font-bold text-slate-700">Data e Hora</span>
                                                         <input required type="datetime-local" className="w-full rounded-lg border-slate-300 p-2 border"
@@ -6702,7 +6704,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <label className="block">
                                                     <span className="text-sm font-bold text-slate-700">Humor do Paciente</span>
                                                     <select className="w-full rounded-lg border-slate-300 p-2 border" value={currentSession.humor} onChange={e => setCurrentSession({ ...currentSession, humor: e.target.value as any })}>
@@ -6750,7 +6752,7 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
 
                                             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                                                 <button type="button" onClick={() => setViewMode('list')} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancelar</button>
-                                                <button type="submit" className="px-6 py-2 bg-purple-700 text-white rounded-lg hover:bg-purple-800 font-bold shadow-md">Salvar Sessão</button>
+                                                <button type="submit" className="w-full sm:w-auto px-6 py-2 bg-purple-700 text-white rounded-lg hover:bg-purple-800 font-bold shadow-md">Salvar Sessão</button>
                                             </div>
                                         </form>
                                     </div>
@@ -7181,7 +7183,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
 
     return (
         <div className="max-w-7xl mx-auto p-6 animate-fadeIn">
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-8">
                 <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
                     <div className="p-3 bg-green-100 rounded-2xl text-green-600"><Activity size={32} /></div>
                     {title}
@@ -7259,9 +7261,9 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                     <div className="lg:col-span-3">
                         {viewMode === 'list' ? (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                                     <h3 className="font-bold text-slate-800 text-xl">Histórico de Atendimentos</h3>
-                                    <button onClick={() => { setCurrentSession({}); setViewMode('form'); }} className="px-6 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 flex items-center gap-2 shadow-lg shadow-green-200">
+                                    <button onClick={() => { setCurrentSession({}); setViewMode('form'); }} className="w-full sm:w-auto px-6 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 flex items-center justify-center gap-2 shadow-lg shadow-green-200">
                                         <Plus size={20} /> Nova Consulta
                                     </button>
                                 </div>
@@ -7280,12 +7282,12 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                                                         <h4 className="font-bold text-slate-800 text-lg mt-2">Acompanhamento Nutricional</h4>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <button onClick={() => handlePrintNutrition(session)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Imprimir Consulta"><Printer size={18} /></button>
-                                                        <button onClick={() => { setCurrentSession(session); setViewMode('form'); }} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg"><Edit2 size={18} /></button>
+                                                        <button onClick={() => handlePrintNutrition(session)} className="min-h-[44px] min-w-[44px] p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Imprimir Consulta"><Printer size={18} /></button>
+                                                        <button onClick={() => { setCurrentSession(session); setViewMode('form'); }} className="min-h-[44px] min-w-[44px] p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg"><Edit2 size={18} /></button>
                                                     </div>
                                                 </div>
 
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
                                                     <div className="bg-slate-50 p-3 rounded-lg">
                                                         <span className="block text-xs font-bold text-slate-400 uppercase">Antropometria</span>
                                                         <span className="font-medium text-slate-700">Peso: {session.weight}kg | Alt: {session.height}m | IMC: {session.bmi}</span>
@@ -7302,7 +7304,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                             </div>
                         ) : (
                             <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 animate-slideUp">
-                                <div className="flex justify-between items-center mb-6">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                                     <h3 className="font-bold text-slate-800 text-xl">{currentSession.id ? 'Editar Consulta' : 'Nova Consulta'}</h3>
                                     <button onClick={() => setViewMode('list')} className="text-slate-400 hover:text-slate-800"><X size={24} /></button>
                                 </div>
@@ -7317,7 +7319,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                                 )}
 
                                 <form onSubmit={handleSaveSession} className="space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                         <label className="block">
                                             <span className="text-sm font-bold text-slate-700 block mb-2">Data</span>
                                             <input type="date" required className="w-full rounded-lg border-slate-300 p-3 border"
@@ -7335,7 +7337,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                                         </label>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <label className="block">
                                             <span className="text-sm font-bold text-slate-700 block mb-2">Plano Alimentar</span>
                                             <textarea rows={4} className="w-full rounded-lg border-slate-300 p-3 border"
@@ -7356,7 +7358,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
 
                                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
                                         <button type="button" onClick={() => setViewMode('list')} className="px-6 py-3 text-slate-600 font-bold hover:bg-slate-50 rounded-xl">Cancelar</button>
-                                        <button type="submit" className="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg shadow-green-200">Salvar Consulta</button>
+                                        <button type="submit" className="w-full sm:w-auto px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg shadow-green-200">Salvar Consulta</button>
                                     </div>
                                 </form>
                             </div>
@@ -7395,6 +7397,11 @@ export const NutritionSessionFormPage: React.FC<{ onCancel: () => void; currentU
 export const NutritionDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; allStudents?: Student[] }> = (props) => (
     <NutritionSpecificDashboard title="Nutrição" specialty={Specialty.NUTRITION} {...props} />
 );
+
+
+
+
+
 
 
 

@@ -127,7 +127,7 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
         <div className="space-y-8 animate-fadeIn">
 
             {/* Header & Controls */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div>
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                         <Calculator className="text-pink-600" /> Calculadora IPO - Portage
@@ -157,8 +157,8 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
 
             {/* Main Grid Input */}
             <div className="bg-white rounded-2xl shadow-card border border-slate-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
+                <div className="overflow-x-auto w-full">
+                    <table className="min-w-[500px] w-full text-sm text-left">
                         <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-xs">
                             <tr>
                                 <th className="px-6 py-4 sticky left-0 bg-slate-50 z-10">Faixa Etária</th>
@@ -227,8 +227,9 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
                     {/* Chart 1: Radar */}
-                    <div className="bg-slate-300 p-6 rounded-2xl shadow-md border border-slate-400 h-[500px]">
+                    <div className="bg-slate-300 p-4 sm:p-6 rounded-2xl shadow-md border border-slate-400">
                         <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Perfil de Desenvolvimento</h3>
+                        <div className="h-[250px] sm:h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                                 <PolarGrid />
@@ -238,6 +239,7 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
                                 <Tooltip />
                             </RadarChart>
                         </ResponsiveContainer>
+                        </div>
                     </div>
 
                     {/* Chart 2: Comparative Bar */}
@@ -257,7 +259,7 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
                     </div>
 
                     {/* Summary Card */}
-                    <div className="lg:col-span-2 bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-3xl text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div className="lg:col-span-2 bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-3xl text-white shadow-xl flex flex-col sm:flex-row justify-between items-center gap-8">
                         <div>
                             <h2 className="text-2xl font-bold mb-2">Índice Geral de Desenvolvimento</h2>
                             <p className="text-slate-400 max-w-lg text-sm">
@@ -287,3 +289,4 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
         </div>
     );
 };
+
