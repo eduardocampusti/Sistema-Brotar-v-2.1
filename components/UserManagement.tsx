@@ -680,6 +680,7 @@ export const UserManagement: React.FC = () => {
                     </tbody>
                 </table>
                 </div>
+            </div>
             {/* Modal Redefinir Senha */}
             {resetPasswordUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
