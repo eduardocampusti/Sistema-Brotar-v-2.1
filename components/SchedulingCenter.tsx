@@ -482,11 +482,18 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
 
     const renderAppointmentRow = (apt: Appointment, showDate = false, index = 0) => {
         const style = getStatusStyle(apt.status);
-        const isEven = index % 2 === 0;
+        const cardColors = [
+            'bg-white border-slate-200',
+            'bg-blue-50/50 border-blue-100',
+            'bg-emerald-50/50 border-emerald-100',
+            'bg-purple-50/50 border-purple-100',
+            'bg-amber-50/40 border-amber-100',
+        ];
+        const cardColor = cardColors[index % cardColors.length];
 
         return (
-            <div key={apt.id} className={`group border-b border-slate-100 px-4 py-3 transition-colors last:border-b-0 ${isEven ? 'bg-white hover:bg-blue-50/40' : 'bg-emerald-50/30 hover:bg-emerald-50/60'}`}>
-                <div className="flex items-start gap-3">
+            <div key={apt.id} className={`mx-3 my-2 rounded-xl border ${cardColor} shadow-sm transition-all hover:shadow-md`}>
+                <div className="flex items-start gap-3 px-4 pt-3 pb-1">
                     <span className="w-11 shrink-0 text-[11px] font-bold text-slate-600 pt-0.5">{apt.startTime}</span>
                     <span className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${style.dot}`} />
                     <div className="min-w-0 flex-1">
@@ -508,7 +515,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                         {getConfirmationBadge(apt) && (
                             <div className="mt-1">{getConfirmationBadge(apt)}</div>
                         )}
-                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3 pt-1">
                             {apt.status === 'AGENDADO' && (
                                 <button onClick={() => handleStatusUpdate(apt.id, 'CONFIRMADO')} title="Confirmar agendamento"
                                     className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">
