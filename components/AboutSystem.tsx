@@ -3,7 +3,7 @@ import { APP_VERSION } from '../src/config/version';
 import {
     Code, Server, Database, Shield, Smartphone, Mail, Globe,
     CheckCircle, Info, QrCode, Building, User, Cpu, Layers, HeartPulse, ExternalLink,
-    History, Sparkles, TrendingUp, ShieldCheck, Wrench
+    History, Sparkles, TrendingUp, ShieldCheck, Wrench, Rocket, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // --- Premium UI Components (Shadcn-like) ---
@@ -36,6 +36,8 @@ const Separator: React.FC<{ className?: string }> = ({ className }) => (
 
 export const AboutSystem: React.FC = () => {
     const currentYear = new Date().getFullYear();
+    const [isHistoryExpanded, setIsHistoryExpanded] = React.useState(false);
+    const hiddenVersionsCount = Math.max(APP_VERSION.changelog.length - 3, 0);
 
     return (
         <div className="max-w-5xl mx-auto space-y-12 animate-fadeIn pb-20 px-4">
@@ -298,22 +300,40 @@ export const AboutSystem: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                    {APP_VERSION.changelog.map((log, index) => (
+                    {APP_VERSION.changelog.map((log, index) => {
+                        const isCurrent = index === 0;
+                        const isHiddenHistory = index > 2 && !isHistoryExpanded;
+
+                        return (
                         <div key={log.version} 
-                             className={`relative pl-8 md:pl-12 group animate-slideUp`}
+                             className={`relative pl-8 md:pl-12 group animate-slideUp transition-all duration-500 ${isHiddenHistory ? 'hidden' : ''}`}
                              style={{ animationDelay: `${index * 150}ms` }}>
                             {/* Timeline Line */}
                             <div className="absolute left-0 top-0 w-px h-full bg-slate-200 group-last:h-12" />
                             {/* Timeline Point */}
-                            <div className={`absolute left-[-5px] top-2 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm transition-all duration-500 group-hover:scale-150 ${index === 0 ? 'bg-primary-600 w-4 h-4 left-[-8px]' : 'bg-slate-300'}`} />
+                            <div className={`absolute left-[-5px] top-2 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm transition-all duration-500 group-hover:scale-150 ${isCurrent ? 'bg-emerald-500 w-4 h-4 left-[-8px] shadow-emerald-500/30' : 'bg-slate-300'}`} />
 
-                            <div className={`bg-white rounded-[2rem] shadow-premium border border-slate-100 overflow-hidden transition-all duration-500 ${index === 0 ? 'ring-2 ring-primary-500 ring-offset-4 shadow-2xl scale-[1.01]' : 'hover:border-slate-300'}`}>
-                                <div className="bg-slate-50/50 p-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-6 px-6">
+                            <div className={`rounded-[2rem] overflow-hidden transition-all duration-500 ${
+                                isCurrent
+                                    ? 'bg-emerald-50 border-2 border-emerald-500 shadow-2xl shadow-emerald-900/10 ring-4 ring-emerald-100/80 scale-[1.01]'
+                                    : 'bg-white shadow-premium border border-slate-100 hover:border-slate-300'
+                            }`}>
+                                <div className={`${isCurrent ? 'bg-white/70 p-6 md:p-7 border-emerald-100' : 'bg-slate-50/50 p-4 px-5 border-slate-100'} border-b flex flex-wrap justify-between items-center gap-5`}>
                                     <div className="flex items-center gap-5">
-                                        <span className={`px-4 py-1.5 rounded-full text-xs font-black tracking-widest ${index === 0 ? 'bg-primary-600 text-white shadow-lg shadow-primary-900/20' : 'bg-slate-200 text-slate-600'}`}>
+                                        <span className={`px-4 py-1.5 rounded-full font-black tracking-widest flex items-center gap-2 ${
+                                            isCurrent
+                                                ? 'bg-emerald-500 text-white text-sm shadow-lg shadow-emerald-900/20'
+                                                : 'bg-slate-200 text-slate-600 text-xs'
+                                        }`}>
+                                            {isCurrent && <Rocket size={16} />}
                                             {log.version}
                                         </span>
-                                        <h3 className="font-black text-slate-900 text-lg tracking-tight">{log.title}</h3>
+                                        {isCurrent && (
+                                            <Badge variant="success" className="bg-emerald-500 text-white border-emerald-500 px-3 py-1.5">
+                                                ATUAL
+                                            </Badge>
+                                        )}
+                                        <h3 className={`font-black text-slate-900 tracking-tight ${isCurrent ? 'text-xl md:text-2xl' : 'text-sm md:text-base'}`}>{log.title}</h3>
                                     </div>
                                     <div className="flex items-center gap-6">
                                         <span className="text-xs text-slate-400 font-black uppercase tracking-widest flex items-center gap-2">
@@ -333,11 +353,11 @@ export const AboutSystem: React.FC = () => {
                                         </Badge>
                                     </div>
                                 </div>
-                                <div className="p-5 px-6">
+                                <div className={`${isCurrent ? 'p-6 md:p-7' : 'p-4 px-5'}`}>
                                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
                                         {log.changes.map((change, i) => (
-                                            <li key={i} className="flex items-start gap-4 text-slate-600 text-[14px] leading-relaxed group/item">
-                                                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-slate-300 group-hover/item:bg-primary-500 transition-colors flex-shrink-0" />
+                                            <li key={i} className={`flex items-start gap-4 text-slate-600 leading-relaxed group/item ${isCurrent ? 'text-[14px]' : 'text-sm'}`}>
+                                                <div className={`mt-2 w-1.5 h-1.5 rounded-full transition-colors flex-shrink-0 ${isCurrent ? 'bg-emerald-400 group-hover/item:bg-emerald-600' : 'bg-slate-300 group-hover/item:bg-primary-500'}`} />
                                                 <span className="group-hover/item:text-slate-900 transition-colors">{change}</span>
                                             </li>
                                         ))}
@@ -345,8 +365,30 @@ export const AboutSystem: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    ))}
+                    )})}
                 </div>
+
+                {hiddenVersionsCount > 0 && (
+                    <div className="flex justify-center pt-4">
+                        <button
+                            type="button"
+                            onClick={() => setIsHistoryExpanded((expanded) => !expanded)}
+                            className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-black uppercase tracking-widest text-slate-600 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-lg"
+                        >
+                            {isHistoryExpanded ? (
+                                <>
+                                    Ocultar histórico
+                                    <ChevronUp size={18} />
+                                </>
+                            ) : (
+                                <>
+                                    Ver histórico completo ({APP_VERSION.changelog.length} versões)
+                                    <ChevronDown size={18} />
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
             </section>
 
             {/* FOOTER */}
