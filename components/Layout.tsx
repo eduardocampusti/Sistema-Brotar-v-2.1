@@ -226,11 +226,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         { id: 'about', label: 'Sobre o Sistema', icon: <Info size={20} /> }
       );
     } else if (currentUser.role === 'SPECIALIST') {
-      items.push(
-        { id: 'relatorio-tea', label: 'Painel ANEE', sub: 'Dados gerais da rede', icon: <Puzzle size={20} /> },
-        { id: 'documents', label: 'Documentos', sub: 'Relatórios e laudos', icon: <FileText size={20} /> },
-        { id: 'about', label: 'Sobre o Sistema', sub: 'Versão e novidades', icon: <Info size={20} /> }
-      );
+      // itens do SPECIALIST ficam só no getStandardExtraItems — evitar duplicação
     }
 
     return items;
@@ -439,9 +435,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                       ? <MenuCardButton key={item.id} item={item} />
                       : <MenuButton key={item.id} item={item} />
                   )}
-                  <div className="my-4 border-t border-white/10 mx-2"></div>
-                  <SectionHeader title="Sistema" />
-                  {getStandardExtraItems().map(item => <MenuCardButton key={item.id} item={item} />)}
+                  {currentUser.role === 'SPECIALIST' && getStandardExtraItems().length > 0 && (
+                    <>
+                      <div className="my-4 border-t border-white/10 mx-2"></div>
+                      <SectionHeader title="Sistema" />
+                      {getStandardExtraItems().map(item => <MenuCardButton key={item.id} item={item} />)}
+                    </>
+                  )}
                 </>
               )}
             </>
@@ -578,6 +578,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                   <div className="my-6 border-t border-white/10 mx-2"></div>
                   <SectionHeader title="Módulos Clínicos" icon={Sparkles} />
                   {standardSpecialtyItems.map(item => <MenuButtonMobile key={item.id} item={item} />)}
+                  {currentUser.role === 'SPECIALIST' && getStandardExtraItems().length > 0 && (
+                    <>
+                      <div className="my-4 border-t border-white/10 mx-2"></div>
+                      <SectionHeader title="Sistema" />
+                      {getStandardExtraItems().map(item => <MenuCardButton key={item.id} item={item} />)}
+                    </>
+                  )}
                 </>
               )}
             </>
