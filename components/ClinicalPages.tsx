@@ -1641,6 +1641,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
     const [upcomingAgenda, setUpcomingAgenda] = useState<{ session: PPSession, studentName: string, studentId: string }[]>([]);
     const [stats, setStats] = useState({ totalPatients: 0, totalSessions: 0, activeCases: 0, diagnosisData: [] as any[] });
     const [searchTerm, setSearchTerm] = useState('');
+    const [schoolFilter, setSchoolFilter] = useState('');
 
     // Rich Dashboard States
     const [todayCount, setTodayCount] = useState(0);
@@ -1767,13 +1768,21 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         setIsEditingSession(false);
     });
 
+    const schoolOptions = useMemo(() => {
+        const names = new Set(students.map(s => s.school?.schoolName).filter(Boolean));
+        return Array.from(names).sort() as string[];
+    }, [students]);
+
     const filteredStudents = useMemo(() => {
-        if (!searchTerm) return [];
-        return students.filter(s =>
+        const bySchool = schoolFilter
+            ? students.filter(s => s.school?.schoolName === schoolFilter)
+            : students;
+        if (!searchTerm) return schoolFilter ? bySchool.slice(0, 20) : [];
+        return bySchool.filter(s =>
             s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (s.cpf && s.cpf.includes(searchTerm))
-        ).slice(0, 6);
-    }, [students, searchTerm]);
+        ).slice(0, 10);
+    }, [students, searchTerm, schoolFilter]);
 
     // Sync com preSelectedStudent se mudar
     useEffect(() => {
@@ -2348,7 +2357,34 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                                     <Search size={14} className="text-[#9F5FC0]" /> Central de Atendimento
                                 </h3>
-                                
+
+                                {/* FILTRO POR ESCOLA */}
+                                <div className="mb-3">
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <SchoolIcon size={13} className="text-slate-400" />
+                                        <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Filtrar por escola</span>
+                                        {schoolFilter && (
+                                            <button onClick={() => setSchoolFilter('')}
+                                                className="ml-auto text-[10px] text-[#9F5FC0] hover:underline flex items-center gap-0.5">
+                                                <X size={10} /> Limpar
+                                            </button>
+                                        )}
+                                    </div>
+                                    <select
+                                        value={schoolFilter}
+                                        onChange={e => { setSchoolFilter(e.target.value); setSearchTerm(''); }}
+                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:border-[#9F5FC0] focus:ring-2 focus:ring-[#9F5FC0]/10 outline-none">
+                                        <option value="">Todas as escolas</option>
+                                        {schoolOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Aviso restrito */}
+                                <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-[#EEEDFE]/50 rounded-lg border border-[#D9ABFF]/40">
+                                    <Lock size={11} className="text-[#534AB7] shrink-0" />
+                                    <span className="text-[10px] text-[#534AB7]">Busca restrita aos alunos vinculados pela secretaria</span>
+                                </div>
+
                                 <div className="relative group">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#9F5FC0] transition-colors" size={20} />
                                     <input
@@ -2364,6 +2400,26 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                         </button>
                                     )}
                                 </div>
+
+                                {/* Resultados do filtro por escola sem texto de busca */}
+                                {schoolFilter && !searchTerm && filteredStudents.length > 0 && (
+                                    <div className="mt-3 space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
+                                        <p className="text-[11px] text-slate-400 mb-2">{filteredStudents.length} aluno(s) em {schoolFilter}</p>
+                                        {filteredStudents.map(student => (
+                                            <button key={student.id} onClick={() => handleStudentSelect(student.id)}
+                                                className="w-full flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl border border-transparent hover:border-[#D9ABFF] hover:bg-white transition-all text-left group">
+                                                <div className="w-8 h-8 rounded-full bg-[#EEEDFE] flex items-center justify-center text-[#3C3489] font-bold text-xs overflow-hidden shrink-0">
+                                                    {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover" alt="" /> : student.fullName.substring(0, 2).toUpperCase()}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-bold text-slate-800 text-xs truncate group-hover:text-[#9F5FC0]">{student.fullName}</p>
+                                                    <p className="text-[10px] text-slate-400 truncate">{student.school?.schoolName}</p>
+                                                </div>
+                                                <ChevronRight size={14} className="text-slate-300 group-hover:text-[#7F77DD] shrink-0" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
 
                                 {/* Resultados da Busca */}
                                 {searchTerm && (
