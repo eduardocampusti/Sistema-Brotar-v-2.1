@@ -1642,6 +1642,11 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
     const [stats, setStats] = useState({ totalPatients: 0, totalSessions: 0, activeCases: 0, diagnosisData: [] as any[] });
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Rich Dashboard States
+    const [todayCount, setTodayCount] = useState(0);
+    const [absencesCount, setAbsencesCount] = useState(0);
+    const [pendingLaudosCount, setPendingLaudosCount] = useState(0);
+
     // Notification and Modal States
     // Notification state removed in favor of global ToastContext
 
@@ -1672,6 +1677,41 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
+        // Contagem de laudos pendentes localmente
+        const pendingLaudosVal = allStudents.filter(s =>
+            s.status === 'Active' &&
+            s.clinical?.laudo !== true &&
+            !s.documents?.some(doc => doc.type === 'Laudo Médico')
+        ).length;
+        setPendingLaudosCount(pendingLaudosVal);
+
+        // Chamadas ao SupabaseService com tratamento de erro
+        try {
+            // Contagem de hoje
+            const todayAppointments = await SupabaseService.getAppointments({
+                professionalId: currentUser.id,
+                date: today
+            });
+            const todayCountVal = todayAppointments.filter(
+                app => app.status === 'AGENDADO' || app.status === 'CONFIRMADO' || app.status === 'EM_ATENDIMENTO'
+            ).length;
+            setTodayCount(todayCountVal);
+
+            // Contagem de faltas do mês
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+            const monthAppointments = await SupabaseService.getAppointments({
+                professionalId: currentUser.id,
+                fromDate: startOfMonth,
+                toDate: endOfMonth
+            });
+            const absencesCountVal = monthAppointments.filter(app => app.status === 'FALTOU').length;
+            setAbsencesCount(absencesCountVal);
+        } catch (err) {
+            console.error("Erro ao carregar agendamentos do Supabase:", err);
+            setTodayCount(0);
+            setAbsencesCount(0);
+        }
 
         const diagnosisMap = new Map<string, number>();
 
@@ -2116,150 +2156,283 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
             {!selectedStudent ? (
                 <div className="space-y-8 animate-slideUp">
-                    {/* Dashboard Grid REMOVIDO PARA EVITAR DUPLICIDADE COM VISÃO GERAL */}
-                    {/* A lógica de dashboard rico foi migrada para RoleDashboards.tsx */}
-
-
-                    <div className="">
-                        {/* Buscador Premium */}
-                        <div className="bg-white p-8 md:p-12 rounded-3xl shadow-xl border border-slate-100">
-                            <div className="max-w-2xl mx-auto text-center">
-                                <div className="w-20 h-20 bg-pink-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-pink-500 shadow-inner">
-                                    <Search size={40} />
-                                </div>
-                                <h3 className="text-2xl font-extrabold text-slate-800 mb-2">Central de Atendimento</h3>
-                                <p className="text-slate-500 mb-8">Pesquise o aluno pelo nome ou CPF para acessar o prontuário psicopedagógico.</p>
-
-                                <div className="relative group">
-                                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-pink-500 transition-colors" size={24} />
-                                    <input
-                                        type="text"
-                                        placeholder="Comece a digitar o nome do aluno..."
-                                        className="w-full p-5 pl-14 rounded-2xl border-2 border-slate-100 focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 outline-none transition-all text-lg shadow-sm font-medium"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                    {searchTerm && (
-                                        <button onClick={() => setSearchTerm('')} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
-                                            <X size={20} />
-                                        </button>
-                                    )}
-                                </div>
+                    {/* Grid de Cards de Resumo */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Card 1: Meus Alunos */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-[#9F5FC0] shrink-0">
+                                <Users size={24} />
                             </div>
-
-                            {/* Resultados da Busca */}
-                            {searchTerm && (
-                                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-slideUp">
-                                    {filteredStudents.length > 0 ? (
-                                        filteredStudents.map(student => (
-                                            <button
-                                                key={student.id}
-                                                onClick={() => handleStudentSelect(student.id)}
-                                                className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-pink-200 hover:bg-white hover:shadow-lg transition-all text-left group"
-                                            >
-                                                <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold overflow-hidden shadow-sm">
-                                                    {student.photoUrl ? (
-                                                        <img src={student.photoUrl} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        student.fullName.substring(0, 2).toUpperCase()
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 overflow-hidden">
-                                                    <p className="font-bold text-slate-800 truncate group-hover:text-pink-600">{student.fullName}</p>
-                                                    <p className="text-xs text-slate-500 truncate">{calculateAge(student.birthDate)} anos • {student.school.schoolName || 'Escola não informada'}</p>
-                                                </div>
-                                                <ChevronRight size={18} className="text-slate-300 group-hover:text-pink-400 transform group-hover:translate-x-1 transition-all" />
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <div className="col-span-full py-8 text-center text-slate-400 font-medium">
-                                            Nenhum aluno encontrado com "{searchTerm}"
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                            <div>
+                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meus Alunos</p>
+                                <p className="text-2xl font-extrabold text-slate-800">{students.filter(s => s.status === 'Active').length}</p>
+                            </div>
                         </div>
 
-                        {/* Agenda do Dia */}
-                        {!searchTerm && (
-                            <div className="animate-slideUp">
-                                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center justify-between">
-                                    <span className="flex items-center gap-2"><Calendar size={16} className="text-pink-500" /> Hoje na Agenda</span>
-                                    {upcomingAgenda.length > 0 && <span className="text-[10px] bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full">{upcomingAgenda.length} agendamentos</span>}
-                                </h4>
-
-                                {upcomingAgenda.length > 0 ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {upcomingAgenda.map((item, idx) => {
-                                            const student = students.find(s => s.id === item.studentId);
-                                            if (!student) return null;
-                                            const isNext = idx === 0;
-                                            return (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => handleStudentSelect(student.id)}
-                                                    className={`relative overflow-hidden p-5 rounded-3xl border transition-all text-left flex items-center gap-4 ${isNext
-                                                        ? 'bg-gradient-to-br from-white to-pink-50 border-pink-200 shadow-lg shadow-pink-500/5 ring-2 ring-pink-500/10'
-                                                        : 'bg-white border-slate-100 shadow-sm hover:shadow-md'
-                                                        }`}
-                                                >
-                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold shadow-md shrink-0 ${isNext ? 'bg-pink-600 text-white' : 'bg-slate-100 text-slate-500'
-                                                        }`}>
-                                                        {item.session.startTime || <Clock size={20} />}
-                                                    </div>
-                                                    <div className="flex-1 overflow-hidden">
-                                                        <div className="flex items-center gap-2 mb-0.5">
-                                                            {isNext && <span className="text-[9px] font-black uppercase tracking-tighter text-pink-600 py-0.5 px-1.5 bg-pink-200/50 rounded leading-none">Próximo</span>}
-                                                            <p className="font-bold text-slate-800 truncate">{student.fullName}</p>
-                                                        </div>
-                                                        <p className="text-xs text-slate-500 truncate">{student.school.schoolName || 'Escola não vinculada'}</p>
-                                                    </div>
-                                                    <ChevronRight size={18} className={isNext ? "text-pink-400" : "text-slate-300"} />
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="bg-slate-50/50 border-2 border-dashed border-slate-100 rounded-3xl p-8 text-center">
-                                        <p className="text-slate-400 text-sm font-medium">Nenhum atendimento agendado para hoje.</p>
-                                        <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tight">Os agendamentos com status "Agendado" aparecerão aqui automaticamente.</p>
-                                    </div>
-                                )}
+                        {/* Card 2: Hoje na Agenda */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-[#7F77DD] shrink-0">
+                                <Calendar size={24} />
                             </div>
-                        )}
+                            <div>
+                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Hoje</p>
+                                <p className="text-2xl font-extrabold text-slate-800">{todayCount}</p>
+                            </div>
+                        </div>
 
-                        {/* Pacientes Recentes */}
-                        {!searchTerm && recentActivity.length > 0 && (
-                            <div className="animate-slideUp delay-100">
-                                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <History size={16} /> Atendimentos Recentes
-                                </h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {recentActivity.slice(0, 4).map((activity, idx) => {
-                                        const student = students.find(s => s.id === activity.studentId);
+                        {/* Card 3: Laudos Pendentes */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 shrink-0">
+                                <FileText size={24} />
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Laudos Pendentes</p>
+                                <p className="text-2xl font-extrabold text-slate-800">{pendingLaudosCount}</p>
+                            </div>
+                        </div>
+
+                        {/* Card 4: Faltas este Mês */}
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 shrink-0">
+                                <AlertTriangle size={24} />
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Faltas no Mês</p>
+                                <p className="text-2xl font-extrabold text-slate-800">{absencesCount}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Grid de Ações Rápidas */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Ações Rápidas</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <button
+                                onClick={() => onNavigateNew && onNavigateNew()}
+                                className="flex flex-col items-center justify-center p-5 bg-[#EEEDFE]/40 hover:bg-[#EEEDFE] border border-[#EEEDFE] rounded-2xl transition-all duration-300 group text-center shrink-0"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-[#EEEDFE] text-[#3C3489] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <Plus size={20} />
+                                </div>
+                                <span className="text-sm font-bold text-[#3C3489]">Novo Aluno</span>
+                                <span className="text-[10px] text-slate-400 mt-1">Cadastrar paciente</span>
+                            </button>
+
+                            <button
+                                onClick={() => window.location.href = '/app/list'}
+                                className="flex flex-col items-center justify-center p-5 bg-pink-50/40 hover:bg-pink-50 border border-pink-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <Calendar size={20} />
+                                </div>
+                                <span className="text-sm font-bold text-pink-700">Agendar Atendimento</span>
+                                <span className="text-[10px] text-slate-400 mt-1">Marcar consulta</span>
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    const element = document.getElementById('search-central');
+                                    if (element) {
+                                        element.scrollIntoView({ behavior: 'smooth' });
+                                        const input = element.querySelector('input');
+                                        if (input) input.focus();
+                                    }
+                                }}
+                                className="flex flex-col items-center justify-center p-5 bg-amber-50/40 hover:bg-amber-50 border border-amber-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <FileText size={20} />
+                                </div>
+                                <span className="text-sm font-bold text-amber-700">Ficha de Anamnese</span>
+                                <span className="text-[10px] text-slate-400 mt-1">Buscar e abrir prontuário</span>
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    const element = document.getElementById('search-central');
+                                    if (element) {
+                                        element.scrollIntoView({ behavior: 'smooth' });
+                                        const input = element.querySelector('input');
+                                        if (input) input.focus();
+                                    }
+                                }}
+                                className="flex flex-col items-center justify-center p-5 bg-teal-50/40 hover:bg-teal-50 border border-teal-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <BarChart2 size={20} />
+                                </div>
+                                <span className="text-sm font-bold text-teal-700">Escala Portage (IPO)</span>
+                                <span className="text-[10px] text-slate-400 mt-1">Buscar e abrir prontuário</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Layout de Duas Colunas Paralelas */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Coluna da Esquerda: Agenda do Dia */}
+                        <div className="lg:col-span-7 space-y-6">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between mb-2">
+                                <span className="flex items-center gap-2">
+                                    <Calendar size={16} className="text-[#9F5FC0]" /> Hoje na Agenda
+                                </span>
+                                {upcomingAgenda.length > 0 && (
+                                    <span className="text-[10px] bg-[#EEEDFE] text-[#3C3489] px-2.5 py-1 rounded-full font-bold">
+                                        {upcomingAgenda.length} agendamentos
+                                    </span>
+                                )}
+                            </h4>
+
+                            {upcomingAgenda.length > 0 ? (
+                                <div className="space-y-4">
+                                    {upcomingAgenda.map((item, idx) => {
+                                        const student = students.find(s => s.id === item.studentId);
                                         if (!student) return null;
+                                        const isNext = idx === 0;
                                         return (
                                             <button
                                                 key={idx}
                                                 onClick={() => handleStudentSelect(student.id)}
-                                                className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left"
+                                                className={`w-full relative overflow-hidden p-5 rounded-2xl border transition-all duration-300 text-left flex items-center gap-4 hover:-translate-y-0.5 hover:shadow-md ${
+                                                    isNext
+                                                        ? 'bg-gradient-to-br from-white to-[#EEEDFE]/20 border-[#7F77DD]/30 shadow-sm shadow-[#7F77DD]/5 ring-2 ring-[#7F77DD]/10'
+                                                        : 'bg-white border-slate-100 shadow-sm'
+                                                }`}
                                             >
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-white font-bold shadow-lg">
-                                                        {student.fullName.substring(0, 2).toUpperCase()}
-                                                    </div>
-                                                    <span className="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-500 rounded-full">
-                                                        {new Date(activity.session.date).toLocaleDateString()}
-                                                    </span>
+                                                <div
+                                                    className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center font-bold shadow-sm shrink-0 ${
+                                                        isNext ? 'bg-[#9F5FC0] text-white' : 'bg-slate-100 text-slate-500'
+                                                    }`}
+                                                >
+                                                    <Clock size={16} className="mb-0.5" />
+                                                    <span className="text-xs">{item.session.startTime || '--:--'}</span>
                                                 </div>
-                                                <p className="font-bold text-slate-800 line-clamp-1">{student.fullName}</p>
-                                                <p className="text-xs text-slate-500 mt-1 italic line-clamp-2">"{activity.session.objetivo}"</p>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        {isNext && (
+                                                            <span className="text-[9px] font-black uppercase tracking-tighter text-[#3C3489] py-0.5 px-1.5 bg-[#EEEDFE] rounded leading-none">
+                                                                Próximo
+                                                            </span>
+                                                        )}
+                                                        <p className="font-extrabold text-slate-800 truncate">{student.fullName}</p>
+                                                    </div>
+                                                    <p className="text-xs text-slate-400 truncate">{student.school.schoolName || 'Escola não vinculada'}</p>
+                                                </div>
+                                                <ChevronRight size={18} className={isNext ? 'text-[#7F77DD]' : 'text-slate-300'} />
                                             </button>
                                         );
                                     })}
                                 </div>
+                            ) : (
+                                <div className="bg-white border border-slate-100 rounded-3xl p-10 text-center shadow-sm flex flex-col items-center justify-center min-h-[300px] animate-fadeIn">
+                                    <div className="w-16 h-16 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center mb-4">
+                                        <Calendar size={28} />
+                                    </div>
+                                    <h5 className="text-base font-bold text-slate-700">Agenda livre para hoje</h5>
+                                    <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                                        Nenhum atendimento agendado para o dia de hoje. Deseja realizar um novo agendamento na agenda geral?
+                                    </p>
+                                    <button
+                                        onClick={() => window.location.href = '/app/list'}
+                                        className="mt-6 px-6 py-3 bg-[#9F5FC0] hover:bg-[#8e52ad] text-white rounded-xl font-bold text-sm shadow-md shadow-[#9F5FC0]/20 hover:-translate-y-0.5 transition-all duration-300"
+                                    >
+                                        Agendar Atendimento
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Coluna da Direita: Central de Busca e Recentes */}
+                        <div className="lg:col-span-5 space-y-8">
+                            {/* Central de Atendimento */}
+                            <div id="search-central" className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 scroll-mt-6">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    <Search size={14} className="text-[#9F5FC0]" /> Central de Atendimento
+                                </h3>
+                                
+                                <div className="relative group">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#9F5FC0] transition-colors" size={20} />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar aluno por nome ou CPF..."
+                                        className="w-full p-4 pl-12 pr-10 rounded-2xl border border-slate-200 focus:border-[#9F5FC0] focus:ring-4 focus:ring-[#9F5FC0]/5 outline-none transition-all text-sm font-semibold text-slate-700"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                    {searchTerm && (
+                                        <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
+                                            <X size={18} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Resultados da Busca */}
+                                {searchTerm && (
+                                    <div className="mt-4 space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                                        {filteredStudents.length > 0 ? (
+                                            filteredStudents.map(student => (
+                                                <button
+                                                    key={student.id}
+                                                    onClick={() => handleStudentSelect(student.id)}
+                                                    className="w-full flex items-center gap-3 p-3 bg-slate-50 hover:bg-[#EEEDFE]/30 rounded-xl border border-transparent hover:border-[#7F77DD]/20 transition-all text-left group"
+                                                >
+                                                    <div className="w-10 h-10 rounded-full bg-[#EEEDFE] text-[#3C3489] flex items-center justify-center font-bold text-sm overflow-hidden shrink-0 shadow-sm">
+                                                        {student.photoUrl ? (
+                                                            <img src={student.photoUrl} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            student.fullName.substring(0, 2).toUpperCase()
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-bold text-xs text-slate-700 truncate group-hover:text-[#3C3489]">{student.fullName}</p>
+                                                        <p className="text-[10px] text-slate-400 truncate">{calculateAge(student.birthDate)} anos • {student.school.schoolName || 'Sem Escola'}</p>
+                                                    </div>
+                                                    <ChevronRight size={14} className="text-slate-300 group-hover:text-[#7F77DD] transform group-hover:translate-x-0.5 transition-all" />
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="py-4 text-center text-xs text-slate-400 font-medium">
+                                                Nenhum aluno encontrado para "{searchTerm}"
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                        )}
+
+                            {/* Pacientes Recentes */}
+                            {!searchTerm && recentActivity.length > 0 && (
+                                <div className="space-y-4">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <History size={14} className="text-[#9F5FC0]" /> Atendimentos Recentes
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {recentActivity.slice(0, 3).map((activity, idx) => {
+                                            const student = students.find(s => s.id === activity.studentId);
+                                            if (!student) return null;
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handleStudentSelect(student.id)}
+                                                    className="w-full bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 text-left flex items-start justify-between gap-3"
+                                                >
+                                                    <div className="flex gap-3 min-w-0">
+                                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#9F5FC0] to-[#7F77DD] flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
+                                                            {student.fullName.substring(0, 2).toUpperCase()}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="font-bold text-xs text-slate-700 truncate">{student.fullName}</p>
+                                                            <p className="text-[10px] text-slate-400 mt-0.5 italic line-clamp-1">"{activity.session.objetivo}"</p>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full shrink-0">
+                                                        {new Date(activity.session.date).toLocaleDateString()}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             ) : (
