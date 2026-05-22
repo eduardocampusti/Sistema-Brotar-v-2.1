@@ -1647,6 +1647,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
     const [todayCount, setTodayCount] = useState(0);
     const [absencesCount, setAbsencesCount] = useState(0);
     const [pendingLaudosCount, setPendingLaudosCount] = useState(0);
+    const [myStudentsCount, setMyStudentsCount] = useState(0);
 
     // Notification and Modal States
     // Notification state removed in favor of global ToastContext
@@ -1678,35 +1679,40 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-        // Contagem de laudos pendentes localmente
-        const pendingLaudosVal = allStudents.filter(s =>
-            s.status === 'Active' &&
-            s.clinical?.laudo !== true &&
-            !s.documents?.some(doc => doc.type === 'Laudo Médico')
-        ).length;
-        setPendingLaudosCount(pendingLaudosVal);
-
         // Chamadas ao SupabaseService com tratamento de erro
         try {
-            // Contagem de hoje
-            const todayAppointments = await SupabaseService.getAppointments({
-                professionalId: currentUser.id,
-                date: today
+            // Agendamentos da profissional para calcular alunos vinculados e laudos
+            const myAllAppointments = await SupabaseService.getAppointments({
+                professionalId: currentUser.id
             });
-            const todayCountVal = todayAppointments.filter(
-                app => app.status === 'AGENDADO' || app.status === 'CONFIRMADO' || app.status === 'EM_ATENDIMENTO'
+
+            // Alunos únicos que a profissional atende
+            const myStudentIds = new Set(myAllAppointments.map((a: any) => a.studentId).filter(Boolean));
+            const myStudents = allStudents.filter(s => myStudentIds.has(s.id));
+            setMyStudentsCount(myStudents.filter(s => s.status === 'Active').length);
+
+            // Laudos pendentes — apenas dos alunos da profissional
+            const pendingLaudosVal = myStudents.filter(s =>
+                s.status === 'Active' &&
+                s.clinical?.laudo !== true &&
+                !s.documents?.some(doc => doc.type === 'Laudo Médico')
             ).length;
-            setTodayCount(todayCountVal);
+            setPendingLaudosCount(pendingLaudosVal);
+
+            // Contagem de hoje
+            const todayAppointments = myAllAppointments.filter((app: any) =>
+                app.date === today && ['AGENDADO','CONFIRMADO','EM_ATENDIMENTO'].includes(app.status)
+            );
+            setTodayCount(todayAppointments.length);
 
             // Contagem de faltas do mês
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
             const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-            const monthAppointments = await SupabaseService.getAppointments({
-                professionalId: currentUser.id,
-                fromDate: startOfMonth,
-                toDate: endOfMonth
-            });
-            const absencesCountVal = monthAppointments.filter(app => app.status === 'FALTOU').length;
+            const absencesCountVal = myAllAppointments.filter((app: any) =>
+                app.status === 'FALTOU' &&
+                app.date >= startOfMonth &&
+                app.date <= endOfMonth
+            ).length;
             setAbsencesCount(absencesCountVal);
         } catch (err) {
             console.error("Erro ao carregar agendamentos do Supabase:", err);
@@ -2174,7 +2180,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                             </div>
                             <div>
                                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meus Alunos</p>
-                                <p className="text-2xl font-extrabold text-slate-800">{students.filter(s => s.status === 'Active').length}</p>
+                                <p className="text-2xl font-extrabold text-slate-800">{myStudentsCount}</p>
                             </div>
                         </div>
 
