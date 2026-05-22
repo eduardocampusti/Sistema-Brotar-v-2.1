@@ -2217,61 +2217,53 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Ações Rápidas</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <button
-                                onClick={() => onNavigateNew && onNavigateNew()}
+                                onClick={() => {
+                                    const element = document.getElementById('search-central');
+                                    if (element) { element.scrollIntoView({ behavior: 'smooth' }); const input = element.querySelector('input'); if (input) input.focus(); }
+                                }}
                                 className="flex flex-col items-center justify-center p-5 bg-[#EEEDFE]/40 hover:bg-[#EEEDFE] border border-[#EEEDFE] rounded-2xl transition-all duration-300 group text-center shrink-0"
                             >
                                 <div className="w-10 h-10 rounded-xl bg-[#EEEDFE] text-[#3C3489] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                    <Plus size={20} />
-                                </div>
-                                <span className="text-sm font-bold text-[#3C3489]">Novo Aluno</span>
-                                <span className="text-[10px] text-slate-400 mt-1">Cadastrar paciente</span>
-                            </button>
-
-                            <button
-                                onClick={() => window.location.href = '/app/list'}
-                                className="flex flex-col items-center justify-center p-5 bg-pink-50/40 hover:bg-pink-50 border border-pink-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
-                            >
-                                <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                    <Calendar size={20} />
-                                </div>
-                                <span className="text-sm font-bold text-pink-700">Agendar Atendimento</span>
-                                <span className="text-[10px] text-slate-400 mt-1">Marcar consulta</span>
-                            </button>
-
-                            <button
-                                onClick={() => {
-                                    const element = document.getElementById('search-central');
-                                    if (element) {
-                                        element.scrollIntoView({ behavior: 'smooth' });
-                                        const input = element.querySelector('input');
-                                        if (input) input.focus();
-                                    }
-                                }}
-                                className="flex flex-col items-center justify-center p-5 bg-amber-50/40 hover:bg-amber-50 border border-amber-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
-                            >
-                                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                                     <FileText size={20} />
                                 </div>
-                                <span className="text-sm font-bold text-amber-700">Ficha de Anamnese</span>
+                                <span className="text-sm font-bold text-[#3C3489]">Ficha de Anamnese</span>
                                 <span className="text-[10px] text-slate-400 mt-1">Buscar e abrir prontuário</span>
                             </button>
 
                             <button
                                 onClick={() => {
                                     const element = document.getElementById('search-central');
-                                    if (element) {
-                                        element.scrollIntoView({ behavior: 'smooth' });
-                                        const input = element.querySelector('input');
-                                        if (input) input.focus();
-                                    }
+                                    if (element) { element.scrollIntoView({ behavior: 'smooth' }); const input = element.querySelector('input'); if (input) input.focus(); }
                                 }}
                                 className="flex flex-col items-center justify-center p-5 bg-teal-50/40 hover:bg-teal-50 border border-teal-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
                             >
                                 <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                    <BarChart2 size={20} />
+                                    <Activity size={20} />
                                 </div>
                                 <span className="text-sm font-bold text-teal-700">Escala Portage (IPO)</span>
                                 <span className="text-[10px] text-slate-400 mt-1">Buscar e abrir prontuário</span>
+                            </button>
+
+                            <button
+                                onClick={() => window.location.href = '/app/scheduling'}
+                                className="flex flex-col items-center justify-center p-5 bg-emerald-50/40 hover:bg-emerald-50 border border-emerald-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <Calendar size={20} />
+                                </div>
+                                <span className="text-sm font-bold text-emerald-700">Minha Agenda</span>
+                                <span className="text-[10px] text-slate-400 mt-1">Ver atendimentos</span>
+                            </button>
+
+                            <button
+                                onClick={() => window.location.href = '/app/documents'}
+                                className="flex flex-col items-center justify-center p-5 bg-amber-50/40 hover:bg-amber-50 border border-amber-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <Printer size={20} />
+                                </div>
+                                <span className="text-sm font-bold text-amber-700">Gerar Relatório</span>
+                                <span className="text-[10px] text-slate-400 mt-1">Laudos e documentos</span>
                             </button>
                         </div>
                     </div>
