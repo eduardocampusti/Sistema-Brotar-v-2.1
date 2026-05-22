@@ -113,7 +113,8 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
   const isRestricted = (currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'SECRETARIA_SEDE') && currentUser?.scope === 'COCAL';
-  const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'ESCOLA';
+  const canDelete = currentUser?.role === 'ADMIN' || currentUser?.role === 'SECRETARIA_SEDE';
+const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'ESCOLA';
   const canViewClinical = currentUser?.role === 'ADMIN' || currentUser?.role === 'SPECIALIST' || currentUser?.role === 'ESCOLA';
 
   // Permissões Específicas
@@ -695,7 +696,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
                                     <Edit size={14} /> Editar Cadastro
                                   </button>
 
-                                  {currentUser?.role === 'ADMIN' && (
+                                  {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SECRETARIA_SEDE') && (
                                     <>
                                       <div className="h-px bg-slate-100 my-1" />
                                       <button

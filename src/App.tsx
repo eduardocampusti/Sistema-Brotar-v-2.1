@@ -418,7 +418,7 @@ function AppContent() {
           <Route path="social-service/new-session" element={<React.Suspense fallback={<PageLoading />}><SocialServiceSessionFormPage onCancel={() => handleNavigate('social-service-list')} currentUser={user!} /></React.Suspense>} />
 
           {/* Outras Especialidades */}
-          <Route path="psychopedagogy" element={<React.Suspense fallback={<PageLoading />}><PsychopedagogyDashboardPage onNavigateNew={() => handleNavigate('psychopedagogy/new-session')} currentUser={user!} /></React.Suspense>} />
+          <Route path="psychopedagogy" element={<React.Suspense fallback={<PageLoading />}><PsychopedagogyDashboardPage onNavigateNew={() => handleNavigate('psychopedagogy/new-session')} onNavigate={handleNavigate} currentUser={user!} /></React.Suspense>} />
           <Route path="psychopedagogy/new-session" element={<React.Suspense fallback={<PageLoading />}><PsychopedagogySessionFormPage onCancel={() => handleNavigate('psychopedagogy')} currentUser={user!} /></React.Suspense>} />
 
           <Route path="occupational-therapy" element={<React.Suspense fallback={<PageLoading />}><OccupationalTherapyDashboardPage onNavigateNew={() => handleNavigate('occupational-therapy/new-session')} currentUser={user!} /></React.Suspense>} />

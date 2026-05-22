@@ -1626,7 +1626,7 @@ interface BaseDashboardProps {
 }
 
 // --- DASHBOARD ESPECÍFICO DE PSICOPEDAGOGIA (NOVO MODO COFRE) ---
-const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenSession?: boolean }> = ({ title, onNavigateNew, currentUser, preSelectedStudent, autoOpenSession }) => {
+const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenSession?: boolean }> = ({ title, onNavigateNew, onNavigate, currentUser, preSelectedStudent, autoOpenSession }) => {
     const [students, setStudents] = useState<Student[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(preSelectedStudent || null);
     const [activeTab, setActiveTab] = useState<'diagnostic' | 'anamnesis' | 'sessions' | 'ipo' | 'reports'>('diagnostic');
@@ -2251,7 +2251,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                             </button>
 
                             <button
-                                onClick={() => window.location.href = '/app/scheduling'}
+                                onClick={() => onNavigate ? onNavigate('scheduling') : (window.location.href = '/app/scheduling')}
                                 className="flex flex-col items-center justify-center p-5 bg-emerald-50/40 hover:bg-emerald-50 border border-emerald-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
                             >
                                 <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -2262,7 +2262,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                             </button>
 
                             <button
-                                onClick={() => window.location.href = '/app/documents'}
+                                onClick={() => onNavigate ? onNavigate('documents') : (window.location.href = '/app/documents')}
                                 className="flex flex-col items-center justify-center p-5 bg-amber-50/40 hover:bg-amber-50 border border-amber-100 rounded-2xl transition-all duration-300 group text-center shrink-0"
                             >
                                 <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -2339,7 +2339,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                         Nenhum atendimento agendado para o dia de hoje. Deseja realizar um novo agendamento na agenda geral?
                                     </p>
                                     <button
-                                        onClick={() => window.location.href = '/app/list'}
+                                        onClick={() => onNavigate ? onNavigate('list') : (window.location.href = '/app/list')}
                                         className="mt-6 px-6 py-3 bg-[#9F5FC0] hover:bg-[#8e52ad] text-white rounded-xl font-bold text-sm shadow-md shadow-[#9F5FC0]/20 hover:-translate-y-0.5 transition-all duration-300"
                                     >
                                         Agendar Atendimento

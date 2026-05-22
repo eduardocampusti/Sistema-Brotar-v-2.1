@@ -1334,7 +1334,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     <h2 className="text-2xl font-bold text-slate-800">Profissionais de Apoio Escolar</h2>
                     <p className="text-slate-500">Gestão de acompanhantes terapêuticos e monitores</p>
                 </div>
-                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA') && (
+                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA' || currentUser?.role === 'SECRETARIA_SEDE') && (
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleExportCSV}
@@ -1644,7 +1644,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 
                                 {/* Ações: sempre visíveis (antes md:opacity-0 escondia no desktop até hover). */}
                                 <div className="flex items-center gap-1 opacity-100 transition-opacity">
-                                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA') && (
+                                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA' || currentUser?.role === 'SECRETARIA_SEDE') && (
                                         <button 
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); handleEdit(prof); }}
