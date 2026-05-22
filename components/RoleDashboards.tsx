@@ -180,6 +180,18 @@ export interface SpecialistClinicalHomeProps {
     extraAction?: { label: string; route: string };
 }
 
+
+const normalizeSpecialty = (s?: string): string => {
+    if (!s) return '';
+    const ptMap: Record<string, string> = {
+        'Psicopedagogia': 'PSYCHOPEDAGOGY', 'Psicologia': 'PSYCHOLOGY',
+        'Fonoaudiologia': 'SPEECH_THERAPY', 'Terapia Ocupacional': 'OCCUPATIONAL_THERAPY',
+        'Fisioterapia': 'PHYSIOTHERAPY', 'Nutri\u00e7\u00e3o': 'NUTRITION',
+        'Servi\u00e7o Social': 'SOCIAL_WORK',
+    };
+    return ptMap[s] || s;
+};
+
 export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomeProps> = ({
     students,
     currentUser,
@@ -197,7 +209,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
             SPEECH_THERAPY: 'Fonoaudiologia', OCCUPATIONAL_THERAPY: 'Terapia Ocupacional',
             PHYSIOTHERAPY: 'Fisioterapia', NUTRITION: 'Nutrição', SOCIAL_WORK: 'Serviço Social',
         };
-        return map[currentUser.specialty || ''] || 'Especialista';
+        return map[normalizeSpecialty(currentUser.specialty)] || 'Especialista';
     }, [currentUser.specialty]);
 
     const clinicalRoute = useMemo(() => {
@@ -206,7 +218,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
             SPEECH_THERAPY: 'speech-therapy', OCCUPATIONAL_THERAPY: 'occupational-therapy',
             PHYSIOTHERAPY: 'physiotherapy', NUTRITION: 'nutrition', SOCIAL_WORK: 'social-service-hub',
         };
-        return map[currentUser.specialty || ''] || 'psychopedagogy';
+        return map[normalizeSpecialty(currentUser.specialty)] || 'psychopedagogy';
     }, [currentUser.specialty]);
 
     const specialtyGradient = useMemo(() => {
@@ -219,7 +231,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
             NUTRITION: 'linear-gradient(135deg,#3B6D11,#97C459)',
             SOCIAL_WORK: 'linear-gradient(135deg,#854F0B,#EF9F27)',
         };
-        return map[currentUser.specialty || ''] || 'linear-gradient(135deg,#64748B,#94A3B8)';
+        return map[normalizeSpecialty(currentUser.specialty)] || 'linear-gradient(135deg,#64748B,#94A3B8)';
     }, [currentUser.specialty]);
 
     const [appointments, setAppointments] = useState<any[]>([]);
