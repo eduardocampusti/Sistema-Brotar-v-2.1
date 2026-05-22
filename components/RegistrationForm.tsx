@@ -406,6 +406,38 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSuccess, o
         setSaveError(null);
 
         try {
+            // ── VERIFICAÇÃO DE DUPLICATA ──────────────────────────────────
+            const allStudents = await SupabaseService.getStudents();
+            const nomeLimpo = (formData.fullName || '').trim().toLowerCase();
+            const cpfLimpo = (formData.cpf || '').replace(/\D/g, '');
+
+            const duplicados = allStudents.filter(s => {
+                if (s.id && formData.id && s.id === formData.id) return false; // edição do mesmo aluno
+                const nomeIgual = s.fullName?.trim().toLowerCase() === nomeLimpo;
+                const cpfIgual = cpfLimpo && (s.cpf || '').replace(/\D/g, '') === cpfLimpo;
+                return nomeIgual || cpfIgual;
+            });
+
+            if (duplicados.length > 0) {
+                const dup = duplicados[0];
+                const motivo = ((dup.cpf || '').replace(/\D/g, '') === cpfLimpo && cpfLimpo)
+                    ? `CPF ${formData.cpf}`
+                    : `nome "${dup.fullName}"`;
+                const confirmar = window.confirm(
+                    `⚠️ ATENÇÃO — Aluno possivelmente já cadastrado!\n\n` +
+                    `Foi encontrado um aluno com o mesmo ${motivo} no sistema:\n\n` +
+                    `Nome: ${dup.fullName}\n` +
+                    `Escola: ${dup.school?.schoolName || 'não informada'}\n` +
+                    `Status: ${dup.status === 'Active' ? 'Ativo' : 'Inativo'}\n\n` +
+                    `Deseja continuar e criar mesmo assim?\n` +
+                    `(Clique em CANCELAR para revisar ou OK para prosseguir)`
+                );
+                if (!confirmar) {
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+            // ─────────────────────────────────────────────────────────────
             // Validação Pré-envio: Garantir school_id
             let finalSchoolId = formData.school?.schoolId || (currentUser?.role === 'ESCOLA' ? currentUser?.schoolId : undefined);
             let finalSchoolName = formData.school?.schoolName;
