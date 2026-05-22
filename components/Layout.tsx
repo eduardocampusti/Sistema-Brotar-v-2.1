@@ -154,23 +154,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
   // 3. Menu Linear para OUTROS PERFIS
   const getStandardMenuItems = () => {
-    const specialtyHomeRoute = (): string => {
-      if (currentUser.role !== 'SPECIALIST') return 'dashboard';
-      const map: Record<string, string> = {
-        PSYCHOPEDAGOGY: 'psychopedagogy',
-        PSYCHOLOGY: 'psychology',
-        SPEECH_THERAPY: 'speech-therapy',
-        OCCUPATIONAL_THERAPY: 'occupational-therapy',
-        PHYSIOTHERAPY: 'physiotherapy',
-        NUTRITION: 'nutrition',
-        SOCIAL_WORK: 'social-service-hub',
-      };
-      return map[currentUser.specialty || ''] || 'dashboard';
-    };
-
     const items = [
       {
-        id: specialtyHomeRoute(),
+        id: 'dashboard',
         label: 'Visão Geral',
         icon: <LayoutDashboard size={20} />
       },

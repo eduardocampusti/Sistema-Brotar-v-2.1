@@ -188,30 +188,244 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
     registerSessionRoute,
     extraAction,
 }) => {
-    useEffect(() => {
-        const specialtyRouteMap: Record<string, string> = {
-            PSYCHOPEDAGOGY: 'psychopedagogy',
-            PSYCHOLOGY: 'psychology',
-            SPEECH_THERAPY: 'speech-therapy',
-            OCCUPATIONAL_THERAPY: 'occupational-therapy',
-            PHYSIOTHERAPY: 'physiotherapy',
-            NUTRITION: 'nutrition',
-            SOCIAL_WORK: 'social-service-hub',
-        };
+    const today = new Date().toISOString().slice(0, 10);
+    const monthStr = today.slice(0, 7);
 
-        const route = specialtyRouteMap[currentUser.specialty || ''] || 'psychopedagogy';
-        onNavigate(route);
-    }, [currentUser.specialty, onNavigate]);
+    const specialtyLabel = useMemo(() => {
+        const map: Record<string, string> = {
+            PSYCHOPEDAGOGY: 'Psicopedagogia', PSYCHOLOGY: 'Psicologia',
+            SPEECH_THERAPY: 'Fonoaudiologia', OCCUPATIONAL_THERAPY: 'Terapia Ocupacional',
+            PHYSIOTHERAPY: 'Fisioterapia', NUTRITION: 'Nutrição', SOCIAL_WORK: 'Serviço Social',
+        };
+        return map[currentUser.specialty || ''] || 'Especialista';
+    }, [currentUser.specialty]);
+
+    const clinicalRoute = useMemo(() => {
+        const map: Record<string, string> = {
+            PSYCHOPEDAGOGY: 'psychopedagogy', PSYCHOLOGY: 'psychology',
+            SPEECH_THERAPY: 'speech-therapy', OCCUPATIONAL_THERAPY: 'occupational-therapy',
+            PHYSIOTHERAPY: 'physiotherapy', NUTRITION: 'nutrition', SOCIAL_WORK: 'social-service-hub',
+        };
+        return map[currentUser.specialty || ''] || 'psychopedagogy';
+    }, [currentUser.specialty]);
+
+    const specialtyGradient = useMemo(() => {
+        const map: Record<string, string> = {
+            PSYCHOPEDAGOGY: 'linear-gradient(135deg,#9F5FC0,#D9ABFF)',
+            PSYCHOLOGY: 'linear-gradient(135deg,#534AB7,#AFA9EC)',
+            SPEECH_THERAPY: 'linear-gradient(135deg,#0F6E56,#5DCAA5)',
+            OCCUPATIONAL_THERAPY: 'linear-gradient(135deg,#185FA5,#85B7EB)',
+            PHYSIOTHERAPY: 'linear-gradient(135deg,#0F6E56,#9FE1CB)',
+            NUTRITION: 'linear-gradient(135deg,#3B6D11,#97C459)',
+            SOCIAL_WORK: 'linear-gradient(135deg,#854F0B,#EF9F27)',
+        };
+        return map[currentUser.specialty || ''] || 'linear-gradient(135deg,#64748B,#94A3B8)';
+    }, [currentUser.specialty]);
+
+    const [appointments, setAppointments] = useState<any[]>([]);
+    const [loadingApts, setLoadingApts] = useState(true);
+
+    useEffect(() => {
+        SupabaseService.getAppointments({ professionalId: currentUser.id })
+            .then(data => { setAppointments(data || []); setLoadingApts(false); })
+            .catch(() => setLoadingApts(false));
+    }, [currentUser.id]);
+
+    const todayApts = useMemo(() =>
+        appointments.filter(a => a.date === today && !['CANCELADO','FALTOU'].includes(a.status)),
+        [appointments, today]);
+
+    const monthFaltas = useMemo(() =>
+        appointments.filter(a => a.date.startsWith(monthStr) && a.status === 'FALTOU').length,
+        [appointments, monthStr]);
+
+    const nextApt = useMemo(() =>
+        appointments
+            .filter(a => a.date > today && !['CANCELADO','FALTOU'].includes(a.status))
+            .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||''))[0],
+        [appointments, today]);
+
+    const recentStudentIds = useMemo(() => {
+        const seen = new Set<string>();
+        return appointments
+            .filter(a => a.date <= today)
+            .sort((a, b) => b.date.localeCompare(a.date))
+            .filter(a => { if (seen.has(a.studentId)) return false; seen.add(a.studentId); return true; })
+            .slice(0, 4)
+            .map(a => ({ studentId: a.studentId, date: a.date }));
+    }, [appointments, today]);
+
+    const weekDays = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const todayDate = new Date();
+    const todayDay = todayDate.getDay();
+    const weekStart = new Date(todayDate);
+    weekStart.setDate(todayDate.getDate() - todayDay);
+
+    const weekStats = useMemo(() => {
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(weekStart);
+            d.setDate(weekStart.getDate() + i);
+            const ds = d.toISOString().slice(0, 10);
+            const count = appointments.filter(a => a.date === ds && !['CANCELADO','FALTOU'].includes(a.status)).length;
+            return { day: weekDays[i], date: ds, count, isToday: ds === today };
+        });
+    }, [appointments, today]);
+
+    const maxWeek = Math.max(...weekStats.map(w => w.count), 1);
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] w-full p-6 text-center animate-fadeIn bg-white rounded-2xl border border-slate-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <div className="flex flex-col items-center gap-4">
-                <Loader2 className="w-12 h-12 text-[#9F5FC0] animate-spin" />
-                <div className="space-y-1.5">
-                    <h3 className="font-bold text-slate-800 text-lg">Abrindo módulo clínico...</h3>
-                    <p className="text-sm text-slate-500 max-w-sm">
-                        Redirecionando você para a sua área de especialidade no Brotar.
-                    </p>
+        <div className="space-y-5 animate-slideUp pb-6">
+            {/* HEADER */}
+            <div className="rounded-2xl p-5 text-white relative overflow-hidden" style={{ background: specialtyGradient }}>
+                <div className="absolute right-4 top-4 opacity-10 text-[100px] leading-none">✦</div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 relative z-10">
+                    <div>
+                        <p className="text-[12px] text-white/70 mb-0.5">Visão Geral</p>
+                        <h1 className="text-xl font-bold text-white">{currentUser.name}</h1>
+                        <p className="text-[12px] text-white/70 mt-0.5">{specialtyLabel} · {todayDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</p>
+                    </div>
+                    <button onClick={() => onNavigate(clinicalRoute)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium shrink-0 transition-all hover:opacity-90"
+                        style={{ background: 'rgba(255,255,255,0.2)', border: '0.5px solid rgba(255,255,255,0.3)', color: 'white' }}>
+                        Abrir módulo clínico →
+                    </button>
+                </div>
+            </div>
+
+            {/* CARDS RESUMO */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                    { label: 'Hoje', value: loadingApts ? '...' : todayApts.length, sub: 'atendimentos', color: '#1D9E75', route: 'scheduling' },
+                    { label: 'Meus alunos', value: loadingApts ? '...' : new Set(appointments.map(a => a.studentId)).size, sub: 'no histórico', color: '#7F77DD', route: clinicalRoute },
+                    { label: 'Faltas no mês', value: loadingApts ? '...' : monthFaltas, sub: 'registradas', color: '#E24B4A', route: 'scheduling' },
+                    { label: 'Próximo', value: nextApt ? (nextApt.startTime||'—').slice(0,5) : '—', sub: nextApt ? new Date(nextApt.date+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : 'sem agend.', color: '#BA7517', route: 'scheduling' },
+                ].map((card, i) => (
+                    <button key={i} onClick={() => onNavigate(card.route)}
+                        className="bg-white border border-slate-200 rounded-xl p-4 text-left hover:shadow-md transition-all">
+                        <p className="text-[11px] text-slate-400 uppercase tracking-wide mb-1">{card.label}</p>
+                        <p className="text-2xl font-bold text-slate-800 mb-0.5">{card.value}</p>
+                        <p className="text-[11px]" style={{ color: card.color }}>{card.sub}</p>
+                    </button>
+                ))}
+            </div>
+
+            {/* GRID PRINCIPAL */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* AGENDA DO DIA */}
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+                        <span className="text-[13px] font-medium text-slate-700">Agenda de hoje</span>
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{todayApts.length} atend.</span>
+                    </div>
+                    {loadingApts ? (
+                        <div className="p-6 text-center text-sm text-slate-400">Carregando...</div>
+                    ) : todayApts.length === 0 ? (
+                        <div className="p-6 text-center">
+                            <p className="text-sm text-slate-400 mb-3">Nenhum atendimento hoje.</p>
+                            {nextApt && (
+                                <div className="bg-slate-50 rounded-xl p-3 text-left border border-slate-100">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Próximo agendamento</p>
+                                    <p className="text-[13px] font-medium text-slate-700">{nextApt.studentName}</p>
+                                    <p className="text-[11px] text-slate-400">{new Date(nextApt.date+'T12:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})} · {(nextApt.startTime||'—').slice(0,5)}</p>
+                                </div>
+                            )}
+                            <button onClick={() => onNavigate('scheduling')}
+                                className="mt-3 text-[12px] font-medium px-4 py-2 rounded-lg text-white transition-all"
+                                style={{ background: specialtyGradient }}>
+                                Agendar atendimento
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-slate-100">
+                            {todayApts.map((apt, i) => (
+                                <div key={apt.id} className={`flex items-center gap-3 px-4 py-2.5 ${i%2===0?'bg-white':'bg-slate-50/40'}`}>
+                                    <span className="text-[11px] font-medium text-slate-500 w-10 shrink-0">{(apt.startTime||'—').slice(0,5)}</span>
+                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: apt.status==='EM_ATENDIMENTO'?'#1D9E75':apt.status==='CONFIRMADO'?'#3B82F6':'#94A3B8' }}></div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-medium text-slate-800 truncate">{apt.studentName}</p>
+                                        <p className="text-[10px] text-slate-400">{apt.unit}</p>
+                                    </div>
+                                    <button onClick={() => onOpenPatient && onOpenPatient(apt.studentId)}
+                                        className="text-[10px] font-medium px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0">
+                                        Ver
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* COLUNA DIREITA */}
+                <div className="flex flex-col gap-4">
+                    {/* SEMANA VISUAL */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                        <p className="text-[13px] font-medium text-slate-700 mb-3">Atendimentos esta semana</p>
+                        <div className="flex items-end gap-2 h-16">
+                            {weekStats.map((w, i) => (
+                                <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                                    <div className="w-full rounded-t-md transition-all" style={{
+                                        height: `${Math.max(4, (w.count / maxWeek) * 48)}px`,
+                                        background: w.isToday ? specialtyGradient : w.count > 0 ? 'rgba(148,163,184,0.4)' : 'rgba(241,245,249,1)'
+                                    }}></div>
+                                    <span className={`text-[9px] font-medium ${w.isToday ? 'text-slate-800' : 'text-slate-400'}`}>{w.day}</span>
+                                    {w.count > 0 && <span className="text-[9px] text-slate-500">{w.count}</span>}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ALUNOS RECENTES */}
+                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex-1">
+                        <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+                            <span className="text-[13px] font-medium text-slate-700">Alunos recentes</span>
+                            <button onClick={() => onNavigate('list')} className="text-[11px] font-medium text-slate-500 hover:underline">Ver todos</button>
+                        </div>
+                        {recentStudentIds.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-slate-400">Nenhum atendimento anterior.</div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {recentStudentIds.map(({ studentId, date }) => {
+                                    const st = students.find(s => s.id === studentId);
+                                    if (!st) return null;
+                                    const initials = st.fullName.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase();
+                                    return (
+                                        <button key={studentId} onClick={() => onOpenPatient && onOpenPatient(studentId)}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left">
+                                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: specialtyGradient }}>
+                                                {initials}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[13px] font-medium text-slate-800 truncate">{st.fullName}</p>
+                                                <p className="text-[10px] text-slate-400">{new Date(date+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}</p>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* AÇÕES RÁPIDAS */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                <p className="text-[13px] font-medium text-slate-700 mb-3">Ações rápidas</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                        { label: 'Módulo clínico', sub: 'Abrir prontuários', route: clinicalRoute, emoji: '🩺' },
+                        { label: 'Minha agenda', sub: 'Ver atendimentos', route: 'scheduling', emoji: '📅' },
+                        { label: 'Painel ANEE', sub: 'Dados da rede', route: 'relatorio-tea', emoji: '📊' },
+                        { label: 'Documentos', sub: 'Laudos e relatórios', route: 'documents', emoji: '📄' },
+                    ].map((action, i) => (
+                        <button key={i} onClick={() => onNavigate(action.route)}
+                            className="flex flex-col gap-2 p-3 rounded-xl border border-slate-100 hover:shadow-sm hover:border-slate-200 transition-all text-left bg-slate-50/50">
+                            <span className="text-xl">{action.emoji}</span>
+                            <div>
+                                <p className="text-[12px] font-medium text-slate-700">{action.label}</p>
+                                <p className="text-[10px] text-slate-400">{action.sub}</p>
+                            </div>
+                        </button>
+                    ))}
                 </div>
             </div>
         </div>
