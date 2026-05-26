@@ -32,6 +32,7 @@ import {
   ShieldAlert, // Novo ícone de auditoria
   Apple, // Retained from original
   BarChart2,
+  Clock,
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission, canViewSystemAuditLogs } from '../types';
 import { APP_VERSION } from '../src/config/version';
@@ -258,6 +259,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   const getStandardExtraItems = () => {
     if (currentUser.role !== 'SPECIALIST') return [];
     return [
+      { id: 'retroativo', label: 'Lançamentos Históricos', sub: 'Lançamento retroativo papel', icon: <Clock size={18} /> },
       { id: 'relatorio-tea', label: 'Painel ANEE', sub: 'Dados gerais da rede', icon: <Puzzle size={18} /> },
       { id: 'documents', label: 'Documentos', sub: 'Relatórios e laudos', icon: <FileText size={18} /> },
       { id: 'about', label: 'Sobre o Sistema', sub: 'Versão e novidades', icon: <Info size={18} /> },

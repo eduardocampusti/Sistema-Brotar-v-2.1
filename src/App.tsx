@@ -38,6 +38,11 @@ const AuditLogs = React.lazy(() => import('../components/AuditLogs').then(m => (
 const ChangePassword = React.lazy(() => import('../components/ChangePassword').then(m => ({ default: m.ChangePassword })));
 const RelatoriosGerenciais = React.lazy(() => import('../components/RelatoriosGerenciais').then(m => ({ default: m.RelatoriosGerenciais })));
 const RelatorioTEAPage = React.lazy(() => import('./pages/RelatorioTEAPage'));
+const LancamentoRetroativoPage = React.lazy(() => 
+  import('./pages/LancamentoRetroativoPage').then(m => ({ 
+    default: m.LancamentoRetroativoPage 
+  }))
+);
 
 // Clinical Pages
 const PsychologyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PsychologyDashboardPage })));
@@ -432,6 +437,14 @@ function AppContent() {
 
           <Route path="nutrition" element={<React.Suspense fallback={<PageLoading />}><NutritionDashboardPage onNavigateNew={() => handleNavigate('nutrition/new-session')} currentUser={user!} /></React.Suspense>} />
           <Route path="nutrition/new-session" element={<React.Suspense fallback={<PageLoading />}><NutritionSessionFormPage onCancel={() => handleNavigate('nutrition')} currentUser={user!} /></React.Suspense>} />
+          <Route path="retroativo" element={
+            <React.Suspense fallback={<PageLoading />}>
+              <LancamentoRetroativoPage 
+                currentUser={user!} 
+                onNavigate={handleNavigate} 
+              />
+            </React.Suspense>
+          } />
 
           <Route path="scheduling" element={<React.Suspense fallback={<PageLoading />}>
             <SchedulingRoutePage

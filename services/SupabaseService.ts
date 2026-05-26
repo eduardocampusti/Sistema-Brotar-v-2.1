@@ -2782,6 +2782,91 @@ export class SupabaseService {
         }
     }
 
+    /**
+     * Salva um atendimento histórico/retroativo (lançado a partir de papel).
+     * Valida se a data não é futura e se há um vínculo prévio (histórico de consultas ativas)
+     * entre o profissional e o aluno. Insere com status 'RETROATIVO' sem checar conflitos.
+     */
+    static async salvarAtendimentoRetroativo(payload: {
+        studentId: string;
+        studentName: string;
+        professionalId: string;
+        professionalName: string;
+        specialty: string;
+        unit: string;
+        date: string;          // Formato YYYY-MM-DD
+        startTime: string;     // Formato HH:mm
+        endTime: string;       // Formato HH:mm
+        notes?: string;
+        tipoAtendimento: 'INDIVIDUAL' | 'GRUPO';
+    }): Promise<string> {
+        // 1. Validar se a data não é futura
+        const inputDate = new Date(`${payload.date}T12:00:00`);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const dateOnlyInput = new Date(inputDate.getFullYear(), inputDate.getMonth(), inputDate.getDate());
+        if (dateOnlyInput > today) {
+            throw new Error('A data do atendimento retroativo não pode ser no futuro.');
+        }
+
+        // 2. Verificar se existe pelo menos 1 appointment ativo (não-excluído) com esse par (professionalId + studentId)
+        const { data: existingAppts, error: checkError } = await supabase
+            .from('appointments')
+            .select('id')
+            .eq('professional_id', payload.professionalId)
+            .eq('student_id', payload.studentId)
+            .or('excluido.is.null,excluido.eq.false')
+            .limit(1);
+
+        if (checkError) {
+            throw new Error(`Erro ao validar vínculo histórico: ${checkError.message}`);
+        }
+
+        if (!existingAppts || existingAppts.length === 0) {
+            throw new Error('Profissional não possui vínculo com este aluno');
+        }
+
+        // 3. Mapear dados para as colunas reais da tabela appointments
+        // Como 'tipo_atendimento' não existe no banco, o prefixamos no campo 'notes'
+        const notesPrefix = `[Atendimento: ${payload.tipoAtendimento}]`;
+        const finalNotes = payload.notes 
+            ? `${notesPrefix} ${payload.notes.trim()}`
+            : notesPrefix;
+
+        const dbPayload: any = {
+            student_id: payload.studentId,
+            student_name: payload.studentName,
+            professional_id: payload.professionalId,
+            professional_name: payload.professionalName,
+            specialty: this.SPECIALTY_MAP[payload.specialty as Specialty] || payload.specialty,
+            unit: payload.unit,
+            date: payload.date,
+            start_time: payload.startTime,
+            end_time: payload.endTime,
+            status: 'RETROATIVO',
+            excluido: false,
+            notes: finalNotes
+        };
+
+        const { data: insertedData, error: insertError } = await supabase
+            .from('appointments')
+            .insert(this.cleanDataForSupabase(dbPayload))
+            .select('id')
+            .single();
+
+        if (insertError) {
+            console.error('Erro ao salvar atendimento retroativo no Supabase:', insertError);
+            throw insertError;
+        }
+
+        if (!insertedData) {
+            throw new Error('Nenhum ID retornado ao salvar atendimento retroativo.');
+        }
+
+        return insertedData.id;
+    }
+
     static async updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<void> {
         const { error } = await supabase
             .from('appointments')
