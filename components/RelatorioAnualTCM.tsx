@@ -25,11 +25,14 @@ const ANOS = Array.from({ length: 5 }, (_, i) => currentYear - i);
 export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUser }) => {
   const { addToast } = useToast();
   const [ano, setAno] = useState(currentYear);
-  const [especialidade, setEspecialidade] = useState('TODAS');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState('');
   const [docCode, setDocCode] = useState('');
+
+  // Especialidade vem do usuário logado — não é selecionável
+  const especialidadeProfissional = currentUser.specialty || 'Não informada';
+  const isSecretaria = currentUser.role === 'EDUCATION_SECRETARY' || currentUser.role === 'ADMIN';
 
   const handleGerar = async () => {
     setIsGenerating(true);
@@ -38,15 +41,22 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
     try {
       const from = `${ano}-01-01`;
       const to = `${ano}-12-31`;
-      const allAppointments = await SupabaseService.getAppointments({ fromDate: from, toDate: to });
-      const filtered = especialidade === 'TODAS'
-        ? allAppointments
-        : allAppointments.filter((a: any) => a.specialty === especialidade);
-      if (filtered.length === 0) {
-        setError(`Nenhum atendimento encontrado para ${especialidade === 'TODAS' ? 'o período' : especialidade} no ano ${ano}.`);
+
+      // SEMPRE filtra pelo profissional logado, a menos que seja secretaria/admin
+      const queryParams: any = { fromDate: from, toDate: to };
+      if (!isSecretaria) {
+        queryParams.professionalId = currentUser.id;
+      }
+
+      const allAppointments = await SupabaseService.getAppointments(queryParams);
+
+      if (allAppointments.length === 0) {
+        setError(`Nenhum atendimento encontrado para ${currentUser.name} no ano ${ano}.`);
         setIsGenerating(false);
         return;
       }
+
+      const filtered = allAppointments;
       const totalAtendimentos = filtered.length;
       const atendidosEncerrados = filtered.filter((a: any) => ['ATENDIDO', 'ENCERRADO', 'EM_ATENDIMENTO'].includes(a.status)).length;
       const faltas = filtered.filter((a: any) => a.status === 'FALTOU').length;
@@ -55,7 +65,7 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
       const alunosUnicos = new Set(filtered.map((a: any) => a.studentId)).size;
       const porEspecialidade: Record<string, { total: number; atendidos: number; alunos: Set<string> }> = {};
       filtered.forEach((a: any) => {
-        const sp = a.specialty || 'Não informada';
+        const sp = a.specialty || especialidadeProfissional;
         if (!porEspecialidade[sp]) porEspecialidade[sp] = { total: 0, atendidos: 0, alunos: new Set() };
         porEspecialidade[sp].total++;
         if (['ATENDIDO', 'ENCERRADO'].includes(a.status)) porEspecialidade[sp].atendidos++;
@@ -63,12 +73,16 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
       });
       const porUnidade: Record<string, number> = {};
       filtered.forEach((a: any) => { const u = a.unit || 'Não informada'; porUnidade[u] = (porUnidade[u] || 0) + 1; });
-      const profissionais = Array.from(new Set(filtered.map((a: any) => a.professionalName))).filter(Boolean) as string[];
+      // Para relatório individual, profissional é só o usuário logado
+      const profissionais = isSecretaria
+        ? Array.from(new Set(filtered.map((a: any) => a.professionalName))).filter(Boolean) as string[]
+        : [currentUser.name];
       const taxaComparecimento = totalAtendimentos > 0 ? Math.round((atendidosEncerrados / totalAtendimentos) * 100) : 0;
 
       const dadosIA = `
 DADOS REAIS DO SISTEMA BROTAR — ANO ${ano}
-Especialidade(s): ${especialidade === 'TODAS' ? 'Todas' : especialidade}
+Profissional: ${currentUser.name}
+Especialidade: ${especialidadeProfissional}
 Total de agendamentos: ${totalAtendimentos}
 Atendimentos realizados: ${atendidosEncerrados}
 Faltas: ${faltas} | Cancelamentos: ${cancelados} | Retroativos: ${retroativos}
@@ -84,7 +98,7 @@ Por unidade: ${Object.entries(porUnidade).map(([u,n])=>`${u}: ${n}`).join(' | ')
         const prompt = `Você é redator oficial do Programa BROTAR de Brotas de Macaúbas/BA. Com base nos dados reais abaixo, complemente e enriqueça o relatório anual institucional para prestação de contas ao TCM/BA referente ao ano ${ano}. Use linguagem técnica, formal e institucional. Para cada seção, escreva parágrafos completos e detalhados baseados nos dados fornecidos. NÃO deixe campos em branco — substitua todos os "XXXX" pelos valores reais. ${dadosIA}`;
         content = await GeminiService.generateOfficialDocument('Relatório Anual TCM', { fullName: 'Rede Municipal', school: { schoolName: 'Brotas de Macaúbas' } } as any, currentUser.name, 'Secretária de Educação', prompt);
       } catch {
-        content = gerarTemplateCompleto(ano, especialidade, profissionais, atendidosEncerrados, alunosUnicos, faltas, cancelados, retroativos, totalAtendimentos, taxaComparecimento, porEspecialidade, porUnidade);
+        content = gerarTemplateCompleto(ano, especialidadeProfissional, currentUser.name, profissionais, atendidosEncerrados, alunosUnicos, faltas, cancelados, retroativos, totalAtendimentos, taxaComparecimento, porEspecialidade, porUnidade);
       }
       const code = `TCM-${ano}-${Math.floor(Math.random() * 90000) + 10000}`;
       setDocCode(code);
@@ -141,12 +155,14 @@ Por unidade: ${Object.entries(porUnidade).map(([u,n])=>`${u}: ${n}`).join(' | ')
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Especialidade</label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <select className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/30 text-slate-700 font-semibold appearance-none text-sm" value={especialidade} onChange={e => setEspecialidade(e.target.value)}>
-                  {ESPECIALIDADES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-                </select>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Profissional</label>
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <p className="text-sm font-bold text-slate-800">{currentUser.name}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{especialidadeProfissional}</p>
+                <div className="mt-2 inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                  <span className="text-[10px] font-semibold text-emerald-700">Relatório individual</span>
+                </div>
               </div>
             </div>
             <button onClick={handleGerar} disabled={isGenerating} className="w-full py-4 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95" style={{ background: 'linear-gradient(135deg, #8B1A3A, #6B1230)' }}>
@@ -205,7 +221,7 @@ Por unidade: ${Object.entries(porUnidade).map(([u,n])=>`${u}: ${n}`).join(' | ')
 };
 
 function gerarTemplateCompleto(
-  ano: number, especialidade: string, profissionais: string[],
+  ano: number, especialidade: string, nomeProfissional: string, profissionais: string[],
   atendidos: number, alunos: number, faltas: number, cancelados: number,
   retroativos: number, total: number, taxa: number,
   porEsp: Record<string, { total: number; atendidos: number; alunos: Set<string> }>,
@@ -225,67 +241,12 @@ function gerarTemplateCompleto(
   return `
 <div style="font-family:'Times New Roman',serif;color:#000;line-height:1.6;max-width:800px;margin:0 auto">
 
-  <!-- CAPA -->
-  <div style="page-break-after:always;min-height:1100px;background:#fff;padding:40px;box-sizing:border-box;position:relative;border-bottom:4px solid #003d7a">
-
-    <!-- Cabeçalho institucional -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:2px solid #003d7a;margin-bottom:30px">
-      <div style="text-align:center;flex:1">
-        <div style="font-size:11pt;color:#003d7a;font-weight:bold;text-transform:uppercase;letter-spacing:1px">Prefeitura Municipal</div>
-        <div style="font-size:20pt;color:#003d7a;font-weight:900;text-transform:uppercase;letter-spacing:2px">BROTAS DE MACAÚBAS</div>
-        <div style="font-size:9pt;color:#555;font-style:italic">A força do povo é o trabalho</div>
-      </div>
-      <div style="width:2px;height:80px;background:#003d7a;margin:0 30px"></div>
-      <div style="text-align:center;flex:1">
-        <div style="font-size:9pt;color:#555">Secretaria Municipal de</div>
-        <div style="font-size:22pt;color:#003d7a;font-weight:900;text-transform:uppercase;letter-spacing:1px">EDUCAÇÃO</div>
-        <div style="font-size:9pt;color:#003d7a;font-weight:bold">BROTAS DE MACAÚBAS – BA</div>
-      </div>
-    </div>
-
-    <!-- Título principal -->
-    <div style="text-align:center;margin:40px 0 20px">
-      <div style="font-size:18pt;color:#003d7a;font-weight:bold;text-transform:uppercase;letter-spacing:2px">RELATÓRIO ANUAL DE</div>
-      <div style="font-size:42pt;color:#003d7a;font-weight:900;text-transform:uppercase;letter-spacing:3px;line-height:1">ATIVIDADES</div>
-      <div style="display:inline-block;background:#10B981;color:#fff;font-size:16pt;font-weight:900;letter-spacing:3px;padding:6px 30px;margin-top:10px;border-radius:4px">EXERCÍCIO ${ano}</div>
-    </div>
-
-    <!-- Logo BROTAR -->
-    <div style="text-align:center;margin:30px 0">
-      <div style="font-size:48pt;font-weight:900;letter-spacing:-2px;margin-bottom:5px">
-        <span style="color:#003d7a">Br</span><span style="color:#10B981">o</span><span style="color:#F59E0B">t</span><span style="color:#EF4444">a</span><span style="color:#8B5CF6">r</span>
-      </div>
-      <div style="font-size:13pt;color:#003d7a;font-weight:bold;letter-spacing:1px">Centro Multidisciplinar</div>
-      <div style="font-size:13pt;color:#003d7a;font-weight:bold">em Educação Inclusiva</div>
-      <div style="font-size:12pt;color:#10B981;font-style:italic;margin-top:8px">Acolher, incluir e transformar vidas.</div>
-    </div>
-
-    <!-- Ícones das 6 ações -->
-    <div style="display:flex;justify-content:center;gap:16px;margin:30px 0;flex-wrap:wrap">
-      ${[
-        { icon: '👥', label: 'ATENDIMENTO\nESPECIALIZADO' },
-        { icon: '🏫', label: 'VISITAS TÉCNICAS\nESCOLARES' },
-        { icon: '👨‍👩‍👧', label: 'ATENDIMENTO\nÀS FAMÍLIAS' },
-        { icon: '📍', label: 'ATENDIMENTO\nZONA RURAL' },
-        { icon: '📋', label: 'AVALIAÇÕES E\nACOMPANHAMENTOS' },
-        { icon: '📈', label: 'INCLUSÃO,\nAPRENDIZAGEM E VIDA' },
-      ].map(item => `
-        <div style="text-align:center;width:100px">
-          <div style="font-size:28pt;margin-bottom:4px">${item.icon}</div>
-          <div style="font-size:7pt;font-weight:bold;color:#003d7a;text-transform:uppercase;line-height:1.3;white-space:pre-line">${item.label}</div>
-        </div>
-      `).join('')}
-    </div>
-
-    <!-- Rodapé da capa -->
-    <div style="border-top:2px solid #003d7a;margin-top:30px;padding-top:16px;display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:10pt;color:#333;font-style:italic">
-        <span style="font-size:20pt;color:#003d7a">"</span> A inclusão não é um favor.<br/>É um direito e um compromisso de todos. <span style="font-size:20pt;color:#003d7a">"</span>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:10pt;color:#003d7a;font-weight:bold">BROTAS DE MACAÚBAS – BA</div>
-        <div style="font-size:9pt;color:#555">Janeiro a Dezembro de ${ano}</div>
-      </div>
+  <!-- CAPA OFICIAL -->
+  <div style="page-break-after:always;position:relative;width:100%;background:#fff">
+    <img src="/capa_brotar_opt.jpg" style="width:100%;display:block" alt="Capa Relatório BROTAR" />
+    <!-- Ano sobreposto no campo EXERCÍCIO ANO: da capa -->
+    <div style="position:absolute;top:27.5%;left:18%;font-size:22pt;font-weight:900;color:#1a7a3a;letter-spacing:2px;font-family:Arial,sans-serif">
+      ${ano}
     </div>
   </div>
 
@@ -295,7 +256,8 @@ function gerarTemplateCompleto(
     <div style="text-align:center;border-bottom:2px solid #003d7a;padding-bottom:16px;margin-bottom:30px">
       <div style="font-size:14pt;font-weight:bold;color:#003d7a;text-transform:uppercase">PROGRAMA BROTAR</div>
       <div style="font-size:11pt;color:#555">Relatório Anual de Atividades — Exercício ${ano}</div>
-      <div style="font-size:10pt;color:#555">Especialidade(s): ${espLabel}</div>
+      <div style="font-size:10pt;color:#555;margin-top:4px">Profissional: <strong>${nomeProfissional}</strong></div>
+      <div style="font-size:10pt;color:#555">Especialidade: <strong>${espLabel}</strong></div>
     </div>
 
     <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">1. APRESENTAÇÃO INSTITUCIONAL</h2>
