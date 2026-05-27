@@ -74,32 +74,25 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
         }
       });
 
-      // Buscar dados de escolas via alunos
-      const estudantesIds = Array.from(new Set(filtered.map((a: any) => a.studentId)));
-      let todosAlunos: any[] = [];
-      try { todosAlunos = await SupabaseService.getStudents(); } catch {}
-      const alunosAtendidos = todosAlunos.filter((s: any) => estudantesIds.includes(s.id));
-
-      // Debug: logar estrutura do primeiro aluno para identificar campo correto
-      if (alunosAtendidos.length > 0) {
-        const primeiro = alunosAtendidos[0];
-        console.log('[TCM DEBUG] Campos escola do aluno:', {
-          school: primeiro.school,
-          schoolName: primeiro.schoolName,
-          school_name: primeiro.school_name,
-          schoolInfo: primeiro.schoolInfo,
-        });
-      }
+      // Buscar escolas via join do agendamento com students/schools
+      // Usar getAgendamentosDoProfissional que já faz join com schools
+      let agendamentosComEscola: any[] = [];
+      try {
+        agendamentosComEscola = await SupabaseService.getAgendamentosDoProfissional(
+          currentUser.id, { fromDate: from }
+        );
+      } catch { agendamentosComEscola = filtered; }
 
       // Escolas atendidas com contagem de alunos
       const porEscola: Record<string, { alunos: Set<string>; atendimentos: number }> = {};
       filtered.forEach((a: any) => {
-        const aluno = alunosAtendidos.find((s: any) => s.id === a.studentId);
-        const escola = aluno?.school?.schoolName
-          || aluno?.schoolName
-          || aluno?.school_name
-          || aluno?.schoolInfo?.schoolName
-          || (typeof aluno?.school === 'string' ? aluno.school : null)
+        // Tentar pegar escola do join, senão do filtered original
+        const aComEscola = agendamentosComEscola.find((x: any) => x.id === a.id);
+        const escola = aComEscola?.schoolName
+          || aComEscola?.school_name
+          || aComEscola?.students?.schools?.name
+          || a.schoolName
+          || a.school_name
           || 'Escola não informada';
         if (!porEscola[escola]) porEscola[escola] = { alunos: new Set(), atendimentos: 0 };
         porEscola[escola].alunos.add(a.studentId);
