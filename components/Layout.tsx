@@ -33,6 +33,8 @@ import {
   Apple, // Retained from original
   BarChart2,
   Clock,
+  Tag,
+  CalendarDays,
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission, canViewSystemAuditLogs } from '../types';
 import { APP_VERSION } from '../src/config/version';
@@ -369,18 +371,27 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     <div className="flex min-h-screen bg-[#EEF2F8] font-sans selection:bg-primary-500 selection:text-white">
       {/* Sidebar - Desktop */}
       <aside className={`hidden lg:flex flex-col w-72 fixed h-full z-30 transition-all duration-300 shadow-2xl ${theme.sidebar}`} style={(theme as any).sidebarStyle || {}}>
-        <div className="p-8 flex items-center gap-3">
-          <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 shadow-lg flex items-center justify-center">
-            <LogoComponent />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-extrabold tracking-tight text-white leading-none">Brotar</h2>
-              <span className="bg-white/15 text-white/70 font-mono text-[9px] px-1.5 py-0.5 rounded-md tracking-wider border border-white/20 leading-none">
-                {APP_VERSION.version}
-              </span>
+        <div className="px-5 pt-6 pb-4 border-b border-white/8">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 bg-white/15 border border-white/25 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner">
+              <LogoComponent />
             </div>
-            <p className={`text-xs font-medium opacity-70 mt-1 ${theme.accent}`}>Gestão Premium</p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-white/55 text-[11px] font-normal tracking-wide">Sistema</span>
+                <span className="text-white text-[15px] font-black tracking-tight leading-none">Brotar</span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Sparkles size={10} className="text-yellow-300/80" />
+                <span className={`text-[10px] font-medium opacity-60 italic ${theme.accent}`}>Gestão Premium</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-2 bg-white/8 border border-white/12 rounded-lg px-3 py-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></div>
+            <span className="text-white/70 text-[10px] tracking-wide font-medium">{APP_VERSION.version}</span>
+            <span className="text-white/25 text-[10px]">•</span>
+            <span className="text-white/45 text-[10px]">Release estável</span>
           </div>
         </div>
 
@@ -456,41 +467,52 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         </nav>
 
         <div className="p-4 mt-auto">
-          <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-lg">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-sm font-bold shadow-inner">
+          <div className="bg-black/20 border border-white/8 rounded-2xl overflow-hidden">
+            
+            {/* Avatar + Nome + Role */}
+            <div className="flex items-center gap-3 p-4 border-b border-white/8">
+              <div className="w-9 h-9 rounded-full bg-white/15 border-2 border-white/25 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden shadow-inner">
                 {currentUser.photoUrl ? (
-                  <img src={currentUser.photoUrl} alt={`Foto de perfil de ${currentUser.name}`} className="w-full h-full rounded-full object-cover" />
+                  <img src={currentUser.photoUrl} alt={`Foto de ${currentUser.name}`} className="w-full h-full rounded-full object-cover" />
                 ) : (
-                  currentUser.username.substring(0, 2).toUpperCase()
+                  <span className="text-white text-xs font-black">{currentUser.username.substring(0, 2).toUpperCase()}</span>
                 )}
               </div>
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-white truncate">{currentUser.name.split(' ')[0]}</p>
-                <p className="text-[10px] uppercase font-semibold opacity-70 truncate bg-white/10 px-1.5 py-0.5 rounded inline-block mt-0.5">
-                  {getRoleLabel()}
-                </p>
+              <div className="overflow-hidden flex-1">
+                <p className="text-white text-[13px] font-bold truncate leading-tight">{currentUser.name.split(' ')[0]}</p>
+                <p className="text-white/45 text-[9px] uppercase font-semibold tracking-wider mt-0.5 truncate">{getRoleLabel()}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+
+            {/* Versão + Data em destaque */}
+            <div className="px-4 py-3 border-b border-white/8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Tag size={11} className="text-white/40" />
+                  <span className="text-white/65 text-[10px] font-bold tracking-wide">{APP_VERSION.version}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CalendarDays size={11} className="text-white/35" />
+                  <span className="text-white/40 text-[10px]">{APP_VERSION.display.split('•')[1]?.trim() || APP_VERSION.display}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Botões Sobre + Sair */}
+            <div className="grid grid-cols-2 gap-0">
               <button
                 onClick={() => onNavigate('about')}
-                className="flex items-center justify-center gap-2 text-xs font-semibold text-white/70 hover:text-white hover:bg-white/10 py-2 rounded-lg transition-all border border-white/5 hover:border-white/20"
-                title="Sobre o Sistema"
+                className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-white/60 hover:text-white hover:bg-white/10 py-3 transition-all border-r border-white/8"
               >
-                <Info size={14} /> Sobre
+                <Info size={13} /> Sobre
               </button>
               <button
                 onClick={onLogout}
-                className="flex items-center justify-center gap-2 text-xs font-semibold text-red-200 hover:text-white hover:bg-red-500/20 py-2 rounded-lg transition-all border border-transparent hover:border-red-500/30"
-                title="Encerrar Sessão"
+                className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-red-300/70 hover:text-red-200 hover:bg-red-500/15 py-3 transition-all"
               >
-                <LogOut size={14} /> Sair
+                <LogOut size={13} /> Sair
               </button>
             </div>
-            <p className="text-[10px] text-center text-white/30 font-mono mt-4 tracking-wider uppercase">
-              {APP_VERSION.display}
-            </p>
           </div>
         </div>
       </aside>
@@ -518,22 +540,29 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
       {/* Mobile Sidebar - Menu móvel de alta fidelidade e idêntico ao desktop */}
       <aside className={`lg:hidden fixed inset-y-0 left-0 w-72 ${theme.sidebar} z-50 transform transition-transform duration-300 shadow-2xl flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} style={(theme as any).sidebarStyle || {}}>
-        <div className="p-6 flex items-center justify-between border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-center">
+        <div className="px-5 pt-6 pb-4 border-b border-white/8 relative">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 bg-white/15 border border-white/25 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner">
               <LogoComponent />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-extrabold tracking-tight text-white leading-none">Brotar</h2>
-                <span className="bg-white/15 text-white/70 font-mono text-[9px] px-1.5 py-0.5 rounded-md border border-white/20 leading-none">
-                  {APP_VERSION.version}
-                </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-white/55 text-[11px] font-normal tracking-wide">Sistema</span>
+                <span className="text-white text-[15px] font-black tracking-tight leading-none">Brotar</span>
               </div>
-              <p className={`text-[10px] font-medium opacity-70 mt-1 ${theme.accent}`}>Gestão Premium</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Sparkles size={10} className="text-yellow-300/80" />
+                <span className={`text-[10px] font-medium opacity-60 italic ${theme.accent}`}>Gestão Premium</span>
+              </div>
             </div>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors">
+          <div className="flex items-center justify-center gap-2 bg-white/8 border border-white/12 rounded-lg px-3 py-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></div>
+            <span className="text-white/70 text-[10px] tracking-wide font-medium">{APP_VERSION.version}</span>
+            <span className="text-white/25 text-[10px]">•</span>
+            <span className="text-white/45 text-[10px]">Release estável</span>
+          </div>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -598,41 +627,52 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         </nav>
 
         <div className="p-4 mt-auto border-t border-white/10">
-          <div className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-lg">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-sm font-bold shadow-inner">
+          <div className="bg-black/20 border border-white/8 rounded-2xl overflow-hidden">
+            
+            {/* Avatar + Nome + Role */}
+            <div className="flex items-center gap-3 p-4 border-b border-white/8">
+              <div className="w-9 h-9 rounded-full bg-white/15 border-2 border-white/25 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden shadow-inner">
                 {currentUser.photoUrl ? (
-                  <img src={currentUser.photoUrl} alt={`Foto de perfil de ${currentUser.name}`} className="w-full h-full rounded-full object-cover" />
+                  <img src={currentUser.photoUrl} alt={`Foto de ${currentUser.name}`} className="w-full h-full rounded-full object-cover" />
                 ) : (
-                  currentUser.username.substring(0, 2).toUpperCase()
+                  <span className="text-white text-xs font-black">{currentUser.username.substring(0, 2).toUpperCase()}</span>
                 )}
               </div>
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-white truncate">{currentUser.name.split(' ')[0]}</p>
-                <p className="text-[10px] uppercase font-semibold opacity-70 truncate bg-white/10 px-1.5 py-0.5 rounded inline-block mt-0.5">
-                  {getRoleLabel()}
-                </p>
+              <div className="overflow-hidden flex-1">
+                <p className="text-white text-[13px] font-bold truncate leading-tight">{currentUser.name.split(' ')[0]}</p>
+                <p className="text-white/45 text-[9px] uppercase font-semibold tracking-wider mt-0.5 truncate">{getRoleLabel()}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+
+            {/* Versão + Data em destaque */}
+            <div className="px-4 py-3 border-b border-white/8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Tag size={11} className="text-white/40" />
+                  <span className="text-white/65 text-[10px] font-bold tracking-wide">{APP_VERSION.version}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CalendarDays size={11} className="text-white/35" />
+                  <span className="text-white/40 text-[10px]">{APP_VERSION.display.split('•')[1]?.trim() || APP_VERSION.display}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Botões Sobre + Sair */}
+            <div className="grid grid-cols-2 gap-0">
               <button
                 onClick={() => { onNavigate('about'); setIsMobileMenuOpen(false); }}
-                className="flex items-center justify-center gap-2 text-xs font-semibold text-white/70 hover:text-white hover:bg-white/10 py-2 rounded-lg transition-all border border-white/5 hover:border-white/20"
-                title="Sobre o Sistema"
+                className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-white/60 hover:text-white hover:bg-white/10 py-3 transition-all border-r border-white/8"
               >
-                <Info size={14} /> Sobre
+                <Info size={13} /> Sobre
               </button>
               <button
                 onClick={onLogout}
-                className="flex items-center justify-center gap-2 text-xs font-semibold text-red-200 hover:text-white hover:bg-red-500/20 py-2 rounded-lg transition-all border border-transparent hover:border-red-500/30"
-                title="Encerrar Sessão"
+                className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-red-300/70 hover:text-red-200 hover:bg-red-500/15 py-3 transition-all"
               >
-                <LogOut size={14} /> Sair
+                <LogOut size={13} /> Sair
               </button>
             </div>
-            <p className="text-[10px] text-center text-white/30 font-mono mt-4 tracking-wider uppercase">
-              {APP_VERSION.display}
-            </p>
           </div>
         </div>
       </aside>
