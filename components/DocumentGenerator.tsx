@@ -15,6 +15,10 @@ const DOCS_COMUM = ["Declaração de Atendimento", "Encaminhamento Geral", "Rela
 const DOCS_PSICOLOGIA = ["Relatório Psicológico Técnico", "Evolução Psicológica", "Parecer Psicológico"];
 const DOCS_SERVICO_SOCIAL = ["Relatório de Busca Ativa", "Relatório Social de Visita Domiciliar", "Ofício ao Conselho Tutelar", "Plano de Acompanhamento Familiar"];
 const DOCS_PSICOPEDAGOGIA = ["Avaliação Psicopedagógica", "Plano de Intervenção", "Relatório de Evolução"];
+const DOCS_FONOAUDIOLOGIA = ["Relatório Fonoaudiológico", "Evolução Fonoaudiológica", "Parecer Fonoaudiológico", "Encaminhamento Fonoaudiológico", "Relatório de Alta Fonoaudiológica"];
+const DOCS_TERAPIA_OCUPACIONAL = ["Relatório de Terapia Ocupacional", "Evolução em Terapia Ocupacional", "Parecer de Terapia Ocupacional", "Plano de Intervenção Ocupacional", "Relatório de Alta em Terapia Ocupacional"];
+const DOCS_FISIOTERAPIA = ["Relatório Fisioterapêutico", "Evolução Fisioterapêutica", "Parecer Fisioterapêutico", "Plano de Reabilitação", "Relatório de Alta Fisioterapêutica"];
+const DOCS_NUTRICAO = ["Relatório Nutricional", "Evolução Nutricional", "Plano Alimentar Institucional", "Parecer Nutricional", "Relatório de Acompanhamento Nutricional"];
 
 export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUser }) => {
   const { addToast } = useToast();
@@ -30,11 +34,18 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
 
   useEffect(() => {
     const loadStudents = async () => {
-      const data = await SupabaseService.getStudents();
-      setStudents(data);
+      if (currentUser.role === 'SPECIALIST') {
+        const appointments = await SupabaseService.getAppointments({ professionalId: currentUser.id });
+        const uniqueIds = new Set(appointments.map((a: any) => a.studentId));
+        const all = await SupabaseService.getStudents();
+        setStudents(all.filter((s: any) => uniqueIds.has(s.id)));
+      } else {
+        const data = await SupabaseService.getStudents();
+        setStudents(data);
+      }
     };
     loadStudents();
-  }, []);
+  }, [currentUser.id, currentUser.role]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -222,9 +233,19 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
   }, [selectedStudentId, activeTab]);
 
   const availableDocs = React.useMemo(() => {
-    const all = [...DOCS_COMUM, ...DOCS_PSICOLOGIA, ...DOCS_SERVICO_SOCIAL, ...DOCS_PSICOPEDAGOGIA];
-    return Array.from(new Set(all)).sort();
-  }, []);
+    const sp = (currentUser.specialty || '').toLowerCase();
+    const common = [...DOCS_COMUM];
+    if (sp.includes('psicopedagogia') || sp.includes('psicopedago')) return [...common, ...DOCS_PSICOPEDAGOGIA];
+    if (sp.includes('psicologia')) return [...common, ...DOCS_PSICOLOGIA];
+    if (sp.includes('social')) return [...common, ...DOCS_SERVICO_SOCIAL];
+    if (sp.includes('fonoaudiologia')) return [...common, ...DOCS_FONOAUDIOLOGIA];
+    if (sp.includes('terapia ocupacional')) return [...common, ...DOCS_TERAPIA_OCUPACIONAL];
+    if (sp.includes('fisioterapia')) return [...common, ...DOCS_FISIOTERAPIA];
+    if (sp.includes('nutri')) return [...common, ...DOCS_NUTRICAO];
+    return Array.from(new Set([...common, ...DOCS_PSICOLOGIA, ...DOCS_SERVICO_SOCIAL,
+      ...DOCS_PSICOPEDAGOGIA, ...DOCS_FONOAUDIOLOGIA, ...DOCS_TERAPIA_OCUPACIONAL,
+      ...DOCS_FISIOTERAPIA, ...DOCS_NUTRICAO])).sort();
+  }, [currentUser.specialty]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn pb-12 relative">

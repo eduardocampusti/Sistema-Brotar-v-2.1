@@ -275,15 +275,82 @@ export const TemplateService = {
         `.trim();
 
       default:
-        body = `
-Este documento refere-se ao atendimento do(a) estudante ${student.fullName}.
-
-DESCRIÇÃO:
-O(a) aluno(a) tem recebido suporte ${role.toLowerCase()} visando seu bem-estar e sucesso escolar. 
-${context ? `\nCONTEXTO:\n${context}` : '\nO processo segue conforme o planejamento técnico estabelecido.'}
-
-Permanecemos à disposição para quaisquer dúvidas.
-        `;
+        // Templates específicos por tipo de documento
+        if (["Relatório Fonoaudiológico","Evolução Fonoaudiológica","Parecer Fonoaudiológico","Encaminhamento Fonoaudiológico","Relatório de Alta Fonoaudiológica"].includes(docType)) {
+          contentHtml = `<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${docType.toUpperCase()}</h2>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
+            <p style="${pStyle}">Aluno(a): <strong>${student.fullName}</strong>, em acompanhamento fonoaudiológico.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. ÁREAS AVALIADAS</h3>
+            <p style="${pStyle}">Linguagem oral e escrita, comunicação, motricidade orofacial, deglutição e voz.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO</h3>
+            <p style="${pStyle}">${context || 'O(a) aluno(a) demonstra evolução gradual nas habilidades comunicativas e linguísticas trabalhadas nas sessões.'}</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. ENCAMINHAMENTOS</h3>
+            <p style="${pStyle}">Indica-se continuidade do acompanhamento fonoaudiológico com foco nas áreas identificadas.</p>`;
+        } else if (["Relatório de Terapia Ocupacional","Evolução em Terapia Ocupacional","Parecer de Terapia Ocupacional","Plano de Intervenção Ocupacional","Relatório de Alta em Terapia Ocupacional"].includes(docType)) {
+          contentHtml = `<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${docType.toUpperCase()}</h2>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
+            <p style="${pStyle}">Aluno(a): <strong>${student.fullName}</strong>, em acompanhamento de Terapia Ocupacional.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. ÁREAS DE INTERVENÇÃO</h3>
+            <p style="${pStyle}">Habilidades de vida diária (AVDs), integração sensorial, coordenação motora fina e grossa, desempenho escolar e funcionalidade.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO</h3>
+            <p style="${pStyle}">${context || 'O(a) aluno(a) apresenta progresso nas atividades propostas, com melhora na autonomia e no desempenho funcional.'}</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. OBJETIVOS TERAPÊUTICOS</h3>
+            <p style="${pStyle}">Ampliar independência nas atividades cotidianas, fortalecer habilidades motoras e promover maior participação escolar.</p>`;
+        } else if (["Relatório Fisioterapêutico","Evolução Fisioterapêutica","Parecer Fisioterapêutico","Plano de Reabilitação","Relatório de Alta Fisioterapêutica"].includes(docType)) {
+          contentHtml = `<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${docType.toUpperCase()}</h2>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
+            <p style="${pStyle}">Aluno(a): <strong>${student.fullName}</strong>, em acompanhamento fisioterapêutico.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. AVALIAÇÃO MOTORA</h3>
+            <p style="${pStyle}">Avaliação do desenvolvimento neuropsicomotor, tônus muscular, padrões de movimento, equilíbrio e marcha.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO</h3>
+            <p style="${pStyle}">${context || 'O(a) aluno(a) apresenta progressos no desenvolvimento motor, com ganhos observados nas habilidades funcionais trabalhadas.'}</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. PLANO TERAPÊUTICO</h3>
+            <p style="${pStyle}">Manutenção das sessões com foco em funcionalidade, prevenção de complicações e promoção da autonomia motora.</p>`;
+        } else if (["Relatório Nutricional","Evolução Nutricional","Plano Alimentar Institucional","Parecer Nutricional","Relatório de Acompanhamento Nutricional"].includes(docType)) {
+          contentHtml = `<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${docType.toUpperCase()}</h2>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
+            <p style="${pStyle}">Aluno(a): <strong>${student.fullName}</strong>, em acompanhamento nutricional.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. AVALIAÇÃO NUTRICIONAL</h3>
+            <p style="${pStyle}">Avaliação do estado nutricional, hábitos alimentares, aceitação alimentar e condições relacionadas à alimentação.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO</h3>
+            <p style="${pStyle}">${context || 'O(a) aluno(a) demonstra adesão ao acompanhamento com evolução positiva nos hábitos alimentares observados.'}</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. CONDUTAS E ORIENTAÇÕES</h3>
+            <p style="${pStyle}">Orientações nutricionais individualizadas fornecidas à família. Indica-se continuidade do acompanhamento nutricional.</p>`;
+        } else if (["Relatório de Busca Ativa","Relatório Social de Visita Domiciliar","Ofício ao Conselho Tutelar","Plano de Acompanhamento Familiar"].includes(docType)) {
+          contentHtml = `<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${docType.toUpperCase()}</h2>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO DA FAMÍLIA</h3>
+            <p style="${pStyle}">Aluno(a): <strong>${student.fullName}</strong>. Acompanhamento do Serviço Social.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. SITUAÇÃO SOCIAL</h3>
+            <p style="${pStyle}">${context || 'Família em acompanhamento pelo Serviço Social. Situação avaliada conforme visita técnica e entrevista social realizada.'}</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. INTERVENÇÕES REALIZADAS</h3>
+            <p style="${pStyle}">Orientações sobre direitos, acesso a serviços da rede de proteção social e encaminhamentos pertinentes ao caso.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. ENCAMINHAMENTOS</h3>
+            <p style="${pStyle}">Indica-se continuidade do acompanhamento familiar e articulação com a rede de proteção social do município.</p>`;
+        } else if (["Relatório Psicológico Técnico","Evolução Psicológica","Parecer Psicológico"].includes(docType)) {
+          contentHtml = `<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${docType.toUpperCase()}</h2>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
+            <p style="${pStyle}">Aluno(a): <strong>${student.fullName}</strong>, em acompanhamento psicológico.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. DEMANDA APRESENTADA</h3>
+            <p style="${pStyle}">${context || 'Demanda psicológica identificada e trabalhada em sessões individuais conforme planejamento clínico.'}</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO DO PROCESSO</h3>
+            <p style="${pStyle}">O(a) aluno(a) demonstra engajamento no processo psicológico com evolução observada nas áreas trabalhadas em sessão.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. CONSIDERAÇÕES TÉCNICAS</h3>
+            <p style="${pStyle}">Indica-se continuidade do acompanhamento psicológico. Este documento não substitui laudo diagnóstico e foi elaborado para fins institucionais.</p>`;
+        } else if (["Plano de Intervenção","Relatório de Evolução"].includes(docType)) {
+          contentHtml = `<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${docType.toUpperCase()}</h2>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
+            <p style="${pStyle}">Aluno(a): <strong>${student.fullName}</strong>.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. OBJETIVOS</h3>
+            <p style="${pStyle}">Promover o desenvolvimento integral do(a) aluno(a) por meio de intervenções especializadas e individualizadas.</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO / INTERVENÇÕES</h3>
+            <p style="${pStyle}">${context || 'O(a) aluno(a) apresenta evolução positiva nas áreas trabalhadas, demonstrando engajamento e progresso gradual.'}</p>
+            <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. PRÓXIMAS ETAPAS</h3>
+            <p style="${pStyle}">Continuidade das intervenções planejadas com reavaliação periódica dos objetivos propostos.</p>`;
+        } else {
+          contentHtml = `<p style="${pStyle}">Este documento refere-se ao atendimento do(a) estudante <strong>${student.fullName}</strong>.</p>
+            ${context ? `<p style="${pStyle}">${context}</p>` : '<p style="' + pStyle + '">O processo segue conforme planejamento técnico estabelecido.</p>'}
+            <p style="${pStyle}">Permanecemos à disposição para quaisquer dúvidas.</p>`;
+        }
     }
 
     // Header Padrão HTML para os demais documentos
