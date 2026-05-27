@@ -373,7 +373,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       <aside className={`hidden lg:flex flex-col w-72 fixed h-full z-30 transition-all duration-300 shadow-2xl ${theme.sidebar}`} style={(theme as any).sidebarStyle || {}}>
         <div className="px-5 pt-6 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }}>
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.18)', border: '1.5px solid rgba(255,255,255,0.30)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.20)' }}>
               <LogoComponent />
             </div>
             <div className="flex-1 min-w-0">
@@ -467,11 +467,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         </nav>
 
         <div className="p-4 mt-auto">
-          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 4px 16px rgba(0,0,0,0.40), 0 1px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.10)' }}>
             
             {/* Avatar + Nome + Role */}
-            <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.25)' }}>
+            <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.18)', border: '2px solid rgba(255,255,255,0.28)' }}>
                 {currentUser.photoUrl ? (
                   <img src={currentUser.photoUrl} alt={`Foto de ${currentUser.name}`} className="w-full h-full rounded-full object-cover" />
                 ) : (
@@ -543,7 +543,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       <aside className={`lg:hidden fixed inset-y-0 left-0 w-72 ${theme.sidebar} z-50 transform transition-transform duration-300 shadow-2xl flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} style={(theme as any).sidebarStyle || {}}>
         <div className="px-5 pt-6 pb-4 relative" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }}>
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.18)', border: '1.5px solid rgba(255,255,255,0.30)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.20)' }}>
               <LogoComponent />
             </div>
             <div className="flex-1 min-w-0">
@@ -628,11 +628,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         </nav>
 
         <div className="p-4 mt-auto" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 4px 16px rgba(0,0,0,0.40), 0 1px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.10)' }}>
             
             {/* Avatar + Nome + Role */}
-            <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.25)' }}>
+            <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.18)', border: '2px solid rgba(255,255,255,0.28)' }}>
                 {currentUser.photoUrl ? (
                   <img src={currentUser.photoUrl} alt={`Foto de ${currentUser.name}`} className="w-full h-full rounded-full object-cover" />
                 ) : (
