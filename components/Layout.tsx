@@ -371,19 +371,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     <div className="flex min-h-screen bg-[#EEF2F8] font-sans selection:bg-primary-500 selection:text-white">
       {/* Sidebar - Desktop */}
       <aside className={`hidden lg:flex flex-col w-72 fixed h-full z-30 transition-all duration-300 shadow-2xl ${theme.sidebar}`} style={(theme as any).sidebarStyle || {}}>
-        <div className="px-5 pt-6 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
+        <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.18)', border: '1.5px solid rgba(255,255,255,0.30)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.20)' }}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.20)', border: '1.5px solid rgba(255,255,255,0.35)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.20)' }}>
               <LogoComponent />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[11px] font-normal tracking-wide" style={{ color: 'rgba(255,255,255,0.55)' }}>Sistema</span>
-                <span className="text-white text-[15px] font-black tracking-tight leading-none">Brotar</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: '3px' }}>
+                <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '11px', fontWeight: 400, letterSpacing: '0.5px' }}>Sistema</span>
+                <span style={{ color: 'white', fontSize: '20px', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1 }}>Brotar</span>
               </div>
-              <div className="flex items-center gap-1.5 mt-1">
-                <Sparkles size={10} style={{ color: 'rgba(253,224,71,0.85)' }} />
-                <span className="text-[10px] font-medium italic" style={{ color: 'rgba(255,255,255,0.55)' }}>Gestão Premium</span>
+              <div className="flex items-center gap-1.5">
+                <Sparkles size={10} style={{ color: 'rgba(253,224,71,0.90)' }} />
+                <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: '10px', fontStyle: 'italic' }}>Gestão Premium</span>
               </div>
             </div>
           </div>
@@ -467,7 +467,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         </nav>
 
         <div className="p-4 mt-auto">
-          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 4px 16px rgba(0,0,0,0.40), 0 1px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.10)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(30,0,60,0.55)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 4px 16px rgba(0,0,0,0.50), 0 1px 4px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
             
             {/* Avatar + Nome + Role */}
             <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -543,17 +543,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       <aside className={`lg:hidden fixed inset-y-0 left-0 w-72 ${theme.sidebar} z-50 transform transition-transform duration-300 shadow-2xl flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} style={(theme as any).sidebarStyle || {}}>
         <div className="px-5 pt-6 pb-4 relative" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.18)', border: '1.5px solid rgba(255,255,255,0.30)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.20)' }}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.20)', border: '1.5px solid rgba(255,255,255,0.35)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.20)' }}>
               <LogoComponent />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[11px] font-normal tracking-wide" style={{ color: 'rgba(255,255,255,0.55)' }}>Sistema</span>
-                <span className="text-white text-[15px] font-black tracking-tight leading-none">Brotar</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: '3px' }}>
+                <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '11px', fontWeight: 400, letterSpacing: '0.5px' }}>Sistema</span>
+                <span style={{ color: 'white', fontSize: '20px', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1 }}>Brotar</span>
               </div>
               <div className="flex items-center gap-1.5 mt-1">
-                <Sparkles size={10} style={{ color: 'rgba(253,224,71,0.85)' }} />
-                <span className="text-[10px] font-medium italic" style={{ color: 'rgba(255,255,255,0.55)' }}>Gestão Premium</span>
+                <Sparkles size={10} style={{ color: 'rgba(253,224,71,0.90)' }} />
+                <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: '10px', fontStyle: 'italic' }}>Gestão Premium</span>
               </div>
             </div>
           </div>
@@ -628,7 +628,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         </nav>
 
         <div className="p-4 mt-auto" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 4px 16px rgba(0,0,0,0.40), 0 1px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.10)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(30,0,60,0.55)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 4px 16px rgba(0,0,0,0.50), 0 1px 4px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
             
             {/* Avatar + Nome + Role */}
             <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
