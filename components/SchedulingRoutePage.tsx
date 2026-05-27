@@ -4,8 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { isPerfilRestritoProntuario } from '@/src/config/perfilRestrito';
 import { Appointment, Specialty, Student, User } from '../types';
 import { SchedulingCenter } from './SchedulingCenter';
-import { AgendaProfissional } from './AgendaProfissional';
 import { SocialWorkerAgenda } from './SocialWorkerAgenda';
+import { MinhaAgendaPage } from '@/src/pages/MinhaAgendaPage';
 
 /** Pós “Iniciar atendimento” na Minha Agenda: abre o módulo clínico com aluno e aba de anamnese. */
 function clinicalRouteStateAfterAgendaStart(
@@ -67,9 +67,8 @@ export const SchedulingRoutePage: React.FC<SchedulingRoutePageProps> = ({
 
     if (isPerfilRestritoProntuario(user as Pick<User, 'role' | 'specialty'>)) {
         return (
-            <SchedulingCenter
+            <MinhaAgendaPage
                 currentUser={user}
-                students={students}
                 onNavigate={onNavigate}
                 onReschedule={(apt) => {
                     if (!user.specialty) { onSelectStudent(students.find(s => s.id === apt.studentId)!); return; }
