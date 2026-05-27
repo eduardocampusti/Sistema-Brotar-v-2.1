@@ -216,7 +216,9 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
 
     const [filterUnit, setFilterUnit] = useState<Unit | 'ALL'>(resolveInitialUnit());
     const [filterSpecialty, setFilterSpecialty] = useState<Specialty | 'ALL'>('ALL');
-    const [filterStatus, setFilterStatus] = useState<AppointmentStatus | 'ALL'>('ALL');
+    const [filterStatus, setFilterStatus] = useState<AppointmentStatus | 'ALL' | 'ALL_EXCEPT_CANCELED'>(
+        currentUser.role === 'SPECIALIST' ? 'ALL_EXCEPT_CANCELED' : 'ALL'
+    );
     const [pendingLogicalDelete, setPendingLogicalDelete] = useState<Appointment | null>(null);
     const [motivoExclusao, setMotivoExclusao] = useState('');
     const [deleting, setDeleting] = useState(false);
@@ -238,10 +240,16 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
             const data = await SupabaseService.getAppointments({
                 unit: filterUnit === 'ALL' ? undefined : filterUnit as Unit,
                 specialty: filterSpecialty === 'ALL' ? undefined : filterSpecialty as Specialty,
-                status: filterStatus === 'ALL' ? undefined : filterStatus as AppointmentStatus,
+                status: (filterStatus === 'ALL' || filterStatus === 'ALL_EXCEPT_CANCELED')
+                    ? undefined
+                    : filterStatus as AppointmentStatus,
                 ...(isRestrictedProfessional ? { professionalId: currentUser.id } : {}),
             });
-            setAppointments(data);
+            if (isRestrictedProfessional && filterStatus === 'ALL_EXCEPT_CANCELED') {
+                setAppointments(data.filter(a => a.status !== 'CANCELADO'));
+            } else {
+                setAppointments(data);
+            }
         } catch (err) {
             showError('Erro ao carregar agendamentos');
         } finally {
@@ -700,9 +708,14 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
                         <select
                             className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-2 focus:ring-slate-100 pr-8"
                             value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value as AppointmentStatus | 'ALL')}
+                            onChange={(e) => setFilterStatus(e.target.value as AppointmentStatus | 'ALL' | 'ALL_EXCEPT_CANCELED')}
                         >
-                            <option value="ALL">Todos os status</option>
+                            <option value={currentUser.role === 'SPECIALIST' ? 'ALL_EXCEPT_CANCELED' : 'ALL'}>
+                                {currentUser.role === 'SPECIALIST' ? 'Todos (exceto cancelados)' : 'Todos os status'}
+                            </option>
+                            {currentUser.role === 'SPECIALIST' && (
+                                <option value="ALL">Todos (inclusive cancelados)</option>
+                            )}
                             <option value="AGENDADO">Agendado</option>
                             <option value="CONFIRMADO">Confirmado</option>
                             <option value="EM_ATENDIMENTO">Em atendimento</option>
