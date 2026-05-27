@@ -43,7 +43,7 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
         ? allAppointments
         : allAppointments.filter((a: any) => a.specialty === especialidade);
       if (filtered.length === 0) {
-        setError(`Nenhum atendimento encontrado para ${especialidade === 'TODAS' ? 'nenhuma especialidade' : especialidade} no ano ${ano}.`);
+        setError(`Nenhum atendimento encontrado para ${especialidade === 'TODAS' ? 'o período' : especialidade} no ano ${ano}.`);
         setIsGenerating(false);
         return;
       }
@@ -63,36 +63,28 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
       });
       const porUnidade: Record<string, number> = {};
       filtered.forEach((a: any) => { const u = a.unit || 'Não informada'; porUnidade[u] = (porUnidade[u] || 0) + 1; });
-      const profissionais = Array.from(new Set(filtered.map((a: any) => a.professionalName))).filter(Boolean);
-      const dadosEstatisticos = [
-        `MUNICÍPIO: Brotas de Macaúbas - Bahia`,
-        `ANO DE REFERÊNCIA: ${ano}`,
-        `ESPECIALIDADE(S): ${especialidade === 'TODAS' ? 'Todas as especialidades do BROTAR' : especialidade}`,
-        ``,
-        `RESUMO QUANTITATIVO:`,
-        `- Total de agendamentos: ${totalAtendimentos}`,
-        `- Atendimentos realizados: ${atendidosEncerrados}`,
-        `- Faltas: ${faltas}`,
-        `- Cancelamentos: ${cancelados}`,
-        `- Lançamentos retroativos: ${retroativos}`,
-        `- Alunos únicos atendidos: ${alunosUnicos}`,
-        `- Taxa de comparecimento: ${totalAtendimentos > 0 ? Math.round((atendidosEncerrados / totalAtendimentos) * 100) : 0}%`,
-        ``,
-        `DISTRIBUIÇÃO POR ESPECIALIDADE:`,
-        ...Object.entries(porEspecialidade).map(([sp, d]) => `  • ${sp}: ${d.total} agendamentos, ${d.atendidos} realizados, ${d.alunos.size} alunos`),
-        ``,
-        `DISTRIBUIÇÃO POR UNIDADE:`,
-        ...Object.entries(porUnidade).map(([u, n]) => `  • ${u}: ${n} agendamentos`),
-        ``,
-        `PROFISSIONAIS ENVOLVIDOS:`,
-        ...profissionais.map(p => `  • ${p}`),
-      ].join('\n');
-      const prompt = `Você é o redator oficial do SISTEMA BROTAR — Centro Multidisciplinar em Educação Especial e Inclusiva da Secretaria Municipal de Educação de Brotas de Macaúbas/BA. Gere um RELATÓRIO ANUAL INSTITUCIONAL completo, formal e detalhado para prestação de contas ao TRIBUNAL DE CONTAS DOS MUNICÍPIOS (TCM) da Bahia, referente ao ano ${ano}. DADOS REAIS: ${dadosEstatisticos}. O relatório deve conter: 1. IDENTIFICAÇÃO DO PROGRAMA 2. APRESENTAÇÃO 3. EQUIPE TÉCNICA 4. RESUMO EXECUTIVO 5. RESULTADOS QUANTITATIVOS com tabela 6. RESULTADOS QUALITATIVOS 7. CONSIDERAÇÕES FINAIS 8. Espaço para assinatura da Secretária de Educação. Use linguagem técnica, formal e institucional.`;
+      const profissionais = Array.from(new Set(filtered.map((a: any) => a.professionalName))).filter(Boolean) as string[];
+      const taxaComparecimento = totalAtendimentos > 0 ? Math.round((atendidosEncerrados / totalAtendimentos) * 100) : 0;
+
+      const dadosIA = `
+DADOS REAIS DO SISTEMA BROTAR — ANO ${ano}
+Especialidade(s): ${especialidade === 'TODAS' ? 'Todas' : especialidade}
+Total de agendamentos: ${totalAtendimentos}
+Atendimentos realizados: ${atendidosEncerrados}
+Faltas: ${faltas} | Cancelamentos: ${cancelados} | Retroativos: ${retroativos}
+Alunos únicos atendidos: ${alunosUnicos}
+Taxa de comparecimento: ${taxaComparecimento}%
+Profissionais: ${profissionais.join(', ')}
+Por especialidade: ${Object.entries(porEspecialidade).map(([sp,d])=>`${sp}: ${d.total} agend., ${d.atendidos} realizados, ${d.alunos.size} alunos`).join(' | ')}
+Por unidade: ${Object.entries(porUnidade).map(([u,n])=>`${u}: ${n}`).join(' | ')}
+      `.trim();
+
       let content: string;
       try {
+        const prompt = `Você é redator oficial do Programa BROTAR de Brotas de Macaúbas/BA. Com base nos dados reais abaixo, complemente e enriqueça o relatório anual institucional para prestação de contas ao TCM/BA referente ao ano ${ano}. Use linguagem técnica, formal e institucional. Para cada seção, escreva parágrafos completos e detalhados baseados nos dados fornecidos. NÃO deixe campos em branco — substitua todos os "XXXX" pelos valores reais. ${dadosIA}`;
         content = await GeminiService.generateOfficialDocument('Relatório Anual TCM', { fullName: 'Rede Municipal', school: { schoolName: 'Brotas de Macaúbas' } } as any, currentUser.name, 'Secretária de Educação', prompt);
       } catch {
-        content = gerarFallback(ano, especialidade, profissionais, atendidosEncerrados, alunosUnicos, faltas, totalAtendimentos);
+        content = gerarTemplateCompleto(ano, especialidade, profissionais, atendidosEncerrados, alunosUnicos, faltas, cancelados, retroativos, totalAtendimentos, taxaComparecimento, porEspecialidade, porUnidade);
       }
       const code = `TCM-${ano}-${Math.floor(Math.random() * 90000) + 10000}`;
       setDocCode(code);
@@ -106,25 +98,35 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
   };
 
   const handlePrint = () => {
-    const w = window.open('', '_blank', 'width=900,height=800');
+    const w = window.open('', '_blank', 'width=1000,height=900');
     if (!w) return;
-    w.document.write(`<html><head><title>Relatório Anual TCM ${ano}</title><style>@page{size:A4;margin:20mm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6;color:#000}table{width:100%;border-collapse:collapse;margin:1rem 0}td,th{border:1px solid #000;padding:6px 10px}th{background:#f0f0f0;font-weight:bold}</style></head><body>${generatedContent}</body></html>`);
+    w.document.write(`<!DOCTYPE html><html><head><title>Relatório Anual TCM ${ano}</title>
+    <style>
+      @page { size: A4; margin: 0; }
+      body { margin: 0; padding: 0; font-family: 'Times New Roman', serif; }
+      @media print { .no-print { display: none; } }
+    </style></head><body>${generatedContent}</body></html>`);
     w.document.close();
-    setTimeout(() => { w.print(); w.close(); }, 500);
+    setTimeout(() => { w.print(); }, 800);
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn pb-12">
-      <div className="bg-gradient-to-r from-[#8B1A3A] to-[#6B1230] rounded-3xl p-6 text-white">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <div className="rounded-3xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #8B1A3A, #6B1230)' }}>
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-white/15 rounded-xl"><Building2 size={24} /></div>
+          <div className="p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.15)' }}>
+            <Building2 size={24} />
+          </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">Relatório Anual — TCM</h1>
-            <p className="text-white/70 text-sm">Tribunal de Contas dos Municípios da Bahia</p>
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.70)' }}>Tribunal de Contas dos Municípios da Bahia</p>
           </div>
         </div>
-        <p className="text-white/60 text-xs mt-3">Gera automaticamente o relatório institucional anual com dados reais do sistema para prestação de contas ao TCM/BA.</p>
+        <p className="text-xs mt-3" style={{ color: 'rgba(255,255,255,0.60)' }}>
+          Gera automaticamente o relatório institucional anual seguindo o modelo oficial do Programa BROTAR, com dados reais do sistema preenchidos pela IA.
+        </p>
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5 sticky top-6">
@@ -147,7 +149,7 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
                 </select>
               </div>
             </div>
-            <button onClick={handleGerar} disabled={isGenerating} className="w-full py-4 bg-gradient-to-r from-[#8B1A3A] to-[#6B1230] text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95">
+            <button onClick={handleGerar} disabled={isGenerating} className="w-full py-4 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95" style={{ background: 'linear-gradient(135deg, #8B1A3A, #6B1230)' }}>
               {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
               {isGenerating ? 'Gerando com IA...' : 'Gerar Relatório TCM'}
             </button>
@@ -157,8 +159,12 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
                 <p className="text-red-600 text-xs">{error}</p>
               </div>
             )}
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-[10px] text-slate-400 font-medium">📄 Modelo baseado no PDF oficial do Programa BROTAR com 13 seções, tabela de indicadores e página de assinaturas.</p>
+            </div>
           </div>
         </div>
+
         <div className="lg:col-span-2">
           {generatedContent ? (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -167,19 +173,19 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
                   <span className="text-xs font-black text-slate-500 bg-slate-200 px-2 py-1 rounded-lg">#{docCode}</span>
                   <span className="text-xs text-slate-500 font-medium">Relatório Anual {ano}</span>
                 </div>
-                <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-[#8B1A3A] text-white rounded-xl text-xs font-bold hover:bg-[#72142E] transition-all">
+                <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 text-white rounded-xl text-xs font-bold transition-all" style={{ background: '#8B1A3A' }}>
                   <Printer size={14} /> Imprimir PDF
                 </button>
               </div>
-              <div className="p-8 prose prose-sm max-w-none min-h-[500px] overflow-y-auto" style={{ fontFamily: "'Times New Roman', serif" }} dangerouslySetInnerHTML={{ __html: generatedContent }} />
+              <div className="overflow-y-auto max-h-[700px]" dangerouslySetInnerHTML={{ __html: generatedContent }} />
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center min-h-[400px] text-center p-8">
               {isGenerating ? (
                 <>
-                  <Loader2 size={48} className="animate-spin text-[#8B1A3A] mb-4" />
+                  <Loader2 size={48} className="animate-spin mb-4" style={{ color: '#8B1A3A' }} />
                   <p className="font-bold text-slate-700">Coletando dados e gerando relatório...</p>
-                  <p className="text-slate-400 text-sm mt-2">Isso pode levar alguns segundos</p>
+                  <p className="text-slate-400 text-sm mt-2">A IA está preenchendo todas as 13 seções</p>
                 </>
               ) : (
                 <>
@@ -187,7 +193,7 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
                     <Building2 size={32} className="text-slate-300" />
                   </div>
                   <p className="font-bold text-slate-500">Configure e gere o relatório</p>
-                  <p className="text-slate-400 text-sm mt-1">Selecione o ano e especialidade ao lado</p>
+                  <p className="text-slate-400 text-sm mt-1">O modelo seguirá o padrão oficial do PDF do BROTAR</p>
                 </>
               )}
             </div>
@@ -198,34 +204,184 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
   );
 };
 
-function gerarFallback(ano: number, especialidade: string, profissionais: string[], atendidos: number, alunos: number, faltas: number, total: number): string {
-  return `<div style="font-family:'Times New Roman',serif;color:#000;line-height:1.6">
-  <div style="text-align:center;margin-bottom:2rem;border-bottom:2px solid #000;padding-bottom:1rem">
-    <h1 style="font-size:14pt;font-weight:bold;text-transform:uppercase;margin:0">RELATÓRIO ANUAL DE ATIVIDADES</h1>
-    <h2 style="font-size:12pt;font-weight:bold;margin:0.5rem 0">PROGRAMA BROTAR — EDUCAÇÃO ESPECIAL E INCLUSIVA</h2>
-    <p style="margin:0">Secretaria Municipal de Educação de Brotas de Macaúbas/BA</p>
-    <p style="margin:0">Ano de Referência: <strong>${ano}</strong></p>
-  </div>
-  <h2 style="font-size:12pt;font-weight:bold;margin-top:1.5rem">1. IDENTIFICAÇÃO</h2>
-  <p>Programa: BROTAR — Centro Multidisciplinar em Educação Especial e Inclusiva<br/>Município: Brotas de Macaúbas — Bahia<br/>Órgão: Secretaria Municipal de Educação<br/>Período: Janeiro a Dezembro de ${ano}<br/>Especialidade(s): ${especialidade === 'TODAS' ? 'Todas as especialidades' : especialidade}</p>
-  <h2 style="font-size:12pt;font-weight:bold;margin-top:1.5rem">2. EQUIPE TÉCNICA</h2>
-  <ul>${profissionais.map(p => `<li>${p}</li>`).join('')}</ul>
-  <h2 style="font-size:12pt;font-weight:bold;margin-top:1.5rem">3. RESULTADOS QUANTITATIVOS</h2>
-  <table style="width:100%;border-collapse:collapse;margin:1rem 0">
-    <tr style="background:#f0f0f0"><th style="border:1px solid #000;padding:6px">Indicador</th><th style="border:1px solid #000;padding:6px">Valor</th></tr>
-    <tr><td style="border:1px solid #000;padding:6px">Total de agendamentos</td><td style="border:1px solid #000;padding:6px;text-align:center">${total}</td></tr>
-    <tr><td style="border:1px solid #000;padding:6px">Atendimentos realizados</td><td style="border:1px solid #000;padding:6px;text-align:center">${atendidos}</td></tr>
-    <tr><td style="border:1px solid #000;padding:6px">Faltas registradas</td><td style="border:1px solid #000;padding:6px;text-align:center">${faltas}</td></tr>
-    <tr><td style="border:1px solid #000;padding:6px">Alunos atendidos únicos</td><td style="border:1px solid #000;padding:6px;text-align:center">${alunos}</td></tr>
-    <tr><td style="border:1px solid #000;padding:6px">Taxa de comparecimento</td><td style="border:1px solid #000;padding:6px;text-align:center">${total > 0 ? Math.round((atendidos / total) * 100) : 0}%</td></tr>
-  </table>
-  <h2 style="font-size:12pt;font-weight:bold;margin-top:1.5rem">4. CONSIDERAÇÕES FINAIS</h2>
-  <p>O Programa BROTAR cumpriu sua missão institucional no ano de ${ano}, oferecendo suporte especializado a alunos com necessidades educacionais especiais da rede municipal de Brotas de Macaúbas/BA.</p>
-  <div style="margin-top:4rem;text-align:center">
-    <p>Brotas de Macaúbas/BA, ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}.</p>
-    <div style="margin-top:3rem;display:inline-block">
-      <div style="border-top:1px solid #000;width:300px;padding-top:0.5rem;text-align:center">Secretária Municipal de Educação</div>
+function gerarTemplateCompleto(
+  ano: number, especialidade: string, profissionais: string[],
+  atendidos: number, alunos: number, faltas: number, cancelados: number,
+  retroativos: number, total: number, taxa: number,
+  porEsp: Record<string, { total: number; atendidos: number; alunos: Set<string> }>,
+  porUnidade: Record<string, number>
+): string {
+  const dataAtual = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const espLabel = especialidade === 'TODAS' ? 'Todas as especialidades' : especialidade;
+
+  const rowsEsp = Object.entries(porEsp).map(([sp, d]) => `
+    <tr>
+      <td style="border:1px solid #ccc;padding:6px 10px">${sp}</td>
+      <td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${d.total}</td>
+      <td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${d.atendidos}</td>
+      <td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${d.alunos.size}</td>
+    </tr>`).join('');
+
+  return `
+<div style="font-family:'Times New Roman',serif;color:#000;line-height:1.6;max-width:800px;margin:0 auto">
+
+  <!-- CAPA -->
+  <div style="page-break-after:always;min-height:1100px;background:#fff;padding:40px;box-sizing:border-box;position:relative;border-bottom:4px solid #003d7a">
+
+    <!-- Cabeçalho institucional -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:2px solid #003d7a;margin-bottom:30px">
+      <div style="text-align:center;flex:1">
+        <div style="font-size:11pt;color:#003d7a;font-weight:bold;text-transform:uppercase;letter-spacing:1px">Prefeitura Municipal</div>
+        <div style="font-size:20pt;color:#003d7a;font-weight:900;text-transform:uppercase;letter-spacing:2px">BROTAS DE MACAÚBAS</div>
+        <div style="font-size:9pt;color:#555;font-style:italic">A força do povo é o trabalho</div>
+      </div>
+      <div style="width:2px;height:80px;background:#003d7a;margin:0 30px"></div>
+      <div style="text-align:center;flex:1">
+        <div style="font-size:9pt;color:#555">Secretaria Municipal de</div>
+        <div style="font-size:22pt;color:#003d7a;font-weight:900;text-transform:uppercase;letter-spacing:1px">EDUCAÇÃO</div>
+        <div style="font-size:9pt;color:#003d7a;font-weight:bold">BROTAS DE MACAÚBAS – BA</div>
+      </div>
+    </div>
+
+    <!-- Título principal -->
+    <div style="text-align:center;margin:40px 0 20px">
+      <div style="font-size:18pt;color:#003d7a;font-weight:bold;text-transform:uppercase;letter-spacing:2px">RELATÓRIO ANUAL DE</div>
+      <div style="font-size:42pt;color:#003d7a;font-weight:900;text-transform:uppercase;letter-spacing:3px;line-height:1">ATIVIDADES</div>
+      <div style="display:inline-block;background:#10B981;color:#fff;font-size:16pt;font-weight:900;letter-spacing:3px;padding:6px 30px;margin-top:10px;border-radius:4px">EXERCÍCIO ${ano}</div>
+    </div>
+
+    <!-- Logo BROTAR -->
+    <div style="text-align:center;margin:30px 0">
+      <div style="font-size:48pt;font-weight:900;letter-spacing:-2px;margin-bottom:5px">
+        <span style="color:#003d7a">Br</span><span style="color:#10B981">o</span><span style="color:#F59E0B">t</span><span style="color:#EF4444">a</span><span style="color:#8B5CF6">r</span>
+      </div>
+      <div style="font-size:13pt;color:#003d7a;font-weight:bold;letter-spacing:1px">Centro Multidisciplinar</div>
+      <div style="font-size:13pt;color:#003d7a;font-weight:bold">em Educação Inclusiva</div>
+      <div style="font-size:12pt;color:#10B981;font-style:italic;margin-top:8px">Acolher, incluir e transformar vidas.</div>
+    </div>
+
+    <!-- Ícones das 6 ações -->
+    <div style="display:flex;justify-content:center;gap:16px;margin:30px 0;flex-wrap:wrap">
+      ${[
+        { icon: '👥', label: 'ATENDIMENTO\nESPECIALIZADO' },
+        { icon: '🏫', label: 'VISITAS TÉCNICAS\nESCOLARES' },
+        { icon: '👨‍👩‍👧', label: 'ATENDIMENTO\nÀS FAMÍLIAS' },
+        { icon: '📍', label: 'ATENDIMENTO\nZONA RURAL' },
+        { icon: '📋', label: 'AVALIAÇÕES E\nACOMPANHAMENTOS' },
+        { icon: '📈', label: 'INCLUSÃO,\nAPRENDIZAGEM E VIDA' },
+      ].map(item => `
+        <div style="text-align:center;width:100px">
+          <div style="font-size:28pt;margin-bottom:4px">${item.icon}</div>
+          <div style="font-size:7pt;font-weight:bold;color:#003d7a;text-transform:uppercase;line-height:1.3;white-space:pre-line">${item.label}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- Rodapé da capa -->
+    <div style="border-top:2px solid #003d7a;margin-top:30px;padding-top:16px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:10pt;color:#333;font-style:italic">
+        <span style="font-size:20pt;color:#003d7a">"</span> A inclusão não é um favor.<br/>É um direito e um compromisso de todos. <span style="font-size:20pt;color:#003d7a">"</span>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10pt;color:#003d7a;font-weight:bold">BROTAS DE MACAÚBAS – BA</div>
+        <div style="font-size:9pt;color:#555">Janeiro a Dezembro de ${ano}</div>
+      </div>
     </div>
   </div>
-</div>`;
+
+  <!-- CONTEÚDO -->
+  <div style="padding:40px;box-sizing:border-box">
+
+    <div style="text-align:center;border-bottom:2px solid #003d7a;padding-bottom:16px;margin-bottom:30px">
+      <div style="font-size:14pt;font-weight:bold;color:#003d7a;text-transform:uppercase">PROGRAMA BROTAR</div>
+      <div style="font-size:11pt;color:#555">Relatório Anual de Atividades — Exercício ${ano}</div>
+      <div style="font-size:10pt;color:#555">Especialidade(s): ${espLabel}</div>
+    </div>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">1. APRESENTAÇÃO INSTITUCIONAL</h2>
+    <p style="text-align:justify;margin:8px 0">O Programa BROTAR constitui uma política pública municipal voltada ao acompanhamento especializado de estudantes com necessidades educacionais específicas da rede municipal de ensino de Brotas de Macaúbas/BA. No exercício de ${ano}, o programa consolidou suas ações multidisciplinares, atendendo a ${alunos} aluno(s) únicos por meio de ${total} agendamentos, com taxa de comparecimento de ${taxa}%.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">2. OBJETIVOS DO PROGRAMA</h2>
+    <p style="text-align:justify;margin:8px 0">Promover suporte multidisciplinar especializado aos estudantes da rede municipal, fortalecendo a inclusão escolar, o acompanhamento familiar e o apoio pedagógico. O programa tem como metas: garantir o acesso de todos os alunos com necessidades específicas ao atendimento especializado; promover a articulação entre escola, família e equipe técnica; e produzir documentos técnicos que subsidiem as práticas pedagógicas inclusivas.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">3. ESTRUTURA ORGANIZACIONAL</h2>
+    <p style="text-align:justify;margin:8px 0">A equipe técnica do Programa BROTAR atuou de forma integrada no exercício de ${ano}, promovendo atendimento multidisciplinar, visitas escolares e acompanhamento contínuo. Compõem a equipe os seguintes profissionais:</p>
+    <ul style="margin:8px 0 8px 20px">
+      ${profissionais.length > 0 ? profissionais.map(p => `<li>${p}</li>`).join('') : '<li>Equipe multiprofissional conforme quadro funcional vigente</li>'}
+    </ul>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">4. ABRANGÊNCIA TERRITORIAL</h2>
+    <p style="text-align:justify;margin:8px 0">Os atendimentos foram realizados nas seguintes unidades: ${Object.keys(porUnidade).join(', ') || 'SEDE e COCAL'}. O programa manteve ações itinerantes em comunidades rurais, assegurando o atendimento educacional especializado aos estudantes com dificuldade de acesso à sede municipal, ampliando assim a abrangência territorial do serviço.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">5. METODOLOGIA DE ATENDIMENTO</h2>
+    <p style="text-align:justify;margin:8px 0">Os atendimentos seguem fluxo técnico composto pelas seguintes etapas: (1) encaminhamento pela escola ou família; (2) triagem e acolhimento inicial; (3) avaliação multidisciplinar; (4) elaboração de plano de acompanhamento individualizado; (5) atendimento especializado sistemático; e (6) monitoramento contínuo com registro no Sistema BROTAR. No exercício de ${ano}, foram realizados ${atendidos} atendimentos efetivos, representando ${taxa}% de aproveitamento dos agendamentos.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">6. AÇÕES DESENVOLVIDAS</h2>
+    <p style="text-align:justify;margin:8px 0">Durante o exercício de ${ano} foram realizadas as seguintes ações: atendimentos especializados individuais e em grupo; visitas técnicas às unidades escolares da rede municipal; reuniões de orientação familiar; produção de relatórios técnicos, pareceres e encaminhamentos; ações de formação e orientação para professores; e lançamento de ${retroativos} registro(s) histórico(s) de atendimentos realizados em períodos anteriores.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">7. INDICADORES QUANTITATIVOS</h2>
+    <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:10pt">
+      <tr style="background:#003d7a;color:#fff">
+        <th style="border:1px solid #ccc;padding:8px 10px;text-align:left">Indicador</th>
+        <th style="border:1px solid #ccc;padding:8px 10px;text-align:center">Quantidade</th>
+      </tr>
+      <tr style="background:#f5f5f5"><td style="border:1px solid #ccc;padding:6px 10px">Total de agendamentos realizados</td><td style="border:1px solid #ccc;padding:6px 10px;text-align:center"><strong>${total}</strong></td></tr>
+      <tr><td style="border:1px solid #ccc;padding:6px 10px">Atendimentos efetivamente realizados</td><td style="border:1px solid #ccc;padding:6px 10px;text-align:center"><strong>${atendidos}</strong></td></tr>
+      <tr style="background:#f5f5f5"><td style="border:1px solid #ccc;padding:6px 10px">Alunos/pacientes únicos atendidos</td><td style="border:1px solid #ccc;padding:6px 10px;text-align:center"><strong>${alunos}</strong></td></tr>
+      <tr><td style="border:1px solid #ccc;padding:6px 10px">Faltas registradas</td><td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${faltas}</td></tr>
+      <tr style="background:#f5f5f5"><td style="border:1px solid #ccc;padding:6px 10px">Cancelamentos</td><td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${cancelados}</td></tr>
+      <tr><td style="border:1px solid #ccc;padding:6px 10px">Lançamentos históricos (retroativos)</td><td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${retroativos}</td></tr>
+      <tr style="background:#e8f5e9"><td style="border:1px solid #ccc;padding:6px 10px"><strong>Taxa de comparecimento</strong></td><td style="border:1px solid #ccc;padding:6px 10px;text-align:center"><strong>${taxa}%</strong></td></tr>
+      <tr><td style="border:1px solid #ccc;padding:6px 10px">Profissionais atuantes</td><td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${profissionais.length}</td></tr>
+    </table>
+
+    <p style="font-size:10pt;font-weight:bold;color:#003d7a;margin:16px 0 8px">Distribuição por Especialidade:</p>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:10pt">
+      <tr style="background:#003d7a;color:#fff">
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:left">Especialidade</th>
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:center">Agendamentos</th>
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:center">Realizados</th>
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:center">Alunos</th>
+      </tr>
+      ${rowsEsp}
+    </table>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">8. ATENDIMENTO ITINERANTE – ZONA RURAL</h2>
+    <p style="text-align:justify;margin:8px 0">As equipes do Programa BROTAR realizaram deslocamentos periódicos para comunidades rurais do município de Brotas de Macaúbas/BA, assegurando o atendimento educacional especializado aos estudantes com dificuldade de acesso à sede. Esta ação representa o compromisso do programa com a equidade no acesso aos serviços especializados, independentemente da localização geográfica do aluno.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">9. VISITAS TÉCNICAS ESCOLARES</h2>
+    <p style="text-align:justify;margin:8px 0">As visitas técnicas às unidades escolares da rede municipal possibilitaram a observação pedagógica direta, a orientação aos professores regentes sobre estratégias inclusivas, e o acompanhamento da inclusão escolar dos alunos atendidos pelo programa. Estas visitas constituem elo fundamental entre o atendimento especializado e a prática pedagógica cotidiana.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">10. PRODUÇÃO TÉCNICA</h2>
+    <p style="text-align:justify;margin:8px 0">No exercício de ${ano}, a equipe técnica produziu relatórios técnicos individualizados, pareceres especializados, encaminhamentos para outros serviços da rede de proteção social e educacional, planos de acompanhamento individual, e documentos institucionais. Toda a produção técnica foi registrada no Sistema BROTAR, garantindo rastreabilidade e transparência nos registros.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">11. DESAFIOS INSTITUCIONAIS</h2>
+    <p style="text-align:justify;margin:8px 0">A crescente demanda por atendimentos especializados, as distâncias territoriais do município, a necessidade de ampliação da estrutura física e de recursos humanos, e o desafio de garantir continuidade dos atendimentos durante períodos de recesso escolar constituem os principais desafios permanentes do programa. A equipe tem buscado soluções criativas e eficientes para superar essas limitações.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">12. RESULTADOS E IMPACTOS</h2>
+    <p style="text-align:justify;margin:8px 0">O Programa BROTAR contribuiu significativamente no exercício de ${ano} para o fortalecimento da inclusão escolar, o apoio qualificado às famílias, e o acompanhamento multidisciplinar de ${alunos} estudantes com necessidades educacionais específicas. Os resultados demonstram o impacto positivo das ações na qualidade de vida e no desempenho escolar dos alunos atendidos, refletindo o compromisso da Secretaria Municipal de Educação com a educação inclusiva e de qualidade.</p>
+
+    <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">13. CONSIDERAÇÕES FINAIS</h2>
+    <p style="text-align:justify;margin:8px 0">O Programa BROTAR consolidou-se como importante instrumento de apoio à educação inclusiva no município de Brotas de Macaúbas/BA no exercício de ${ano}. Com ${atendidos} atendimentos realizados, ${alunos} alunos beneficiados e equipe de ${profissionais.length} profissional(is) dedicado(s), o programa reafirma seu papel estratégico na garantia do direito à educação de qualidade para todos os estudantes da rede municipal, em consonância com os princípios da Lei Brasileira de Inclusão (Lei nº 13.146/2015) e da Política Nacional de Educação Especial na Perspectiva da Educação Inclusiva.</p>
+
+    <!-- ASSINATURAS -->
+    <div style="margin-top:60px;page-break-inside:avoid">
+      <p style="margin-bottom:40px">Brotas de Macaúbas/BA, ${dataAtual}.</p>
+      <div style="display:flex;justify-content:space-around;margin-top:20px">
+        <div style="text-align:center;width:280px">
+          <div style="border-top:1px solid #000;padding-top:8px">
+            <div style="font-weight:bold">Coordenação do Programa BROTAR</div>
+          </div>
+        </div>
+        <div style="text-align:center;width:280px">
+          <div style="border-top:1px solid #000;padding-top:8px">
+            <div style="font-weight:bold">Secretária Municipal de Educação</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+  `.trim();
 }
