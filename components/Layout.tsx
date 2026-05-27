@@ -371,27 +371,27 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     <div className="flex min-h-screen bg-[#EEF2F8] font-sans selection:bg-primary-500 selection:text-white">
       {/* Sidebar - Desktop */}
       <aside className={`hidden lg:flex flex-col w-72 fixed h-full z-30 transition-all duration-300 shadow-2xl ${theme.sidebar}`} style={(theme as any).sidebarStyle || {}}>
-        <div className="px-5 pt-6 pb-4 border-b border-white/8">
+        <div className="px-5 pt-6 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 bg-white/15 border border-white/25 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }}>
               <LogoComponent />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-white/55 text-[11px] font-normal tracking-wide">Sistema</span>
+                <span className="text-[11px] font-normal tracking-wide" style={{ color: 'rgba(255,255,255,0.55)' }}>Sistema</span>
                 <span className="text-white text-[15px] font-black tracking-tight leading-none">Brotar</span>
               </div>
               <div className="flex items-center gap-1.5 mt-1">
-                <Sparkles size={10} className="text-yellow-300/80" />
-                <span className={`text-[10px] font-medium opacity-60 italic ${theme.accent}`}>Gestão Premium</span>
+                <Sparkles size={10} style={{ color: 'rgba(253,224,71,0.85)' }} />
+                <span className="text-[10px] font-medium italic" style={{ color: 'rgba(255,255,255,0.55)' }}>Gestão Premium</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-center gap-2 bg-white/8 border border-white/12 rounded-lg px-3 py-2">
+          <div className="flex items-center justify-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}>
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></div>
-            <span className="text-white/70 text-[10px] tracking-wide font-medium">{APP_VERSION.version}</span>
-            <span className="text-white/25 text-[10px]">•</span>
-            <span className="text-white/45 text-[10px]">Release estável</span>
+            <span className="text-[10px] tracking-wide font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>{APP_VERSION.version}</span>
+            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.30)' }}>•</span>
+            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.60)' }}>Release estável</span>
           </div>
         </div>
 
@@ -467,11 +467,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         </nav>
 
         <div className="p-4 mt-auto">
-          <div className="bg-black/20 border border-white/8 rounded-2xl overflow-hidden">
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)' }}>
             
             {/* Avatar + Nome + Role */}
-            <div className="flex items-center gap-3 p-4 border-b border-white/8">
-              <div className="w-9 h-9 rounded-full bg-white/15 border-2 border-white/25 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden shadow-inner">
+            <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.25)' }}>
                 {currentUser.photoUrl ? (
                   <img src={currentUser.photoUrl} alt={`Foto de ${currentUser.name}`} className="w-full h-full rounded-full object-cover" />
                 ) : (
@@ -480,20 +480,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
               </div>
               <div className="overflow-hidden flex-1">
                 <p className="text-white text-[13px] font-bold truncate leading-tight">{currentUser.name.split(' ')[0]}</p>
-                <p className="text-white/45 text-[9px] uppercase font-semibold tracking-wider mt-0.5 truncate">{getRoleLabel()}</p>
+                <p className="text-[9px] uppercase font-semibold tracking-wider mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.50)' }}>{getRoleLabel()}</p>
               </div>
             </div>
 
             {/* Versão + Data em destaque */}
-            <div className="px-4 py-3 border-b border-white/8">
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Tag size={11} className="text-white/40" />
-                  <span className="text-white/65 text-[10px] font-bold tracking-wide">{APP_VERSION.version}</span>
+                  <Tag size={11} style={{ color: 'rgba(255,255,255,0.55)' }} />
+                  <span className="text-[10px] font-bold tracking-wide" style={{ color: 'rgba(255,255,255,0.80)' }}>{APP_VERSION.version}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CalendarDays size={11} className="text-white/35" />
-                  <span className="text-white/40 text-[10px]">{APP_VERSION.display.split('•')[1]?.trim() || APP_VERSION.display}</span>
+                  <CalendarDays size={11} style={{ color: 'rgba(255,255,255,0.45)' }} />
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.55)' }}>{APP_VERSION.display.split('•')[1]?.trim() || APP_VERSION.display}</span>
                 </div>
               </div>
             </div>
@@ -502,7 +502,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
             <div className="grid grid-cols-2 gap-0">
               <button
                 onClick={() => onNavigate('about')}
-                className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-white/60 hover:text-white hover:bg-white/10 py-3 transition-all border-r border-white/8"
+                className="flex items-center justify-center gap-1.5 text-[11px] font-semibold py-3 transition-all hover:bg-white/10"
+                style={{ color: 'rgba(255,255,255,0.65)', borderRight: '1px solid rgba(255,255,255,0.1)' }}
               >
                 <Info size={13} /> Sobre
               </button>
@@ -540,26 +541,26 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
       {/* Mobile Sidebar - Menu móvel de alta fidelidade e idêntico ao desktop */}
       <aside className={`lg:hidden fixed inset-y-0 left-0 w-72 ${theme.sidebar} z-50 transform transition-transform duration-300 shadow-2xl flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} style={(theme as any).sidebarStyle || {}}>
-        <div className="px-5 pt-6 pb-4 border-b border-white/8 relative">
+        <div className="px-5 pt-6 pb-4 relative" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 bg-white/15 border border-white/25 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)' }}>
               <LogoComponent />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-white/55 text-[11px] font-normal tracking-wide">Sistema</span>
+                <span className="text-[11px] font-normal tracking-wide" style={{ color: 'rgba(255,255,255,0.55)' }}>Sistema</span>
                 <span className="text-white text-[15px] font-black tracking-tight leading-none">Brotar</span>
               </div>
               <div className="flex items-center gap-1.5 mt-1">
-                <Sparkles size={10} className="text-yellow-300/80" />
-                <span className={`text-[10px] font-medium opacity-60 italic ${theme.accent}`}>Gestão Premium</span>
+                <Sparkles size={10} style={{ color: 'rgba(253,224,71,0.85)' }} />
+                <span className="text-[10px] font-medium italic" style={{ color: 'rgba(255,255,255,0.55)' }}>Gestão Premium</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-center gap-2 bg-white/8 border border-white/12 rounded-lg px-3 py-2">
+          <div className="flex items-center justify-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}>
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></div>
-            <span className="text-white/70 text-[10px] tracking-wide font-medium">{APP_VERSION.version}</span>
-            <span className="text-white/25 text-[10px]">•</span>
+            <span className="text-[10px] tracking-wide font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>{APP_VERSION.version}</span>
+            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.30)' }}>•</span>
             <span className="text-white/45 text-[10px]">Release estável</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors">
@@ -626,12 +627,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
           )}
         </nav>
 
-        <div className="p-4 mt-auto border-t border-white/10">
-          <div className="bg-black/20 border border-white/8 rounded-2xl overflow-hidden">
+        <div className="p-4 mt-auto" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)' }}>
             
             {/* Avatar + Nome + Role */}
-            <div className="flex items-center gap-3 p-4 border-b border-white/8">
-              <div className="w-9 h-9 rounded-full bg-white/15 border-2 border-white/25 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden shadow-inner">
+            <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.25)' }}>
                 {currentUser.photoUrl ? (
                   <img src={currentUser.photoUrl} alt={`Foto de ${currentUser.name}`} className="w-full h-full rounded-full object-cover" />
                 ) : (
@@ -640,20 +641,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
               </div>
               <div className="overflow-hidden flex-1">
                 <p className="text-white text-[13px] font-bold truncate leading-tight">{currentUser.name.split(' ')[0]}</p>
-                <p className="text-white/45 text-[9px] uppercase font-semibold tracking-wider mt-0.5 truncate">{getRoleLabel()}</p>
+                <p className="text-[9px] uppercase font-semibold tracking-wider mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.50)' }}>{getRoleLabel()}</p>
               </div>
             </div>
 
             {/* Versão + Data em destaque */}
-            <div className="px-4 py-3 border-b border-white/8">
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Tag size={11} className="text-white/40" />
-                  <span className="text-white/65 text-[10px] font-bold tracking-wide">{APP_VERSION.version}</span>
+                  <Tag size={11} style={{ color: 'rgba(255,255,255,0.55)' }} />
+                  <span className="text-[10px] font-bold tracking-wide" style={{ color: 'rgba(255,255,255,0.80)' }}>{APP_VERSION.version}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CalendarDays size={11} className="text-white/35" />
-                  <span className="text-white/40 text-[10px]">{APP_VERSION.display.split('•')[1]?.trim() || APP_VERSION.display}</span>
+                  <CalendarDays size={11} style={{ color: 'rgba(255,255,255,0.45)' }} />
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.55)' }}>{APP_VERSION.display.split('•')[1]?.trim() || APP_VERSION.display}</span>
                 </div>
               </div>
             </div>
