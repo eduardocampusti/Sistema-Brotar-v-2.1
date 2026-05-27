@@ -243,10 +243,9 @@ function gerarTemplateCompleto(
 
   <!-- CAPA OFICIAL -->
   <div style="page-break-after:always;position:relative;width:100%;background:#fff">
-    <img src="/capa_brotar_opt.jpg" style="width:100%;display:block" alt="Capa Relatório BROTAR" />
-    <!-- Ano sobreposto DENTRO do campo EXERCÍCIO ANO: da capa -->
-    <div style="position:absolute;top:30.5%;left:36%;font-size:18pt;font-weight:900;color:#1a7a3a;letter-spacing:2px;font-family:Arial,sans-serif">
-      ${ano}
+    <img src="/capa_brotar3.jpg" style="width:100%;display:block" alt="Capa Relatório BROTAR" />
+    <div style="position:absolute;top:31%;left:3%;width:47%;text-align:center;font-size:16pt;font-weight:900;color:#1a7a3a;letter-spacing:3px;font-family:Arial,sans-serif;padding:6px 0">
+      EXERCÍCIO ${ano}
     </div>
   </div>
 
