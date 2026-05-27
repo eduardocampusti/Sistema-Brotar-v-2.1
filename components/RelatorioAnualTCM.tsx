@@ -63,6 +63,39 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
       const cancelados = filtered.filter((a: any) => a.status === 'CANCELADO').length;
       const retroativos = filtered.filter((a: any) => a.status === 'RETROATIVO').length;
       const alunosUnicos = new Set(filtered.map((a: any) => a.studentId)).size;
+
+      // Atendimentos por mês
+      const mesesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      const porMes: Record<number, number> = {};
+      filtered.forEach((a: any) => {
+        if (a.date) {
+          const mes = parseInt(a.date.split('-')[1]) - 1;
+          porMes[mes] = (porMes[mes] || 0) + 1;
+        }
+      });
+
+      // Buscar dados de escolas via alunos
+      const estudantesIds = Array.from(new Set(filtered.map((a: any) => a.studentId)));
+      let todosAlunos: any[] = [];
+      try { todosAlunos = await SupabaseService.getStudents(); } catch {}
+      const alunosAtendidos = todosAlunos.filter((s: any) => estudantesIds.includes(s.id));
+
+      // Escolas atendidas com contagem de alunos
+      const porEscola: Record<string, { alunos: Set<string>; atendimentos: number }> = {};
+      filtered.forEach((a: any) => {
+        const aluno = alunosAtendidos.find((s: any) => s.id === a.studentId);
+        const escola = aluno?.school?.schoolName || aluno?.schoolName || 'Escola não informada';
+        if (!porEscola[escola]) porEscola[escola] = { alunos: new Set(), atendimentos: 0 };
+        porEscola[escola].alunos.add(a.studentId);
+        porEscola[escola].atendimentos++;
+      });
+
+      // Últimos atendimentos (10 mais recentes)
+      const ultimosAtendimentos = [...filtered]
+        .filter((a: any) => ['ATENDIDO','ENCERRADO'].includes(a.status))
+        .sort((a: any, b: any) => b.date?.localeCompare(a.date))
+        .slice(0, 10);
+
       const porEspecialidade: Record<string, { total: number; atendidos: number; alunos: Set<string> }> = {};
       filtered.forEach((a: any) => {
         const sp = a.specialty || especialidadeProfissional;
@@ -98,7 +131,7 @@ Por unidade: ${Object.entries(porUnidade).map(([u,n])=>`${u}: ${n}`).join(' | ')
         const prompt = `Você é redator oficial do Programa BROTAR de Brotas de Macaúbas/BA. Com base nos dados reais abaixo, complemente e enriqueça o relatório anual institucional para prestação de contas ao TCM/BA referente ao ano ${ano}. Use linguagem técnica, formal e institucional. Para cada seção, escreva parágrafos completos e detalhados baseados nos dados fornecidos. NÃO deixe campos em branco — substitua todos os "XXXX" pelos valores reais. ${dadosIA}`;
         content = await GeminiService.generateOfficialDocument('Relatório Anual TCM', { fullName: 'Rede Municipal', school: { schoolName: 'Brotas de Macaúbas' } } as any, currentUser.name, 'Secretária de Educação', prompt);
       } catch {
-        content = gerarTemplateCompleto(ano, especialidadeProfissional, currentUser.name, profissionais, atendidosEncerrados, alunosUnicos, faltas, cancelados, retroativos, totalAtendimentos, taxaComparecimento, porEspecialidade, porUnidade);
+        content = gerarTemplateCompleto(ano, especialidadeProfissional, currentUser.name, profissionais, atendidosEncerrados, alunosUnicos, faltas, cancelados, retroativos, totalAtendimentos, taxaComparecimento, porEspecialidade, porUnidade, porMes, mesesNomes, porEscola, ultimosAtendimentos);
       }
       const code = `TCM-${ano}-${Math.floor(Math.random() * 90000) + 10000}`;
       setDocCode(code);
@@ -225,7 +258,11 @@ function gerarTemplateCompleto(
   atendidos: number, alunos: number, faltas: number, cancelados: number,
   retroativos: number, total: number, taxa: number,
   porEsp: Record<string, { total: number; atendidos: number; alunos: Set<string> }>,
-  porUnidade: Record<string, number>
+  porUnidade: Record<string, number>,
+  porMes: Record<number, number>,
+  mesesNomes: string[],
+  porEscola: Record<string, { alunos: Set<string>; atendimentos: number }>,
+  ultimosAtendimentos: any[]
 ): string {
   const dataAtual = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const espLabel = especialidade === 'TODAS' ? 'Todas as especialidades' : especialidade;
@@ -306,6 +343,56 @@ function gerarTemplateCompleto(
       </tr>
       ${rowsEsp}
     </table>
+
+    <p style="font-size:10pt;font-weight:bold;color:#003d7a;margin:16px 0 8px">Atendimentos por Mês — ${ano}:</p>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:10pt">
+      <tr style="background:#003d7a;color:#fff">
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:left">Mês</th>
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:center">Atendimentos</th>
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:center">% do Total</th>
+      </tr>
+      ${Array.from({length:12},(_,i)=>i).filter(i=>porMes[i]>0).map((i,idx)=>`
+      <tr style="${idx%2===0?'background:#f5f5f5':''}">
+        <td style="border:1px solid #ccc;padding:6px 10px">${mesesNomes[i]}</td>
+        <td style="border:1px solid #ccc;padding:6px 10px;text-align:center"><strong>${porMes[i]}</strong></td>
+        <td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${total>0?Math.round((porMes[i]/total)*100):0}%</td>
+      </tr>`).join('')}
+    </table>
+
+    <p style="font-size:10pt;font-weight:bold;color:#003d7a;margin:16px 0 8px">Escolas Atendidas:</p>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:10pt">
+      <tr style="background:#003d7a;color:#fff">
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:left">Escola</th>
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:center">Alunos</th>
+        <th style="border:1px solid #ccc;padding:7px 10px;text-align:center">Atendimentos</th>
+      </tr>
+      ${Object.entries(porEscola).sort((a,b)=>b[1].atendimentos-a[1].atendimentos).map(([escola,d],idx)=>`
+      <tr style="${idx%2===0?'background:#f5f5f5':''}">
+        <td style="border:1px solid #ccc;padding:6px 10px">${escola}</td>
+        <td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${d.alunos.size}</td>
+        <td style="border:1px solid #ccc;padding:6px 10px;text-align:center">${d.atendimentos}</td>
+      </tr>`).join('')}
+    </table>
+
+    ${ultimosAtendimentos.length > 0 ? `
+    <p style="font-size:10pt;font-weight:bold;color:#003d7a;margin:16px 0 8px">Últimos Atendimentos Realizados:</p>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:9pt">
+      <tr style="background:#003d7a;color:#fff">
+        <th style="border:1px solid #ccc;padding:6px 8px;text-align:left">Data</th>
+        <th style="border:1px solid #ccc;padding:6px 8px;text-align:left">Aluno</th>
+        <th style="border:1px solid #ccc;padding:6px 8px;text-align:center">Horário</th>
+        <th style="border:1px solid #ccc;padding:6px 8px;text-align:center">Unidade</th>
+        <th style="border:1px solid #ccc;padding:6px 8px;text-align:center">Status</th>
+      </tr>
+      ${ultimosAtendimentos.map((a,idx)=>`
+      <tr style="${idx%2===0?'background:#f5f5f5':''}">
+        <td style="border:1px solid #ccc;padding:5px 8px">${a.date ? new Date(a.date+'T12:00').toLocaleDateString('pt-BR') : '—'}</td>
+        <td style="border:1px solid #ccc;padding:5px 8px">${a.studentName || '—'}</td>
+        <td style="border:1px solid #ccc;padding:5px 8px;text-align:center">${a.startTime || '—'} – ${a.endTime || '—'}</td>
+        <td style="border:1px solid #ccc;padding:5px 8px;text-align:center">${a.unit || '—'}</td>
+        <td style="border:1px solid #ccc;padding:5px 8px;text-align:center">${a.status || '—'}</td>
+      </tr>`).join('')}
+    </table>` : ''}
 
     <h2 style="font-size:12pt;font-weight:bold;color:#003d7a;border-left:4px solid #10B981;padding-left:10px;margin-top:24px">8. ATENDIMENTO ITINERANTE – ZONA RURAL</h2>
     <p style="text-align:justify;margin:8px 0">As equipes do Programa BROTAR realizaram deslocamentos periódicos para comunidades rurais do município de Brotas de Macaúbas/BA, assegurando o atendimento educacional especializado aos estudantes com dificuldade de acesso à sede. Esta ação representa o compromisso do programa com a equidade no acesso aos serviços especializados, independentemente da localização geográfica do aluno.</p>
