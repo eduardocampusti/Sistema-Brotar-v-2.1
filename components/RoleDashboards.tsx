@@ -203,6 +203,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
     const today = new Date().toISOString().slice(0, 10);
     const monthStr = today.slice(0, 7);
 
+    // 1. Dicionários de Estilo e Textos por Especialidade (Mantidos)
     const specialtyLabel = useMemo(() => {
         const map: Record<string, string> = {
             PSYCHOPEDAGOGY: 'Psicopedagogia', PSYCHOLOGY: 'Psicologia',
@@ -234,6 +235,12 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
         return map[normalizeSpecialty(currentUser.specialty)] || 'linear-gradient(135deg,#64748B,#94A3B8)';
     }, [currentUser.specialty]);
 
+    // Extrair a cor primária sólida do gradiente para gráficos de linha/barras
+    const primaryColor = useMemo(() => {
+        return specialtyGradient.match(/#[0-9A-Fa-f]{6}/)?.[0] || '#3b82f6';
+    }, [specialtyGradient]);
+
+    // 2. Estado local e busca de agendamentos (Mantidos)
     const [appointments, setAppointments] = useState<any[]>([]);
     const [loadingApts, setLoadingApts] = useState(true);
 
@@ -243,9 +250,33 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
             .catch(() => setLoadingApts(false));
     }, [currentUser.id]);
 
+    // 3. Cálculos de Período e Métricas
+    const todayDate = new Date();
+    const currentHour = todayDate.getHours();
+    const greeting = useMemo(() => {
+        if (currentHour < 12) return 'Bom dia';
+        if (currentHour < 18) return 'Boa tarde';
+        return 'Boa noite';
+    }, [currentHour]);
+
+    const scopeLabel = useMemo(() => {
+        if (currentUser.scope === 'SEDE') return 'Unidade Sede';
+        if (currentUser.scope === 'COCAL') return 'Unidade Cocal';
+        return 'Rede Integrada / Global';
+    }, [currentUser.scope]);
+
+    // Métricas para os Cards (Seção 2)
     const todayApts = useMemo(() =>
-        appointments.filter(a => a.date === today && !['CANCELADO','FALTOU'].includes(a.status)),
+        appointments.filter(a => a.date === today && !['CANCELADO', 'FALTOU'].includes(a.status)),
         [appointments, today]);
+
+    const monthAptsTotal = useMemo(() =>
+        appointments.filter(a => a.date.startsWith(monthStr) && a.status !== 'CANCELADO'),
+        [appointments, monthStr]);
+
+    const activeStudentsCount = useMemo(() =>
+        new Set(appointments.filter(a => a.status !== 'CANCELADO').map(a => a.studentId)).size,
+        [appointments]);
 
     const monthFaltas = useMemo(() =>
         appointments.filter(a => a.date.startsWith(monthStr) && a.status === 'FALTOU').length,
@@ -253,10 +284,72 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
 
     const nextApt = useMemo(() =>
         appointments
-            .filter(a => a.date > today && !['CANCELADO','FALTOU'].includes(a.status))
-            .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||''))[0],
+            .filter(a => a.date > today && !['CANCELADO', 'FALTOU'].includes(a.status))
+            .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || '').localeCompare(b.startTime || ''))[0],
         [appointments, today]);
 
+    const retroativoCount = useMemo(() =>
+        appointments.filter(a => a.status === 'RETROATIVO').length,
+        [appointments]);
+
+    // 4. Estrutura de dados para os 3 Gráficos (Seção 3)
+    
+    // Gráfico 1: Semana Atual
+    const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const todayDay = todayDate.getDay();
+    const weekStart = new Date(todayDate);
+    weekStart.setDate(todayDate.getDate() - todayDay);
+
+    const weekStats = useMemo(() => {
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(weekStart);
+            d.setDate(weekStart.getDate() + i);
+            const ds = d.toISOString().slice(0, 10);
+            const count = appointments.filter(a => a.date === ds && !['CANCELADO', 'FALTOU'].includes(a.status)).length;
+            return { day: weekDays[i], date: ds, count, isToday: ds === today };
+        });
+    }, [appointments, today]);
+
+    const maxWeek = Math.max(...weekStats.map(w => w.count), 1);
+
+    // Gráfico 2: Distribuição de Status
+    const STATUS_COLORS: Record<string, string> = {
+        AGENDADO: '#f59e0b',       // Amber
+        CONFIRMADO: '#3b82f6',     // Blue
+        EM_ATENDIMENTO: '#10b981', // Verde (#10B981)
+        ATENDIDO: '#64748b',       // Slate
+        ENCERRADO: '#475569',      // Dark Slate
+        FALTOU: '#ef4444',         // Red
+        REMARCAR: '#f97316',       // Orange
+        RETROATIVO: '#8B1A3A',     // Vinho (#8B1A3A)
+    };
+
+    const statusDistribution = useMemo(() => {
+        const statuses = ['AGENDADO', 'CONFIRMADO', 'EM_ATENDIMENTO', 'ATENDIDO', 'ENCERRADO', 'FALTOU', 'REMARCAR', 'RETROATIVO'];
+        return statuses.map(st => {
+            const count = appointments.filter(a => a.date.startsWith(monthStr) && a.status === st).length;
+            return { name: st, value: count };
+        }).filter(item => item.value > 0);
+    }, [appointments, monthStr]);
+
+    // Gráfico 3: Evolução Mensal (Últimos 6 meses)
+    const monthlyHistory = useMemo(() => {
+        const months = [];
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        for (let i = 5; i >= 0; i--) {
+            const tempDate = new Date(todayDate.getFullYear(), todayDate.getMonth() - i, 1);
+            const mKey = tempDate.toISOString().slice(0, 7);
+            const count = appointments.filter(a => a.date.startsWith(mKey) && a.status !== 'CANCELADO').length;
+            months.push({
+                name: monthNames[tempDate.getMonth()],
+                count,
+                isCurrent: mKey === monthStr
+            });
+        }
+        return months;
+    }, [appointments, monthStr, todayDate]);
+
+    // Alunos Recentes (Seção 4)
     const recentStudentIds = useMemo(() => {
         const seen = new Set<string>();
         return appointments
@@ -267,149 +360,357 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
             .map(a => ({ studentId: a.studentId, date: a.date }));
     }, [appointments, today]);
 
-    const weekDays = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    const todayDate = new Date();
-    const todayDay = todayDate.getDay();
-    const weekStart = new Date(todayDate);
-    weekStart.setDate(todayDate.getDate() - todayDay);
-
-    const weekStats = useMemo(() => {
-        return Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(weekStart);
-            d.setDate(weekStart.getDate() + i);
-            const ds = d.toISOString().slice(0, 10);
-            const count = appointments.filter(a => a.date === ds && !['CANCELADO','FALTOU'].includes(a.status)).length;
-            return { day: weekDays[i], date: ds, count, isToday: ds === today };
+    const sortedTodayApts = useMemo(() => {
+        return [...todayApts].sort((a, b) => {
+            const ta = (a.startTime || '00:00').slice(0, 5);
+            const tb = (b.startTime || '00:00').slice(0, 5);
+            return ta.localeCompare(tb);
         });
-    }, [appointments, today]);
-
-    const maxWeek = Math.max(...weekStats.map(w => w.count), 1);
+    }, [todayApts]);
 
     return (
-        <div className="space-y-5 animate-slideUp pb-6">
-            {/* HEADER */}
-            <div className="rounded-2xl p-5 text-white relative overflow-hidden" style={{ background: specialtyGradient }}>
-                <div className="absolute right-4 top-4 opacity-10 text-[100px] leading-none">✦</div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 relative z-10">
+        <div className="space-y-6 animate-slideUp pb-8">
+            
+            {/* ═══════════════════════════════════════
+                SEÇÃO 1 — BOAS-VINDAS (Hero Banner)
+                ═══════════════════════════════════════ */}
+            <div className="rounded-3xl p-6 text-white relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/10" style={{ background: specialtyGradient }}>
+                <div className="absolute -right-8 -bottom-10 opacity-10 text-[180px] font-black leading-none pointer-events-none select-none">✦</div>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
                     <div>
-                        <p className="text-[12px] text-white/70 mb-0.5">Visão Geral</p>
-                        <h1 className="text-xl font-bold text-white">{currentUser.name}</h1>
-                        <p className="text-[12px] text-white/70 mt-0.5">{specialtyLabel} · {todayDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</p>
+                        <div className="flex items-center gap-2.5 mb-1.5">
+                            <span className="bg-white/20 text-white font-semibold text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider border border-white/25 backdrop-blur-sm">
+                                {scopeLabel}
+                            </span>
+                        </div>
+                        <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+                            {greeting}, {currentUser.name.split(' ')[0]}!
+                        </h1>
+                        <p className="text-[13px] text-white/80 mt-1 font-medium">
+                            {specialtyLabel} · {todayDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                        </p>
                     </div>
-                    <button onClick={() => onNavigate(clinicalRoute)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium shrink-0 transition-all hover:opacity-90"
-                        style={{ background: 'rgba(255,255,255,0.2)', border: '0.5px solid rgba(255,255,255,0.3)', color: 'white' }}>
-                        Abrir módulo clínico →
+                    <button 
+                        onClick={() => onNavigate(clinicalRoute)}
+                        className="flex items-center justify-center gap-2.5 px-5 py-3 rounded-2xl text-sm font-bold shrink-0 transition-all bg-white text-slate-800 hover:bg-slate-50 active:scale-95 shadow-md border border-slate-100 hover:shadow-lg duration-200"
+                    >
+                        Abrir Módulo Clínico
+                        <ArrowRight size={16} className="text-slate-700" />
                     </button>
                 </div>
             </div>
 
-            {/* CARDS RESUMO */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* ═══════════════════════════════════════
+                SEÇÃO 2 — CARDS DE MÉTRICAS (6 Cards)
+                ═══════════════════════════════════════ */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
                 {[
-                    { label: 'Hoje', value: loadingApts ? '...' : todayApts.length, sub: 'atendimentos', color: '#1D9E75', route: 'scheduling' },
-                    { label: 'Meus alunos', value: loadingApts ? '...' : new Set(appointments.map(a => a.studentId)).size, sub: 'no histórico', color: '#7F77DD', route: clinicalRoute },
-                    { label: 'Faltas no mês', value: loadingApts ? '...' : monthFaltas, sub: 'registradas', color: '#E24B4A', route: 'scheduling' },
-                    { label: 'Próximo', value: nextApt ? (nextApt.startTime||'—').slice(0,5) : '—', sub: nextApt ? new Date(nextApt.date+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : 'sem agend.', color: '#BA7517', route: 'scheduling' },
-                ].map((card, i) => (
-                    <button key={i} onClick={() => onNavigate(card.route)}
-                        className="bg-white border border-slate-200 rounded-xl p-4 text-left hover:shadow-md transition-all">
-                        <p className="text-[11px] text-slate-400 uppercase tracking-wide mb-1">{card.label}</p>
-                        <p className="text-2xl font-bold text-slate-800 mb-0.5">{card.value}</p>
-                        <p className="text-[11px]" style={{ color: card.color }}>{card.sub}</p>
-                    </button>
-                ))}
+                    { 
+                        label: 'Hoje', 
+                        value: loadingApts ? '...' : todayApts.length, 
+                        sub: 'Não cancelados', 
+                        icon: Calendar,
+                        color: '#10B981', // Verde (#10B981)
+                        route: 'scheduling' 
+                    },
+                    { 
+                        label: 'Total do Mês', 
+                        value: loadingApts ? '...' : monthAptsTotal.length, 
+                        sub: 'Exclui cancelamentos', 
+                        icon: ClipboardList,
+                        color: '#3b82f6', 
+                        route: 'scheduling' 
+                    },
+                    { 
+                        label: 'Alunos Ativos', 
+                        value: loadingApts ? '...' : activeStudentsCount, 
+                        sub: 'No histórico clínico', 
+                        icon: Users,
+                        color: '#8b5cf6', 
+                        route: clinicalRoute 
+                    },
+                    { 
+                        label: 'Faltas no Mês', 
+                        value: loadingApts ? '...' : monthFaltas, 
+                        sub: 'Ausências registradas', 
+                        icon: AlertTriangle,
+                        color: '#ef4444', 
+                        route: 'scheduling' 
+                    },
+                    { 
+                        label: 'Próximo', 
+                        value: nextApt ? (nextApt.startTime || '—').slice(0, 5) : '—', 
+                        sub: nextApt ? new Date(nextApt.date + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'Sem agendamentos', 
+                        icon: Clock,
+                        color: '#f59e0b', 
+                        route: 'scheduling' 
+                    },
+                    { 
+                        label: 'Históricos', 
+                        value: loadingApts ? '...' : retroativoCount, 
+                        sub: 'Lançados em papel', 
+                        icon: FileText,
+                        color: '#8B1A3A', // Vinho (#8B1A3A)
+                        route: 'retroativo' 
+                    },
+                ].map((card, i) => {
+                    const CardIcon = card.icon;
+                    return (
+                        <button 
+                            key={i} 
+                            onClick={() => onNavigate(card.route)}
+                            className="bg-white border border-slate-200 rounded-2xl p-4 text-left hover:shadow-lg hover:border-slate-300 active:scale-98 transition-all duration-200 flex flex-col justify-between group h-full shadow-[0_4px_20px_rgba(0,0,0,0.03)]"
+                        >
+                            <div className="flex items-center justify-between w-full mb-3">
+                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{card.label}</span>
+                                <div 
+                                    className="p-2 bg-slate-50 rounded-xl group-hover:scale-110 transition-transform duration-200 border border-slate-100/50"
+                                    style={{ 
+                                        backgroundImage: specialtyGradient, 
+                                        WebkitBackgroundClip: 'text', 
+                                        WebkitTextFillColor: 'transparent',
+                                    }}
+                                >
+                                    <CardIcon size={18} style={{ color: card.color }} />
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-1.5">{card.value}</p>
+                                <p className="text-[10px] text-slate-400 font-medium truncate" style={{ color: card.value !== '...' && Number(card.value) > 0 ? card.color : undefined }}>
+                                    {card.sub}
+                                </p>
+                            </div>
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* GRID PRINCIPAL */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* AGENDA DO DIA */}
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
-                        <span className="text-[13px] font-medium text-slate-700">Agenda de hoje</span>
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{todayApts.length} atend.</span>
+            {/* ═══════════════════════════════════════
+                SEÇÃO 3 — TRÊS GRÁFICOS (Recharts)
+                ═══════════════════════════════════════ */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* GRÁFICO 1: Esta Semana */}
+                <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-[0_4px_25px_rgba(0,0,0,0.02)]">
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="w-1.5 h-6 rounded-full" style={{ background: specialtyGradient }}></span>
+                        <h3 className="font-bold text-slate-800 text-sm tracking-tight">Esta Semana</h3>
                     </div>
-                    {loadingApts ? (
-                        <div className="p-6 text-center text-sm text-slate-400">Carregando...</div>
-                    ) : todayApts.length === 0 ? (
-                        <div className="p-6 text-center">
-                            <p className="text-sm text-slate-400 mb-3">Nenhum atendimento hoje.</p>
-                            {nextApt && (
-                                <div className="bg-slate-50 rounded-xl p-3 text-left border border-slate-100">
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Próximo agendamento</p>
-                                    <p className="text-[13px] font-medium text-slate-700">{nextApt.studentName}</p>
-                                    <p className="text-[11px] text-slate-400">{new Date(nextApt.date+'T12:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})} · {(nextApt.startTime||'—').slice(0,5)}</p>
-                                </div>
-                            )}
-                            <button onClick={() => onNavigate('scheduling')}
-                                className="mt-3 text-[12px] font-medium px-4 py-2 rounded-lg text-white transition-all"
-                                style={{ background: specialtyGradient }}>
-                                Agendar atendimento
-                            </button>
+                    <div className="h-60 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={weekStats} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                                <XAxis dataKey="day" fontSize={11} stroke="#94a3b8" tickLine={false} axisLine={false} />
+                                <YAxis fontSize={11} stroke="#94a3b8" tickLine={false} axisLine={false} allowDecimals={false} />
+                                <Tooltip 
+                                    cursor={{ fill: 'rgba(226,232,240,0.3)' }}
+                                    formatter={(value) => [`${value} atendimento(s)`, 'Quantidade']}
+                                    labelFormatter={(label, items) => items[0]?.payload?.date ? `Data: ${new Date(items[0].payload.date + 'T12:00').toLocaleDateString('pt-BR')}` : label}
+                                />
+                                <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={20}>
+                                    {weekStats.map((entry, index) => (
+                                        <Cell 
+                                            key={`cell-${index}`} 
+                                            fill={entry.isToday ? primaryColor : '#cbd5e1'} 
+                                        />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* GRÁFICO 2: Distribuição de Status */}
+                <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-[0_4px_25px_rgba(0,0,0,0.02)]">
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="w-1.5 h-6 rounded-full animate-pulse" style={{ background: specialtyGradient }}></span>
+                        <h3 className="font-bold text-slate-800 text-sm tracking-tight">Status dos Atendimentos</h3>
+                    </div>
+                    {statusDistribution.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-60 text-slate-400 text-xs">
+                            <Info size={24} className="mb-2 text-slate-300" />
+                            Nenhum atendimento no mês atual.
                         </div>
                     ) : (
-                        <div className="divide-y divide-slate-100">
-                            {todayApts.map((apt, i) => (
-                                <div key={apt.id} className={`flex items-center gap-3 px-4 py-2.5 ${i%2===0?'bg-white':'bg-slate-50/40'}`}>
-                                    <span className="text-[11px] font-medium text-slate-500 w-10 shrink-0">{(apt.startTime||'—').slice(0,5)}</span>
-                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: apt.status==='EM_ATENDIMENTO'?'#1D9E75':apt.status==='CONFIRMADO'?'#3B82F6':'#94A3B8' }}></div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[13px] font-medium text-slate-800 truncate">{apt.studentName}</p>
-                                        <p className="text-[10px] text-slate-400">{apt.unit}</p>
-                                    </div>
-                                    <button onClick={() => onOpenPatient && onOpenPatient(apt.studentId)}
-                                        className="text-[10px] font-medium px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0">
-                                        Ver
-                                    </button>
+                        <div className="relative flex flex-col items-center justify-center">
+                            <div className="relative w-full h-48 flex items-center justify-center">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={statusDistribution}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={55}
+                                            outerRadius={75}
+                                            paddingAngle={3}
+                                            dataKey="value"
+                                        >
+                                            {statusDistribution.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || '#cbd5e1'} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip formatter={(value) => [`${value} atendimento(s)`, 'Quantidade']} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <div className="absolute flex flex-col items-center justify-center pointer-events-none">
+                                    <span className="text-2xl font-black text-slate-800">{monthAptsTotal.length}</span>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">No Mês</span>
                                 </div>
-                            ))}
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center w-full max-h-16 overflow-y-auto mt-2 custom-scrollbar">
+                                {statusDistribution.map((entry) => (
+                                    <div key={entry.name} className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
+                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLORS[entry.name] }}></span>
+                                        <span className="truncate">{entry.name} ({entry.value})</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
 
-                {/* COLUNA DIREITA */}
-                <div className="flex flex-col gap-4">
-                    {/* SEMANA VISUAL */}
-                    <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                        <p className="text-[13px] font-medium text-slate-700 mb-3">Atendimentos esta semana</p>
-                        <div className="flex items-end gap-2 h-16">
-                            {weekStats.map((w, i) => (
-                                <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                                    <div className="w-full rounded-t-md transition-all" style={{
-                                        height: `${Math.max(4, (w.count / maxWeek) * 48)}px`,
-                                        background: w.isToday ? specialtyGradient : w.count > 0 ? 'rgba(148,163,184,0.4)' : 'rgba(241,245,249,1)'
-                                    }}></div>
-                                    <span className={`text-[9px] font-medium ${w.isToday ? 'text-slate-800' : 'text-slate-400'}`}>{w.day}</span>
-                                    {w.count > 0 && <span className="text-[9px] text-slate-500">{w.count}</span>}
-                                </div>
-                            ))}
-                        </div>
+                {/* GRÁFICO 3: Evolução Mensal */}
+                <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-[0_4px_25px_rgba(0,0,0,0.02)]">
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="w-1.5 h-6 rounded-full" style={{ background: specialtyGradient }}></span>
+                        <h3 className="font-bold text-slate-800 text-sm tracking-tight">Evolução Mensal</h3>
                     </div>
+                    <div className="h-60 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={monthlyHistory} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                <XAxis dataKey="name" fontSize={11} stroke="#94a3b8" tickLine={false} axisLine={false} />
+                                <YAxis fontSize={11} stroke="#94a3b8" tickLine={false} axisLine={false} allowDecimals={false} />
+                                <Tooltip formatter={(value) => [`${value} atendimento(s)`, 'Volume']} />
+                                <Line 
+                                    type="monotone" 
+                                    dataKey="count" 
+                                    stroke={primaryColor} 
+                                    strokeWidth={3} 
+                                    dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} 
+                                    activeDot={{ r: 6, strokeWidth: 0, fill: primaryColor }} 
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
 
-                    {/* ALUNOS RECENTES */}
-                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex-1">
-                        <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
-                            <span className="text-[13px] font-medium text-slate-700">Alunos recentes</span>
-                            <button onClick={() => onNavigate('list')} className="text-[11px] font-medium text-slate-500 hover:underline">Ver todos</button>
+            {/* ═══════════════════════════════════════
+                SEÇÃO 4 — AGENDA DO DIA + ALUNOS RECENTES
+                ═══════════════════════════════════════ */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* AGENDA DE HOJE */}
+                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] flex flex-col">
+                    <div className="flex items-center justify-between px-5 py-4 bg-slate-50/50 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                            <Calendar size={16} className="text-slate-500" />
+                            <span className="text-sm font-bold text-slate-700">Agenda de Hoje</span>
                         </div>
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
+                            {todayApts.length} lançamentos
+                        </span>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
+                        {loadingApts ? (
+                            <div className="p-10 text-center text-sm text-slate-400 animate-pulse">Carregando compromissos do dia...</div>
+                        ) : sortedTodayApts.length === 0 ? (
+                            <div className="p-8 text-center flex flex-col items-center justify-center">
+                                <p className="text-sm text-slate-400 mb-4">Nenhum atendimento para hoje.</p>
+                                {nextApt && (
+                                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 text-left w-full max-w-sm mb-4">
+                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1.5">Próximo compromisso na rede</p>
+                                        <p className="text-[13px] font-bold text-slate-700 truncate">{nextApt.studentName}</p>
+                                        <p className="text-[11px] text-slate-500 mt-0.5">
+                                            {new Date(nextApt.date + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })} · {(nextApt.startTime || '—').slice(0, 5)}
+                                        </p>
+                                    </div>
+                                )}
+                                <button 
+                                    onClick={() => onNavigate('scheduling')}
+                                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md hover:shadow-lg active:scale-95 duration-200"
+                                    style={{ background: specialtyGradient }}
+                                >
+                                    Agendar Atendimento
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {sortedTodayApts.map((apt, i) => (
+                                    <div key={apt.id} className={`flex items-center gap-3 px-5 py-3 hover:bg-slate-50/50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'}`}>
+                                        <span className="text-[11px] font-extrabold text-slate-500 w-12 shrink-0">
+                                            {(apt.startTime || '—').slice(0, 5)}
+                                        </span>
+                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLORS[apt.status] || '#cbd5e1' }}></span>
+                                        
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[13px] font-bold text-slate-800 truncate">{apt.studentName}</p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <p className="text-[10px] text-slate-400 font-medium">{apt.unit}</p>
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${appointmentStatusBadgeClass(apt.status)}`}>
+                                                    {apt.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <button 
+                                            onClick={() => onOpenPatient && onOpenPatient(apt.studentId)}
+                                            className="text-[10px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0 hover:border-slate-300 active:scale-95 transition-all duration-200"
+                                        >
+                                            Ver Prontuário
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ALUNOS RECENTES */}
+                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] flex flex-col">
+                    <div className="flex items-center justify-between px-5 py-4 bg-slate-50/50 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                            <Users size={16} className="text-slate-500" />
+                            <span className="text-sm font-bold text-slate-700">Alunos Recentes</span>
+                        </div>
+                        <button 
+                            onClick={() => onNavigate('list')} 
+                            className="text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors uppercase tracking-widest"
+                        >
+                            Ver Todos
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
                         {recentStudentIds.length === 0 ? (
-                            <div className="p-4 text-center text-sm text-slate-400">Nenhum atendimento anterior.</div>
+                            <div className="p-10 text-center text-sm text-slate-400">Nenhum atendimento registrado anteriormente.</div>
                         ) : (
                             <div className="divide-y divide-slate-100">
                                 {recentStudentIds.map(({ studentId, date }) => {
                                     const st = students.find(s => s.id === studentId);
                                     if (!st) return null;
-                                    const initials = st.fullName.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase();
+                                    const initials = st.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
                                     return (
-                                        <button key={studentId} onClick={() => onOpenPatient && onOpenPatient(studentId)}
-                                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left">
-                                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: specialtyGradient }}>
+                                        <button 
+                                            key={studentId} 
+                                            onClick={() => onOpenPatient && onOpenPatient(studentId)}
+                                            className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-all duration-200 text-left group"
+                                        >
+                                            <div 
+                                                className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 text-white shadow-inner group-hover:scale-105 transition-transform duration-200" 
+                                                style={{ background: specialtyGradient }}
+                                            >
                                                 {initials}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[13px] font-medium text-slate-800 truncate">{st.fullName}</p>
-                                                <p className="text-[10px] text-slate-400">{new Date(date+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}</p>
+                                                <p className="text-[13px] font-bold text-slate-800 truncate group-hover:text-slate-900 transition-colors">{st.fullName}</p>
+                                                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                                    Último atendimento: {new Date(date + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                </p>
                                             </div>
+                                            <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
                                         </button>
                                     );
                                 })}
@@ -419,30 +720,65 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                 </div>
             </div>
 
-            {/* AÇÕES RÁPIDAS */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                <p className="text-[13px] font-medium text-slate-700 mb-3">Ações rápidas</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* ═══════════════════════════════════════
+                SEÇÃO 5 — AÇÕES RÁPIDAS (Manter estrutura)
+                ═══════════════════════════════════════ */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-[0_4px_25px_rgba(0,0,0,0.02)]">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Ações Rápidas</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {[
-                        { label: 'Módulo clínico', sub: 'Abrir prontuários', route: clinicalRoute, emoji: '🩺' },
-                        { label: 'Minha agenda', sub: 'Ver atendimentos', route: 'scheduling', emoji: '📅' },
-                        { label: 'Painel ANEE', sub: 'Dados da rede', route: 'relatorio-tea', emoji: '📊' },
-                        { label: 'Documentos', sub: 'Laudos e relatórios', route: 'documents', emoji: '📄' },
-                    ].map((action, i) => (
-                        <button key={i} onClick={() => onNavigate(action.route)}
-                            className="flex flex-col gap-2 p-3 rounded-xl border border-slate-100 hover:shadow-sm hover:border-slate-200 transition-all text-left bg-slate-50/50">
-                            <span className="text-xl">{action.emoji}</span>
-                            <div>
-                                <p className="text-[12px] font-medium text-slate-700">{action.label}</p>
-                                <p className="text-[10px] text-slate-400">{action.sub}</p>
-                            </div>
-                        </button>
-                    ))}
+                        { 
+                            label: 'Módulo Clínico', 
+                            sub: 'Abrir prontuários', 
+                            route: clinicalRoute, 
+                            icon: Stethoscope,
+                            color: 'text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100/50' 
+                        },
+                        { 
+                            label: 'Minha Agenda', 
+                            sub: 'Ver atendimentos', 
+                            route: 'scheduling', 
+                            icon: Calendar,
+                            color: 'text-blue-600 bg-blue-50 border-blue-100 hover:bg-blue-100/50' 
+                        },
+                        { 
+                            label: 'Painel ANEE', 
+                            sub: 'Dados gerais da rede', 
+                            route: 'relatorio-tea', 
+                            icon: Puzzle,
+                            color: 'text-indigo-600 bg-indigo-50 border-indigo-100 hover:bg-indigo-100/50' 
+                        },
+                        { 
+                            label: 'Documentos', 
+                            sub: 'Laudos e relatórios', 
+                            route: 'documents', 
+                            icon: FileText,
+                            color: 'text-slate-600 bg-slate-50 border-slate-200/60 hover:bg-slate-100/50' 
+                        },
+                    ].map((action, i) => {
+                        const ActionIcon = action.icon;
+                        return (
+                            <button 
+                                key={i} 
+                                onClick={() => onNavigate(action.route)}
+                                className={`flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-200 text-left active:scale-97 h-full group ${action.color}`}
+                            >
+                                <div className="p-2 bg-white rounded-xl shadow-sm border border-black/5 w-fit group-hover:scale-110 transition-transform duration-200">
+                                    <ActionIcon size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-[13px] font-bold tracking-tight">{action.label}</p>
+                                    <p className="text-[10px] opacity-75 mt-0.5 leading-snug">{action.sub}</p>
+                                </div>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
         </div>
     );
 };
+
 
 const ADMIN_ROLE_LABELS: Record<string, string> = {
     SPECIALIST: 'Especialista clínico',
