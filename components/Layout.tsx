@@ -444,7 +444,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                   {currentUser.role === 'SPECIALIST' && getStandardExtraItems().length > 0 && (
                     <>
                       <div className="my-4 border-t border-white/10 mx-2"></div>
-                      <SectionHeader title="Sistema" />
+                      <SectionHeader title="Módulos Clínicos" />
                       {getStandardExtraItems().map(item => <MenuCardButton key={item.id} item={item} />)}
                     </>
                   )}
@@ -587,7 +587,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                   {currentUser.role === 'SPECIALIST' && getStandardExtraItems().length > 0 && (
                     <>
                       <div className="my-4 border-t border-white/10 mx-2"></div>
-                      <SectionHeader title="Sistema" />
+                      <SectionHeader title="Módulos Clínicos" />
                       {getStandardExtraItems().map(item => <MenuCardButton key={item.id} item={item} />)}
                     </>
                   )}
