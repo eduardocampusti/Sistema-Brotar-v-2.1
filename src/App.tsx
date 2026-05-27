@@ -18,6 +18,7 @@ import { LoginPage } from './pages/auth/LoginPage';
 
 // --- Lazy Loaded Components (Authenticated Area - in root components/) ---
 const Dashboard = React.lazy(() => import('../components/Dashboard').then(m => ({ default: m.Dashboard })));
+const RelatorioAnualTCM = React.lazy(() => import('../components/RelatorioAnualTCM').then(m => ({ default: m.RelatorioAnualTCM })));
 const RegistrationForm = React.lazy(() => import('../components/RegistrationForm').then(m => ({ default: m.RegistrationForm })));
 const PatientList = React.lazy(() => import('../components/PatientList').then(m => ({ default: m.PatientList })));
 const PatientProfile = React.lazy(() => import('../components/PatientProfile').then(m => ({ default: m.PatientProfile })));
@@ -479,6 +480,7 @@ function AppContent() {
           />
 
           <Route path="documents" element={<React.Suspense fallback={<PageLoading />}><DocumentGenerator currentUser={user!} /></React.Suspense>} />
+          <Route path="relatorio-anual-tcm" element={<React.Suspense fallback={<PageLoading />}><RelatorioAnualTCM currentUser={user!} /></React.Suspense>} />
           <Route path="vault" element={<React.Suspense fallback={<PageLoading />}><DocumentVault currentUser={user!} students={students} onModelSelect={() => handleNavigate('documents')} onUpdate={refreshData} /></React.Suspense>} />
           <Route path="schools" element={<React.Suspense fallback={<PageLoading />}><SchoolManagement /></React.Suspense>} />
           <Route path="reports" element={<Navigate to="/app/support-professionals?tab=relatorios" replace />} />

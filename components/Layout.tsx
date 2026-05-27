@@ -35,6 +35,7 @@ import {
   Clock,
   Tag,
   CalendarDays,
+  Building2,
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission, canViewSystemAuditLogs } from '../types';
 import { APP_VERSION } from '../src/config/version';
@@ -177,6 +178,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
             id: 'relatorios-gerenciais',
             label: 'Relatórios Gerenciais',
             icon: <BarChart2 size={20} />,
+          }]
+        : []),
+      // Relatório Anual TCM — exclusivo EDUCATION_SECRETARY
+      ...(currentUser.role === 'EDUCATION_SECRETARY'
+        ? [{
+            id: 'relatorio-anual-tcm',
+            label: 'Relatório Anual TCM',
+            sub: 'Prestação de contas TCM/BA',
+            icon: <Building2 size={20} />,
           }]
         : []),
       // Central de Agendamentos / Minha Agenda

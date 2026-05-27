@@ -12,13 +12,13 @@ interface DocumentGeneratorProps {
 
 // --- LISTA DE MODELOS ---
 const DOCS_COMUM = ["Declaração de Atendimento", "Encaminhamento Geral", "Relatório Resumido", "Termo de Autorização de Uso de Imagem e Vídeo", "Declaração Simples"];
-const DOCS_PSICOLOGIA = ["Relatório Psicológico Técnico", "Evolução Psicológica", "Parecer Psicológico"];
-const DOCS_SERVICO_SOCIAL = ["Relatório de Busca Ativa", "Relatório Social de Visita Domiciliar", "Ofício ao Conselho Tutelar", "Plano de Acompanhamento Familiar"];
-const DOCS_PSICOPEDAGOGIA = ["Avaliação Psicopedagógica", "Plano de Intervenção", "Relatório de Evolução"];
-const DOCS_FONOAUDIOLOGIA = ["Relatório Fonoaudiológico", "Evolução Fonoaudiológica", "Parecer Fonoaudiológico", "Encaminhamento Fonoaudiológico", "Relatório de Alta Fonoaudiológica"];
-const DOCS_TERAPIA_OCUPACIONAL = ["Relatório de Terapia Ocupacional", "Evolução em Terapia Ocupacional", "Parecer de Terapia Ocupacional", "Plano de Intervenção Ocupacional", "Relatório de Alta em Terapia Ocupacional"];
-const DOCS_FISIOTERAPIA = ["Relatório Fisioterapêutico", "Evolução Fisioterapêutica", "Parecer Fisioterapêutico", "Plano de Reabilitação", "Relatório de Alta Fisioterapêutica"];
-const DOCS_NUTRICAO = ["Relatório Nutricional", "Evolução Nutricional", "Plano Alimentar Institucional", "Parecer Nutricional", "Relatório de Acompanhamento Nutricional"];
+const DOCS_PSICOLOGIA = ["Anamnese Psicológica", "Relatório Psicológico Técnico", "Evolução Psicológica", "Parecer Psicológico", "Declaração de Sigilo Profissional", "Relatório Anual — Psicologia (TCM)"];
+const DOCS_SERVICO_SOCIAL = ["Anamnese Social", "Estudo Social", "Relatório de Busca Ativa", "Relatório Social de Visita Domiciliar", "Ofício ao Conselho Tutelar", "Plano de Acompanhamento Familiar", "Relatório Anual — Serviço Social (TCM)"];
+const DOCS_PSICOPEDAGOGIA = ["Anamnese Psicopedagógica", "Avaliação Psicopedagógica", "Plano de Intervenção", "Relatório de Evolução", "Relatório Semestral Psicopedagógico", "Relatório Anual — Psicopedagogia (TCM)"];
+const DOCS_FONOAUDIOLOGIA = ["Anamnese Fonoaudiológica", "Relatório Fonoaudiológico", "Evolução Fonoaudiológica", "Parecer Fonoaudiológico", "Encaminhamento Fonoaudiológico", "Relatório de Alta Fonoaudiológica", "Relatório Anual — Fonoaudiologia (TCM)"];
+const DOCS_TERAPIA_OCUPACIONAL = ["Anamnese de Terapia Ocupacional", "Relatório Sensorial", "Relatório de Terapia Ocupacional", "Evolução em Terapia Ocupacional", "Parecer de Terapia Ocupacional", "Plano de Intervenção Ocupacional", "Relatório de Alta em Terapia Ocupacional", "Relatório Anual — Terapia Ocupacional (TCM)"];
+const DOCS_FISIOTERAPIA = ["Anamnese Fisioterapêutica", "Relatório Fisioterapêutico", "Evolução Fisioterapêutica", "Parecer Fisioterapêutico", "Plano de Reabilitação", "Relatório de Alta Fisioterapêutica", "Relatório Anual — Fisioterapia (TCM)"];
+const DOCS_NUTRICAO = ["Anamnese Nutricional", "Relatório Nutricional", "Evolução Nutricional", "Plano Alimentar Institucional", "Parecer Nutricional", "Relatório de Acompanhamento Nutricional", "Relatório Anual — Nutrição (TCM)"];
 
 export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUser }) => {
   const { addToast } = useToast();
