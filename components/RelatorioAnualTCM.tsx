@@ -80,11 +80,27 @@ export const RelatorioAnualTCM: React.FC<RelatorioAnualTCMProps> = ({ currentUse
       try { todosAlunos = await SupabaseService.getStudents(); } catch {}
       const alunosAtendidos = todosAlunos.filter((s: any) => estudantesIds.includes(s.id));
 
+      // Debug: logar estrutura do primeiro aluno para identificar campo correto
+      if (alunosAtendidos.length > 0) {
+        const primeiro = alunosAtendidos[0];
+        console.log('[TCM DEBUG] Campos escola do aluno:', {
+          school: primeiro.school,
+          schoolName: primeiro.schoolName,
+          school_name: primeiro.school_name,
+          schoolInfo: primeiro.schoolInfo,
+        });
+      }
+
       // Escolas atendidas com contagem de alunos
       const porEscola: Record<string, { alunos: Set<string>; atendimentos: number }> = {};
       filtered.forEach((a: any) => {
         const aluno = alunosAtendidos.find((s: any) => s.id === a.studentId);
-        const escola = aluno?.school?.schoolName || aluno?.schoolName || 'Escola não informada';
+        const escola = aluno?.school?.schoolName
+          || aluno?.schoolName
+          || aluno?.school_name
+          || aluno?.schoolInfo?.schoolName
+          || (typeof aluno?.school === 'string' ? aluno.school : null)
+          || 'Escola não informada';
         if (!porEscola[escola]) porEscola[escola] = { alunos: new Set(), atendimentos: 0 };
         porEscola[escola].alunos.add(a.studentId);
         porEscola[escola].atendimentos++;
