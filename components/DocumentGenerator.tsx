@@ -4,7 +4,8 @@ import { User, Student, Specialty, SavedDocument } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { GeminiService, TemplateService } from '../services/geminiService';
 import { useToast } from '../contexts/ToastContext';
-import { FileText, Printer, Copy, Sparkles, User as UserIcon, ChevronDown, Loader2, FileCheck, AlertCircle, Edit3, Hash, History, Eye, Trash2, Calendar, Layout } from 'lucide-react';
+import { FileText, Printer, Copy, Sparkles, User as UserIcon, ChevronDown, Loader2, FileCheck, AlertCircle, Edit3, Hash, History, Eye, Trash2, Calendar, Layout, Building2, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface DocumentGeneratorProps {
   currentUser: User;
@@ -12,16 +13,17 @@ interface DocumentGeneratorProps {
 
 // --- LISTA DE MODELOS ---
 const DOCS_COMUM = ["Declaração de Atendimento", "Encaminhamento Geral", "Relatório Resumido", "Termo de Autorização de Uso de Imagem e Vídeo", "Declaração Simples"];
-const DOCS_PSICOLOGIA = ["Anamnese Psicológica", "Relatório Psicológico Técnico", "Evolução Psicológica", "Parecer Psicológico", "Declaração de Sigilo Profissional", "Relatório Anual — Psicologia (TCM)"];
-const DOCS_SERVICO_SOCIAL = ["Anamnese Social", "Estudo Social", "Relatório de Busca Ativa", "Relatório Social de Visita Domiciliar", "Ofício ao Conselho Tutelar", "Plano de Acompanhamento Familiar", "Relatório Anual — Serviço Social (TCM)"];
-const DOCS_PSICOPEDAGOGIA = ["Anamnese Psicopedagógica", "Avaliação Psicopedagógica", "Plano de Intervenção", "Relatório de Evolução", "Relatório Semestral Psicopedagógico", "Relatório Anual — Psicopedagogia (TCM)"];
-const DOCS_FONOAUDIOLOGIA = ["Anamnese Fonoaudiológica", "Relatório Fonoaudiológico", "Evolução Fonoaudiológica", "Parecer Fonoaudiológico", "Encaminhamento Fonoaudiológico", "Relatório de Alta Fonoaudiológica", "Relatório Anual — Fonoaudiologia (TCM)"];
-const DOCS_TERAPIA_OCUPACIONAL = ["Anamnese de Terapia Ocupacional", "Relatório Sensorial", "Relatório de Terapia Ocupacional", "Evolução em Terapia Ocupacional", "Parecer de Terapia Ocupacional", "Plano de Intervenção Ocupacional", "Relatório de Alta em Terapia Ocupacional", "Relatório Anual — Terapia Ocupacional (TCM)"];
-const DOCS_FISIOTERAPIA = ["Anamnese Fisioterapêutica", "Relatório Fisioterapêutico", "Evolução Fisioterapêutica", "Parecer Fisioterapêutico", "Plano de Reabilitação", "Relatório de Alta Fisioterapêutica", "Relatório Anual — Fisioterapia (TCM)"];
-const DOCS_NUTRICAO = ["Anamnese Nutricional", "Relatório Nutricional", "Evolução Nutricional", "Plano Alimentar Institucional", "Parecer Nutricional", "Relatório de Acompanhamento Nutricional", "Relatório Anual — Nutrição (TCM)"];
+const DOCS_PSICOLOGIA = ["Anamnese Psicológica", "Relatório Psicológico Técnico", "Evolução Psicológica", "Parecer Psicológico", "Declaração de Sigilo Profissional"];
+const DOCS_SERVICO_SOCIAL = ["Anamnese Social", "Estudo Social", "Relatório de Busca Ativa", "Relatório Social de Visita Domiciliar", "Ofício ao Conselho Tutelar", "Plano de Acompanhamento Familiar"];
+const DOCS_PSICOPEDAGOGIA = ["Anamnese Psicopedagógica", "Avaliação Psicopedagógica", "Plano de Intervenção", "Relatório de Evolução", "Relatório Semestral Psicopedagógico"];
+const DOCS_FONOAUDIOLOGIA = ["Anamnese Fonoaudiológica", "Relatório Fonoaudiológico", "Evolução Fonoaudiológica", "Parecer Fonoaudiológico", "Encaminhamento Fonoaudiológico", "Relatório de Alta Fonoaudiológica"];
+const DOCS_TERAPIA_OCUPACIONAL = ["Anamnese de Terapia Ocupacional", "Relatório Sensorial", "Relatório de Terapia Ocupacional", "Evolução em Terapia Ocupacional", "Parecer de Terapia Ocupacional", "Plano de Intervenção Ocupacional", "Relatório de Alta em Terapia Ocupacional"];
+const DOCS_FISIOTERAPIA = ["Anamnese Fisioterapêutica", "Relatório Fisioterapêutico", "Evolução Fisioterapêutica", "Parecer Fisioterapêutico", "Plano de Reabilitação", "Relatório de Alta Fisioterapêutica"];
+const DOCS_NUTRICAO = ["Anamnese Nutricional", "Relatório Nutricional", "Evolução Nutricional", "Plano Alimentar Institucional", "Parecer Nutricional", "Relatório de Acompanhamento Nutricional"];
 
 export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUser }) => {
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'generator' | 'history'>('generator');
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -411,34 +413,65 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
               </div>
             )}
           </div>
+
+        {/* Card exclusivo Relatório Anual TCM */}
+        <div
+          onClick={() => navigate('/app/relatorio-anual-tcm')}
+          className="cursor-pointer rounded-2xl p-5 text-white relative overflow-hidden transition-all hover:shadow-lg hover:scale-[1.01] active:scale-[0.99]"
+          style={{ background: 'linear-gradient(135deg, #8B1A3A, #5A0F24)' }}
+        >
+          <div className="absolute right-3 top-3 opacity-10 text-[70px] leading-none pointer-events-none">📋</div>
+          <div className="flex items-start gap-3 mb-3 relative z-10">
+            <div className="p-2 rounded-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }}>
+              <Building2 size={20} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-black text-white leading-tight">Relatório Anual TCM</p>
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}>Exclusivo</span>
+              </div>
+              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>Tribunal de Contas dos Municípios/BA</p>
+            </div>
+          </div>
+          <p className="text-[11px] relative z-10 mb-3" style={{ color: 'rgba(255,255,255,0.70)', lineHeight: '1.5' }}>
+            Relatório institucional anual com dados reais de atendimentos, gerado automaticamente pela IA.
+          </p>
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>Clique para acessar →</span>
+            <ExternalLink size={14} style={{ color: 'rgba(255,255,255,0.6)' }} />
+          </div>
         </div>
+      </div>
 
         <div className="lg:col-span-2">
           {generatedContent ? (
             <div className="space-y-4 animate-scaleIn">
-              <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg border border-slate-200">
-                  <Hash size={14} className="text-slate-400" />
-                  <span className="text-xs font-mono font-bold text-slate-600">{documentCode}</span>
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="flex justify-between items-center p-3 bg-slate-50/50 border-b border-slate-100">
+                  <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg border border-slate-200">
+                    <Hash size={14} className="text-slate-400" />
+                    <span className="text-xs font-mono font-bold text-slate-600">{documentCode}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(generatedContent); addToast('Copiado!', 'success'); }}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-lg font-bold hover:bg-slate-50 transition-colors text-xs"
+                    >
+                      <Copy size={14} /> Copiar
+                    </button>
+                    <button onClick={handlePrint} className="flex items-center gap-1.5 px-4 py-2 bg-[#10B981] text-white rounded-lg font-bold hover:bg-emerald-600 transition-all shadow-sm text-xs">
+                      <Printer size={14} /> Imprimir PDF
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(generatedContent);
-                      setError("Texto copiado para a área de transferência!"); // Usando setError temporariamente pra feedback
-                      setTimeout(() => setError(null), 2000);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-lg font-bold hover:bg-slate-50 transition-colors text-sm"
-                  >
-                    <Copy size={16} /> Copiar
-                  </button>
-                  <button onClick={handlePrint} className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 transition-all shadow-lg text-sm">
-                    <Printer size={16} /> Imprimir PDF
-                  </button>
+                <div className="flex border-b border-slate-100 bg-white px-2">
+                  <div className="px-4 py-2.5 text-xs font-black text-emerald-600 border-b-2 border-emerald-500">
+                    ✏️ Editor Rico Habilitado — clique no texto para editar
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white shadow-2xl w-full min-h-[1000px] border border-slate-200 rounded-t-xl relative group">
+              <div className="bg-white shadow-2xl w-full min-h-[1000px] border border-slate-200 rounded-xl relative group">
                 <div
                   className="w-full h-full min-h-[1000px] outline-none font-serif text-[12pt] leading-relaxed text-justify p-12 md:p-20 bg-white"
                   contentEditable
@@ -448,14 +481,9 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
                   style={{
                     backgroundImage: 'linear-gradient(#f1f5f9 1px, transparent 1px)',
                     backgroundSize: '100% 1.6em',
-                    lineHeight: '1.6em' // Align text with lines
+                    lineHeight: '1.6em'
                   }}
                 />
-
-                {/* Visual indicator that it's editable */}
-                <div className="absolute top-4 right-4 text-[10px] font-bold text-primary-400 opacity-40 uppercase tracking-widest flex items-center gap-1 pointer-events-none">
-                  <Edit3 size={10} /> Editor Rico Habilitado
-                </div>
               </div>
             </div>
           ) : (
