@@ -161,6 +161,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         label: 'Visão Geral',
         icon: <LayoutDashboard size={20} />
       },
+      ...(currentUser.role === 'SPECIALIST'
+        ? [{
+            id: 'relatorio-tea',
+            label: 'Painel ANEE',
+            sub: 'Dados gerais da rede',
+            icon: <Puzzle size={20} />
+          }]
+        : []),
       // Relatórios Gerenciais (apenas para Secretaria de Educação e ADMIN)
       ...(currentUser.role === 'EDUCATION_SECRETARY' || currentUser.role === 'ADMIN'
         ? [{
@@ -226,13 +234,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         { id: 'my-access', label: 'Meus Acessos', icon: <Key size={20} /> },
         { id: 'about', label: 'Sobre o Sistema', icon: <Info size={20} /> }
       );
-    } else if (currentUser.role === 'SPECIALIST') {
-      items.push({
-        id: 'relatorio-tea',
-        label: 'Painel ANEE',
-        sub: 'Dados gerais da rede',
-        icon: <Puzzle size={20} />
-      });
     }
 
     return items;
@@ -443,7 +444,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                   {currentUser.role === 'SPECIALIST' && getStandardExtraItems().length > 0 && (
                     <>
                       <div className="my-4 border-t border-white/10 mx-2"></div>
-                      <SectionHeader title="Módulos Clínicos" />
+                      <SectionHeader title="Sistema" />
                       {getStandardExtraItems().map(item => <MenuCardButton key={item.id} item={item} />)}
                     </>
                   )}
@@ -586,7 +587,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                   {currentUser.role === 'SPECIALIST' && getStandardExtraItems().length > 0 && (
                     <>
                       <div className="my-4 border-t border-white/10 mx-2"></div>
-                      <SectionHeader title="Módulos Clínicos" />
+                      <SectionHeader title="Sistema" />
                       {getStandardExtraItems().map(item => <MenuCardButton key={item.id} item={item} />)}
                     </>
                   )}
