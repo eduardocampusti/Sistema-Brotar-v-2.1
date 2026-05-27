@@ -227,7 +227,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
         { id: 'about', label: 'Sobre o Sistema', icon: <Info size={20} /> }
       );
     } else if (currentUser.role === 'SPECIALIST') {
-      // itens do SPECIALIST ficam só no getStandardExtraItems — evitar duplicação
+      items.push({
+        id: 'relatorio-tea',
+        label: 'Painel ANEE',
+        sub: 'Dados gerais da rede',
+        icon: <Puzzle size={20} />
+      });
     }
 
     return items;
@@ -260,9 +265,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     if (currentUser.role !== 'SPECIALIST') return [];
     return [
       { id: 'retroativo', label: 'Lançamentos Históricos', sub: 'Lançamento retroativo papel', icon: <Clock size={18} /> },
-      { id: 'relatorio-tea', label: 'Painel ANEE', sub: 'Dados gerais da rede', icon: <Puzzle size={18} /> },
       { id: 'documents', label: 'Documentos', sub: 'Relatórios e laudos', icon: <FileText size={18} /> },
-      { id: 'about', label: 'Sobre o Sistema', sub: 'Versão e novidades', icon: <Info size={18} /> },
     ];
   };
 
