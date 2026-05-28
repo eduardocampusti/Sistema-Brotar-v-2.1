@@ -1,4 +1,4 @@
-import{G as b}from"./vendor-ai-BER3QIUg.js";const R=new b({apiKey:"AIzaSyBbDAz-DnscuuBTWWJZbLBdnO4ocW3uV4M"}),C=`
+import{G as R}from"./vendor-ai-BER3QIUg.js";const C=new R({apiKey:"AIzaSyBbDAz-DnscuuBTWWJZbLBdnO4ocW3uV4M"}),N=`
 Você é o REDATOR OFICIAL do SISTEMA BROTAR.
 Sua tarefa é gerar documentos profissionais (Relatórios, Ofícios, Declarações).
 REGRAS:
@@ -6,7 +6,7 @@ REGRAS:
 2. NUNCA invente dados médicos ou diagnósticos não fornecidos.
 3. Se faltar informação, use [DADO NÃO INFORMADO].
 4. Formate como um texto de documento oficial, pronto para impressão em papel timbrado.
-`,N=i=>new Promise(a=>setTimeout(a,i)),L={generateOfficialDocument:async(i,a,O,d,s)=>{var n,p,u,e;let A="";const m=a.clinical,_=((n=m==null?void 0:m.pp_data)==null?void 0:n.ipoHistory)||[];if(_.length>0){const t=_[0];A=`
+`,b=i=>new Promise(o=>setTimeout(o,i)),L={generateOfficialDocument:async(i,o,O,c,s)=>{var n,u,p,e;let g="";const m=o.clinical,_=((n=m==null?void 0:m.pp_data)==null?void 0:n.ipoHistory)||[];if(_.length>0){const t=_[0];g=`
       DADOS QUANTITATIVOS RECENTES (CALCULADORA IPO - PORTAGE):
       Data da Avaliação: ${new Date(t.date).toLocaleDateString("pt-BR")}
       Idade de Desenvolvimento Geral: ${t.results.general} anos.
@@ -17,15 +17,15 @@ REGRAS:
       - Cognição: ${t.results.cognicao} anos
       - Autocuidados: ${t.results.autocuidados} anos
       - Desenvolvimento Motor: ${t.results.motor} anos
-      `}const I=`
+      `}const E=`
       SISTEMA BROTAR - GERADOR DE DOCUMENTO OFICIAL
       
       TIPO DE DOCUMENTO: ${i}
-      ALUNO: ${a.fullName}, Idade: ${new Date().getFullYear()-new Date(a.birthDate).getFullYear()} anos.
-      ESCOLA: ${((p=a.school)==null?void 0:p.schoolName)||"Escola Municipal"}.
-      EMISSOR: ${O} (${d}).
+      ALUNO: ${o.fullName}, Idade: ${new Date().getFullYear()-new Date(o.birthDate).getFullYear()} anos.
+      ESCOLA: ${((u=o.school)==null?void 0:u.schoolName)||"Escola Municipal"}.
+      EMISSOR: ${O} (${c}).
       
-      ${A}
+      ${g}
       
       CONTEXTO ADICIONAL / OBSERVAÇÕES CLÍNICAS: ${s}
       
@@ -40,19 +40,19 @@ REGRAS:
       - Inclua espaço para assinatura ao final com nome e cargo do profissional
       - Se houver dados IPO disponíveis, cite-os no corpo do documento
       - Formate como HTML pronto para impressão em papel timbrado
-    `,o=3;let l=0;for(;l<o;)try{const t=await R.models.generateContent({model:"gemini-2.0-flash",contents:I,config:{systemInstruction:C,temperature:.7}});if(!t.text)throw new Error("Resposta da IA veio vazia.");return t.text}catch(t){if(l++,(((u=t.message)==null?void 0:u.includes("Quota exceeded"))||((e=t.message)==null?void 0:e.includes("429"))||t.toString().includes("Quota exceeded"))&&l<o){const c=2e3*Math.pow(2,l);console.warn(`Cota excedida. Tentativa ${l} de ${o}. Aguardando ${c}ms...`),await N(c);continue}throw console.error("Erro no GeminiService:",t),new Error(t.message||"Erro desconhecido na geração via Gemini.")}throw new Error("Não foi possível conectar à IA após várias tentativas. Por favor, tente novamente mais tarde.")}},S={getFallbackDocument:(i,a,O,d,s)=>{var p,u;const A=new Date().toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric"}),m=new Date().getFullYear()-new Date(a.birthDate).getFullYear(),_="font-family: 'Times New Roman', serif; color: #1a1a1a; line-height: 1.6;",I="text-align: center; font-weight: bold; margin-bottom: 2rem; text-transform: uppercase;",o="margin-bottom: 1.5rem; text-align: justify;",l="margin-top: 4rem; text-align: center; border-top: 1px solid #1a1a1a; padding-top: 0.5rem; width: 60%; margin-left: auto; margin-right: auto;";if(i==="Termo de Autorização de Uso de Imagem e Vídeo"){const e=(p=a.guardians)==null?void 0:p[0],t=(e==null?void 0:e.name)||"____________________________________________________________",r=(e==null?void 0:e.cpf)||"____________________________",c=(e==null?void 0:e.rg)||"____________________________",E=(e==null?void 0:e.phone)||"_________________________________________________";let g="________________________________________________________________________________________";a.address&&a.address.street&&(g=`${a.address.street}, ${a.address.number||""}, ${a.address.district||""} - ${a.address.city}/${a.address.state}`);const v=a.birthDate?new Date(a.birthDate).toLocaleDateString("pt-BR"):"//____",f=new Date().getDate(),h=new Date().toLocaleDateString("pt-BR",{month:"long"}),T=new Date().getFullYear();return`
+    `,a=3;let d=0;for(;d<a;)try{const t=await C.models.generateContent({model:"gemini-2.0-flash",contents:E,config:{systemInstruction:N,temperature:.7}});if(!t.text)throw new Error("Resposta da IA veio vazia.");return t.text}catch(t){if(d++,(((p=t.message)==null?void 0:p.includes("Quota exceeded"))||((e=t.message)==null?void 0:e.includes("429"))||t.toString().includes("Quota exceeded"))&&d<a){const l=2e3*Math.pow(2,d);console.warn(`Cota excedida. Tentativa ${d} de ${a}. Aguardando ${l}ms...`),await b(l);continue}throw console.error("Erro no GeminiService:",t),new Error(t.message||"Erro desconhecido na geração via Gemini.")}throw new Error("Não foi possível conectar à IA após várias tentativas. Por favor, tente novamente mais tarde.")}},P={getFallbackDocument:(i,o,O,c,s)=>{var u,p;const g=new Date().toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric"}),m=new Date().getFullYear()-new Date(o.birthDate).getFullYear(),_="font-family: 'Times New Roman', serif; color: #1a1a1a; line-height: 1.6;",E="text-align: center; font-weight: bold; margin-bottom: 2rem; text-transform: uppercase;",a="margin-bottom: 1.5rem; text-align: justify;",d="margin-top: 4rem; text-align: center; border-top: 1px solid #1a1a1a; padding-top: 0.5rem; width: 60%; margin-left: auto; margin-right: auto;";if(i==="Termo de Autorização de Uso de Imagem e Vídeo"){const e=(u=o.guardians)==null?void 0:u[0],t=(e==null?void 0:e.name)||"____________________________________________________________",r=(e==null?void 0:e.cpf)||"____________________________",l=(e==null?void 0:e.rg)||"____________________________",I=(e==null?void 0:e.phone)||"_________________________________________________";let A="________________________________________________________________________________________";o.address&&o.address.street&&(A=`${o.address.street}, ${o.address.number||""}, ${o.address.district||""} - ${o.address.city}/${o.address.state}`);const v=o.birthDate?new Date(o.birthDate).toLocaleDateString("pt-BR"):"//____",f=new Date().getDate(),T=new Date().toLocaleDateString("pt-BR",{month:"long"}),h=new Date().getFullYear();return`
 <div style="${_}">
-  <h2 style="${I}">TERMO DE AUTORIZAÇÃO PARA USO DE IMAGEM E VOZ (MENOR DE IDADE)</h2>
+  <h2 style="${E}">TERMO DE AUTORIZAÇÃO PARA USO DE IMAGEM E VOZ (MENOR DE IDADE)</h2>
   <p style="margin-bottom: 1rem;">Eu, <strong>${t}</strong>,<br>
-  CPF: <strong>${r}</strong> RG: <strong>${c}</strong>,<br>
-  endereço: <strong>${g}</strong>,<br>
-  na qualidade de responsável legal pelo(a) menor <strong>${a.fullName}</strong>,<br>
+  CPF: <strong>${r}</strong> RG: <strong>${l}</strong>,<br>
+  endereço: <strong>${A}</strong>,<br>
+  na qualidade de responsável legal pelo(a) menor <strong>${o.fullName}</strong>,<br>
   data de nascimento: <strong>${v}</strong>,</p>
 
-  <p style="${o}"><strong>AUTORIZO</strong>, de forma livre, informada e inequívoca, o <strong>BROTAR – Centro Multidisciplinar em Educação Inclusiva</strong>, a captar e utilizar a imagem e/ou voz do(a) menor, por meio de fotografias e filmagens, realizadas durante atendimentos, atividades e ações institucionais.</p>
+  <p style="${a}"><strong>AUTORIZO</strong>, de forma livre, informada e inequívoca, o <strong>BROTAR – Centro Multidisciplinar em Educação Inclusiva</strong>, a captar e utilizar a imagem e/ou voz do(a) menor, por meio de fotografias e filmagens, realizadas durante atendimentos, atividades e ações institucionais.</p>
 
   <h3 style="font-weight: bold; margin-bottom: 0.5rem; font-size: 1.1em;">Finalidade</h3>
-  <p style="${o}">A presente autorização destina-se exclusivamente à divulgação institucional e educativa, sem fins comerciais, respeitando a dignidade, privacidade e os direitos do(a) menor, conforme ECA e LGPD (Lei nº 13.709/2018).</p>
+  <p style="${a}">A presente autorização destina-se exclusivamente à divulgação institucional e educativa, sem fins comerciais, respeitando a dignidade, privacidade e os direitos do(a) menor, conforme ECA e LGPD (Lei nº 13.709/2018).</p>
 
   <h3 style="font-weight: bold; margin-bottom: 0.5rem; font-size: 1.1em;">Meios de divulgação</h3>
   <p style="margin-bottom: 1rem;">As imagens/voz poderão ser divulgadas em:</p>
@@ -65,57 +65,57 @@ REGRAS:
   <p style="margin-bottom: 1.5rem;">Autorização válida por <strong>24 (vinte e quatro) meses</strong>, a partir da assinatura.</p>
 
   <h3 style="font-weight: bold; margin-bottom: 0.5rem; font-size: 1.1em;">Revogação</h3>
-  <p style="${o}">O responsável poderá revogar esta autorização a qualquer momento, mediante solicitação por escrito. A revogação não invalida usos já realizados anteriormente, mas impedirá novas divulgações e, quando possível, o material será removido dos canais institucionais.</p>
+  <p style="${a}">O responsável poderá revogar esta autorização a qualquer momento, mediante solicitação por escrito. A revogação não invalida usos já realizados anteriormente, mas impedirá novas divulgações e, quando possível, o material será removido dos canais institucionais.</p>
 
   <p style="margin-bottom: 2rem;">Declaro que li e compreendi este termo.</p>
 
-  <p style="text-align: right; margin-bottom: 3rem;">Brotas de Macaúbas/BA, <strong>${f} de ${h} de ${T}</strong>.</p>
+  <p style="text-align: right; margin-bottom: 3rem;">Brotas de Macaúbas/BA, <strong>${f} de ${T} de ${h}</strong>.</p>
 
   <div style="text-align: center; margin-top: 4rem;">
     <div style="display: inline-block; text-align: left;">
       <div style="border-top: 1px solid #000; width: 300px; padding-top: 0.5rem; text-align: center; margin-bottom: 0.5rem;">Assinatura do(a) Responsável Legal</div>
       <div><strong>Nome:</strong> ${t==="____________________________________________________________"?"_____________________________________________________":t}</div>
       <div><strong>CPF:</strong> ${r==="____________________________"?"______________________________________________________":r}</div>
-      <div><strong>Telefone:</strong> ${E}</div>
+      <div><strong>Telefone:</strong> ${I}</div>
     </div>
   </div>
 </div>`.trim()}let n="";switch(i){case"Declaração de Atendimento":n=`
-            <p style="${o}">Declaro para os devidos fins que o(a) estudante <strong>${a.fullName}</strong> encontra-se em acompanhamento <strong>${d.toLowerCase()}</strong> sob minha responsabilidade, participando das atividades propostas para seu desenvolvimento integral.</p>
-            <p style="${o}">As sessões ocorrem periodicamente e o(a) aluno(a) tem demonstrado assiduidade.</p>
-            ${s?`<div style="margin-top: 2rem; border-top: 1px dashed #ccc; padding-top: 1rem;"><h4 style="font-weight: bold; margin-bottom: 0.5rem;">OBSERVAÇÕES ADICIONAIS:</h4><p style="${o}">${s}</p></div>`:""}
+            <p style="${a}">Declaro para os devidos fins que o(a) estudante <strong>${o.fullName}</strong> encontra-se em acompanhamento <strong>${c.toLowerCase()}</strong> sob minha responsabilidade, participando das atividades propostas para seu desenvolvimento integral.</p>
+            <p style="${a}">As sessões ocorrem periodicamente e o(a) aluno(a) tem demonstrado assiduidade.</p>
+            ${s?`<div style="margin-top: 2rem; border-top: 1px dashed #ccc; padding-top: 1rem;"><h4 style="font-weight: bold; margin-bottom: 0.5rem;">OBSERVAÇÕES ADICIONAIS:</h4><p style="${a}">${s}</p></div>`:""}
         `;break;case"Encaminhamento Geral":n=`
-            <p style="${o}">Solicito avaliação e conduta para o(a) estudante acima identificado(a), nascido em <strong>${new Date(a.birthDate).toLocaleDateString("pt-BR")}</strong>.</p>
+            <p style="${a}">Solicito avaliação e conduta para o(a) estudante acima identificado(a), nascido em <strong>${new Date(o.birthDate).toLocaleDateString("pt-BR")}</strong>.</p>
             
             <h3 style="font-weight: bold; margin-bottom: 0.5rem; font-size: 1.1em;">MOTIVO DO ENCAMINHAMENTO</h3>
-            <p style="${o}">O(a) aluno(a) apresenta demandas que necessitam de olhar especializado para melhor compreensão e intervenção.</p>
+            <p style="${a}">O(a) aluno(a) apresenta demandas que necessitam de olhar especializado para melhor compreensão e intervenção.</p>
             
             <div style="background-color: #f8fafc; padding: 1rem; border-left: 4px solid #cbd5e1; margin-bottom: 1.5rem;">
                 ${s?s.replace(/\n/g,"<br/>"):"Observa-se necessidade de suporte específico para otimizar seu processo de aprendizagem e desenvolvimento."}
             </div>
 
-            <p style="${o}">Coloco-me à disposição para maiores esclarecimentos e discussões sobre o caso.</p>
+            <p style="${a}">Coloco-me à disposição para maiores esclarecimentos e discussões sobre o caso.</p>
         `;break;case"Avaliação Psicopedagógica":n=`
             <h2 style="text-align: center; font-size: 1.2em; font-weight: bold; margin-bottom: 2rem;">RELATÓRIO DE AVALIAÇÃO PRELIMINAR</h2>
 
             <h3 style="font-weight: bold; margin-bottom: 0.5rem;">1. QUEIXA INICIAL</h3>
-            <p style="${o}">${s||"Dificuldades no processo de aprendizagem reportadas pela escola/família."}</p>
+            <p style="${a}">${s||"Dificuldades no processo de aprendizagem reportadas pela escola/família."}</p>
 
             <h3 style="font-weight: bold; margin-bottom: 0.5rem;">2. INSTRUMENTOS UTILIZADOS</h3>
-            <p style="${o}">Observação clínica, entrevistas, análise de material escolar e atividades lúdicas.</p>
+            <p style="${a}">Observação clínica, entrevistas, análise de material escolar e atividades lúdicas.</p>
 
             <h3 style="font-weight: bold; margin-bottom: 0.5rem;">3. SÍNTESE VIAL</h3>
-            <p style="${o}">O(a) estudante encontra-se em processo de avaliação. Observam-se potencialidades a serem exploradas e áreas que requerem atenção. Sugere-se continuidade dos atendimentos para fechamento diagnóstico.</p>
+            <p style="${a}">O(a) estudante encontra-se em processo de avaliação. Observam-se potencialidades a serem exploradas e áreas que requerem atenção. Sugere-se continuidade dos atendimentos para fechamento diagnóstico.</p>
 
             <h3 style="font-weight: bold; margin-bottom: 0.5rem;">4. CONCLUSÃO E ENCAMINHAMENTOS</h3>
-            <p style="${o}">Indica-se a manutenção do acompanhamento psicopedagógico e, se necessário, avaliação multidisciplinar.</p>
-        `;break;case"Termo de Autorização de Uso de Imagem e Vídeo":const e=(u=a.guardians)==null?void 0:u[0],t=(e==null?void 0:e.name)||"____________________________________________________________",r=(e==null?void 0:e.cpf)||"____________________________",c=(e==null?void 0:e.rg)||"____________________________",E=(e==null?void 0:e.phone)||"_________________________________________________";let g="________________________________________________________________________________________";a.address&&a.address.street&&(g=`${a.address.street}, ${a.address.number||""}, ${a.address.district||""} - ${a.address.city}/${a.address.state}`);const v=a.birthDate?new Date(a.birthDate).toLocaleDateString("pt-BR"):"//____",f=new Date().getDate(),h=new Date().toLocaleDateString("pt-BR",{month:"long"}),T=new Date().getFullYear();return`
+            <p style="${a}">Indica-se a manutenção do acompanhamento psicopedagógico e, se necessário, avaliação multidisciplinar.</p>
+        `;break;case"Termo de Autorização de Uso de Imagem e Vídeo":const e=(p=o.guardians)==null?void 0:p[0],t=(e==null?void 0:e.name)||"____________________________________________________________",r=(e==null?void 0:e.cpf)||"____________________________",l=(e==null?void 0:e.rg)||"____________________________",I=(e==null?void 0:e.phone)||"_________________________________________________";let A="________________________________________________________________________________________";o.address&&o.address.street&&(A=`${o.address.street}, ${o.address.number||""}, ${o.address.district||""} - ${o.address.city}/${o.address.state}`);const v=o.birthDate?new Date(o.birthDate).toLocaleDateString("pt-BR"):"//____",f=new Date().getDate(),T=new Date().toLocaleDateString("pt-BR",{month:"long"}),h=new Date().getFullYear();return`
 <div style="font-family: 'Times New Roman', serif; color: #000;">
   <h2 style="text-align: center; font-weight: bold; margin-bottom: 2rem;">TERMO DE AUTORIZAÇÃO PARA USO DE IMAGEM E VOZ (MENOR DE IDADE)</h2>
 
   <p style="margin-bottom: 1rem;">Eu, <strong>${t}</strong>,<br>
-  CPF: <strong>${r}</strong> RG: <strong>${c}</strong>,<br>
-  endereço: <strong>${g}</strong>,<br>
-  na qualidade de responsável legal pelo(a) menor <strong>${a.fullName}</strong>,<br>
+  CPF: <strong>${r}</strong> RG: <strong>${l}</strong>,<br>
+  endereço: <strong>${A}</strong>,<br>
+  na qualidade de responsável legal pelo(a) menor <strong>${o.fullName}</strong>,<br>
   data de nascimento: <strong>${v}</strong>,</p>
 
   <p style="margin-bottom: 1.5rem; text-align: justify;"><strong>AUTORIZO</strong>, de forma livre, informada e inequívoca, o <strong>BROTAR – Centro Multidisciplinar em Educação Inclusiva</strong>, a captar e utilizar a imagem e/ou voz do(a) menor, por meio de fotografias e filmagens, realizadas durante atendimentos, atividades e ações institucionais.</p>
@@ -138,96 +138,96 @@ REGRAS:
 
   <p style="margin-bottom: 2rem;">Declaro que li e compreendi este termo.</p>
 
-  <p style="text-align: right; margin-bottom: 3rem;">Brotas de Macaúbas/BA, <strong>${f} de ${h} de ${T}</strong>.</p>
+  <p style="text-align: right; margin-bottom: 3rem;">Brotas de Macaúbas/BA, <strong>${f} de ${T} de ${h}</strong>.</p>
 
   <div style="text-align: center; margin-top: 4rem;">
     <div style="display: inline-block; text-align: left;">
       <div style="border-top: 1px solid #000; width: 300px; padding-top: 0.5rem; text-align: center; margin-bottom: 0.5rem;">Assinatura do(a) Responsável Legal</div>
       <div><strong>Nome:</strong> ${t==="____________________________________________________________"?"_____________________________________________________":t}</div>
       <div><strong>CPF:</strong> ${r==="____________________________"?"______________________________________________________":r}</div>
-      <div><strong>Telefone:</strong> ${E}</div>
+      <div><strong>Telefone:</strong> ${I}</div>
     </div>
   </div>
 </div>
         `.trim();default:["Relatório Fonoaudiológico","Evolução Fonoaudiológica","Parecer Fonoaudiológico","Encaminhamento Fonoaudiológico","Relatório de Alta Fonoaudiológica"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
-            <p style="${o}">Aluno(a): <strong>${a.fullName}</strong>, em acompanhamento fonoaudiológico.</p>
+            <p style="${a}">Aluno(a): <strong>${o.fullName}</strong>, em acompanhamento fonoaudiológico.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. ÁREAS AVALIADAS</h3>
-            <p style="${o}">Linguagem oral e escrita, comunicação, motricidade orofacial, deglutição e voz.</p>
+            <p style="${a}">Linguagem oral e escrita, comunicação, motricidade orofacial, deglutição e voz.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO</h3>
-            <p style="${o}">${s||"O(a) aluno(a) demonstra evolução gradual nas habilidades comunicativas e linguísticas trabalhadas nas sessões."}</p>
+            <p style="${a}">${s||"O(a) aluno(a) demonstra evolução gradual nas habilidades comunicativas e linguísticas trabalhadas nas sessões."}</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. ENCAMINHAMENTOS</h3>
-            <p style="${o}">Indica-se continuidade do acompanhamento fonoaudiológico com foco nas áreas identificadas.</p>`:["Relatório de Terapia Ocupacional","Evolução em Terapia Ocupacional","Parecer de Terapia Ocupacional","Plano de Intervenção Ocupacional","Relatório de Alta em Terapia Ocupacional"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
+            <p style="${a}">Indica-se continuidade do acompanhamento fonoaudiológico com foco nas áreas identificadas.</p>`:["Relatório de Terapia Ocupacional","Evolução em Terapia Ocupacional","Parecer de Terapia Ocupacional","Plano de Intervenção Ocupacional","Relatório de Alta em Terapia Ocupacional"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
-            <p style="${o}">Aluno(a): <strong>${a.fullName}</strong>, em acompanhamento de Terapia Ocupacional.</p>
+            <p style="${a}">Aluno(a): <strong>${o.fullName}</strong>, em acompanhamento de Terapia Ocupacional.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. ÁREAS DE INTERVENÇÃO</h3>
-            <p style="${o}">Habilidades de vida diária (AVDs), integração sensorial, coordenação motora fina e grossa, desempenho escolar e funcionalidade.</p>
+            <p style="${a}">Habilidades de vida diária (AVDs), integração sensorial, coordenação motora fina e grossa, desempenho escolar e funcionalidade.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO</h3>
-            <p style="${o}">${s||"O(a) aluno(a) apresenta progresso nas atividades propostas, com melhora na autonomia e no desempenho funcional."}</p>
+            <p style="${a}">${s||"O(a) aluno(a) apresenta progresso nas atividades propostas, com melhora na autonomia e no desempenho funcional."}</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. OBJETIVOS TERAPÊUTICOS</h3>
-            <p style="${o}">Ampliar independência nas atividades cotidianas, fortalecer habilidades motoras e promover maior participação escolar.</p>`:["Relatório Fisioterapêutico","Evolução Fisioterapêutica","Parecer Fisioterapêutico","Plano de Reabilitação","Relatório de Alta Fisioterapêutica"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
+            <p style="${a}">Ampliar independência nas atividades cotidianas, fortalecer habilidades motoras e promover maior participação escolar.</p>`:["Relatório Fisioterapêutico","Evolução Fisioterapêutica","Parecer Fisioterapêutico","Plano de Reabilitação","Relatório de Alta Fisioterapêutica"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
-            <p style="${o}">Aluno(a): <strong>${a.fullName}</strong>, em acompanhamento fisioterapêutico.</p>
+            <p style="${a}">Aluno(a): <strong>${o.fullName}</strong>, em acompanhamento fisioterapêutico.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. AVALIAÇÃO MOTORA</h3>
-            <p style="${o}">Avaliação do desenvolvimento neuropsicomotor, tônus muscular, padrões de movimento, equilíbrio e marcha.</p>
+            <p style="${a}">Avaliação do desenvolvimento neuropsicomotor, tônus muscular, padrões de movimento, equilíbrio e marcha.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO</h3>
-            <p style="${o}">${s||"O(a) aluno(a) apresenta progressos no desenvolvimento motor, com ganhos observados nas habilidades funcionais trabalhadas."}</p>
+            <p style="${a}">${s||"O(a) aluno(a) apresenta progressos no desenvolvimento motor, com ganhos observados nas habilidades funcionais trabalhadas."}</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. PLANO TERAPÊUTICO</h3>
-            <p style="${o}">Manutenção das sessões com foco em funcionalidade, prevenção de complicações e promoção da autonomia motora.</p>`:["Relatório Nutricional","Evolução Nutricional","Plano Alimentar Institucional","Parecer Nutricional","Relatório de Acompanhamento Nutricional"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
+            <p style="${a}">Manutenção das sessões com foco em funcionalidade, prevenção de complicações e promoção da autonomia motora.</p>`:["Relatório Nutricional","Evolução Nutricional","Plano Alimentar Institucional","Parecer Nutricional","Relatório de Acompanhamento Nutricional"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
-            <p style="${o}">Aluno(a): <strong>${a.fullName}</strong>, em acompanhamento nutricional.</p>
+            <p style="${a}">Aluno(a): <strong>${o.fullName}</strong>, em acompanhamento nutricional.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. AVALIAÇÃO NUTRICIONAL</h3>
-            <p style="${o}">Avaliação do estado nutricional, hábitos alimentares, aceitação alimentar e condições relacionadas à alimentação.</p>
+            <p style="${a}">Avaliação do estado nutricional, hábitos alimentares, aceitação alimentar e condições relacionadas à alimentação.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO</h3>
-            <p style="${o}">${s||"O(a) aluno(a) demonstra adesão ao acompanhamento com evolução positiva nos hábitos alimentares observados."}</p>
+            <p style="${a}">${s||"O(a) aluno(a) demonstra adesão ao acompanhamento com evolução positiva nos hábitos alimentares observados."}</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. CONDUTAS E ORIENTAÇÕES</h3>
-            <p style="${o}">Orientações nutricionais individualizadas fornecidas à família. Indica-se continuidade do acompanhamento nutricional.</p>`:["Relatório de Busca Ativa","Relatório Social de Visita Domiciliar","Ofício ao Conselho Tutelar","Plano de Acompanhamento Familiar"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
+            <p style="${a}">Orientações nutricionais individualizadas fornecidas à família. Indica-se continuidade do acompanhamento nutricional.</p>`:["Relatório de Busca Ativa","Relatório Social de Visita Domiciliar","Ofício ao Conselho Tutelar","Plano de Acompanhamento Familiar"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO DA FAMÍLIA</h3>
-            <p style="${o}">Aluno(a): <strong>${a.fullName}</strong>. Acompanhamento do Serviço Social.</p>
+            <p style="${a}">Aluno(a): <strong>${o.fullName}</strong>. Acompanhamento do Serviço Social.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. SITUAÇÃO SOCIAL</h3>
-            <p style="${o}">${s||"Família em acompanhamento pelo Serviço Social. Situação avaliada conforme visita técnica e entrevista social realizada."}</p>
+            <p style="${a}">${s||"Família em acompanhamento pelo Serviço Social. Situação avaliada conforme visita técnica e entrevista social realizada."}</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. INTERVENÇÕES REALIZADAS</h3>
-            <p style="${o}">Orientações sobre direitos, acesso a serviços da rede de proteção social e encaminhamentos pertinentes ao caso.</p>
+            <p style="${a}">Orientações sobre direitos, acesso a serviços da rede de proteção social e encaminhamentos pertinentes ao caso.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. ENCAMINHAMENTOS</h3>
-            <p style="${o}">Indica-se continuidade do acompanhamento familiar e articulação com a rede de proteção social do município.</p>`:["Relatório Psicológico Técnico","Evolução Psicológica","Parecer Psicológico"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
+            <p style="${a}">Indica-se continuidade do acompanhamento familiar e articulação com a rede de proteção social do município.</p>`:["Relatório Psicológico Técnico","Evolução Psicológica","Parecer Psicológico"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
-            <p style="${o}">Aluno(a): <strong>${a.fullName}</strong>, em acompanhamento psicológico.</p>
+            <p style="${a}">Aluno(a): <strong>${o.fullName}</strong>, em acompanhamento psicológico.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. DEMANDA APRESENTADA</h3>
-            <p style="${o}">${s||"Demanda psicológica identificada e trabalhada em sessões individuais conforme planejamento clínico."}</p>
+            <p style="${a}">${s||"Demanda psicológica identificada e trabalhada em sessões individuais conforme planejamento clínico."}</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO DO PROCESSO</h3>
-            <p style="${o}">O(a) aluno(a) demonstra engajamento no processo psicológico com evolução observada nas áreas trabalhadas em sessão.</p>
+            <p style="${a}">O(a) aluno(a) demonstra engajamento no processo psicológico com evolução observada nas áreas trabalhadas em sessão.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. CONSIDERAÇÕES TÉCNICAS</h3>
-            <p style="${o}">Indica-se continuidade do acompanhamento psicológico. Este documento não substitui laudo diagnóstico e foi elaborado para fins institucionais.</p>`:["Plano de Intervenção","Relatório de Evolução"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
+            <p style="${a}">Indica-se continuidade do acompanhamento psicológico. Este documento não substitui laudo diagnóstico e foi elaborado para fins institucionais.</p>`:["Plano de Intervenção","Relatório de Evolução"].includes(i)?n=`<h2 style="text-align:center;font-size:1.2em;font-weight:bold;margin-bottom:2rem;">${i.toUpperCase()}</h2>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">1. IDENTIFICAÇÃO</h3>
-            <p style="${o}">Aluno(a): <strong>${a.fullName}</strong>.</p>
+            <p style="${a}">Aluno(a): <strong>${o.fullName}</strong>.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">2. OBJETIVOS</h3>
-            <p style="${o}">Promover o desenvolvimento integral do(a) aluno(a) por meio de intervenções especializadas e individualizadas.</p>
+            <p style="${a}">Promover o desenvolvimento integral do(a) aluno(a) por meio de intervenções especializadas e individualizadas.</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">3. EVOLUÇÃO / INTERVENÇÕES</h3>
-            <p style="${o}">${s||"O(a) aluno(a) apresenta evolução positiva nas áreas trabalhadas, demonstrando engajamento e progresso gradual."}</p>
+            <p style="${a}">${s||"O(a) aluno(a) apresenta evolução positiva nas áreas trabalhadas, demonstrando engajamento e progresso gradual."}</p>
             <h3 style="font-weight:bold;margin-bottom:0.5rem;">4. PRÓXIMAS ETAPAS</h3>
-            <p style="${o}">Continuidade das intervenções planejadas com reavaliação periódica dos objetivos propostos.</p>`:n=`<p style="${o}">Este documento refere-se ao atendimento do(a) estudante <strong>${a.fullName}</strong>.</p>
-            ${s?`<p style="${o}">${s}</p>`:'<p style="'+o+'">O processo segue conforme planejamento técnico estabelecido.</p>'}
-            <p style="${o}">Permanecemos à disposição para quaisquer dúvidas.</p>`}return`
+            <p style="${a}">Continuidade das intervenções planejadas com reavaliação periódica dos objetivos propostos.</p>`:n=`<p style="${a}">Este documento refere-se ao atendimento do(a) estudante <strong>${o.fullName}</strong>.</p>
+            ${s?`<p style="${a}">${s}</p>`:'<p style="'+a+'">O processo segue conforme planejamento técnico estabelecido.</p>'}
+            <p style="${a}">Permanecemos à disposição para quaisquer dúvidas.</p>`}return`
 <div style="${_}">
     <div style="text-align: center; margin-bottom: 3rem;">
         <h1 style="font-size: 1.5em; font-weight: bold; margin: 0; text-transform: uppercase;">${i}</h1>
         <div style="margin-top: 1rem; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px; background-color: #fcfcfc;">
-            <p style="margin: 0; text-align: left;"><strong>ALUNO:</strong> ${a.fullName}</p>
+            <p style="margin: 0; text-align: left;"><strong>ALUNO:</strong> ${o.fullName}</p>
             <p style="margin: 0; text-align: left;"><strong>IDADE:</strong> ${m} anos</p>
-            <p style="margin: 0; text-align: left;"><strong>ESCOLA:</strong> ${a.school.schoolName||"Não informada"}</p>
+            <p style="margin: 0; text-align: left;"><strong>ESCOLA:</strong> ${o.school.schoolName||"Não informada"}</p>
         </div>
     </div>
 
     ${n}
 
     <div style="margin-top: 4rem; text-align: right;">
-        <p>Brotas de Macaúbas/BA, <strong>${A}</strong>.</p>
+        <p>Brotas de Macaúbas/BA, <strong>${g}</strong>.</p>
     </div>
 
-    <div style="${l}">
+    <div style="${d}">
         <p style="margin: 0; font-weight: bold;">${O}</p>
         <p style="margin: 0; color: #64748b;">
-            ${d==="Psicopedagogia"||d==="Psicopedagoga"?"Psicopedagoga<br/>CBO-2394/25":d}
+            ${c==="Psicopedagogia"||c==="Psicopedagoga"?"Psicopedagoga<br/>CBO-2394/25":c}
         </p>
     </div>
 </div>
@@ -526,10 +526,147 @@ REGRAS:
       2. Período de Acompanhamento
       3. Evolução do Estado Nutricional e Hábitos — usar contexto adicional
       4. Condutas e Orientações fornecidas à família
-      5. Assinatura com CRN`}[i]||`
+      5. Assinatura com CRN`,"Carta de Encaminhamento Intersetorial":`
+      TÍTULO: CARTA DE ENCAMINHAMENTO INTERSETORIAL
+      1. Destinatário: serviço/equipamento de destino (saúde, assistência, educação)
+      2. Identificação: Nome | Idade | Escola
+      3. Motivo do encaminhamento intersetorial — usar contexto adicional
+      4. Histórico relevante e intervenções já realizadas
+      5. Objetivo do encaminhamento e retorno esperado
+      6. Assinatura do profissional`,"Parecer Psicopedagógico":`
+      TÍTULO: PARECER PSICOPEDAGÓGICO
+      1. Identificação e solicitante
+      2. Síntese do processo de acompanhamento de [Nome], [Idade], [Escola]
+      3. Análise psicopedagógica fundamentada — usar contexto adicional
+      4. Posicionamento conclusivo sobre hipótese diagnóstica ou aprendizagem
+      5. Encaminhamentos e orientações pedagógicas
+      6. Assinatura`,"Avaliação Fonoaudiológica":`
+      TÍTULO: AVALIAÇÃO FONOAUDIOLÓGICA
+      1. Identificação: Nome | Idade | Escola | Avaliador CRFa
+      2. Motivo da Avaliação: queixa e encaminhamento
+      3. Instrumentos Aplicados: protocolos, testes e observações
+      4. Resultados por Área: linguagem oral, escrita, fala, voz, motricidade orofacial — usar contexto adicional
+      5. Hipótese Diagnóstica Fonoaudiológica
+      6. Conduta Proposta e Encaminhamentos
+      7. Assinatura com CRFa`,"Avaliação Fisioterapêutica":`
+      TÍTULO: AVALIAÇÃO FISIOTERAPÊUTICA
+      1. Identificação: Nome | Idade | Escola | Avaliador CREFITO
+      2. Motivo da Avaliação: queixa motora e encaminhamento
+      3. Exame Físico: postura, tônus, força, amplitude de movimento, equilíbrio, marcha
+      4. Achados Clínicos — usar contexto adicional
+      5. Diagnóstico Fisioterapêutico e Metas
+      6. Plano de Tratamento Proposto
+      7. Assinatura com CREFITO`,"Avaliação Nutricional":`
+      TÍTULO: AVALIAÇÃO NUTRICIONAL
+      1. Identificação: Nome | Idade | Escola | Avaliador CRN
+      2. Dados Antropométricos: peso, altura, IMC, classificação nutricional
+      3. Avaliação do Consumo Alimentar: recordatório, frequência
+      4. Comportamento Alimentar: seletividade, recusas — usar contexto adicional
+      5. Diagnóstico Nutricional
+      6. Metas e Conduta Nutricional
+      7. Assinatura com CRN`,"Ofício de Encaminhamento":`
+      CABEÇALHO: OFÍCIO Nº [automático] / [Ano] — Secretaria BROTAR
+      DESTINATÁRIO: Nome e cargo do destinatário, instituição
+      ASSUNTO: Encaminhamento do(a) aluno(a) [Nome]
+      1. Apresentação institucional do BROTAR
+      2. Dados do aluno: Nome | Idade | Escola
+      3. Motivo e objetivo do encaminhamento — usar contexto adicional
+      4. Solicitação de recebimento e providências
+      5. Assinatura da Secretaria`,"Ofício Informativo":`
+      CABEÇALHO: OFÍCIO Nº [automático] / [Ano] — Secretaria BROTAR
+      DESTINATÁRIO: Autoridade/Instituição competente
+      ASSUNTO: Informação sobre atendimento especializado
+      1. Contexto institucional do BROTAR
+      2. Informação principal — usar contexto adicional
+      3. Dados relevantes e justificativa
+      4. Disposição para esclarecimentos
+      5. Assinatura da Secretaria`,"Memorando Interno":`
+      CABEÇALHO: MEMORANDO Nº [automático] / [Ano]
+      PARA: [Destinatário interno] | DE: Secretaria BROTAR
+      ASSUNTO: [conforme contexto]
+      1. Comunicação interna objetiva — usar contexto adicional
+      2. Providências solicitadas ou informações relevantes
+      3. Prazo se houver
+      4. Assinatura`,"Circular Informativa":`
+      TÍTULO: CIRCULAR Nº [automático] / [Ano]
+      DESTINATÁRIOS: Equipe técnica / Famílias / Escolas
+      1. Comunicado institucional — usar contexto adicional
+      2. Orientações ou informações relevantes para o público-alvo
+      3. Contato para dúvidas
+      4. Assinatura da Coordenação/Secretaria`,"Declaração de Matrícula":`
+      TÍTULO: DECLARAÇÃO DE MATRÍCULA EM ATENDIMENTO ESPECIALIZADO
+      1. Declaramos que [Nome], [Idade] anos, aluno(a) da [Escola]
+      2. Está regularmente matriculado(a) no Programa BROTAR
+      3. Modalidade de atendimento e especialidade — usar contexto adicional
+      4. Fins a que se destina
+      5. Assinatura da Secretaria`,"Declaração de Frequência":`
+      TÍTULO: DECLARAÇÃO DE FREQUÊNCIA
+      1. Declaramos que [Nome], [Idade] anos, aluno(a) da [Escola]
+      2. Frequenta regularmente os atendimentos do Programa BROTAR
+      3. Frequência no período — usar contexto adicional
+      4. Fins a que se destina
+      5. Assinatura da Secretaria`,"Declaração de Vaga em Atendimento Especializado":`
+      TÍTULO: DECLARAÇÃO DE VAGA EM ATENDIMENTO ESPECIALIZADO
+      1. Declaramos que [Nome], [Idade] anos, aluno(a) da [Escola]
+      2. Possui vaga garantida no Programa BROTAR
+      3. Data de início e periodicidade — usar contexto adicional
+      4. Fins a que se destina
+      5. Assinatura da Secretaria`,"Convocação de Responsável":`
+      TÍTULO: CONVOCAÇÃO
+      1. Convocamos o(a) responsável pelo(a) aluno(a) [Nome], da [Escola]
+      2. Data, horário e local do comparecimento
+      3. Motivo da convocação — usar contexto adicional
+      4. Importância do comparecimento e contato
+      5. Assinatura da Secretaria`,"Comunicado à Família":`
+      TÍTULO: COMUNICADO AO RESPONSÁVEL
+      1. Prezado(a) responsável pelo(a) aluno(a) [Nome], da [Escola]
+      2. Comunicado sobre atendimentos, agenda ou situação — usar contexto adicional
+      3. Orientações ou solicitações pertinentes
+      4. Contato para dúvidas
+      5. Assinatura da Secretaria`,"Comunicado à Escola":`
+      TÍTULO: COMUNICADO À UNIDADE ESCOLAR
+      DESTINATÁRIO: Direção/Coordenação da [Escola]
+      1. Informações sobre o aluno [Nome] atendido pelo BROTAR
+      2. Orientações ou solicitações à escola — usar contexto adicional
+      3. Articulação necessária entre BROTAR e escola
+      4. Contato para articulação
+      5. Assinatura da Secretaria`,"Relatório de Atendimentos do Mês":`
+      TÍTULO: RELATÓRIO MENSAL DE ATENDIMENTOS
+      1. Unidade de atendimento (Sede/Cocal) | Mês/Ano
+      2. Total de atendimentos realizados no período
+      3. Distribuição por especialidade e profissional
+      4. Informações sobre frequência e faltas — usar contexto adicional
+      5. Observações administrativas relevantes
+      6. Assinatura da Secretaria`,"Relatório de Frequência do Aluno":`
+      TÍTULO: RELATÓRIO DE FREQUÊNCIA — [Nome] | [Escola]
+      1. Período de referência
+      2. Total de atendimentos agendados vs realizados
+      3. Faltas justificadas e injustificadas — usar contexto adicional
+      4. Impacto na continuidade do atendimento
+      5. Orientações à família
+      6. Assinatura da Secretaria`,"Relatório de Encaminhamentos Realizados":`
+      TÍTULO: RELATÓRIO DE ENCAMINHAMENTOS REALIZADOS
+      1. Aluno: [Nome] | Escola: [Escola] | Período
+      2. Encaminhamentos realizados: instituições e especialidades
+      3. Situação de cada encaminhamento — usar contexto adicional
+      4. Retornos recebidos e pendências
+      5. Próximos passos
+      6. Assinatura da Secretaria`,"Termo de Ciência e Responsabilidade":`
+      TÍTULO: TERMO DE CIÊNCIA E RESPONSABILIDADE
+      1. Identificação do responsável e do aluno [Nome], [Idade], [Escola]
+      2. Objeto do termo: ciência sobre as condições do atendimento
+      3. Direitos e deveres do responsável — usar contexto adicional
+      4. Comprometimento com frequência e participação
+      5. Assinatura do Responsável, Testemunha e Secretaria`,"Termo de Compromisso Familiar":`
+      TÍTULO: TERMO DE COMPROMISSO FAMILIAR
+      1. Identificação da família e do aluno [Nome], [Idade], [Escola]
+      2. Compromissos assumidos pela família com o Programa BROTAR
+      3. Cláusulas específicas de comprometimento — usar contexto adicional
+      4. Consequências do não cumprimento
+      5. Assinatura do Responsável, Testemunha e Coordenação`}[i]||`
     TÍTULO: ${i.toUpperCase()}
     1. Identificação: Nome do aluno | Idade | Escola
     2. Objetivo do documento
     3. Desenvolvimento com contexto adicional fornecido
     4. Conclusões e encaminhamentos
-    5. Assinatura do profissional`}export{L as G,S as T};
+    5. Assinatura do profissional`}export{L as G,P as T};

@@ -12,14 +12,38 @@ interface DocumentGeneratorProps {
 }
 
 // --- LISTA DE MODELOS ---
-const DOCS_COMUM = ["Declaração de Atendimento", "Encaminhamento Geral", "Relatório Resumido", "Termo de Autorização de Uso de Imagem e Vídeo", "Declaração Simples"];
+const DOCS_COMUM = ["Declaração de Atendimento", "Encaminhamento Geral", "Relatório Resumido", "Termo de Autorização de Uso de Imagem e Vídeo", "Declaração Simples", "Carta de Encaminhamento Intersetorial"];
 const DOCS_PSICOLOGIA = ["Anamnese Psicológica", "Relatório Psicológico Técnico", "Evolução Psicológica", "Parecer Psicológico", "Declaração de Sigilo Profissional"];
 const DOCS_SERVICO_SOCIAL = ["Anamnese Social", "Estudo Social", "Relatório de Busca Ativa", "Relatório Social de Visita Domiciliar", "Ofício ao Conselho Tutelar", "Plano de Acompanhamento Familiar"];
-const DOCS_PSICOPEDAGOGIA = ["Anamnese Psicopedagógica", "Avaliação Psicopedagógica", "Plano de Intervenção", "Relatório de Evolução", "Relatório Semestral Psicopedagógico"];
-const DOCS_FONOAUDIOLOGIA = ["Anamnese Fonoaudiológica", "Relatório Fonoaudiológico", "Evolução Fonoaudiológica", "Parecer Fonoaudiológico", "Encaminhamento Fonoaudiológico", "Relatório de Alta Fonoaudiológica"];
+const DOCS_PSICOPEDAGOGIA = ["Anamnese Psicopedagógica", "Avaliação Psicopedagógica", "Parecer Psicopedagógico", "Plano de Intervenção", "Relatório de Evolução", "Relatório Semestral Psicopedagógico"];
+const DOCS_FONOAUDIOLOGIA = ["Anamnese Fonoaudiológica", "Avaliação Fonoaudiológica", "Relatório Fonoaudiológico", "Evolução Fonoaudiológica", "Parecer Fonoaudiológico", "Encaminhamento Fonoaudiológico", "Relatório de Alta Fonoaudiológica"];
 const DOCS_TERAPIA_OCUPACIONAL = ["Anamnese de Terapia Ocupacional", "Relatório Sensorial", "Relatório de Terapia Ocupacional", "Evolução em Terapia Ocupacional", "Parecer de Terapia Ocupacional", "Plano de Intervenção Ocupacional", "Relatório de Alta em Terapia Ocupacional"];
-const DOCS_FISIOTERAPIA = ["Anamnese Fisioterapêutica", "Relatório Fisioterapêutico", "Evolução Fisioterapêutica", "Parecer Fisioterapêutico", "Plano de Reabilitação", "Relatório de Alta Fisioterapêutica"];
-const DOCS_NUTRICAO = ["Anamnese Nutricional", "Relatório Nutricional", "Evolução Nutricional", "Plano Alimentar Institucional", "Parecer Nutricional", "Relatório de Acompanhamento Nutricional"];
+const DOCS_FISIOTERAPIA = ["Anamnese Fisioterapêutica", "Avaliação Fisioterapêutica", "Relatório Fisioterapêutico", "Evolução Fisioterapêutica", "Parecer Fisioterapêutico", "Plano de Reabilitação", "Relatório de Alta Fisioterapêutica"];
+const DOCS_NUTRICAO = ["Anamnese Nutricional", "Avaliação Nutricional", "Relatório Nutricional", "Evolução Nutricional", "Plano Alimentar Institucional", "Parecer Nutricional", "Relatório de Acompanhamento Nutricional"];
+
+// Documentos exclusivos para Secretaria (administrativos/gestão)
+const DOCS_SECRETARIA = [
+  // Comunicações oficiais
+  "Ofício de Encaminhamento",
+  "Ofício Informativo",
+  "Memorando Interno",
+  "Circular Informativa",
+  // Declarações administrativas
+  "Declaração de Matrícula",
+  "Declaração de Frequência",
+  "Declaração de Vaga em Atendimento Especializado",
+  // Convocações e comunicados
+  "Convocação de Responsável",
+  "Comunicado à Família",
+  "Comunicado à Escola",
+  // Relatórios administrativos
+  "Relatório de Atendimentos do Mês",
+  "Relatório de Frequência do Aluno",
+  "Relatório de Encaminhamentos Realizados",
+  // Termos
+  "Termo de Ciência e Responsabilidade",
+  "Termo de Compromisso Familiar",
+];
 
 export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUser }) => {
   const { addToast } = useToast();
@@ -235,7 +259,15 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
   }, [selectedStudentId, activeTab]);
 
   const availableDocs = React.useMemo(() => {
+    const role = currentUser.role || '';
     const sp = (currentUser.specialty || '').toLowerCase();
+
+    // Secretarias — apenas documentos administrativos + comuns
+    if (role === 'SECRETARIA_SEDE' || role === 'SECRETARIA_COCAL' || role === 'ASSISTANT') {
+      return [...DOCS_COMUM, ...DOCS_SECRETARIA].sort();
+    }
+
+    // Especialistas clínicos — documentos comuns + específicos da especialidade
     const common = [...DOCS_COMUM];
     if (sp.includes('psicopedagogia') || sp.includes('psicopedago')) return [...common, ...DOCS_PSICOPEDAGOGIA];
     if (sp.includes('psicologia')) return [...common, ...DOCS_PSICOLOGIA];
@@ -244,10 +276,15 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
     if (sp.includes('terapia ocupacional')) return [...common, ...DOCS_TERAPIA_OCUPACIONAL];
     if (sp.includes('fisioterapia')) return [...common, ...DOCS_FISIOTERAPIA];
     if (sp.includes('nutri')) return [...common, ...DOCS_NUTRICAO];
-    return Array.from(new Set([...common, ...DOCS_PSICOLOGIA, ...DOCS_SERVICO_SOCIAL,
-      ...DOCS_PSICOPEDAGOGIA, ...DOCS_FONOAUDIOLOGIA, ...DOCS_TERAPIA_OCUPACIONAL,
-      ...DOCS_FISIOTERAPIA, ...DOCS_NUTRICAO])).sort();
-  }, [currentUser.specialty]);
+
+    // ADMIN/COORDENADOR — todos os documentos
+    return Array.from(new Set([
+      ...DOCS_COMUM, ...DOCS_SECRETARIA,
+      ...DOCS_PSICOLOGIA, ...DOCS_SERVICO_SOCIAL,
+      ...DOCS_PSICOPEDAGOGIA, ...DOCS_FONOAUDIOLOGIA,
+      ...DOCS_TERAPIA_OCUPACIONAL, ...DOCS_FISIOTERAPIA, ...DOCS_NUTRICAO
+    ])).sort();
+  }, [currentUser.specialty, currentUser.role]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn pb-12 relative">

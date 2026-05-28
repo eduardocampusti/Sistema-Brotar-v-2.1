@@ -779,6 +779,184 @@ function getDocumentStructure(docType: string): string {
       3. Evolução do Estado Nutricional e Hábitos — usar contexto adicional
       4. Condutas e Orientações fornecidas à família
       5. Assinatura com CRN`,
+
+    // --- DOCUMENTOS NOVOS: sugestões + secretaria ---
+    "Carta de Encaminhamento Intersetorial": `
+      TÍTULO: CARTA DE ENCAMINHAMENTO INTERSETORIAL
+      1. Destinatário: serviço/equipamento de destino (saúde, assistência, educação)
+      2. Identificação: Nome | Idade | Escola
+      3. Motivo do encaminhamento intersetorial — usar contexto adicional
+      4. Histórico relevante e intervenções já realizadas
+      5. Objetivo do encaminhamento e retorno esperado
+      6. Assinatura do profissional`,
+
+    "Parecer Psicopedagógico": `
+      TÍTULO: PARECER PSICOPEDAGÓGICO
+      1. Identificação e solicitante
+      2. Síntese do processo de acompanhamento de [Nome], [Idade], [Escola]
+      3. Análise psicopedagógica fundamentada — usar contexto adicional
+      4. Posicionamento conclusivo sobre hipótese diagnóstica ou aprendizagem
+      5. Encaminhamentos e orientações pedagógicas
+      6. Assinatura`,
+
+    "Avaliação Fonoaudiológica": `
+      TÍTULO: AVALIAÇÃO FONOAUDIOLÓGICA
+      1. Identificação: Nome | Idade | Escola | Avaliador CRFa
+      2. Motivo da Avaliação: queixa e encaminhamento
+      3. Instrumentos Aplicados: protocolos, testes e observações
+      4. Resultados por Área: linguagem oral, escrita, fala, voz, motricidade orofacial — usar contexto adicional
+      5. Hipótese Diagnóstica Fonoaudiológica
+      6. Conduta Proposta e Encaminhamentos
+      7. Assinatura com CRFa`,
+
+    "Avaliação Fisioterapêutica": `
+      TÍTULO: AVALIAÇÃO FISIOTERAPÊUTICA
+      1. Identificação: Nome | Idade | Escola | Avaliador CREFITO
+      2. Motivo da Avaliação: queixa motora e encaminhamento
+      3. Exame Físico: postura, tônus, força, amplitude de movimento, equilíbrio, marcha
+      4. Achados Clínicos — usar contexto adicional
+      5. Diagnóstico Fisioterapêutico e Metas
+      6. Plano de Tratamento Proposto
+      7. Assinatura com CREFITO`,
+
+    "Avaliação Nutricional": `
+      TÍTULO: AVALIAÇÃO NUTRICIONAL
+      1. Identificação: Nome | Idade | Escola | Avaliador CRN
+      2. Dados Antropométricos: peso, altura, IMC, classificação nutricional
+      3. Avaliação do Consumo Alimentar: recordatório, frequência
+      4. Comportamento Alimentar: seletividade, recusas — usar contexto adicional
+      5. Diagnóstico Nutricional
+      6. Metas e Conduta Nutricional
+      7. Assinatura com CRN`,
+
+    "Ofício de Encaminhamento": `
+      CABEÇALHO: OFÍCIO Nº [automático] / [Ano] — Secretaria BROTAR
+      DESTINATÁRIO: Nome e cargo do destinatário, instituição
+      ASSUNTO: Encaminhamento do(a) aluno(a) [Nome]
+      1. Apresentação institucional do BROTAR
+      2. Dados do aluno: Nome | Idade | Escola
+      3. Motivo e objetivo do encaminhamento — usar contexto adicional
+      4. Solicitação de recebimento e providências
+      5. Assinatura da Secretaria`,
+
+    "Ofício Informativo": `
+      CABEÇALHO: OFÍCIO Nº [automático] / [Ano] — Secretaria BROTAR
+      DESTINATÁRIO: Autoridade/Instituição competente
+      ASSUNTO: Informação sobre atendimento especializado
+      1. Contexto institucional do BROTAR
+      2. Informação principal — usar contexto adicional
+      3. Dados relevantes e justificativa
+      4. Disposição para esclarecimentos
+      5. Assinatura da Secretaria`,
+
+    "Memorando Interno": `
+      CABEÇALHO: MEMORANDO Nº [automático] / [Ano]
+      PARA: [Destinatário interno] | DE: Secretaria BROTAR
+      ASSUNTO: [conforme contexto]
+      1. Comunicação interna objetiva — usar contexto adicional
+      2. Providências solicitadas ou informações relevantes
+      3. Prazo se houver
+      4. Assinatura`,
+
+    "Circular Informativa": `
+      TÍTULO: CIRCULAR Nº [automático] / [Ano]
+      DESTINATÁRIOS: Equipe técnica / Famílias / Escolas
+      1. Comunicado institucional — usar contexto adicional
+      2. Orientações ou informações relevantes para o público-alvo
+      3. Contato para dúvidas
+      4. Assinatura da Coordenação/Secretaria`,
+
+    "Declaração de Matrícula": `
+      TÍTULO: DECLARAÇÃO DE MATRÍCULA EM ATENDIMENTO ESPECIALIZADO
+      1. Declaramos que [Nome], [Idade] anos, aluno(a) da [Escola]
+      2. Está regularmente matriculado(a) no Programa BROTAR
+      3. Modalidade de atendimento e especialidade — usar contexto adicional
+      4. Fins a que se destina
+      5. Assinatura da Secretaria`,
+
+    "Declaração de Frequência": `
+      TÍTULO: DECLARAÇÃO DE FREQUÊNCIA
+      1. Declaramos que [Nome], [Idade] anos, aluno(a) da [Escola]
+      2. Frequenta regularmente os atendimentos do Programa BROTAR
+      3. Frequência no período — usar contexto adicional
+      4. Fins a que se destina
+      5. Assinatura da Secretaria`,
+
+    "Declaração de Vaga em Atendimento Especializado": `
+      TÍTULO: DECLARAÇÃO DE VAGA EM ATENDIMENTO ESPECIALIZADO
+      1. Declaramos que [Nome], [Idade] anos, aluno(a) da [Escola]
+      2. Possui vaga garantida no Programa BROTAR
+      3. Data de início e periodicidade — usar contexto adicional
+      4. Fins a que se destina
+      5. Assinatura da Secretaria`,
+
+    "Convocação de Responsável": `
+      TÍTULO: CONVOCAÇÃO
+      1. Convocamos o(a) responsável pelo(a) aluno(a) [Nome], da [Escola]
+      2. Data, horário e local do comparecimento
+      3. Motivo da convocação — usar contexto adicional
+      4. Importância do comparecimento e contato
+      5. Assinatura da Secretaria`,
+
+    "Comunicado à Família": `
+      TÍTULO: COMUNICADO AO RESPONSÁVEL
+      1. Prezado(a) responsável pelo(a) aluno(a) [Nome], da [Escola]
+      2. Comunicado sobre atendimentos, agenda ou situação — usar contexto adicional
+      3. Orientações ou solicitações pertinentes
+      4. Contato para dúvidas
+      5. Assinatura da Secretaria`,
+
+    "Comunicado à Escola": `
+      TÍTULO: COMUNICADO À UNIDADE ESCOLAR
+      DESTINATÁRIO: Direção/Coordenação da [Escola]
+      1. Informações sobre o aluno [Nome] atendido pelo BROTAR
+      2. Orientações ou solicitações à escola — usar contexto adicional
+      3. Articulação necessária entre BROTAR e escola
+      4. Contato para articulação
+      5. Assinatura da Secretaria`,
+
+    "Relatório de Atendimentos do Mês": `
+      TÍTULO: RELATÓRIO MENSAL DE ATENDIMENTOS
+      1. Unidade de atendimento (Sede/Cocal) | Mês/Ano
+      2. Total de atendimentos realizados no período
+      3. Distribuição por especialidade e profissional
+      4. Informações sobre frequência e faltas — usar contexto adicional
+      5. Observações administrativas relevantes
+      6. Assinatura da Secretaria`,
+
+    "Relatório de Frequência do Aluno": `
+      TÍTULO: RELATÓRIO DE FREQUÊNCIA — [Nome] | [Escola]
+      1. Período de referência
+      2. Total de atendimentos agendados vs realizados
+      3. Faltas justificadas e injustificadas — usar contexto adicional
+      4. Impacto na continuidade do atendimento
+      5. Orientações à família
+      6. Assinatura da Secretaria`,
+
+    "Relatório de Encaminhamentos Realizados": `
+      TÍTULO: RELATÓRIO DE ENCAMINHAMENTOS REALIZADOS
+      1. Aluno: [Nome] | Escola: [Escola] | Período
+      2. Encaminhamentos realizados: instituições e especialidades
+      3. Situação de cada encaminhamento — usar contexto adicional
+      4. Retornos recebidos e pendências
+      5. Próximos passos
+      6. Assinatura da Secretaria`,
+
+    "Termo de Ciência e Responsabilidade": `
+      TÍTULO: TERMO DE CIÊNCIA E RESPONSABILIDADE
+      1. Identificação do responsável e do aluno [Nome], [Idade], [Escola]
+      2. Objeto do termo: ciência sobre as condições do atendimento
+      3. Direitos e deveres do responsável — usar contexto adicional
+      4. Comprometimento com frequência e participação
+      5. Assinatura do Responsável, Testemunha e Secretaria`,
+
+    "Termo de Compromisso Familiar": `
+      TÍTULO: TERMO DE COMPROMISSO FAMILIAR
+      1. Identificação da família e do aluno [Nome], [Idade], [Escola]
+      2. Compromissos assumidos pela família com o Programa BROTAR
+      3. Cláusulas específicas de comprometimento — usar contexto adicional
+      4. Consequências do não cumprimento
+      5. Assinatura do Responsável, Testemunha e Coordenação`,
   };
 
   return structures[docType] || `
