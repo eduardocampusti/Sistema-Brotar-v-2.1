@@ -61,10 +61,8 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
   useEffect(() => {
     const loadStudents = async () => {
       if (currentUser.role === 'SPECIALIST') {
-        const appointments = await SupabaseService.getAppointments({ professionalId: currentUser.id });
-        const uniqueIds = new Set(appointments.map((a: any) => a.studentId));
-        const all = await SupabaseService.getStudents();
-        setStudents(all.filter((s: any) => uniqueIds.has(s.id)));
+        const data = await SupabaseService.getStudentsForUser(currentUser);
+        setStudents(data);
       } else {
         const data = await SupabaseService.getStudents();
         setStudents(data);
@@ -84,7 +82,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
 
     // Re-fetch student data to ensure we have the latest Clinical Info (including IPO)
     // This is crucial because DocumentGenerator might have stale data from initial load
-    const freshStudentList = await SupabaseService.getStudents();
+    const freshStudentList = await SupabaseService.getStudentsForUser(currentUser);
     const freshStudent = freshStudentList.find(s => s.id === selectedStudentId);
 
     if (!freshStudent) {

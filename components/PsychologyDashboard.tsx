@@ -30,7 +30,7 @@ export const PsychologyDashboard: React.FC<{
         const loadData = async () => {
             setLoading(true);
             try {
-                const allStudents = await SupabaseService.getStudents();
+                const allStudents = await SupabaseService.getStudentsForUser(currentUser);
                 setStudents(allStudents);
             } catch (error) {
                 console.error('Erro ao carregar dados do dashboard:', error);

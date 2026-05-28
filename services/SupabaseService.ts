@@ -961,6 +961,54 @@ export class SupabaseService {
     }
 
     /**
+     * Retorna apenas alunos vinculados ao profissional via agendamentos.
+     * Para ADMIN/SECRETARIA/COORDENADOR: retorna todos os alunos normalmente.
+     * Para SPECIALIST: retorna apenas alunos com appointment vinculado ao professionalId.
+     */
+    static async getStudentsForUser(currentUser: User): Promise<Student[]> {
+        // Perfis administrativos veem todos
+        const adminRoles = [
+            'ADMIN',
+            'SECRETARIA_SEDE',
+            'SECRETARIA_COCAL',
+            'COORDENADOR',
+            'EDUCATION_SECRETARY',
+            'ASSISTANT',
+        ];
+        if (adminRoles.includes(currentUser.role)) {
+            return this.getStudents();
+        }
+
+        // SPECIALIST: buscar IDs dos alunos via agendamentos
+        const appointments = await this.getAppointments({
+            professionalId: currentUser.id,
+        });
+
+        if (appointments.length === 0) return [];
+
+        const uniqueStudentIds = Array.from(
+            new Set(appointments.map((a: any) => a.studentId).filter(Boolean))
+        );
+
+        if (uniqueStudentIds.length === 0) return [];
+
+        // Buscar apenas os alunos vinculados (validação / RLS check)
+        const { data, error } = await supabase
+            .from('students')
+            .select('*')
+            .in('id', uniqueStudentIds);
+
+        if (error) {
+            console.error('[getStudentsForUser] Erro:', error);
+            return [];
+        }
+
+        // Mapear usando o mesmo mapeamento do getStudents
+        const allMapped = await this.getStudents();
+        return allMapped.filter((s) => uniqueStudentIds.includes(s.id));
+    }
+
+    /**
      * Gera os dados consolidados para o Relatório TEA.
      * Cruza as flags explícitas (laudo/suspeita) com a lógica de detecção automática por CID/Texto.
      * Respeita o escopo de acesso do usuário (Sede/Cocal/Escola).

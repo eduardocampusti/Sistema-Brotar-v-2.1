@@ -1666,7 +1666,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
     const loadData = async () => {
         setLoading(true);
-        const allStudents = await SupabaseService.getStudents();
+        const allStudents = await SupabaseService.getStudentsForUser(currentUser);
         setStudents(allStudents);
 
         const activity: { session: PPSession, studentName: string, studentId: string }[] = [];
@@ -2794,7 +2794,7 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
     useEffect(() => {
         const load = async () => {
             setLoading(true);
-            const data = await SupabaseService.getStudents();
+            const data = await SupabaseService.getStudentsForUser(currentUser);
             setStudents(data);
             setLoading(false);
         };
@@ -3206,7 +3206,7 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
     useEffect(() => {
         const load = async () => {
             setLoading(true);
-            const data = await SupabaseService.getStudents();
+            const data = await SupabaseService.getStudentsForUser(currentUser);
             setStudents(data);
             setLoading(false);
         };
@@ -3719,7 +3719,7 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
     useEffect(() => {
         const load = async () => {
             setLoading(true);
-            const data = await SupabaseService.getStudents();
+            const data = await SupabaseService.getStudentsForUser(currentUser);
             setStudents(data);
             setLoading(false);
         };
@@ -4337,7 +4337,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 
     const loadData = async () => {
         setLoading(true);
-        const allStudents = await SupabaseService.getStudents();
+        const allStudents = await SupabaseService.getStudentsForUser(currentUser);
         setStudents(allStudents);
 
         const activity: { session: PsychSession, studentName: string, studentId: string }[] = [];
@@ -5275,7 +5275,7 @@ const SocialServiceStrategicDashboard: React.FC<BaseDashboardProps> = ({ title, 
 
     useEffect(() => {
         const load = async () => {
-            const data = await SupabaseService.getStudents();
+            const data = await SupabaseService.getStudentsForUser(currentUser);
             setStudents(data);
         };
         load();
@@ -5348,7 +5348,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
 
     useEffect(() => {
         const load = async () => {
-            const data = await SupabaseService.getStudents();
+            const data = await SupabaseService.getStudentsForUser(currentUser);
             setStudents(data);
         };
         load();
@@ -6144,7 +6144,7 @@ const BaseDashboard: React.FC<BaseDashboardProps> = ({ title, specialty, onNavig
 
     useEffect(() => {
         const load = async () => {
-            const allStudents = await SupabaseService.getStudents();
+            const allStudents = await SupabaseService.getStudentsForUser(currentUser);
             const flatHistory: { session: Session, studentName: string }[] = [];
 
             allStudents.forEach(p => {
@@ -6274,7 +6274,7 @@ const BaseSessionForm: React.FC<BaseSessionFormProps> = ({ title, specialty, onC
     const [notes, setNotes] = useState('');
     const { success: showToast, error: toastError } = useToast();
 
-    useEffect(() => { SupabaseService.getStudents().then(setStudents); }, []);
+    useEffect(() => { SupabaseService.getStudentsForUser(currentUser).then(setStudents); }, [currentUser]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -6342,8 +6342,8 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
     const canAccessPrivate = currentUser.role === 'SPECIALIST' && currentUser.specialty === Specialty.PSYCHOLOGY;
 
     useEffect(() => {
-        SupabaseService.getStudents().then(setStudents);
-    }, []);
+        SupabaseService.getStudentsForUser(currentUser).then(setStudents);
+    }, [currentUser]);
 
     useEffect(() => {
         if (selectedStudent) {
@@ -7209,7 +7209,7 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
     useEffect(() => {
         const loadStudents = async () => {
             setLoading(true);
-            const data = await SupabaseService.getStudents();
+            const data = await SupabaseService.getStudentsForUser(currentUser);
             setStudents(data);
             setLoading(false);
         };
