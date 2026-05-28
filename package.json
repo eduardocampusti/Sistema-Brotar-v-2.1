@@ -1,7 +1,7 @@
 {
   "name": "backup-v5.3.5---brotar---psicopedagoga-ok",
   "private": true,
-  "version": "2.1.2",
+  "version": "2.2.1",
   "type": "module",
   "main": "server.mjs",
   "engines": {
@@ -15,7 +15,10 @@
     "test": "vitest",
     "test:rls": "vitest run tests/integration/recepcionistaCocal.rls.integration.test.ts",
     "db:count": "node scripts/count-db-records.mjs",
-    "version:bump": "node scripts/bump-version.mjs",
+    "version:patch": "node scripts/bump-version.mjs patch",
+    "version:minor": "node scripts/bump-version.mjs minor",
+    "version:major": "node scripts/bump-version.mjs major",
+    "version:bump": "node scripts/bump-version.mjs patch",
     "start": "node server.mjs"
   },
   "dependencies": {
