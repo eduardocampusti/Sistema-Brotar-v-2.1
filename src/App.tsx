@@ -276,6 +276,7 @@ function AppContent() {
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
+    navigate('/app/dashboard', { replace: true });
   };
 
   const handleLogout = () => {
