@@ -6703,17 +6703,99 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
                 </div>
 
                 {!selectedStudent ? (
-                    <div className="p-16 text-center bg-[#FAF9FF] flex flex-col items-center justify-center min-h-[400px]">
-                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-slate-200 text-purple-500"><UserIcon size={40} /></div>
-                        <h3 className="text-xl font-bold text-slate-700 mb-2">Selecione um Paciente</h3>
-                        <p className="text-slate-500 mb-8 max-w-md">Para acessar o prontuário ou registrar sessões, localize o aluno na lista abaixo.</p>
-                        <div className="relative w-full max-w-md">
-                            <select className="block w-full rounded-xl border-slate-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 p-4 pl-12 border bg-white text-lg transition-all cursor-pointer hover:border-purple-300" onChange={(e) => handleStudentSelect(e.target.value)} value="">
-                                <option value="">Buscar aluno...</option>
-                                {students.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-                            </select>
-                            <Search className="absolute left-4 top-5 text-purple-500" size={20} />
+                    <div className="p-6 bg-[#FAF9FF] min-h-[500px]">
+
+                        {/* Cards de métricas */}
+                        <div className="grid grid-cols-3 gap-3 mb-6">
+                            <div className="bg-white rounded-xl border border-slate-100 p-4 text-center">
+                                <p className="text-2xl font-bold text-slate-800">{students.length}</p>
+                                <p className="text-xs text-slate-400 mt-1">meus pacientes</p>
+                            </div>
+                            <div className="bg-white rounded-xl border border-slate-100 p-4 text-center">
+                                <p className="text-2xl font-bold text-slate-800">
+                                    {new Set(students.map(s => s.school?.schoolName).filter(Boolean)).size || '—'}
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">escolas</p>
+                            </div>
+                            <div className="bg-white rounded-xl border border-slate-100 p-4 text-center">
+                                <p className="text-2xl font-bold text-purple-600">{students.length > 0 ? 'OK' : '—'}</p>
+                                <p className="text-xs text-slate-400 mt-1">escopo seguro</p>
+                            </div>
                         </div>
+
+                        {/* Busca + filtro escola */}
+                        <div className="flex gap-3 mb-5">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por nome do aluno..."
+                                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition-all"
+                                    value={studentSearch || ''}
+                                    onChange={e => setStudentSearch(e.target.value)}
+                                />
+                            </div>
+                            <select
+                                className="rounded-xl border border-slate-200 bg-white text-sm px-3 py-2.5 focus:outline-none focus:border-purple-400 min-w-[180px]"
+                                value={schoolFilter || ''}
+                                onChange={e => setSchoolFilter(e.target.value)}
+                            >
+                                <option value="">Todas as escolas</option>
+                                {Array.from(new Set(students.map(s => s.school?.schoolName).filter(Boolean))).sort().map(escola => (
+                                    <option key={escola} value={escola}>{escola}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Lista agrupada por escola */}
+                        {(() => {
+                            const search = (studentSearch || '').toLowerCase();
+                            const filtered = students.filter(s =>
+                                (!search || s.fullName.toLowerCase().includes(search)) &&
+                                (!schoolFilter || s.school?.schoolName === schoolFilter)
+                            );
+                            if (filtered.length === 0) return (
+                                <div className="text-center py-12 text-slate-400">
+                                    <UserIcon size={32} className="mx-auto mb-3 opacity-30" />
+                                    <p className="text-sm">Nenhum paciente encontrado</p>
+                                </div>
+                            );
+                            const bySchool: Record<string, typeof filtered> = {};
+                            filtered.forEach(s => {
+                                const escola = s.school?.schoolName || 'Escola não informada';
+                                if (!bySchool[escola]) bySchool[escola] = [];
+                                bySchool[escola].push(s);
+                            });
+                            return Object.entries(bySchool).map(([escola, alunos]) => (
+                                <div key={escola} className="mb-5">
+                                    <p className="text-[11px] text-slate-400 uppercase tracking-widest mb-2 font-semibold">
+                                        {escola} · {alunos.length} {alunos.length === 1 ? 'aluno' : 'alunos'}
+                                    </p>
+                                    <div className="flex flex-col gap-2">
+                                        {alunos.map(s => {
+                                            const initials = s.fullName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
+                                            const age = s.birthDate ? new Date().getFullYear() - new Date(s.birthDate).getFullYear() : null;
+                                            return (
+                                                <button
+                                                    key={s.id}
+                                                    onClick={() => handleStudentSelect(s.id)}
+                                                    className="flex items-center gap-3 bg-white rounded-xl border border-slate-100 hover:border-purple-300 hover:shadow-sm px-4 py-3 text-left transition-all group w-full"
+                                                >
+                                                    <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm flex-shrink-0">
+                                                        {initials}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-purple-700 transition-colors">{s.fullName}</p>
+                                                        <p className="text-xs text-slate-400 mt-0.5">{age ? `${age} anos` : 'Idade não informada'}</p>
+                                                    </div>
+                                                    <ChevronRight size={16} className="text-slate-300 group-hover:text-purple-400 transition-colors flex-shrink-0" />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ));
+                        })()}
                     </div>
                 ) : (
                     <div className="flex flex-col min-h-[600px] bg-[#FAF9FF]">
