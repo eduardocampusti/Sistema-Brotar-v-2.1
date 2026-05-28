@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Student, Specialty, Session, User, SupportProfessional } from '../types';
 import { ArrowLeft, Phone, MapPin, Activity, School, Clock, Calendar, FileText, Plus, Save, User as UserIcon, Lock, Paperclip, CreditCard, Download, Edit, Heart, UserCheck } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
+import { useToast } from '../contexts/ToastContext';
 
 interface StudentProfileProps {
     student: Student;
@@ -13,6 +14,7 @@ interface StudentProfileProps {
 
 export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initialStudent, onBack, currentUser, onEdit, onNavigate }) => {
     const [student, setStudent] = useState<Student>(initialStudent);
+    const { success: showToast, error: toastError } = useToast();
 
     // History / Session State
     const [isAddingSession, setIsAddingSession] = useState(false);
@@ -107,9 +109,10 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                 professionalName: currentUser.name,
                 notes: ''
             });
-        } catch (err) {
+            showToast('Evolução clínica registrada com sucesso!');
+        } catch (err: any) {
             console.error('Erro ao salvar evolução:', err);
-            alert('Erro ao salvar evolução clínica.');
+            toastError(err.message || 'Erro ao salvar evolução clínica.');
         }
     };
 

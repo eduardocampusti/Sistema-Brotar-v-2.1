@@ -1928,12 +1928,16 @@ export class SupabaseService {
         const payload = this.cleanDataForSupabase({
             student_id: studentId,
             professional_id: professionalId,
-            specialty: session.specialty,
+            specialty: this.SPECIALTY_MAP[session.specialty] || session.specialty,
             date: session.date,
             content: session.content || { summary: session.notes }, // Usa o content completo se existir
             private_notes: session.privateNotes
         });
-        await supabase.from('clinical_sessions').insert(payload);
+        const { error } = await supabase.from('clinical_sessions').insert(payload);
+        if (error) {
+            console.error('[SupabaseService] Erro ao salvar clinical_session:', error);
+            throw new Error(error.message || JSON.stringify(error));
+        }
     }
 
     static async deleteSession(sessionId: string): Promise<void> {
