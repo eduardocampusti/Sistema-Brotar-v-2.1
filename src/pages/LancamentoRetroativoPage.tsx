@@ -153,7 +153,7 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                 professionalId: currentUser.id,
                 professionalName: currentUser.name,
                 specialty: currentUser.specialty || '',
-                unit: currentUser.unit || 'SEDE',
+                unit: (currentUser as any).unit || currentUser.scope || 'SEDE',
                 date,
                 startTime,
                 endTime,

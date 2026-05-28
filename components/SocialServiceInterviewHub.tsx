@@ -109,7 +109,8 @@ const SocialServiceInterviewHub: React.FC<Props> = ({ currentUser, preSelectedSt
     const { success: showToast, error: toastError } = useToast();
 
     // LGPD: Apenas Assistente Social ou Admin
-    const isSocialWorker = currentUser.specialty === Specialty.SOCIAL_WORK || currentUser.role === 'ADMIN';
+    const specialtyStr = currentUser.specialty as string;
+    const isSocialWorker = specialtyStr === Specialty.SOCIAL_WORK || specialtyStr === 'SERVICO_SOCIAL' || currentUser.role === 'ADMIN';
 
     useEffect(() => {
         if (selectedStudent) {
@@ -155,7 +156,11 @@ const SocialServiceInterviewHub: React.FC<Props> = ({ currentUser, preSelectedSt
     };
 
     const handleSave = async () => {
-        if (!selectedStudent || !isSocialWorker) return;
+        if (!selectedStudent) return;
+        if (!isSocialWorker) {
+            toastError("Acesso negado: Você não possui a permissão de Assistente Social ou Administrador para salvar estes dados.");
+            return;
+        }
         setIsLoading(true);
 
         try {

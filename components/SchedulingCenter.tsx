@@ -496,7 +496,7 @@ export const SchedulingCenter: React.FC<SchedulingCenterProps> = ({ currentUser,
 
         const getThemeCardColors = () => {
             const role = currentUser.role;
-            const specialty = currentUser.specialty;
+            const specialty = currentUser.specialty as string;
             const scope = currentUser.scope;
 
             if (role === 'ADMIN')

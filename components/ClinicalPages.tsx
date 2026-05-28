@@ -1620,6 +1620,7 @@ interface BaseDashboardProps {
     title: string;
     specialty: Specialty;
     onNavigateNew: () => void;
+    onNavigate?: (page: string, options?: any) => void;
     onNavigateToCase?: (id: string) => void;
     currentUser: User;
     preSelectedStudent?: Student | null;
@@ -4301,6 +4302,8 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
     const [recentActivity, setRecentActivity] = useState<{ session: PsychSession, studentName: string, studentId: string }[]>([]);
     const [stats, setStats] = useState({ totalPatients: 0, totalSessions: 0, activeCases: 0, diagnosisData: [] as any[] });
     const [searchTerm, setSearchTerm] = useState('');
+    const [studentSearch, setStudentSearch] = useState('');
+    const [schoolFilter, setSchoolFilter] = useState('');
     const [loading, setLoading] = useState(false);
     const { success: showToast, error: toastError } = useToast();
     const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
@@ -5344,7 +5347,8 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
     // -------------------------
 
     // GATEKEEPER: Apenas Assistente Social (ADMIN visualiza tudo, outros veem limitado)
-    const isSocialWorker = currentUser.specialty === Specialty.SOCIAL_WORK || currentUser.role === 'ADMIN';
+    const specialtyStr = currentUser.specialty as string;
+    const isSocialWorker = specialtyStr === Specialty.SOCIAL_WORK || specialtyStr === 'SERVICO_SOCIAL' || currentUser.role === 'ADMIN';
 
     useEffect(() => {
         const load = async () => {
@@ -5421,7 +5425,11 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
 
 
     const handleSave = async (tab?: number) => {
-        if (!selectedStudent || !isSocialWorker) return;
+        if (!selectedStudent) return;
+        if (!isSocialWorker) {
+            toastError("Acesso negado: Você não possui a permissão de Assistente Social ou Administrador para salvar estes dados.");
+            return;
+        }
 
         console.log('[Busca Ativa] Iniciando processo de salvamento...', { studentId: selectedStudent.id, userId: currentUser.id });
 
@@ -6138,7 +6146,7 @@ const SocialServiceAttendanceHub: React.FC<BaseDashboardProps & { preSelectedStu
 
 
 // --- BASE DASHBOARD (OUTRAS ESPECIALIDADES) ---
-const BaseDashboard: React.FC<BaseDashboardProps> = ({ title, specialty, onNavigateNew }) => {
+const BaseDashboard: React.FC<BaseDashboardProps> = ({ title, specialty, onNavigateNew, currentUser }) => {
     const [history, setHistory] = useState<{ session: Session, studentName: string }[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -6331,6 +6339,8 @@ const PsychologySessionForm: React.FC<BaseSessionFormProps> = ({ onCancel, curre
     const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
     const { success: showToast, error: toastError } = useToast();
     const [confirmModal, setConfirmModal] = useState<{ title: string, message: string, onConfirm: () => void } | null>(null);
+    const [studentSearch, setStudentSearch] = useState('');
+    const [schoolFilter, setSchoolFilter] = useState('');
 
 
     // Dados
@@ -7162,7 +7172,7 @@ export const OccupationalTherapySessionFormPage: React.FC<{ onCancel: () => void
     <OccupationalTherapySpecificDashboard title="Terapia Ocupacional" specialty={Specialty.OCCUPATIONAL_THERAPY} onNavigateNew={() => { }} currentUser={props.currentUser} />
 );
 
-export const PsychopedagogyDashboardPage: React.FC<{ onNavigateNew: () => void; currentUser: User; preSelectedStudent?: Student; autoOpenSession?: boolean }> = (props) => (
+export const PsychopedagogyDashboardPage: React.FC<{ onNavigateNew: () => void; onNavigate?: (page: string, options?: any) => void; currentUser: User; preSelectedStudent?: Student; autoOpenSession?: boolean }> = (props) => (
     <PsychopedagogySpecificDashboard title="Psicopedagogia" specialty={Specialty.PSYCHOPEDAGOGY} {...props} />
 );
 export const PsychopedagogySessionFormPage: React.FC<{ onCancel: () => void; currentUser: User; preSelectedStudent?: Student }> = (props) => (
