@@ -72,6 +72,82 @@ const StatCard = ({ title, value, icon: Icon, gradient, subtext, trend }: any) =
     </div>
 );
 
+// --- COMPONENTE REUTILIZÁVEL: Seleção de Paciente por Escola ---
+const StudentPickerBySchool: React.FC<{
+  students: Student[];
+  accentColor?: string;
+  onSelect: (student: Student) => void;
+}> = ({ students, accentColor = '#0891b2', onSelect }) => {
+  const [search, setSearch] = React.useState('');
+  const [schoolFilter, setSchoolFilter] = React.useState('');
+  const totalEscolas = new Set(students.map(s => s.school?.schoolName).filter(Boolean)).size;
+  const escolas = Array.from(new Set(students.map(s => s.school?.schoolName).filter(Boolean))).sort() as string[];
+  const filtered = students.filter(s =>
+    (!search || s.fullName.toLowerCase().includes(search.toLowerCase())) &&
+    (!schoolFilter || s.school?.schoolName === schoolFilter)
+  );
+  const bySchool: Record<string, Student[]> = {};
+  filtered.forEach(s => {
+    const escola = s.school?.schoolName || 'Escola não informada';
+    if (!bySchool[escola]) bySchool[escola] = [];
+    bySchool[escola].push(s);
+  });
+  return (
+    <div className="p-6 min-h-[400px]">
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 text-center">
+          <p className="text-2xl font-bold text-slate-800">{students.length}</p>
+          <p className="text-xs text-slate-400 mt-1">meus pacientes</p>
+        </div>
+        <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 text-center">
+          <p className="text-2xl font-bold text-slate-800">{totalEscolas || '—'}</p>
+          <p className="text-xs text-slate-400 mt-1">escolas</p>
+        </div>
+        <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 text-center">
+          <p className="text-2xl font-bold text-slate-800">{filtered.length}</p>
+          <p className="text-xs text-slate-400 mt-1">encontrados</p>
+        </div>
+      </div>
+      <div className="flex gap-3 mb-5">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+          <input type="text" placeholder="Buscar por nome..." className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none transition-all" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <select className="rounded-xl border border-slate-200 bg-white text-sm px-3 py-2.5 focus:outline-none min-w-[170px]" value={schoolFilter} onChange={e => setSchoolFilter(e.target.value)}>
+          <option value="">Todas as escolas</option>
+          {escolas.map(e => <option key={e} value={e}>{e}</option>)}
+        </select>
+      </div>
+      {filtered.length === 0 ? (
+        <div className="text-center py-10 text-slate-400">
+          <UserIcon size={28} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm">Nenhum paciente encontrado</p>
+        </div>
+      ) : Object.entries(bySchool).map(([escola, alunos]) => (
+        <div key={escola} className="mb-5">
+          <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2 font-semibold pl-1">{escola} · {alunos.length} {alunos.length === 1 ? 'aluno' : 'alunos'}</p>
+          <div className="flex flex-col gap-2">
+            {alunos.map(s => {
+              const initials = s.fullName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
+              const age = s.birthDate ? new Date().getFullYear() - new Date(s.birthDate).getFullYear() : null;
+              return (
+                <button key={s.id} onClick={() => onSelect(s)} className="flex items-center gap-3 bg-white rounded-xl border border-slate-100 hover:border-slate-300 hover:shadow-sm px-4 py-3 text-left transition-all group w-full">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ background: accentColor }}>{initials}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{s.fullName}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{age ? `${age} anos` : 'Idade não informada'}</p>
+                  </div>
+                  <ChevronRight size={15} className="text-slate-300 group-hover:text-slate-500 flex-shrink-0" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // --- PRIVACY & STORAGE HELPERS FOR PSYCHOLOGY ---
 const PSYCH_STORAGE_KEY = 'brotar_psychology_private';
 
@@ -2982,19 +3058,8 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
             </div>
 
             {!selectedStudent ? (
-                <div className="bg-white p-12 rounded-2xl shadow-sm text-center border border-slate-200">
-                    <UserIcon size={64} className="mx-auto text-cyan-300 mb-4" />
-                    <h3 className="text-xl font-bold text-slate-700 mb-4">Selecione um Paciente</h3>
-                    <div className="max-w-md mx-auto relative">
-                        <select className="w-full p-4 pl-12 rounded-xl border border-slate-300 bg-white shadow-sm" onChange={(e) => {
-                            const s = students.find(st => st.id === e.target.value);
-                            setSelectedStudent(s || null);
-                        }} value="">
-                            <option value="">Buscar aluno...</option>
-                            {students.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-                        </select>
-                        <Search className="absolute left-4 top-4 text-slate-400" size={20} />
-                    </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
+                    <StudentPickerBySchool students={students} accentColor="#0891b2" onSelect={s => setSelectedStudent(s)} />
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col sm:flex-row min-h-[600px]">
@@ -3403,20 +3468,8 @@ const OccupationalTherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ ti
             </div>
 
             {!selectedStudent ? (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-                    <Search className="mx-auto text-slate-300 mb-4" size={48} />
-                    <h3 className="text-xl font-bold text-slate-700 mb-2">Selecione um Paciente</h3>
-                    <p className="text-slate-500 mb-8">Para acessar o histórico e evoluções de T.O.</p>
-                    <div className="max-w-md mx-auto">
-                        <select
-                            className="w-full p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                            onChange={(e) => setSelectedStudent(students.find(s => s.id === e.target.value) || null)}
-                            value=""
-                        >
-                            <option value="">Buscar aluno...</option>
-                            {students.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-                        </select>
-                    </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
+                    <StudentPickerBySchool students={students} accentColor="#6366f1" onSelect={s => setSelectedStudent(s)} />
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -3920,19 +3973,8 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
             </div>
 
             {!selectedStudent ? (
-                <div className="bg-white p-12 rounded-2xl shadow-sm text-center border border-slate-200">
-                    <UserIcon size={64} className="mx-auto text-blue-300 mb-4" />
-                    <h3 className="text-xl font-bold text-slate-700 mb-4">Selecione um Paciente</h3>
-                    <div className="max-w-md mx-auto relative">
-                        <select className="w-full p-4 pl-12 rounded-xl border border-slate-300 shadow-sm bg-white" onChange={(e) => {
-                            const s = students.find(st => st.id === e.target.value);
-                            setSelectedStudent(s || null);
-                        }} value="">
-                            <option value="">Buscar aluno...</option>
-                            {students.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-                        </select>
-                        <Search className="absolute left-4 top-4 text-slate-400" size={20} />
-                    </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
+                    <StudentPickerBySchool students={students} accentColor="#1d4ed8" onSelect={s => setSelectedStudent(s)} />
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden min-h-[600px] flex flex-col sm:flex-row">
@@ -7507,23 +7549,14 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                     <div className="p-3 bg-green-100 rounded-2xl text-green-600"><Activity size={32} /></div>
                     {title}
                 </h1>
-
-                <div className="relative min-w-[300px]">
-                    <Search className="absolute left-4 top-3.5 text-slate-400" size={20} />
-                    <select
-                        className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 shadow-sm focus:ring-2 focus:ring-green-500 outline-none bg-white appearance-none"
-                        onChange={(e) => handleStudentSelect(e.target.value)}
-                        value={selectedStudent?.id || ''}
-                    >
-                        <option value="">Selecione um paciente...</option>
-                        {students.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-                    </select>
-                </div>
             </div>
 
-            {selectedStudent ? (
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    {/* LEFT: INFO CARD & ANAMNESIS */}
+            {!selectedStudent ? (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
+                    <StudentPickerBySchool students={students} accentColor="#16a34a" onSelect={s => { setSelectedStudent(s); setNutritionData(extractNutritionData(s)); }} />
+                </div>
+            ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     <div className="lg:col-span-1 space-y-6">
                         <div className="bg-white p-6 rounded-2xl shadow-card border border-slate-100">
                             <div className="flex flex-col items-center text-center mb-6">
@@ -7683,14 +7716,6 @@ const NutritionSpecificDashboard: React.FC<BaseDashboardProps & { preSelectedStu
                             </div>
                         )}
                     </div>
-                </div>
-            ) : (
-                <div className="text-center py-20 bg-slate-50 rounded-3xl border border-slate-200 border-dashed">
-                    <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-500">
-                        <Search size={40} />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-2">Selecione um paciente para começar</h3>
-                    <p className="text-slate-500 max-w-sm mx-auto">Use a barra de busca acima para encontrar a ficha do aluno e iniciar o atendimento nutricional.</p>
                 </div>
             )}
         </div>
