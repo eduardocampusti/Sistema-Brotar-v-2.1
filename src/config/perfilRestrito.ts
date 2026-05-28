@@ -6,7 +6,6 @@ import { Specialty, type User } from '../../types';
  */
 export const PERFIS_RESTRITOS = [
     'psicologia',
-    'servico_social',
     'psicopedagogia',
     'terapia_ocupacional',
     'fonoaudiologia',
@@ -19,7 +18,6 @@ export type PerfilRestritoSlug = (typeof PERFIS_RESTRITOS)[number];
 /** Valores de `profiles.specialty` / enum `specialty_type` no Postgres (espelho de PERFIS_RESTRITOS). */
 export const ESPECIALIDADES_RESTRITAS_DB = [
     'PSICOLOGIA',
-    'SERVICO_SOCIAL',
     'PSICOPEDAGOGIA',
     'TERAPIA_OCUPACIONAL',
     'FONOAUDIOLOGIA',
@@ -41,7 +39,6 @@ export const STATUS_AGENDAMENTO_VINCULO_PRONTUARIO = [
 
 const SPECIALTY_TO_SLUG: Partial<Record<Specialty, PerfilRestritoSlug>> = {
     [Specialty.PSYCHOLOGY]: 'psicologia',
-    [Specialty.SOCIAL_WORK]: 'servico_social',
     [Specialty.PSYCHOPEDAGOGY]: 'psicopedagogia',
     [Specialty.OCCUPATIONAL_THERAPY]: 'terapia_ocupacional',
     [Specialty.SPEECH_THERAPY]: 'fonoaudiologia',
