@@ -24,6 +24,63 @@ import { countTeaAutismStudents } from '../utils/teaAutismCount';
 import { computeEducationSecretaryDerived } from '../utils/educationSecretaryMetrics';
 import { useEducationSecretaryPanelData } from '../hooks/useEducationSecretaryPanelData';
 
+const PHRASES_SPECIALIST: Record<string, string[]> = {
+  psicologia: ['Boa {p}, {n}! 👋', 'Pronto para acolher? 💜', 'Cada sessão transforma ✨'],
+  psicopedagogia: ['Boa {p}, {n}! 👋', 'Aprender é uma jornada 📚', 'Sua dedicação importa ✨'],
+  fonoaudiologia: ['Boa {p}, {n}! 👋', 'A comunicação abre portas 🗣️', 'Cada voz merece ser ouvida ✨'],
+  'terapia ocupacional': ['Boa {p}, {n}! 👋', 'Autonomia é o melhor presente 🌱', 'Cada conquista conta ✨'],
+  fisioterapia: ['Boa {p}, {n}! 👋', 'Movimento é vida 💪', 'Cada passo é vitória ✨'],
+  'nutrição': ['Boa {p}, {n}! 👋', 'Nutrição é cuidado integral 🥗', 'Saúde começa no prato ✨'],
+  'serviço social': ['Boa {p}, {n}! 👋', 'Proteção é direito de todos 🤝', 'Sua atuação transforma ✨'],
+  default: ['Boa {p}, {n}! 👋', 'Bem-vindo ao Brotar ✨', 'Educação que transforma 💙'],
+};
+
+function getTypingPhrases(name: string, specialty: string): string[] {
+  const period = new Date().getHours() < 12 ? 'manhã' : new Date().getHours() < 18 ? 'tarde' : 'noite';
+  const key = specialty.toLowerCase();
+  let arr = PHRASES_SPECIALIST.default;
+  for (const k of Object.keys(PHRASES_SPECIALIST)) {
+    if (k !== 'default' && key.includes(k)) { arr = PHRASES_SPECIALIST[k]; break; }
+  }
+  return arr.map(p => p.replace('{p}', period).replace('{n}', name));
+}
+
+const TypingBannerWhite: React.FC<{ name: string; specialty: string }> = ({ name, specialty }) => {
+  const phrases = getTypingPhrases(name, specialty);
+  const [displayed, setDisplayed] = React.useState('');
+  const [pi, setPi] = React.useState(0);
+  const [deleting, setDeleting] = React.useState(false);
+  const [cursor, setCursor] = React.useState(true);
+  React.useEffect(() => { const t = setInterval(() => setCursor(v => !v), 530); return () => clearInterval(t); }, []);
+  React.useEffect(() => {
+    const phrase = phrases[pi];
+    let timeout: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      if (!deleting) {
+        setDisplayed(prev => {
+          const next = phrase.slice(0, prev.length + 1);
+          if (next === phrase) { timeout = setTimeout(() => setDeleting(true), 2200); return next; }
+          timeout = setTimeout(tick, 55); return next;
+        });
+      } else {
+        setDisplayed(prev => {
+          const next = prev.slice(0, -1);
+          if (next === '') { setDeleting(false); setPi(i => (i + 1) % phrases.length); return ''; }
+          timeout = setTimeout(tick, 30); return next;
+        });
+      }
+    };
+    timeout = setTimeout(tick, 55);
+    return () => clearTimeout(timeout);
+  }, [pi, deleting]);
+  return (
+    <span>
+      {displayed}
+      <span style={{ display:'inline-block', width:'3px', height:'0.9em', background:'white', marginLeft:'2px', verticalAlign:'middle', opacity: cursor ? 1 : 0, borderRadius:'1px' }} />
+    </span>
+  );
+};
+
 const COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#6366f1'];
 
 interface DashboardProps {
@@ -384,7 +441,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                             </span>
                         </div>
                         <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-                            {greeting}, {currentUser.name.split(' ')[0]}!
+                            <TypingBannerWhite name={currentUser.name.split(' ')[0]} specialty={String(currentUser.specialty || '')} />
                         </h1>
                         <p className="text-[13px] text-white/80 mt-1 font-medium">
                             {specialtyLabel} · {todayDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
@@ -951,7 +1008,7 @@ export const AdminDashboard: React.FC<DashboardProps> = ({ students, currentUser
 
     return (
         <div className="space-y-8 animate-slideUp">
-            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+            <WelcomeHeader name={currentUser.name.split(' ')[0]} role={currentUser.role} specialty={String(currentUser.specialty || '')} />
 
             {loading && (
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm text-slate-500">
@@ -1252,7 +1309,7 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
         <div className="space-y-8 animate-slideUp">
             <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-start">
                 <div>
-                    <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+                    <WelcomeHeader name={currentUser.name.split(' ')[0]} role={currentUser.role} specialty={String(currentUser.specialty || '')} />
                     <p className="mt-1 text-sm text-slate-600">
                         Secretaria Municipal de Educação — Brotas de Macaúbas
                     </p>
@@ -1569,7 +1626,7 @@ export const SecretaryDashboard: React.FC<DashboardProps> = ({ students, current
 
     return (
         <div className="space-y-8 animate-slideUp">
-            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+            <WelcomeHeader name={currentUser.name.split(' ')[0]} role={currentUser.role} specialty={String(currentUser.specialty || '')} />
 
             {/* Action Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2651,7 +2708,7 @@ export const SocialServiceDashboard: React.FC<DashboardProps> = ({ students, cur
 
     return (
         <div className="space-y-8 animate-slideUp">
-            <WelcomeHeader name={currentUser.name.split(' ')[0]} />
+            <WelcomeHeader name={currentUser.name.split(' ')[0]} role={currentUser.role} specialty={String(currentUser.specialty || '')} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <ActionCard

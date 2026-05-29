@@ -60,8 +60,8 @@ export const PsychologyDashboard: React.FC<{
     const renderHeader = () => (
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <h1 className="text-2xl font-black text-slate-800 tracking-tight">Painel da Psicóloga</h1>
-                <p className="text-slate-500 font-medium">Bem-vinda, {currentUser.name}</p>
+                <h1 className="text-2xl font-black text-slate-800 tracking-tight">Painel de Psicologia</h1>
+                <p className="text-slate-500 font-medium">Bem-vindo(a), {currentUser.name}</p>
             </div>
             <div className="flex items-center gap-3">
                 <button
