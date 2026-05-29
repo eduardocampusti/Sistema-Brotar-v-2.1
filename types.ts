@@ -54,6 +54,7 @@ export interface User {
   phone?: string;
   jobTitle?: string; // Cargo ou Profissão
   specialty?: Specialty; // Se for especialista clínico
+  birthDate?: string; // Data de nascimento (YYYY-MM-DD) para aniversário
   address?: Address;
 }
 

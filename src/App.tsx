@@ -8,6 +8,7 @@ import { Student, User, Specialty, SystemSettings, Appointment, School, canViewS
 import { Loader2 } from 'lucide-react';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
+import { BirthdayEffect } from '../components/BirthdayEffect';
 
 // --- Layouts and Pages (inside src/) ---
 import { PublicLayout } from './layouts/PublicLayout';
@@ -334,6 +335,7 @@ function AppContent() {
     <AuthProvider user={user}>
     <NotificationProvider currentUser={user}>
       {sessionTimeoutModal}
+      {user && <BirthdayEffect currentUser={user} students={students} />}
       <Routes>
         {/* Rotas Públicas */}
         <Route element={<PublicLayout><Outlet /></PublicLayout>}>

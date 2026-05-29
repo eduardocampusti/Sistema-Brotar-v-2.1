@@ -386,7 +386,8 @@ export class SupabaseService {
             scope: (userData?.scope || data.user.user_metadata?.scope)?.toUpperCase() as any,
             schoolInep: userData?.school_inep || undefined,
             schoolId: userData?.school_id || undefined,
-            mustChangePassword: userData?.must_change_password
+            mustChangePassword: userData?.must_change_password,
+            birthDate: userData?.birth_date || undefined,
         };
 
         // Se ainda não tiver schoolId, tenta fazer o lookup pelo INEP como fallback
@@ -979,33 +980,8 @@ export class SupabaseService {
             return this.getStudents();
         }
 
-        // SPECIALIST: buscar IDs dos alunos via agendamentos
-        const appointments = await this.getAppointments({
-            professionalId: currentUser.id,
-        });
-
-        if (appointments.length === 0) return [];
-
-        const uniqueStudentIds = Array.from(
-            new Set(appointments.map((a: any) => a.studentId).filter(Boolean))
-        );
-
-        if (uniqueStudentIds.length === 0) return [];
-
-        // Buscar apenas os alunos vinculados (validação / RLS check)
-        const { data, error } = await supabase
-            .from('students')
-            .select('*')
-            .in('id', uniqueStudentIds);
-
-        if (error) {
-            console.error('[getStudentsForUser] Erro:', error);
-            return [];
-        }
-
-        // Mapear usando o mesmo mapeamento do getStudents
-        const allMapped = await this.getStudents();
-        return allMapped.filter((s) => uniqueStudentIds.includes(s.id));
+        // SPECIALIST: usar getAlunosDaProfissional que já faz join com schools
+        return this.getAlunosDaProfissional(currentUser.id);
     }
 
     /**
