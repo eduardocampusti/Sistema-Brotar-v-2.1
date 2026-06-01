@@ -1033,28 +1033,30 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 ) : null}
                             </div>
                             <div
-                                className="flex min-w-0 flex-nowrap gap-4 overflow-x-auto py-2 scrollbar-hide"
+                                className="flex flex-col gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white"
                                 role="list"
                                 aria-label="Lista de alunos pacientes"
                             >
                                 {!selectedSchoolId ? (
-                                    <p className="w-full shrink-0 rounded-xl bg-white/90 px-4 py-8 text-center text-sm leading-relaxed text-on-surface-variant ring-1 ring-slate-200/70">
+                                    <p className="w-full px-4 py-8 text-center text-sm leading-relaxed text-on-surface-variant">
                                         Selecione uma unidade escolar para ver os alunos.
                                     </p>
                                 ) : loadingStudents || loadingSchoolStudents ? (
-                                    <p className="w-full shrink-0 text-sm text-on-surface-variant">Carregando alunos…</p>
+                                    <p className="w-full px-4 py-4 text-sm text-on-surface-variant text-center">Carregando alunos…</p>
                                 ) : studentCardsList.length === 0 ? (
-                                    <p className="w-full shrink-0 rounded-xl bg-white/90 px-4 py-6 text-center text-sm leading-relaxed text-on-surface-variant ring-1 ring-slate-200/70">
+                                    <p className="w-full px-4 py-6 text-center text-sm leading-relaxed text-on-surface-variant">
                                         {studentsBySchool.length === 0
-                                            ? 'Nenhum aluno matriculado nesta unidade escolar (ou sem permissão de leitura).'
+                                            ? 'Nenhum aluno matriculado nesta unidade escolar.'
                                             : searchName.trim()
                                               ? 'Nenhum aluno corresponde à busca nesta unidade.'
                                               : 'Nenhum aluno encontrado com estes filtros.'}
                                     </p>
                                 ) : (
-                                    studentCardsList.map((s) => {
+                                    <div className="max-h-[280px] overflow-y-auto divide-y divide-slate-100">
+                                        {studentCardsList.map((s) => {
                                         const selected = newApt.studentId === s.id;
-                                        const sub = [s.school?.grade, s.school?.schoolName].filter(Boolean).join(' • ');
+                                        const diag = (s.clinicalInfo?.primaryDiagnosis || s.educational?.specialNeeds || '').substring(0, 20);
+                                        const sub = [diag, s.school?.grade].filter(Boolean).join(' · ');
                                         return (
                                             <button
                                                 key={s.id}
@@ -1068,39 +1070,44 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                                         studentName: s.fullName,
                                                     })
                                                 }
-                                                className={`flex w-[min(20rem,calc(100vw-3rem))] shrink-0 cursor-pointer items-center gap-3 rounded-full bg-green-50 py-2.5 pl-2.5 pr-5 text-left ring-inset transition-all duration-300 sm:gap-3.5 sm:py-3 sm:pl-3 sm:pr-6 ${
+                                                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                                                     selected
-                                                        ? 'shadow-sm ring-2 ring-primary'
-                                                        : 'ring-1 ring-slate-200/90 hover:ring-primary/30'
+                                                        ? 'bg-green-50 border-l-[3px] border-l-primary'
+                                                        : 'hover:bg-slate-50'
                                                 }`}
                                             >
                                                 {s.photoUrl ? (
-                                                    <img
-                                                        src={s.photoUrl}
-                                                        alt=""
-                                                        className="size-11 shrink-0 rounded-full bg-gray-200 object-cover sm:size-12"
-                                                    />
+                                                    <img src={s.photoUrl} alt="" className="size-8 shrink-0 rounded-full object-cover" />
                                                 ) : (
-                                                    <div
-                                                        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gray-300 sm:size-12"
-                                                        aria-hidden
-                                                    >
-                                                        <span className="material-symbols-outlined text-[22px] text-gray-500 sm:text-[24px]">
-                                                            person
-                                                        </span>
+                                                    <div className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${selected ? 'bg-primary text-white' : 'bg-green-100 text-green-800'}`}>
+                                                        {s.fullName.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
                                                     </div>
                                                 )}
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="truncate font-bold leading-tight text-gray-900 sm:text-[15px]">
+                                                    <p className={`truncate text-sm font-medium leading-tight ${selected ? 'text-primary' : 'text-gray-900'}`}>
                                                         {s.fullName}
                                                     </p>
-                                                    <p className="mt-0.5 truncate text-xs leading-snug text-gray-500 sm:text-[13px]">
-                                                        {sub || '—'}
+                                                    <p className="mt-0.5 truncate text-xs text-gray-400">
+                                                        {sub || s.school?.schoolName || '—'}
                                                     </p>
                                                 </div>
+                                                {selected && (
+                                                    <span className="material-symbols-outlined text-[18px] text-primary shrink-0">check_circle</span>
+                                                )}
                                             </button>
                                         );
-                                    })
+                                    })}
+                                    </div>
+                                )}
+                                {studentCardsList.length > 0 && (
+                                    <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-t border-slate-100">
+                                        <span className="text-[11px] text-slate-400">
+                                            {studentCardsList.length} aluno(s) · role para ver todos
+                                        </span>
+                                        {newApt.studentId && (
+                                            <span className="text-[11px] text-primary font-medium">1 selecionado</span>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </div>
