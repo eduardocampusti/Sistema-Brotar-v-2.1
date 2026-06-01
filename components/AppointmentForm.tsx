@@ -1116,6 +1116,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                         {newApt.studentId && <span style={{fontSize:'11px',color:'#16a34a',fontWeight:'600'}}>1 selecionado ✓</span>}
                                     </div>
                                 )}
+                            </div>
+                        </div>
                     </section>
 
                     <section className="grid min-w-0 grid-cols-1 gap-6">
