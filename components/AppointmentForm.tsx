@@ -1033,7 +1033,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 ) : null}
                             </div>
                             <div
-                                className="flex flex-col gap-0 rounded-2xl border border-slate-200 overflow-hidden bg-white"
+                                className="flex flex-col gap-0 rounded-2xl overflow-hidden border border-slate-200/70 bg-white"
                                 role="list"
                                 aria-label="Lista de alunos pacientes"
                             >
@@ -1052,7 +1052,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                               : 'Nenhum aluno encontrado com estes filtros.'}
                                     </p>
                                 ) : (
-                                    <div className="max-h-[280px] overflow-y-auto divide-y divide-slate-100">
+                                    <div className="max-h-[260px] overflow-y-auto [scrollbar-width:thin]">
                                         {studentCardsList.map((s) => {
                                         const selected = newApt.studentId === s.id;
                                         const diag = (s.clinicalInfo?.primaryDiagnosis || s.educational?.specialNeeds || '').substring(0, 20);
@@ -1072,15 +1072,15 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                                 }
                                                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                                                     selected
-                                                        ? 'bg-green-50 border-l-[3px] border-l-primary'
-                                                        : 'hover:bg-slate-50'
+                                                        ? 'bg-green-50 border-l-[3px] border-l-primary border-b border-slate-100 last:border-b-0'
+                                                        : 'border-b border-slate-100 last:border-b-0 hover:bg-green-50/40'
                                                 }`}
                                             >
                                                 {s.photoUrl ? (
-                                                    <img src={s.photoUrl} alt="" className="size-8 shrink-0 rounded-full object-cover" />
+                                                    <img src={s.photoUrl} alt="" className="size-9 shrink-0 rounded-full object-cover" />
                                                 ) : (
-                                                    <div className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${selected ? 'bg-primary text-white' : 'bg-green-100 text-green-800'}`}>
-                                                        {s.fullName.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
+                                                    <div className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${selected ? 'bg-primary text-white' : 'bg-green-100 text-green-800'}`}>
+                                                        {initialsFromName(s.fullName)}
                                                     </div>
                                                 )}
                                                 <div className="min-w-0 flex-1">
@@ -1100,12 +1100,12 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     </div>
                                 )}
                                 {studentCardsList.length > 0 && (
-                                    <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-t border-slate-100">
-                                        <span className="text-[11px] text-slate-400">
-                                            {studentCardsList.length} aluno(s) · role para ver todos
+                                    <div className="flex items-center justify-between px-4 py-2 bg-slate-50/80 border-t border-slate-100">
+                                        <span className="text-xs text-slate-400">
+                                            {studentCardsList.length} aluno(s) — role para ver todos
                                         </span>
                                         {newApt.studentId && (
-                                            <span className="text-[11px] text-primary font-medium">1 selecionado</span>
+                                            <span className="text-xs text-primary font-semibold">1 selecionado ✓</span>
                                         )}
                                     </div>
                                 )}
