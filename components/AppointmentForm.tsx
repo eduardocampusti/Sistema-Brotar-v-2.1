@@ -1054,7 +1054,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     <div style={{maxHeight:'280px',overflowY:'auto'}}>
                                         {studentCardsList.map((s) => {
                                             const selected = newApt.studentId === s.id;
-                                            const diag = (s.clinicalInfo?.primaryDiagnosis || s.educational?.specialNeeds || '').substring(0, 25);
+                                            const diag = (s.clinical?.diagnosis || (s.clinical?.specialNeeds && s.clinical.specialNeeds[0]) || '').substring(0, 25);
                                             const grade = s.school?.grade || '';
                                             const sub = [diag, grade].filter(Boolean).join(' · ') || s.school?.schoolName || '';
                                             const initials = s.fullName.split(' ').filter(Boolean).slice(0,2).map((n: string) => n[0].toUpperCase()).join('');
