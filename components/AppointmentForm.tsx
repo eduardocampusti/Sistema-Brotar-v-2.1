@@ -1020,97 +1020,102 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             </div>
                         </div>
                         <div className="flex min-w-0 flex-col gap-4">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px'}}>
                                 <h3 className="font-headline text-lg font-semibold text-on-background">Alunos Pacientes</h3>
-                                {selectedSchoolId ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAllStudentCards((v) => !v)}
-                                        className="text-sm font-semibold text-primary transition-all duration-300 hover:underline"
-                                    >
-                                        {showAllStudentCards ? 'Mostrar menos' : 'Ver todos'}
-                                    </button>
-                                ) : null}
+                                {selectedSchoolId && studentsBySchool.length > 0 && (
+                                    <span style={{fontSize:'12px',color:'#6b7280'}}>{studentCardsList.length} aluno(s)</span>
+                                )}
                             </div>
                             <div
-                                className="flex flex-col gap-0 rounded-2xl overflow-hidden border border-slate-200/70 bg-white"
                                 role="list"
                                 aria-label="Lista de alunos pacientes"
+                                style={{
+                                    border:'1px solid #e5e7eb',
+                                    borderRadius:'16px',
+                                    overflow:'hidden',
+                                    background:'#fff',
+                                }}
                             >
                                 {!selectedSchoolId ? (
-                                    <p className="w-full px-4 py-8 text-center text-sm leading-relaxed text-on-surface-variant">
+                                    <p style={{padding:'32px 16px',textAlign:'center',fontSize:'14px',color:'#6b7280'}}>
                                         Selecione uma unidade escolar para ver os alunos.
                                     </p>
                                 ) : loadingStudents || loadingSchoolStudents ? (
-                                    <p className="w-full px-4 py-4 text-sm text-on-surface-variant text-center">Carregando alunos…</p>
+                                    <p style={{padding:'16px',textAlign:'center',fontSize:'14px',color:'#6b7280'}}>Carregando alunos…</p>
                                 ) : studentCardsList.length === 0 ? (
-                                    <p className="w-full px-4 py-6 text-center text-sm leading-relaxed text-on-surface-variant">
+                                    <p style={{padding:'24px 16px',textAlign:'center',fontSize:'14px',color:'#6b7280'}}>
                                         {studentsBySchool.length === 0
                                             ? 'Nenhum aluno matriculado nesta unidade escolar.'
                                             : searchName.trim()
-                                              ? 'Nenhum aluno corresponde à busca nesta unidade.'
-                                              : 'Nenhum aluno encontrado com estes filtros.'}
+                                              ? 'Nenhum aluno corresponde à busca.'
+                                              : 'Nenhum aluno encontrado.'}
                                     </p>
                                 ) : (
-                                    <div className="max-h-[260px] overflow-y-auto [scrollbar-width:thin]">
+                                    <div style={{maxHeight:'280px',overflowY:'auto'}}>
                                         {studentCardsList.map((s) => {
-                                        const selected = newApt.studentId === s.id;
-                                        const diag = (s.clinicalInfo?.primaryDiagnosis || s.educational?.specialNeeds || '').substring(0, 20);
-                                        const sub = [diag, s.school?.grade].filter(Boolean).join(' · ');
-                                        return (
-                                            <button
-                                                key={s.id}
-                                                type="button"
-                                                role="listitem"
-                                                aria-pressed={selected}
-                                                onClick={() =>
-                                                    setNewApt({
-                                                        ...newApt,
-                                                        studentId: s.id,
-                                                        studentName: s.fullName,
-                                                    })
-                                                }
-                                                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                                                    selected
-                                                        ? 'bg-green-50 border-l-[3px] border-l-primary border-b border-slate-100 last:border-b-0'
-                                                        : 'border-b border-slate-100 last:border-b-0 hover:bg-green-50/40'
-                                                }`}
-                                            >
-                                                {s.photoUrl ? (
-                                                    <img src={s.photoUrl} alt="" className="size-9 shrink-0 rounded-full object-cover" />
-                                                ) : (
-                                                    <div className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${selected ? 'bg-primary text-white' : 'bg-green-100 text-green-800'}`}>
-                                                        {initialsFromName(s.fullName)}
+                                            const selected = newApt.studentId === s.id;
+                                            const diag = (s.clinicalInfo?.primaryDiagnosis || s.educational?.specialNeeds || '').substring(0, 25);
+                                            const grade = s.school?.grade || '';
+                                            const sub = [diag, grade].filter(Boolean).join(' · ') || s.school?.schoolName || '';
+                                            const initials = s.fullName.split(' ').filter(Boolean).slice(0,2).map((n: string) => n[0].toUpperCase()).join('');
+                                            return (
+                                                <button
+                                                    key={s.id}
+                                                    type="button"
+                                                    role="listitem"
+                                                    aria-pressed={selected}
+                                                    onClick={() => setNewApt({...newApt, studentId: s.id, studentName: s.fullName})}
+                                                    style={{
+                                                        width:'100%',
+                                                        display:'flex',
+                                                        alignItems:'center',
+                                                        gap:'12px',
+                                                        padding:'10px 16px',
+                                                        textAlign:'left',
+                                                        background: selected ? '#f0fdf4' : '#fff',
+                                                        borderLeft: selected ? '3px solid #16a34a' : '3px solid transparent',
+                                                        borderBottom:'1px solid #f3f4f6',
+                                                        cursor:'pointer',
+                                                        transition:'background 0.1s',
+                                                    }}
+                                                    onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.background = '#f9fafb'; }}
+                                                    onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.background = '#fff'; }}
+                                                >
+                                                    {s.photoUrl ? (
+                                                        <img src={s.photoUrl} alt="" style={{width:'34px',height:'34px',borderRadius:'50%',objectFit:'cover',flexShrink:0}} />
+                                                    ) : (
+                                                        <div style={{
+                                                            width:'34px',height:'34px',borderRadius:'50%',flexShrink:0,
+                                                            display:'flex',alignItems:'center',justifyContent:'center',
+                                                            background: selected ? '#16a34a' : '#dcfce7',
+                                                            color: selected ? '#fff' : '#15803d',
+                                                            fontSize:'12px',fontWeight:'600',
+                                                        }}>
+                                                            {initials}
+                                                        </div>
+                                                    )}
+                                                    <div style={{flex:1,minWidth:0}}>
+                                                        <p style={{fontSize:'13px',fontWeight:'500',color: selected ? '#15803d' : '#111827',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:0}}>
+                                                            {s.fullName}
+                                                        </p>
+                                                        <p style={{fontSize:'11px',color:'#9ca3af',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginTop:'2px',marginBottom:0}}>
+                                                            {sub || '—'}
+                                                        </p>
                                                     </div>
-                                                )}
-                                                <div className="min-w-0 flex-1">
-                                                    <p className={`truncate text-sm font-medium leading-tight ${selected ? 'text-primary' : 'text-gray-900'}`}>
-                                                        {s.fullName}
-                                                    </p>
-                                                    <p className="mt-0.5 truncate text-xs text-gray-400">
-                                                        {sub || s.school?.schoolName || '—'}
-                                                    </p>
-                                                </div>
-                                                {selected && (
-                                                    <span className="material-symbols-outlined text-[18px] text-primary shrink-0">check_circle</span>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
+                                                    {selected && (
+                                                        <span className="material-symbols-outlined" style={{fontSize:'18px',color:'#16a34a',flexShrink:0}}>check_circle</span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 )}
                                 {studentCardsList.length > 0 && (
-                                    <div className="flex items-center justify-between px-4 py-2 bg-slate-50/80 border-t border-slate-100">
-                                        <span className="text-xs text-slate-400">
-                                            {studentCardsList.length} aluno(s) — role para ver todos
-                                        </span>
-                                        {newApt.studentId && (
-                                            <span className="text-xs text-primary font-semibold">1 selecionado ✓</span>
-                                        )}
+                                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 16px',background:'#f9fafb',borderTop:'1px solid #f3f4f6'}}>
+                                        <span style={{fontSize:'11px',color:'#9ca3af'}}>{studentCardsList.length} aluno(s) — role para ver todos</span>
+                                        {newApt.studentId && <span style={{fontSize:'11px',color:'#16a34a',fontWeight:'600'}}>1 selecionado ✓</span>}
                                     </div>
                                 )}
-                            </div>
-                        </div>
                     </section>
 
                     <section className="grid min-w-0 grid-cols-1 gap-6">
