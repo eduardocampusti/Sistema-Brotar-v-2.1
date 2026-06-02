@@ -96,7 +96,7 @@ export const AppointmentSummaryCard: React.FC<AppointmentSummaryCardProps> = ({
                     label="Especialidade" 
                     value={specialty} 
                     pending="Selecione uma especialidade" 
-                    icon={<BriefcaseMedical size={14} strokeWidth={2.5} />} 
+                    icon={<Briefcase size={14} strokeWidth={2.5} />} 
                 />
                 <SummaryRow 
                     label="Profissional" 
