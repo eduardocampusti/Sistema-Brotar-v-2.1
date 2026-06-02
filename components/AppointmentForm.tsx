@@ -1321,18 +1321,6 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 </>
                             )}
 
-                            <AppointmentSummaryCard
-                                patientName={newApt.studentName}
-                                schoolName={resumoNomeEscola}
-                                specialty={newApt.specialty}
-                                professionalName={newApt.professionalName}
-                                dateYmd={newApt.date}
-                                startTime={newApt.startTime}
-                                endTime={newApt.endTime}
-                                loading={loading}
-                                confirmDisabled={confirmacaoDesabilitada}
-                                onConfirm={handleSaveAppointment}
-                            />
                         </div>
 
                         {/* Coluna direita: semana, duração, horários */}
@@ -1535,6 +1523,18 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     />
                                 </div>
                             </div>
+                            <AppointmentSummaryCard
+                                patientName={newApt.studentName}
+                                schoolName={resumoNomeEscola}
+                                specialty={newApt.specialty}
+                                professionalName={newApt.professionalName}
+                                dateYmd={newApt.date}
+                                startTime={newApt.startTime}
+                                endTime={newApt.endTime}
+                                loading={loading}
+                                confirmDisabled={confirmacaoDesabilitada}
+                                onConfirm={handleSaveAppointment}
+                            />
                         </div>
                     </section>
 
