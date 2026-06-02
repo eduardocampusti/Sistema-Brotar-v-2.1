@@ -612,6 +612,25 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         [weekViewStart]
     );
 
+    const monthCalendarDays = useMemo(() => {
+        const y = weekViewStart.getFullYear();
+        const m = weekViewStart.getMonth();
+        const firstDay = new Date(y, m, 1);
+        const lastDay = new Date(y, m + 1, 0);
+        const startDow = firstDay.getDay(); // 0=Dom
+        const totalDays = lastDay.getDate();
+        const cells: (Date | null)[] = [];
+        for (let i = 0; i < startDow; i++) cells.push(null); // blanks before 1st
+        for (let d = 1; d <= totalDays; d++) cells.push(new Date(y, m, d));
+        return cells;
+    }, [weekViewStart]);
+
+    const calMonthLabel = useMemo(() => {
+        const mNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        return mNames[weekViewStart.getMonth()] + ' ' + weekViewStart.getFullYear();
+    }, [weekViewStart]);
+
+
     const horarioPassadoBloqueante = useMemo(() => {
         if (!newApt.date || !newApt.startTime || !newApt.endTime) return false;
         if (!isDateToday) return false;
@@ -1082,31 +1101,41 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             {/* COLUNA DIREITA */}
                             <div className="lg:sticky lg:top-4 grid grid-cols-1 gap-6">
                                 <div className="grid grid-cols-1 gap-3">
-                                    <h2 className="font-headline text-lg font-bold text-on-background">Agendar para</h2>
-                                    <div className="overflow-hidden rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-100 sm:p-4">
-                                        <div className="flex items-center gap-1 sm:gap-2">
-                                            <button type="button" onClick={() => setWeekViewStart((w) => addDaysLocalDate(w, -7))} className="shrink-0 rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"><span className="material-symbols-outlined text-xl">chevron_left</span></button>
-                                            <div className="flex min-w-0 flex-1 items-center justify-between gap-0.5 sm:gap-1">
-                                                {weekStripDays.map((d) => {
-                                                    const ymd = formatLocalYYYYMMDD(d);
-                                                    const dayNum = d.getDate();
-                                                    const isSelected = newApt.date === ymd;
-                                                    const todayStr = formatLocalYYYYMMDD(now);
-                                                    const isToday = todayStr === ymd;
-                                                    const dayStart = d.getTime();
-                                                    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-                                                    const isPastDay = dayStart < startToday;
-                                                    const hasMark = monthApptDates.has(ymd);
-                                                    if (isPastDay) return <span key={ymd} className="flex h-10 w-8 shrink-0 items-center justify-center text-sm tabular-nums text-slate-300 sm:h-11 sm:w-9" aria-hidden>{dayNum}</span>;
-                                                    return (
-                                                        <button key={ymd} type="button" onClick={() => setNewApt((prev) => ({ ...prev, date: ymd }))} className={`relative flex h-10 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition-all duration-200 sm:h-11 sm:w-9 sm:text-base ${isSelected ? 'bg-primary font-bold text-on-primary shadow-sm' : 'text-on-surface hover:bg-primary-container/40'} ${isToday && !isSelected ? 'bg-primary-container/30 font-semibold text-on-primary-container' : ''}`}>
-                                                            {dayNum}
-                                                            {hasMark && !isSelected ? <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" /> : null}
-                                                        </button>
-                                                    );
-                                                })}
+                                    <h2 className="font-headline text-lg font-bold text-on-background">4. Data e horário</h2>
+                                    <div className="overflow-hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <span className="material-symbols-outlined text-base text-primary">calendar_month</span>
+                                                <span className="font-headline text-sm font-bold text-on-background">{calMonthLabel}</span>
                                             </div>
-                                            <button type="button" onClick={() => setWeekViewStart((w) => addDaysLocalDate(w, 7))} className="shrink-0 rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"><span className="material-symbols-outlined text-xl">chevron_right</span></button>
+                                            <div className="flex gap-1">
+                                                <button type="button" onClick={() => setWeekViewStart(new Date(weekViewStart.getFullYear(), weekViewStart.getMonth() - 1, 1))} className="rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"><span className="material-symbols-outlined text-lg">chevron_left</span></button>
+                                                <button type="button" onClick={() => setWeekViewStart(new Date(weekViewStart.getFullYear(), weekViewStart.getMonth() + 1, 1))} className="rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"><span className="material-symbols-outlined text-lg">chevron_right</span></button>
+                                            </div>
+                                        </div>
+                                        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'2px',textAlign:'center',marginBottom:'4px'}}>
+                                            {['D','S','T','Q','Q','S','S'].map((d,i) => <span key={i} style={{fontSize:'11px',fontWeight:'500',color:'#9ca3af',padding:'4px 0'}}>{d}</span>)}
+                                        </div>
+                                        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'2px',textAlign:'center'}}>
+                                            {monthCalendarDays.map((d, i) => {
+                                                if (!d) return <span key={'b'+i} style={{padding:'6px 0'}} />;
+                                                const ymd = formatLocalYYYYMMDD(d);
+                                                const dayNum = d.getDate();
+                                                const isSelected = newApt.date === ymd;
+                                                const todayStr = formatLocalYYYYMMDD(now);
+                                                const isToday = todayStr === ymd;
+                                                const dayStart = d.getTime();
+                                                const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                                                const isPastDay = dayStart < startToday;
+                                                const hasMark = monthApptDates.has(ymd);
+                                                if (isPastDay) return <span key={ymd} style={{fontSize:'12px',color:'#d1d5db',padding:'6px 0'}}>{dayNum}</span>;
+                                                return (
+                                                    <button key={ymd} type="button" onClick={() => setNewApt((prev) => ({ ...prev, date: ymd }))} style={{position:'relative',fontSize:'12px',fontWeight: isSelected ? '700' : '500',padding:'6px 0',borderRadius:'50%',border:'none',cursor:'pointer',transition:'all 0.15s',background: isSelected ? '#2D6A4F' : isToday ? 'rgba(45,106,79,0.12)' : 'transparent',color: isSelected ? '#fff' : isToday ? '#2D6A4F' : '#374151'}}>
+                                                        {dayNum}
+                                                        {hasMark && !isSelected ? <span style={{position:'absolute',bottom:'2px',left:'50%',transform:'translateX(-50%)',width:'4px',height:'4px',borderRadius:'50%',background:'#2D6A4F'}} /> : null}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
