@@ -158,6 +158,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     useEffect(() => {
         setNow(new Date());
         const id = window.setInterval(() => setNow(new Date()), 60_000);
+
         return () => window.clearInterval(id);
     }, []);
 
@@ -228,6 +229,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             .finally(() => {
                 if (!cancelled) setLoadingProfissionaisCache(false);
             });
+
         return () => {
             cancelled = true;
         };
@@ -258,6 +260,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             setSearchQuery(sch.name);
             setSelectedSchoolName(sch.name);
         });
+
         return () => {
             cancelled = true;
         };
@@ -282,6 +285,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     if (!cancelled) setIsLoadingSchools(false);
                 });
         }, 300);
+
         return () => {
             cancelled = true;
             clearTimeout(id);
@@ -297,6 +301,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             }
         };
         document.addEventListener('mousedown', onDocDown);
+
         return () => document.removeEventListener('mousedown', onDocDown);
     }, [schoolAutocompleteOpen]);
 
@@ -332,6 +337,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             .finally(() => {
                 if (!cancelled) setLoadingSchoolStudents(false);
             });
+
         return () => {
             cancelled = true;
         };
@@ -391,6 +397,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         }
         return (proId: string) => {
             const mine = dayUnitAppointments.filter((a) => a.professionalId === proId);
+
             return (
                 SupabaseService.filtrarAgendamentosSobrepostosJanela(
                     mine,
@@ -414,6 +421,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         }).then((rows) => {
             if (!cancelled) setProfApptsDay(rows);
         });
+
         return () => {
             cancelled = true;
         };
@@ -431,6 +439,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         }).then((rows) => {
             if (!cancelled) setStuApptsDay(rows);
         });
+
         return () => {
             cancelled = true;
         };
@@ -448,6 +457,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         }).then((rows) => {
             if (!cancelled) setDayUnitAppointments(rows);
         });
+
         return () => {
             cancelled = true;
         };
@@ -470,6 +480,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             const dates = new Set(rows.map((r) => r.date).filter(Boolean) as string[]);
             setMonthApptDates(dates);
         });
+
         return () => {
             cancelled = true;
         };
@@ -490,6 +501,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         ).then((list) => {
             if (!cancelled) setProfConflitosSelecionado(list);
         });
+
         return () => {
             cancelled = true;
         };
@@ -520,6 +532,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 setAlunoConflitosSelecionado(pid ? list.filter((a) => a.professionalId !== pid) : list);
             }
         });
+
         return () => {
             cancelled = true;
         };
@@ -878,7 +891,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }, [filteredStudents, showAllStudentCards]);
 
     const resumoNomeEscola =
-        selectedSchoolId ? (selectedSchoolName.trim() || searchQuery.trim() || undefined) : undefined;    return (
+        selectedSchoolId ? (selectedSchoolName.trim() || searchQuery.trim() || undefined) : undefined;
+    return (
         <div className="appointment-stitch-shell flex min-h-0 w-full flex-col overflow-x-hidden bg-background font-body text-on-background transition-colors duration-300 md:max-h-[calc(100dvh-5.5rem)] md:overflow-y-hidden">
             <main className="flex w-full flex-1 justify-center overflow-y-auto px-3 pb-10 pt-3 sm:px-4 sm:pb-12 md:pb-14 md:pt-4">
                 <div className="mx-auto w-full max-w-6xl rounded-2xl bg-[#F9FAFB] px-4 py-6 shadow-sm ring-1 ring-slate-200/60 sm:px-6 sm:py-8 md:px-8 md:py-10">
