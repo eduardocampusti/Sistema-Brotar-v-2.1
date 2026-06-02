@@ -612,9 +612,11 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         [weekViewStart]
     );
 
+    const [calViewDate, setCalViewDate] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
+
     const monthCalendarDays = useMemo(() => {
-        const y = weekViewStart.getFullYear();
-        const m = weekViewStart.getMonth();
+        const y = calViewDate.getFullYear();
+        const m = calViewDate.getMonth();
         const firstDay = new Date(y, m, 1);
         const lastDay = new Date(y, m + 1, 0);
         const startDow = firstDay.getDay(); // 0=Dom
@@ -623,12 +625,12 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         for (let i = 0; i < startDow; i++) cells.push(null); // blanks before 1st
         for (let d = 1; d <= totalDays; d++) cells.push(new Date(y, m, d));
         return cells;
-    }, [weekViewStart]);
+    }, [calViewDate]);
 
     const calMonthLabel = useMemo(() => {
         const mNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-        return mNames[weekViewStart.getMonth()] + ' ' + weekViewStart.getFullYear();
-    }, [weekViewStart]);
+        return mNames[calViewDate.getMonth()] + ' ' + calViewDate.getFullYear();
+    }, [calViewDate]);
 
 
     const horarioPassadoBloqueante = useMemo(() => {
@@ -904,7 +906,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             {/* COLUNA ESQUERDA */}
                             <div className="grid grid-cols-1 gap-6">
                                 <section className="grid min-w-0 grid-cols-1 gap-6">
-                                    <h2 className="font-headline text-2xl font-bold text-on-background">Contexto do Paciente</h2>
+                                    <h2 className="font-headline text-2xl font-bold text-on-background">1. Contexto do paciente</h2>
                                     <div className="grid min-w-0 max-w-3xl grid-cols-1 gap-3">
                                         <div className="grid grid-cols-1 gap-1.5">
                                             <label htmlFor="agenda-unidade-escolar" className="px-1 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">Unidade escolar</label>
@@ -998,7 +1000,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
                                 <section className="grid min-w-0 grid-cols-1 gap-6">
                                     <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
-                                        <h2 className="font-headline text-2xl font-bold text-on-background">Especialidades</h2>
+                                        <h2 className="font-headline text-2xl font-bold text-on-background">2. Especialidades</h2>
                                         <button type="button" onClick={() => setShowAllSpecialties((v) => !v)} className="w-fit font-semibold text-primary underline-offset-4 transition-colors duration-300 hover:underline sm:justify-self-end">{showAllSpecialties ? 'Mostrar menos' : 'Ver todas'}</button>
                                     </div>
                                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3 md:grid-cols-6 lg:grid-cols-7">
@@ -1032,7 +1034,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 </section>
 
                                 <section className="grid min-w-0 grid-cols-1 gap-4">
-                                    <h2 className="font-headline text-2xl font-bold text-on-background">Profissionais Disponíveis</h2>
+                                    <h2 className="font-headline text-2xl font-bold text-on-background">3. Profissionais disponíveis</h2>
                                     {!newApt.specialty ? (
                                         <p className="text-on-surface-variant">Selecione uma especialidade para listar os profissionais.</p>
                                     ) : loadingProfissionaisCache ? (
@@ -1109,8 +1111,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                                 <span className="font-headline text-sm font-bold text-on-background">{calMonthLabel}</span>
                                             </div>
                                             <div className="flex gap-1">
-                                                <button type="button" onClick={() => setWeekViewStart(new Date(weekViewStart.getFullYear(), weekViewStart.getMonth() - 1, 1))} className="rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"><span className="material-symbols-outlined text-lg">chevron_left</span></button>
-                                                <button type="button" onClick={() => setWeekViewStart(new Date(weekViewStart.getFullYear(), weekViewStart.getMonth() + 1, 1))} className="rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"><span className="material-symbols-outlined text-lg">chevron_right</span></button>
+                                                <button type="button" onClick={() => setCalViewDate(new Date(calViewDate.getFullYear(), calViewDate.getMonth() - 1, 1))} className="rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"><span className="material-symbols-outlined text-lg">chevron_left</span></button>
+                                                <button type="button" onClick={() => setCalViewDate(new Date(calViewDate.getFullYear(), calViewDate.getMonth() + 1, 1))} className="rounded-full p-1 text-on-surface-variant transition-colors hover:bg-slate-100"><span className="material-symbols-outlined text-lg">chevron_right</span></button>
                                             </div>
                                         </div>
                                         <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'2px',textAlign:'center',marginBottom:'4px'}}>
@@ -1161,7 +1163,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                         })}
                                     </div>
 
-                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" style={!newApt.professionalId ? { pointerEvents: 'none' } : {}}>
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" style={{display:'none'}}>
                                         <div className="space-y-1.5">
                                             <label className="px-1 text-xs font-semibold text-on-surface-variant">Início (manual)</label>
                                             <input type="time" min={minTimeHHmm} value={newApt.startTime || ''} onChange={(e) => { const s = e.target.value; if (!newApt.date) return; if (!s) { setNewApt({ ...newApt, startTime: s, endTime: undefined }); return; } const e_ = addMinutesToClock(s, duration); if (!rejeitarHorarioPassado(newApt.date, s, e_)) setNewApt({ ...newApt, startTime: s, endTime: e_ }); }} className={`w-full rounded-full border-0 bg-white p-3 text-sm font-bold text-on-surface outline-none ring-1 ring-slate-200 transition-all duration-300 focus:ring-2 focus:ring-[#2D6A4F] ${horarioPassadoBloqueante ? 'ring-2 ring-sanctuary-error' : ''}`} />
