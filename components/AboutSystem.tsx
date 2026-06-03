@@ -37,7 +37,7 @@ const Separator: React.FC<{ className?: string }> = ({ className }) => (
 export const AboutSystem: React.FC = () => {
     const currentYear = new Date().getFullYear();
     const [isHistoryExpanded, setIsHistoryExpanded] = React.useState(false);
-    const hiddenVersionsCount = Math.max(APP_VERSION.changelog.length - 3, 0);
+    const hiddenVersionsCount = Math.max(APP_VERSION.releases.length - 3, 0);
 
     return (
         <div className="max-w-5xl mx-auto space-y-12 animate-fadeIn pb-20 px-4">
@@ -84,7 +84,7 @@ export const AboutSystem: React.FC = () => {
                         <div className="flex flex-wrap justify-center md:justify-start gap-6 pt-6">
                             <div className="flex flex-col">
                                 <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-1">Última Atualização</span>
-                                <span className="text-sm font-medium text-slate-200">{APP_VERSION.changelog[0].date}</span>
+                                <span className="text-sm font-medium text-slate-200">{APP_VERSION.releases[0]?.date}</span>
                             </div>
                             <div className="w-px h-10 bg-white/10 hidden md:block" />
                             <div className="flex flex-col">
@@ -296,11 +296,11 @@ export const AboutSystem: React.FC = () => {
                             <p className="text-slate-500 font-medium">Cronograma evolutivo e notas técnicas de release</p>
                         </div>
                     </div>
-                    <Badge variant="outline" className="px-6 py-2 text-sm border-slate-300">Total: {APP_VERSION.changelog.length} Versões</Badge>
+                    <Badge variant="outline" className="px-6 py-2 text-sm border-slate-300">Total: {APP_VERSION.releases.length} Versões</Badge>
                 </div>
 
                 <div className="space-y-4">
-                    {APP_VERSION.changelog.map((log, index) => {
+                    {APP_VERSION.releases.map((log, index) => {
                         const isCurrent = index === 0;
                         const isHiddenHistory = index > 2 && !isHistoryExpanded;
 
@@ -355,7 +355,7 @@ export const AboutSystem: React.FC = () => {
                                 </div>
                                 <div className={`${isCurrent ? 'p-6 md:p-7' : 'p-4 px-5'}`}>
                                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-                                        {log.changes.map((change, i) => (
+                                        {log.changes?.map((change, i) => (
                                             <li key={i} className={`flex items-start gap-4 text-slate-600 leading-relaxed group/item ${isCurrent ? 'text-[14px]' : 'text-sm'}`}>
                                                 <div className={`mt-2 w-1.5 h-1.5 rounded-full transition-colors flex-shrink-0 ${isCurrent ? 'bg-emerald-400 group-hover/item:bg-emerald-600' : 'bg-slate-300 group-hover/item:bg-primary-500'}`} />
                                                 <span className="group-hover/item:text-slate-900 transition-colors">{change}</span>
@@ -382,7 +382,7 @@ export const AboutSystem: React.FC = () => {
                                 </>
                             ) : (
                                 <>
-                                    Ver histórico completo ({APP_VERSION.changelog.length} versões)
+                                    Ver histórico completo ({APP_VERSION.releases.length} versões)
                                     <ChevronDown size={18} />
                                 </>
                             )}
