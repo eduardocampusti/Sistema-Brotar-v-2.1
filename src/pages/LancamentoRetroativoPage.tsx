@@ -41,6 +41,7 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const [tipoAtendimento, setTipoAtendimento] = useState<'INDIVIDUAL' | 'GRUPO'>('INDIVIDUAL');
+    const [unit, setUnit] = useState<'' | 'SEDE' | 'COCAL'>('');
     const [evolucao, setEvolucao] = useState('');
     const [observacoes, setObservacoes] = useState('');
 
@@ -119,8 +120,13 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
         setErrorMsg(null);
 
         // Validações de campos obrigatórios
-        if (!date || !startTime || !endTime || !evolucao) {
+        if (!date || !startTime || !endTime || !evolucao || !unit) {
             setErrorMsg('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        if (unit !== 'SEDE' && unit !== 'COCAL') {
+            setErrorMsg('Unidade de atendimento inválida. Selecione SEDE ou COCAL.');
             return;
         }
 
@@ -153,7 +159,7 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                 professionalId: currentUser.id,
                 professionalName: currentUser.name,
                 specialty: currentUser.specialty || '',
-                unit: (currentUser as any).unit || currentUser.scope || 'SEDE',
+                unit,
                 date,
                 startTime,
                 endTime,
@@ -368,6 +374,23 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                                         Grupo
                                     </label>
                                 </div>
+                            </div>
+
+                            {/* Seleção de Unidade */}
+                            <div>
+                                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">
+                                    Unidade do Atendimento <span className="text-red-500">*</span>
+                                </h3>
+                                <select
+                                    value={unit}
+                                    onChange={(e) => setUnit(e.target.value as 'SEDE' | 'COCAL')}
+                                    required
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#8B1A3A]/25 focus:border-[#8B1A3A] transition-all"
+                                >
+                                    <option value="" disabled>Selecione a Unidade...</option>
+                                    <option value="SEDE">SEDE</option>
+                                    <option value="COCAL">COCAL (distrito)</option>
+                                </select>
                             </div>
 
                             {/* Evolução / Anamnese */}
