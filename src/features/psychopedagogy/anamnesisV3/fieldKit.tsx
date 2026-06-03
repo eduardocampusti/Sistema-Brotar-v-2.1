@@ -13,16 +13,23 @@ export const PpInput: React.FC<{
   type?: string;
   placeholder?: string;
   disabled?: boolean;
-}> = ({ value, onChange, type = 'text', placeholder, disabled }) => (
-  <input
-    type={type}
-    value={value}
-    disabled={disabled}
-    placeholder={placeholder}
-    onChange={(e) => onChange(e.target.value)}
-    className="w-full rounded-xl bg-white border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-200 disabled:bg-slate-100"
-  />
-);
+}> = ({ value, onChange, type = 'text', placeholder, disabled }) => {
+  const filled = value && value.trim() !== '';
+  return (
+    <input
+      type={type}
+      value={value}
+      disabled={disabled}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none transition-all disabled:bg-slate-100
+        ${filled
+          ? 'bg-[#EAF3DE] border border-[#97C459] text-[#27500A] focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20'
+          : 'bg-white border border-slate-200 focus:border-[#8B1A3A] focus:ring-1 focus:ring-[#8B1A3A]/20 focus:bg-[#fdf8f9]'
+        }`}
+    />
+  );
+};
 
 export const PpTextarea: React.FC<{
   value: string;
@@ -30,15 +37,22 @@ export const PpTextarea: React.FC<{
   rows?: number;
   placeholder?: string;
   minHeightClass?: string;
-}> = ({ value, onChange, rows = 3, placeholder, minHeightClass = 'min-h-[88px]' }) => (
-  <textarea
-    value={value}
-    rows={rows}
-    placeholder={placeholder}
-    onChange={(e) => onChange(e.target.value)}
-    className={`w-full rounded-xl bg-white border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-pink-400 focus:ring-1 focus:ring-pink-200 resize-y ${minHeightClass}`}
-  />
-);
+}> = ({ value, onChange, rows = 3, placeholder, minHeightClass = 'min-h-[88px]' }) => {
+  const filled = value && value.trim() !== '';
+  return (
+    <textarea
+      value={value}
+      rows={rows}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none transition-all resize-y ${minHeightClass}
+        ${filled
+          ? 'bg-[#EAF3DE] border border-[#97C459] text-[#27500A] focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20'
+          : 'bg-white border border-slate-200 focus:border-[#8B1A3A] focus:ring-1 focus:ring-[#8B1A3A]/20 focus:bg-[#fdf8f9]'
+        }`}
+    />
+  );
+};
 
 export const PpTriState: React.FC<{
   label: string;
@@ -60,7 +74,7 @@ export const PpTriState: React.FC<{
           type="button"
           onClick={() => onChange(k)}
           className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-            value === k ? 'bg-pink-600 text-white shadow' : 'bg-white text-slate-500 border border-slate-200 hover:border-pink-200'
+            value === k ? 'bg-[#8B1A3A] text-white shadow' : 'bg-white text-slate-500 border border-slate-200 hover:border-[#8B1A3A]/30'
           }`}
         >
           {t}
@@ -81,14 +95,14 @@ export const PpYesNo: React.FC<{
       <button
         type="button"
         onClick={() => onChange(true)}
-        className={`flex-1 px-2 py-2 rounded-lg text-xs font-bold ${value === true ? 'bg-pink-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
+        className={`flex-1 px-2 py-2 rounded-lg text-xs font-bold transition-all ${value === true ? 'bg-[#8B1A3A] text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-[#8B1A3A]/30'}`}
       >
         Sim
       </button>
       <button
         type="button"
         onClick={() => onChange(false)}
-        className={`flex-1 px-2 py-2 rounded-lg text-xs font-bold ${value === false ? 'bg-slate-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
+        className={`flex-1 px-2 py-2 rounded-lg text-xs font-bold transition-all ${value === false ? 'bg-slate-700 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'}`}
       >
         Não
       </button>
