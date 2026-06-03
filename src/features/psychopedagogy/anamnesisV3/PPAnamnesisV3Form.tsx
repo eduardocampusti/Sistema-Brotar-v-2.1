@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Student } from '@/types';
-import { CheckCircle, ChevronDown, ChevronRight, RefreshCw, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CheckCircle, ChevronDown, ChevronRight, RefreshCw, User } from 'lucide-react';
 import {
   DIFICULDADES_COMUNICACAO_ORAL_IDS,
   HISTORICO_SAUDE_CHECKBOX_IDS,
@@ -59,12 +59,44 @@ export interface PPAnamnesisV3FormProps {
   student: Student;
   /** Sincronização manual com o cadastro oficial (somente campos básicos mapeados). */
   onCadastroSync?: (mode: Extract<PpCadastroSyncMode, 'manualFillEmpty' | 'manualOverwriteBasics'>) => void;
+  onSave?: () => void;
 }
 
-export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onChange, student, onCadastroSync }) => {
+export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onChange, student, onCadastroSync, onSave }) => {
   const [active, setActive] = useState<PPAnamnesisV3SectionId>('identificacao');
   const [cadastroMenuOpen, setCadastroMenuOpen] = useState(false);
   const cadastroMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-save logic — compara JSON para evitar disparos desnecessários
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSaveTime, setLastSaveTime] = useState<string | null>(null);
+  const isFirstRender = useRef(true);
+  const lastDataRef = useRef<string>('');
+
+  useEffect(() => {
+    const serialized = JSON.stringify(data);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      lastDataRef.current = serialized;
+      return;
+    }
+    if (serialized === lastDataRef.current) return;
+    lastDataRef.current = serialized;
+    setSaveStatus('saving');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (onSave) {
+        onSave();
+        setSaveStatus('saved');
+        const now = new Date();
+        setLastSaveTime(now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } else {
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      }
+    }, 2000);
+  }, [data, onSave]);
 
   const patch = useCallback(
     (partial: Partial<PPAnamnesisV3>) => {
@@ -105,6 +137,26 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
   const ge = data.gestacaoPartoDesenvolvimento;
   const sa = data.saudeAcompanhamentos;
   const fe = data.fechamento;
+
+  const checkSectionCompletion = useCallback((sec: PPAnamnesisV3SectionId) => {
+    switch (sec) {
+      case 'identificacao': return !!i.nome;
+      case 'responsaveis': return !!r.nomeMae || !!r.nomePai;
+      case 'queixa': return !!q.queixaPrincipal;
+      case 'escolar': return !!e.rotinaEscolar || !!e.areasMaiorDificuldade;
+      case 'comunicacao': return !!co.verbal || co.dificuldadesComunicacaoOral.length > 0;
+      case 'comportamento': return !!b.sensibilidadeSensorial || b.perfilComportamental.length > 0;
+      case 'autonomia': return !!au.controleEsfincteres || !!au.enurese;
+      case 'rotina': return !!ro.rotinaDetalhadaSemanaFimSemana;
+      case 'gestacao': return !!ge.partoTipo || !!ge.observacoesGravidez;
+      case 'saude': return sa.historicoSaudeCheckbox.length > 0 || !!sa.profissionaisQueAcompanham;
+      case 'fechamento': return !!fe.observacoesFinaisPsicopedagoga || !!fe.realizadaCom;
+    }
+    return false;
+  }, [i, r, q, e, co, b, au, ro, ge, sa, fe]);
+
+  const completedSections = useMemo(() => SECTIONS.filter(s => checkSectionCompletion(s.id)), [checkSectionCompletion]);
+  const completionPercentage = Math.round((completedSections.length / SECTIONS.length) * 100);
 
   const labelMapCom = useMemo(
     () =>
@@ -989,29 +1041,106 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
             <span className="text-xs font-black uppercase tracking-widest text-slate-700">Seções</span>
           </div>
           <nav className="max-h-[60vh] overflow-y-auto">
-            {SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setActive(s.id)}
-                className={`w-full text-left px-4 py-3 text-xs font-bold border-l-4 transition-colors flex items-center gap-2 ${
-                  active === s.id ? 'border-pink-600 bg-pink-50 text-pink-800' : 'border-transparent text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {active === s.id ? <CheckCircle size={14} className="text-pink-600 shrink-0" /> : <ChevronRight size={14} className="text-slate-300 shrink-0" />}
-                {s.title}
-              </button>
-            ))}
+            {SECTIONS.map((s) => {
+              const isCompleted = checkSectionCompletion(s.id);
+              const isActive = active === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setActive(s.id)}
+                  className={`w-full text-left px-4 py-3 text-xs font-bold border-l-4 transition-colors flex items-center gap-2 ${
+                    isActive ? 'border-[#8B1A3A] bg-[#fdf8f9] text-[#8B1A3A]' : 'border-transparent text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {isCompleted && !isActive ? (
+                    <CheckCircle size={14} className="text-[#10B981] shrink-0" />
+                  ) : isActive ? (
+                    <ChevronRight size={14} className="text-[#8B1A3A] shrink-0" />
+                  ) : (
+                    <ChevronRight size={14} className="text-slate-300 shrink-0" />
+                  )}
+                  {s.title}
+                </button>
+              );
+            })}
           </nav>
         </div>
       </aside>
-      <div className="flex-1 min-w-0">
+      <div 
+        className="flex-1 min-w-0 [&_input:focus]:!border-[#8B1A3A] [&_input:focus]:!bg-[#fdf8f9] [&_textarea:focus]:!border-[#8B1A3A] [&_textarea:focus]:!bg-[#fdf8f9] [&_select:focus]:!border-[#8B1A3A] [&_select:focus]:!bg-[#fdf8f9] [&_input:not(:placeholder-shown):not(:focus)]:!border-[#97C459] [&_input:not(:placeholder-shown):not(:focus)]:!bg-[#EAF3DE] [&_textarea:not(:placeholder-shown):not(:focus)]:!border-[#97C459] [&_textarea:not(:placeholder-shown):not(:focus)]:!bg-[#EAF3DE]"
+        onKeyDown={(e) => {
+          if (e.key === 'Tab' && !e.shiftKey) {
+            const focusables = Array.from(e.currentTarget.querySelectorAll('input:not([disabled]), textarea:not([disabled]), select:not([disabled])')) as HTMLElement[];
+            if (focusables.length > 0) {
+              const last = focusables[focusables.length - 1];
+              if (document.activeElement === last) {
+                e.preventDefault();
+                const idx = SECTIONS.findIndex(s => s.id === active);
+                if (idx < SECTIONS.length - 1) setActive(SECTIONS[idx + 1].id);
+              }
+            }
+          }
+        }}
+      >
+        {saveStatus !== 'idle' && (
+          <div className={`mb-4 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center shadow-sm transition-all animate-fadeIn ${
+            saveStatus === 'saving' ? 'bg-[#E6F1FB] text-[#185FA5] border border-[#B3D4F2]' :
+            saveStatus === 'saved' ? 'bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459]' :
+            'bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595]'
+          }`}>
+            {saveStatus === 'saving' ? 'Salvando...' : saveStatus === 'saved' ? `Salvo automaticamente às ${lastSaveTime}` : 'Erro ao salvar automaticamente'}
+          </div>
+        )}
+
         <div className="mb-4">
+          <div className="flex justify-between items-center mb-1.5">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{completedSections.length} de {SECTIONS.length} seções preenchidas</p>
+            <span className="text-[10px] font-black text-[#10B981]">{completionPercentage}%</span>
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+            <div className="bg-[#10B981] h-2 rounded-full transition-all duration-500" style={{ width: `${completionPercentage}%` }}></div>
+          </div>
+        </div>
+
+        <div className="mb-6">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Anamnese psicopedagógica</p>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{student.fullName}</h2>
-          <p className="text-sm text-slate-500 mt-1">Ficha estruturada (v3) — preencha por seções; use Salvar na barra superior.</p>
+          <p className="text-sm text-slate-500 mt-1">Ficha estruturada (v3) — preencha por seções; o salvamento automático está ativado.</p>
         </div>
         {main}
+        
+        <p className="text-right text-[10px] font-bold text-slate-400 mt-2">Dica: pressione Tab no último campo para avançar de seção</p>
+        
+        <div className="mt-8 pt-6 border-t border-slate-200 flex items-center justify-between">
+          <button
+            type="button"
+            disabled={SECTIONS.findIndex(s => s.id === active) === 0}
+            onClick={() => {
+              const idx = SECTIONS.findIndex(s => s.id === active);
+              if (idx > 0) setActive(SECTIONS[idx - 1].id);
+            }}
+            className="px-4 py-2 flex items-center gap-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ArrowLeft size={14} /> Seção anterior
+          </button>
+          
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            Seção {SECTIONS.findIndex(s => s.id === active) + 1} de {SECTIONS.length}
+          </span>
+          
+          <button
+            type="button"
+            disabled={SECTIONS.findIndex(s => s.id === active) === SECTIONS.length - 1}
+            onClick={() => {
+              const idx = SECTIONS.findIndex(s => s.id === active);
+              if (idx < SECTIONS.length - 1) setActive(SECTIONS[idx + 1].id);
+            }}
+            className="px-4 py-2 flex items-center gap-2 text-xs font-bold text-white bg-[#8B1A3A] rounded-xl hover:bg-[#731530] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            Próxima seção <ArrowRight size={14} />
+          </button>
+        </div>
       </div>
       </div>
     </div>
