@@ -83,6 +83,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
   const [showConfirmFinal, setShowConfirmFinal] = useState(false);
   const [isMerging, setIsMerging] = useState(false);
   const [listaEscopo, setListaEscopo] = useState<'todos' | 'meus'>('todos');
+  const [sessionsInfo, setSessionsInfo] = useState<Record<string, { total: number, lastDate: string | null }>>({});
   const [meusAlunoIds, setMeusAlunoIds] = useState<Set<string> | null>(null);
   const { addToast } = useToast();
 
@@ -149,6 +150,30 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       cancelled = true;
     };
   }, [podeAlternarListaRede, listaEscopo, authUser?.id]);
+
+  // Carrega as informações das sessões (última sessão)
+  useEffect(() => {
+      let isMounted = true;
+      const fetchSessionsInfo = async () => {
+          const info: Record<string, { total: number, lastDate: string | null }> = {};
+          await Promise.all(students.map(async (student) => {
+              try {
+                  const sessions = await SupabaseService.getStudentSessions(student.id);
+                  if (sessions && sessions.length > 0) {
+                      const sorted = sessions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                      info[student.id] = { total: sessions.length, lastDate: sorted[0].date };
+                  } else {
+                      info[student.id] = { total: 0, lastDate: null };
+                  }
+              } catch (e) {
+                  info[student.id] = { total: 0, lastDate: null };
+              }
+          }));
+          if (isMounted) setSessionsInfo(info);
+      };
+      if (students.length > 0) fetchSessionsInfo();
+      return () => { isMounted = false; };
+  }, [students]);
 
   const baseStudentList = useMemo(() => {
     if (podeAlternarListaRede && listaEscopo === 'meus') {
@@ -564,7 +589,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno / Identificação</th>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Situação / Status</th>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Idade • Série</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Última Sessão</th>
                 <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
               </tr>
             </thead>
@@ -637,11 +662,17 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                         </div>
                       </td>
 
-                      {/* RESPONSÁVEL */}
+                      {/* ÚLTIMA SESSÃO */}
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-600">{student.guardians[0]?.name || 'Não informado'}</span>
-                          <span className="text-[10px] text-slate-400">{student.guardians[0]?.phone || '-'}</span>
+                          <span className="text-xs font-bold text-slate-600">
+                            {sessionsInfo[student.id]?.lastDate 
+                              ? new Date(sessionsInfo[student.id].lastDate!).toLocaleDateString() 
+                              : '—'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {sessionsInfo[student.id]?.total ? `${sessionsInfo[student.id].total} sessões` : 'Nenhum registro'}
+                          </span>
                         </div>
                       </td>
 

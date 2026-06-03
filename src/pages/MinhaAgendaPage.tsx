@@ -5,9 +5,11 @@ import {
     ChevronLeft,
     ChevronRight,
     Clock,
+    History,
     Loader2,
     PlayCircle,
     XCircle,
+    AlertTriangle
 } from 'lucide-react';
 import { SupabaseService } from '../../services/SupabaseService';
 import { Card, CardContent } from '@/src/components/ui/card';
@@ -101,6 +103,12 @@ export const MinhaAgendaPage: React.FC<MinhaAgendaPageProps> = ({ currentUser, o
     const [activeTab, setActiveTab] = useState<AgendaTab>('DAY');
     const [calendarMonth, setCalendarMonth] = useState(() => parseISODate(today));
     
+    // P1: Estados do Fluxo de Atendimento Contínuo
+    const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [loadingLastSession, setLoadingLastSession] = useState(false);
+    const [lastSessionData, setLastSessionData] = useState<any>(null);
+    const [selectedAptForStart, setSelectedAptForStart] = useState<Appointment | null>(null);
+
     // Filtro compactado de Status
     const [filterStatus, setFilterStatus] = useState<AppointmentStatus | 'ALL' | 'ALL_EXCEPT_CANCELED'>('ALL_EXCEPT_CANCELED');
 
@@ -199,6 +207,28 @@ export const MinhaAgendaPage: React.FC<MinhaAgendaPageProps> = ({ currentUser, o
             <p className="text-xs text-slate-400 mt-1">Nenhum atendimento registrado para esta data.</p>
         </div>
     );
+
+    const handleStartAtendimento = async (apt: Appointment) => {
+        setSelectedAptForStart(apt);
+        setLoadingLastSession(true);
+        setShowSummaryModal(true);
+        try {
+            const sessions = await SupabaseService.getStudentSessions(apt.studentId);
+            setLastSessionData(sessions.length > 0 ? sessions[0] : null);
+        } catch (e) {
+            setLastSessionData(null);
+        } finally {
+            setLoadingLastSession(false);
+        }
+    };
+
+    const proceedToSession = () => {
+        if (selectedAptForStart) {
+            localStorage.setItem('brotar_auto_open_session', selectedAptForStart.studentId);
+            setShowSummaryModal(false);
+            onReschedule(selectedAptForStart);
+        }
+    };
 
     return (
         <div className="flex h-full flex-col space-y-4">
@@ -350,7 +380,7 @@ export const MinhaAgendaPage: React.FC<MinhaAgendaPageProps> = ({ currentUser, o
                                                 </Badge>
                                                 {showIniciar && (
                                                     <button
-                                                        onClick={() => onReschedule(apt)}
+                                                        onClick={() => handleStartAtendimento(apt)}
                                                         className="inline-flex items-center gap-1.5 rounded-xl bg-[#8B1A3A] hover:bg-[#72142e] text-white px-3 py-1.5 text-xs font-black transition-all shadow-sm active:scale-95"
                                                     >
                                                         <PlayCircle size={13} />
@@ -425,44 +455,107 @@ export const MinhaAgendaPage: React.FC<MinhaAgendaPageProps> = ({ currentUser, o
                                 {filteredDateAppointments.length === 0 ? (
                                     renderEmptyState('Sem agendamentos para este dia')
                                 ) : (
-                                    filteredDateAppointments.map((apt) => {
-                                        const style = getStatusStyle(apt.status);
-                                        const showIniciar = apt.status === 'AGENDADO' || apt.status === 'CONFIRMADO';
+                                    (() => {
+                                        const startTimeCounts = filteredDateAppointments.reduce((acc, apt) => {
+                                            if (apt.startTime) {
+                                                acc[apt.startTime] = (acc[apt.startTime] || 0) + 1;
+                                            }
+                                            return acc;
+                                        }, {} as Record<string, number>);
+
+                                        const conflictStartTimes = Object.keys(startTimeCounts).filter(time => startTimeCounts[time] > 1);
+                                        const hasConflicts = conflictStartTimes.length > 0;
+                                        const conflictingNames = filteredDateAppointments
+                                            .filter(apt => apt.startTime && conflictStartTimes.includes(apt.startTime))
+                                            .map(apt => apt.studentName)
+                                            .join(', ');
 
                                         return (
-                                            <div key={apt.id} className="flex items-center justify-between p-4 hover:bg-slate-50/50 transition-colors">
-                                                <div className="flex items-start gap-3">
-                                                    <span className="w-12 shrink-0 text-xs font-black text-slate-600 pt-0.5">{apt.startTime}</span>
-                                                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 mt-1.5 ${style.dot}`} />
-                                                    <div>
-                                                        <p className="text-sm font-black text-slate-800 leading-tight">{apt.studentName}</p>
-                                                        <p className="text-xs font-semibold text-slate-400 mt-0.5">{apt.specialty} • {apt.unit}</p>
+                                            <>
+                                                {hasConflicts && (
+                                                    <div className="bg-[#FAEEDA] border-l-4 border-[#EF9F27] text-[#854F0B] p-4 mb-4 text-sm font-semibold shadow-sm flex items-center gap-2">
+                                                        <AlertTriangle size={18} />
+                                                        Conflito de horário detectado: {conflictingNames} estão agendados no mesmo horário. Verifique com a secretaria.
                                                     </div>
-                                                </div>
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    <Badge className={`gap-1 px-2 py-0.5 text-[9px] font-bold border ${style.badge}`}>
-                                                        {getStatusIcon(apt.status)}
-                                                        <span>{style.label}</span>
-                                                    </Badge>
-                                                    {showIniciar && (
-                                                        <button
-                                                            onClick={() => onReschedule(apt)}
-                                                            className="inline-flex items-center gap-1.5 rounded-xl bg-[#8B1A3A] text-white px-2 py-1 text-[10px] font-black transition-all shadow-sm active:scale-95"
-                                                        >
-                                                            <PlayCircle size={11} />
-                                                            <span>Iniciar</span>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
+                                                )}
+                                                {filteredDateAppointments.map((apt) => {
+                                                    const isConflict = apt.startTime && conflictStartTimes.includes(apt.startTime);
+                                                    const style = getStatusStyle(apt.status);
+                                                    const showIniciar = apt.status === 'AGENDADO' || apt.status === 'CONFIRMADO';
+
+                                                    return (
+                                                        <div key={apt.id} className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 gap-3 transition-colors ${isConflict ? 'bg-[#FAEEDA] border-2 border-[#EF9F27]' : 'hover:bg-slate-50/50'}`}>
+                                                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                                                {isConflict && (
+                                                                    <span className="bg-[#FAEEDA] text-[#854F0B] border border-[#EF9F27] px-2 py-0.5 rounded-full text-xs font-bold shrink-0">
+                                                                        Conflito
+                                                                    </span>
+                                                                )}
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="w-12 shrink-0 text-xs font-black text-slate-600 pt-0.5">{apt.startTime}</span>
+                                                                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 mt-1.5 ${style.dot}`} />
+                                                                    <div>
+                                                                        <p className="text-sm font-black text-slate-800 leading-tight">{apt.studentName}</p>
+                                                                        <p className="text-xs font-semibold text-slate-400 mt-0.5">{apt.specialty} • {apt.unit}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <Badge className={`gap-1 px-2 py-0.5 text-[9px] font-bold border ${style.badge}`}>
+                                                                    {getStatusIcon(apt.status)}
+                                                                    <span>{style.label}</span>
+                                                                </Badge>
+                                                                {showIniciar && (
+                                                                    <button
+                                                                        onClick={() => handleStartAtendimento(apt)}
+                                                                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#8B1A3A] text-white px-2 py-1 text-[10px] font-black transition-all shadow-sm active:scale-95"
+                                                                    >
+                                                                        <PlayCircle size={11} />
+                                                                        <span>Iniciar</span>
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </>
                                         );
-                                    })
+                                    })()
                                 )}
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* P1: Modal de Resumo da Última Sessão */}
+            {showSummaryModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fadeIn">
+                        <div className="bg-[#8B1A3A] p-4 text-white">
+                            <h3 className="font-black flex items-center gap-2"><History size={18} /> Resumo da Última Sessão</h3>
+                        </div>
+                        <div className="p-6">
+                            {loadingLastSession ? (
+                                <div className="flex items-center gap-3 text-slate-500 justify-center py-6"><Loader2 className="animate-spin" /> Buscando histórico...</div>
+                            ) : lastSessionData ? (
+                                <div className="space-y-3">
+                                    <div className="flex gap-2 items-center"><Badge className="bg-[#10B981]">{lastSessionData.date}</Badge></div>
+                                    <p className="text-sm"><strong>Objetivo:</strong> {lastSessionData.content?.objetivo || lastSessionData.notes}</p>
+                                    <p className="text-sm"><strong>Estratégias:</strong> {lastSessionData.content?.estrategias || 'N/A'}</p>
+                                    <p className="text-sm"><strong>Evolução:</strong> {lastSessionData.content?.evolucao || 'N/A'}</p>
+                                </div>
+                            ) : (
+                                <p className="text-center font-bold text-slate-600 py-6">Primeiro atendimento registrado no sistema.</p>
+                            )}
+                            <div className="mt-8 flex justify-end gap-3">
+                                <button onClick={() => setShowSummaryModal(false)} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all">Cancelar</button>
+                                <button onClick={proceedToSession} className="px-5 py-2 font-black text-white bg-[#10B981] hover:bg-emerald-600 rounded-xl shadow-sm transition-all flex items-center gap-2">Ir para o Prontuário <ChevronRight size={16}/></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

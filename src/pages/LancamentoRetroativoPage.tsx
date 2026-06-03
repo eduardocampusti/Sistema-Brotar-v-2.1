@@ -22,6 +22,9 @@ interface LancamentoRetroativoPageProps {
 interface StudentSummary {
     studentId: string;
     studentName: string;
+    schoolName?: string;
+    diagnosis?: string;
+    lastSessionDate?: string | null;
 }
 
 export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> = ({
@@ -65,22 +68,44 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                     professionalId: currentUser.id 
                 });
                 
+                const allStudents = await SupabaseService.getStudentsForUser(currentUser);
+
                 if (!isMounted) return;
 
                 // Extrai lista única de alunos (deduplicada por studentId)
-                const uniqueStudentsMap = new Map<string, string>();
-                appointments.forEach((appt) => {
-                    if (appt.studentId && appt.studentName) {
-                        uniqueStudentsMap.set(appt.studentId, appt.studentName);
+                const uniqueIds = Array.from(new Set(appointments.map(appt => appt.studentId).filter(Boolean)));
+                
+                // Busca as sessões para esses alunos
+                const sessionsPromises = uniqueIds.map(async id => {
+                    try {
+                        return await SupabaseService.getStudentSessions(id as string);
+                    } catch (e) {
+                        return [];
+                    }
+                });
+                const sessionsResults = await Promise.all(sessionsPromises);
+                
+                const lastSessionMap = new Map<string, string>();
+                uniqueIds.forEach((id, index) => {
+                    const sessions = sessionsResults[index];
+                    if (sessions && sessions.length > 0) {
+                        const sorted = sessions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                        lastSessionMap.set(id as string, sorted[0].date);
                     }
                 });
 
-                const formattedList: StudentSummary[] = Array.from(uniqueStudentsMap.entries()).map(
-                    ([id, name]) => ({
-                        studentId: id,
-                        studentName: name
-                    })
-                ).sort((a, b) => a.studentName.localeCompare(b.studentName));
+                const formattedList: StudentSummary[] = uniqueIds.map((id) => {
+                    const student = allStudents.find(s => s.id === id);
+                    const appt = appointments.find(a => a.studentId === id);
+                    
+                    return {
+                        studentId: id as string,
+                        studentName: student?.fullName || appt?.studentName || 'Não identificado',
+                        schoolName: student?.school?.schoolName,
+                        diagnosis: student?.clinical?.diagnosis,
+                        lastSessionDate: lastSessionMap.get(id as string) || null
+                    };
+                }).sort((a, b) => a.studentName.localeCompare(b.studentName));
 
                 setStudentsList(formattedList);
             } catch (err: any) {
@@ -247,16 +272,39 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                                     <button
                                         key={student.studentId}
                                         onClick={() => setSelectedStudent(student)}
-                                        className="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 bg-white hover:border-[#8B1A3A]/30 hover:bg-slate-50/50 text-left transition-all group shadow-sm hover:shadow-md"
+                                        className="flex flex-col gap-3 p-4 rounded-2xl border border-slate-200 bg-white hover:border-[#8B1A3A]/30 hover:bg-slate-50/50 text-left transition-all group shadow-sm hover:shadow-md"
                                     >
-                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold group-hover:bg-[#8B1A3A]/10 group-hover:text-[#8B1A3A] transition-colors">
-                                            {student.studentName.substring(0, 2).toUpperCase()}
+                                        <div className="flex items-center gap-4 w-full">
+                                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold group-hover:bg-[#8B1A3A]/10 group-hover:text-[#8B1A3A] transition-colors shrink-0">
+                                                {student.studentName.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-bold text-slate-800 group-hover:text-[#8B1A3A] transition-colors truncate">
+                                                    {student.studentName}
+                                                </p>
+                                                <p className="text-[11px] text-slate-400 mt-0.5">Clique para iniciar o lançamento</p>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-bold text-slate-800 group-hover:text-[#8B1A3A] transition-colors truncate">
-                                                {student.studentName}
-                                            </p>
-                                            <p className="text-[11px] text-slate-400 mt-0.5">Clique para iniciar o lançamento</p>
+                                        <div className="flex flex-wrap gap-2 w-full mt-1">
+                                            {student.schoolName && (
+                                                <span className="px-2 py-1 text-[10px] font-bold rounded-md bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459]">
+                                                    {student.schoolName}
+                                                </span>
+                                            )}
+                                            {student.diagnosis && (
+                                                <span className="px-2 py-1 text-[10px] font-bold rounded-md bg-[#FAEEDA] text-[#854F0B] border border-[#EF9F27]">
+                                                    {student.diagnosis}
+                                                </span>
+                                            )}
+                                            {student.lastSessionDate ? (
+                                                <span className="px-2 py-1 text-[10px] font-bold rounded-md bg-[#E6F1FB] text-[#185FA5] border border-[#85B7EB]">
+                                                    Última Sessão: {new Date(student.lastSessionDate).toLocaleDateString()}
+                                                </span>
+                                            ) : (
+                                                <span className="px-2 py-1 text-[10px] font-bold rounded-md bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595]">
+                                                    Sem sessão registrada
+                                                </span>
+                                            )}
                                         </div>
                                     </button>
                                 ))}

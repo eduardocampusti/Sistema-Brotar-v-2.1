@@ -1720,8 +1720,13 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
     const [searchTerm, setSearchTerm] = useState('');
     const [schoolFilter, setSchoolFilter] = useState('');
 
+    // P1: Refs e Estado Pós-Salvar
+    const evolutionInputRef = React.useRef<HTMLTextAreaElement>(null);
+    const [showPostSaveModal, setShowPostSaveModal] = useState(false);
+
     // Rich Dashboard States
     const [todayCount, setTodayCount] = useState(0);
+    const [sessionsInfo, setSessionsInfo] = useState<Record<string, { total: number, lastDate: string | null }>>({});
     const [absencesCount, setAbsencesCount] = useState(0);
     const [pendingLaudosCount, setPendingLaudosCount] = useState(0);
     const [myStudentsCount, setMyStudentsCount] = useState(0);
@@ -1782,6 +1787,13 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
             );
             setTodayCount(todayAppointments.length);
 
+            // MELHORIA 3: Puxa agendamentos corretos do dia
+            const upcomingMapped = todayAppointments.map((app: any) => ({
+                session: { startTime: app.startTime, date: app.date, objetivo: app.notes || '' },
+                studentName: app.studentName,
+                studentId: app.studentId
+            }));
+
             // Contagem de faltas do mês
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
             const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
@@ -1815,9 +1827,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
                 data.sessions.forEach(session => {
                     const sessionItem = { session, studentName: student.fullName, studentId: student.id };
-                    if (session.status === 'Agendado' && session.date === today) {
-                        upcoming.push(sessionItem);
-                    } else if (session.status === 'Realizado') {
+                    if (session.status === 'Realizado') {
                         activity.push(sessionItem);
                     }
                 });
@@ -1830,6 +1840,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         activity.sort((a, b) => new Date(b.session.date).getTime() - new Date(a.session.date).getTime());
 
         // Ordena agenda por horário de início
+        upcoming = upcomingMapped;
         upcoming.sort((a, b) => (a.session.startTime || '').localeCompare(b.session.startTime || ''));
 
         setRecentActivity(activity);
@@ -1839,6 +1850,28 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
     };
 
     useEffect(() => { loadData(); }, []);
+
+    // MELHORIA 1: Buscar sessões
+    useEffect(() => {
+        const fetchSessionsInfo = async () => {
+            const info: Record<string, { total: number, lastDate: string | null }> = {};
+            await Promise.all(students.map(async (student) => {
+                try {
+                    const sessions = await SupabaseService.getStudentSessions(student.id);
+                    if (sessions && sessions.length > 0) {
+                        const sorted = sessions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                        info[student.id] = { total: sessions.length, lastDate: sorted[0].date };
+                    } else {
+                        info[student.id] = { total: 0, lastDate: null };
+                    }
+                } catch (e) {
+                    info[student.id] = { total: 0, lastDate: null };
+                }
+            }));
+            setSessionsInfo(info);
+        };
+        if (students.length > 0) fetchSessionsInfo();
+    }, [students]);
 
     useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab) => {
         setSelectedStudent(full);
@@ -2031,9 +2064,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
             // Também atualiza o objeto student localmente para manter coerência sem reload
             // (Isso é opcional mas melhora a UX)
 
-            setIsEditingSession(false);
-            setCurrentSession({});
-            showToast('Sessão salva!', 'success');
+            setShowPostSaveModal(true);
         } catch (e) {
             console.error(e);
             toastError('Erro ao salvar sessão.');
@@ -2323,8 +2354,8 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                 <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                                     <Activity size={20} />
                                 </div>
-                                <span className="text-sm font-bold text-teal-700">Escala Portage (IPO)</span>
-                                <span className="text-[10px] text-slate-400 mt-1">Buscar e abrir prontuário</span>
+                                <span className="text-sm font-bold text-teal-700">Avaliação Portage</span>
+                                <span className="text-[10px] text-slate-400 mt-1">Escala de desenvolvimento</span>
                             </button>
 
                             <button
@@ -2487,8 +2518,28 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                                     {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover" alt="" /> : student.fullName.substring(0, 2).toUpperCase()}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="font-bold text-slate-800 text-xs truncate group-hover:text-[#9F5FC0]">{student.fullName}</p>
-                                                    <p className="text-[10px] text-slate-400 truncate">{student.school?.schoolName}</p>
+                                                    {(() => {
+                                                        const info = sessionsInfo[student.id];
+                                                        let urgencyBadge = null;
+                                                        if (!info || info.total === 0 || !info.lastDate) {
+                                                            urgencyBadge = <span className="bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595] px-1.5 py-0.5 rounded-full text-[9px] font-bold">Sem registro</span>;
+                                                        } else {
+                                                            const diffDays = Math.ceil(Math.abs(new Date().getTime() - new Date(info.lastDate).getTime()) / (1000 * 60 * 60 * 24));
+                                                            if (diffDays > 30) urgencyBadge = <span className="bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595] px-1.5 py-0.5 rounded-full text-[9px] font-bold">Sem registro há {diffDays} dias</span>;
+                                                            else urgencyBadge = <span className="bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459] px-1.5 py-0.5 rounded-full text-[9px] font-bold">Registro recente</span>;
+                                                        }
+                                                        const sessionsBadge = (info && info.total > 0) ? <span className="bg-[#EEEDFE] text-[#3C3489] border border-[#AFA9EC] px-1.5 py-0.5 rounded-full text-[9px] font-bold">{info.total} sessões</span> : null;
+                                                        return (
+                                                            <>
+                                                                <p className="font-bold text-slate-800 text-xs truncate group-hover:text-[#9F5FC0]">{student.fullName}</p>
+                                                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                                                    {urgencyBadge}
+                                                                    {sessionsBadge}
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()}
+                                                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{student.school?.schoolName}</p>
                                                 </div>
                                                 <ChevronRight size={14} className="text-slate-300 group-hover:text-[#7F77DD] shrink-0" />
                                             </button>
@@ -2514,8 +2565,28 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                                         )}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="font-bold text-xs text-slate-700 truncate group-hover:text-[#3C3489]">{student.fullName}</p>
-                                                        <p className="text-[10px] text-slate-400 truncate">{calculateAge(student.birthDate)} anos • {student.school.schoolName || 'Sem Escola'}</p>
+                                                        {(() => {
+                                                            const info = sessionsInfo[student.id];
+                                                            let urgencyBadge = null;
+                                                            if (!info || info.total === 0 || !info.lastDate) {
+                                                                urgencyBadge = <span className="bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595] px-1.5 py-0.5 rounded-full text-[9px] font-bold">Sem registro</span>;
+                                                            } else {
+                                                                const diffDays = Math.ceil(Math.abs(new Date().getTime() - new Date(info.lastDate).getTime()) / (1000 * 60 * 60 * 24));
+                                                                if (diffDays > 30) urgencyBadge = <span className="bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595] px-1.5 py-0.5 rounded-full text-[9px] font-bold">Sem registro há {diffDays} dias</span>;
+                                                                else urgencyBadge = <span className="bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459] px-1.5 py-0.5 rounded-full text-[9px] font-bold">Registro recente</span>;
+                                                            }
+                                                            const sessionsBadge = (info && info.total > 0) ? <span className="bg-[#EEEDFE] text-[#3C3489] border border-[#AFA9EC] px-1.5 py-0.5 rounded-full text-[9px] font-bold">{info.total} sessões</span> : null;
+                                                            return (
+                                                                <>
+                                                                    <p className="font-bold text-xs text-slate-700 truncate group-hover:text-[#3C3489]">{student.fullName}</p>
+                                                                    <div className="flex items-center gap-1 mt-1 mb-0.5 flex-wrap">
+                                                                        {urgencyBadge}
+                                                                        {sessionsBadge}
+                                                                    </div>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                        <p className="text-[10px] text-slate-400 truncate mt-0.5">{calculateAge(student.birthDate)} anos • {student.school.schoolName || 'Sem Escola'}</p>
                                                     </div>
                                                     <ChevronRight size={14} className="text-slate-300 group-hover:text-[#7F77DD] transform group-hover:translate-x-0.5 transition-all" />
                                                 </button>
@@ -2729,7 +2800,10 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                             <StyledInput label="Estratégias / Instrumentos" rows={3} value={currentSession.estrategias} onChange={(e: any) => setCurrentSession({ ...currentSession, estrategias: e.target.value })} />
                                             <StyledInput label="Observações Clínicas" rows={3} value={currentSession.observacoes} onChange={(e: any) => setCurrentSession({ ...currentSession, observacoes: e.target.value })} />
                                         </div>
-                                        <StyledInput label="Evolução Percebida" rows={2} value={currentSession.evolucao} onChange={(e: any) => setCurrentSession({ ...currentSession, evolucao: e.target.value })} />
+                                        <div className="mt-6">
+                                            <label className="block text-xs font-black text-slate-800 uppercase mb-2.5 ml-1">Evolução Percebida</label>
+                                            <textarea ref={evolutionInputRef} rows={2} className="w-full rounded-xl border-2 border-slate-400 bg-slate-300 p-4 text-sm font-black text-slate-900 outline-none focus:bg-slate-100 focus:border-slate-600" value={currentSession.evolucao || ''} onChange={(e) => setCurrentSession({ ...currentSession, evolucao: e.target.value })} />
+                                        </div>
                                         <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8">
                                             <button onClick={() => setIsEditingSession(false)} className="w-full sm:w-auto px-6 py-3 text-slate-700 hover:bg-slate-300 rounded-xl font-bold transition-all">Cancelar</button>
                                             <button onClick={handleSaveSession} className="w-full sm:w-auto px-8 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-900 font-bold shadow-lg shadow-slate-400/20">Salvar Sessão</button>
@@ -2744,23 +2818,25 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                             <p className="text-center text-slate-400 py-10">Nenhum atendimento registrado.</p>
                                         ) : (
                                             ppData.sessions.map((sess, idx) => (
-                                                <div key={idx} className="bg-slate-200 p-6 rounded-2xl border-2 border-slate-300 hover:border-slate-500 transition-all shadow-sm group">
-                                                    <div className="flex justify-between items-start mb-4">
+                                                <details key={idx} className="bg-slate-200 p-6 rounded-2xl border-2 border-slate-300 hover:border-slate-500 transition-all shadow-sm group cursor-pointer">
+                                                    <summary className="flex justify-between items-start list-none outline-none">
                                                         <div className="flex items-center gap-3">
                                                             <span className="font-black text-slate-900 text-lg">{new Date(sess.date).toLocaleDateString()}</span>
                                                             <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide border ${sess.status === 'Realizado' ? 'bg-emerald-200 text-emerald-900 border-emerald-300' : 'bg-rose-200 text-rose-900 border-rose-300'}`}>{sess.status}</span>
                                                             <span className="text-[10px] bg-slate-300 text-slate-800 px-2.5 py-1 rounded-md border border-slate-400 font-bold uppercase">{sess.humor}</span>
                                                         </div>
                                                         <div className="flex gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => handlePrintPP(sess)} className="min-h-[44px] min-w-[44px] text-slate-500 hover:text-slate-800 transition-all p-2 hover:bg-slate-300 rounded-lg" title="Imprimir registro"><Printer size={18} /></button>
-                                                            <button onClick={() => { setCurrentSession(sess); setIsEditingSession(true); }} className="min-h-[44px] min-w-[44px] text-slate-500 hover:text-slate-800 transition-all p-2 hover:bg-slate-300 rounded-lg"><Edit2 size={18} /></button>
+                                                            <button onClick={(e) => { e.preventDefault(); handlePrintPP(sess); }} className="min-h-[44px] min-w-[44px] text-slate-500 hover:text-slate-800 transition-all p-2 hover:bg-slate-300 rounded-lg" title="Imprimir registro"><Printer size={18} /></button>
+                                                            <button onClick={(e) => { e.preventDefault(); setCurrentSession(sess); setIsEditingSession(true); }} className="min-h-[44px] min-w-[44px] text-slate-500 hover:text-slate-800 transition-all p-2 hover:bg-slate-300 rounded-lg"><Edit2 size={18} /></button>
                                                         </div>
-                                                    </div>
-                                                    <div className="space-y-2">
+                                                    </summary>
+                                                    <div className="space-y-3 mt-4 pt-4 border-t border-slate-300/50">
                                                         <p className="text-sm text-slate-800 bg-slate-100 p-3 rounded-lg border border-slate-300 font-medium"><strong>Objetivo:</strong> {sess.objetivo}</p>
-                                                        <p className="text-sm text-slate-600 line-clamp-2 px-1"><strong>Obs:</strong> {sess.observacoes}</p>
+                                                        {sess.estrategias && <p className="text-sm text-slate-700 px-1"><strong>Estratégias:</strong> {sess.estrategias}</p>}
+                                                        {sess.evolucao && <p className="text-sm text-slate-700 px-1"><strong>Evolução Percebida:</strong> {sess.evolucao}</p>}
+                                                        <p className="text-sm text-slate-600 px-1"><strong>Obs:</strong> {sess.observacoes}</p>
                                                     </div>
-                                                </div>
+                                                </details>
                                             ))
                                         )}
                                     </div>
@@ -2822,6 +2898,27 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                             </div>
                         )}
 
+                    </div>
+                </div>
+            )}
+
+            {/* P1: Modal Pós-Salvamento */}
+            {showPostSaveModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center animate-slideUp border border-slate-100">
+                        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 text-[#10B981]">
+                            <CheckCircle2 size={32} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-800 mb-2">Sessão Salva com Sucesso!</h3>
+                        <p className="text-sm text-slate-500 mb-8">O que você deseja fazer agora?</p>
+                        <div className="flex flex-col gap-3">
+                            <button onClick={() => onNavigate ? onNavigate('scheduling') : (window.location.href = '/app/scheduling')} className="w-full px-5 py-3 font-black text-white bg-[#8B1A3A] hover:bg-[#72142e] rounded-xl shadow-md transition-all">
+                                Agendar Próxima Sessão
+                            </button>
+                            <button onClick={() => { setShowPostSaveModal(false); setIsEditingSession(false); setCurrentSession({}); }} className="w-full px-5 py-3 font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all">
+                                Concluir
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
