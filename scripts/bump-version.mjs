@@ -79,16 +79,31 @@ async function run() {
   const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const now = new Date();
   const monthYear = `${months[now.getMonth()]} ${now.getFullYear()}`;
+  const dayMonthYear = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
 
   const files = getStagedFiles();
   const changes = generateChanges(files);
   const changesArray = JSON.stringify(changes).replace(/"/g, "'");
 
+  const title = `Release ${nextVersion} — ${dayMonthYear}`;
+  const hasFeature = files.some(f => f.includes('db/migrations'));
+  const type = hasFeature ? 'feature' : 'improvement';
+
+  const newEntry = `    {
+      version: '${nextVersion}',
+      date: '${dayMonthYear}',
+      title: '${title}',
+      type: '${type}',
+      changes: ${JSON.stringify(changes, null, 8).replace(/\]$/, '      ]')}\n    },`;
+
   // Atualizar version.ts
   let updated = content
     .replace(/version:\s*'v[\d.]+'/, `version: '${nextVersion}'`)
-    .replace(/releaseDate:\s*'[^']+'/, `releaseDate: '${monthYear}'`)
+    .replace(/date:\s*'.*?'/, `date: '${monthYear}'`)
+    .replace(/display:\s*'.*?'/, `display: '${nextVersion} • ${monthYear}'`)
     .replace(/changelog:\s*\[[\s\S]*?\]/, `changelog: [${changesArray.slice(1,-1).split(',').map(c => `\n    ${c}`).join(',')}  \n  ]`);
+
+  updated = updated.replace(/releases:\s*\[/, `releases: [\n${newEntry}`);
 
   fs.writeFileSync(VERSION_FILE, updated, 'utf8');
 
