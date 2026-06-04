@@ -1033,42 +1033,44 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
           </div>
         </div>
       ) : null}
-      <div className="flex flex-col lg:flex-row gap-6">
-      <aside className="lg:w-64 shrink-0">
-        <div className="lg:sticky lg:top-4 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-            <User size={18} className="text-pink-600" />
-            <span className="text-xs font-black uppercase tracking-widest text-slate-700">Seções</span>
-          </div>
-          <nav className="max-h-[60vh] overflow-y-auto">
-            {SECTIONS.map((s) => {
-              const isCompleted = checkSectionCompletion(s.id);
-              const isActive = active === s.id;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setActive(s.id)}
-                  className={`w-full text-left px-4 py-3 text-xs font-bold border-l-4 transition-colors flex items-center gap-2 ${
-                    isActive ? 'border-[#8B1A3A] bg-[#fdf8f9] text-[#8B1A3A]' : 'border-transparent text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {isCompleted && !isActive ? (
-                    <CheckCircle size={14} className="text-[#10B981] shrink-0" />
-                  ) : isActive ? (
-                    <ChevronRight size={14} className="text-[#8B1A3A] shrink-0" />
-                  ) : (
-                    <ChevronRight size={14} className="text-slate-300 shrink-0" />
-                  )}
-                  {s.title}
-                </button>
-              );
-            })}
-          </nav>
+      <div className="flex flex-col lg:flex-row gap-0 border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+      <aside className="lg:w-52 shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50/60">
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+          <User size={15} className="text-[#8B1A3A]" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Seções</span>
         </div>
+        <nav className="max-h-[60vh] overflow-y-auto">
+          {SECTIONS.map((s, idx) => {
+            const isCompleted = checkSectionCompletion(s.id);
+            const isActive = active === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActive(s.id)}
+                className={`w-full text-left px-4 py-2.5 text-xs transition-all flex items-center gap-2.5 ${
+                  isActive
+                    ? 'border-l-[3px] border-[#8B1A3A] bg-[#fdf8f9] text-[#8B1A3A] font-bold'
+                    : 'border-l-[3px] border-transparent text-slate-500 hover:bg-white font-medium'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${
+                  isActive
+                    ? 'bg-[#8B1A3A] text-white'
+                    : isCompleted
+                    ? 'bg-[#EAF3DE] text-[#3B6D11]'
+                    : 'bg-white border border-slate-200 text-slate-400'
+                }`}>
+                  {isCompleted && !isActive ? <Check size={9} /> : idx + 1}
+                </span>
+                {s.title}
+              </button>
+            );
+          })}
+        </nav>
       </aside>
       <div 
-        className="flex-1 min-w-0 [&_input:focus]:!border-[#8B1A3A] [&_input:focus]:!bg-[#fdf8f9] [&_textarea:focus]:!border-[#8B1A3A] [&_textarea:focus]:!bg-[#fdf8f9] [&_select:focus]:!border-[#8B1A3A] [&_select:focus]:!bg-[#fdf8f9] [&_input:not(:placeholder-shown):not(:focus)]:!border-[#97C459] [&_input:not(:placeholder-shown):not(:focus)]:!bg-[#EAF3DE] [&_textarea:not(:placeholder-shown):not(:focus)]:!border-[#97C459] [&_textarea:not(:placeholder-shown):not(:focus)]:!bg-[#EAF3DE]"
+        className="flex-1 min-w-0 p-5"
         onKeyDown={(e) => {
           if (e.key === 'Tab' && !e.shiftKey) {
             const focusables = Array.from(e.currentTarget.querySelectorAll('input:not([disabled]), textarea:not([disabled]), select:not([disabled])')) as HTMLElement[];
@@ -1083,15 +1085,13 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
           }
         }}
       >
-        {saveStatus !== 'idle' && (
-          <div className={`mb-4 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center shadow-sm transition-all animate-fadeIn ${
-            saveStatus === 'saving' ? 'bg-[#E6F1FB] text-[#185FA5] border border-[#B3D4F2]' :
-            saveStatus === 'saved' ? 'bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459]' :
-            'bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595]'
+        <div className={`mb-4 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all ${
+            saveStatus === 'saving' ? 'bg-[#E6F1FB] text-[#185FA5] border-[#B3D4F2]' :
+            saveStatus === 'error'  ? 'bg-[#FCEBEB] text-[#A32D2D] border-[#F09595]' :
+            'bg-[#EAF3DE] text-[#3B6D11] border-[#97C459]'
           }`}>
-            {saveStatus === 'saving' ? 'Salvando...' : saveStatus === 'saved' ? `Salvo automaticamente às ${lastSaveTime}` : 'Erro ao salvar automaticamente'}
+            <span>{saveStatus === 'saving' ? '⏳ Salvando...' : saveStatus === 'error' ? '❌ Erro ao salvar' : `✓ Salvo automaticamente${lastSaveTime ? ` às ${lastSaveTime}` : ''}`}</span>
           </div>
-        )}
 
         <div className="mb-4">
           <div className="flex justify-between items-center mb-1.5">

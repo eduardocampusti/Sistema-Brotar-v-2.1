@@ -122,10 +122,10 @@ export const PpCheckboxRow: React.FC<{
 );
 
 export const PpSectionShell: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="bg-slate-200/80 rounded-2xl border border-slate-300/80 shadow-sm overflow-hidden mb-6">
-    <div className="px-4 py-3 bg-slate-300/60 border-b border-slate-300">
-      <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{title}</h4>
+  <div className="rounded-xl border border-slate-200 overflow-hidden mb-5">
+    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{title}</h4>
     </div>
-    <div className="p-4 md:p-6 space-y-4">{children}</div>
+    <div className="p-4 space-y-4 bg-white">{children}</div>
   </div>
 );
