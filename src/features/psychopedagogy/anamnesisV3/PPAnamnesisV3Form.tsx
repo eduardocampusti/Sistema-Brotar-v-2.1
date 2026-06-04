@@ -64,6 +64,45 @@ export interface PPAnamnesisV3FormProps {
 
 export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onChange, student, onCadastroSync, onSave }) => {
   const [active, setActive] = useState<PPAnamnesisV3SectionId>('identificacao');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const isScrollingToSection = useRef(false);
+
+  // ScrollSpy — IntersectionObserver detecta seção visível automaticamente
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isScrollingToSection.current) return;
+        const visible = entries
+          .filter(e => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible.length > 0) {
+          const id = visible[0].target.getAttribute('data-section-id');
+          if (id) setActive(id as PPAnamnesisV3SectionId);
+        }
+      },
+      { root: container, threshold: 0.3 }
+    );
+    SECTIONS.forEach(s => {
+      const el = sectionRefs.current[s.id];
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  // Scroll suave ao clicar no menu
+  const scrollToSection = useCallback((id: PPAnamnesisV3SectionId) => {
+    setActive(id);
+    const el = sectionRefs.current[id];
+    const container = scrollContainerRef.current;
+    if (el && container) {
+      isScrollingToSection.current = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => { isScrollingToSection.current = false; }, 800);
+    }
+  }, []);
   const [cadastroMenuOpen, setCadastroMenuOpen] = useState(false);
   const cadastroMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -203,8 +242,12 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
     []
   );
 
-  const main = useMemo(() => {
-    switch (active) {
+  const main = useMemo(() => renderSection(active), [active, i, r, q, e, co, b, au, ro, ge, sa, fe, patch, data, labelMapCom, labelMapPerfil, labelMapSaude]);
+
+  const getSectionContent = (sectionId: PPAnamnesisV3SectionId) => renderSection(sectionId);
+
+  function renderSection(sectionId: PPAnamnesisV3SectionId): React.ReactNode {
+    switch (sectionId) {
       case 'identificacao':
         return (
           <>
@@ -1047,7 +1090,7 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
               <button
                 key={s.id}
                 type="button"
-                onClick={() => setActive(s.id)}
+                onClick={() => scrollToSection(s.id)}
                 className={`w-full text-left px-4 py-2.5 text-xs transition-all flex items-center gap-2.5 ${
                   isActive
                     ? 'border-l-[3px] border-[#8B1A3A] bg-[#fdf8f9] text-[#8B1A3A] font-bold'
@@ -1070,7 +1113,8 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
         </nav>
       </aside>
       <div 
-        className="flex-1 min-w-0 p-5"
+        ref={scrollContainerRef}
+        className="flex-1 min-w-0 p-5 overflow-y-auto max-h-[75vh] scroll-smooth"
         onKeyDown={(e) => {
           if (e.key === 'Tab' && !e.shiftKey) {
             const focusables = Array.from(e.currentTarget.querySelectorAll('input:not([disabled]), textarea:not([disabled]), select:not([disabled])')) as HTMLElement[];
@@ -1108,7 +1152,20 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{student.fullName}</h2>
           <p className="text-sm text-slate-500 mt-1">Ficha estruturada (v3) — preencha por seções; o salvamento automático está ativado.</p>
         </div>
-        {main}
+        {/* ScrollSpy: todas as seções renderizadas, cada uma com ref */}
+        <div className="space-y-6">
+          {SECTIONS.map(s => (
+            <div
+              key={s.id}
+              id={`section-${s.id}`}
+              data-section-id={s.id}
+              ref={el => { sectionRefs.current[s.id] = el; }}
+              className="scroll-mt-4"
+            >
+              {getSectionContent(s.id)}
+            </div>
+          ))}
+        </div>
         
         <p className="text-right text-[10px] font-bold text-slate-400 mt-2">Dica: pressione Tab no último campo para avançar de seção</p>
         
