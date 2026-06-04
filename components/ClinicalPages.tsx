@@ -2642,22 +2642,57 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
                     {/* Sidebar Tabs */}
                     <div className="w-full sm:w-64 bg-slate-50 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col">
-                        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 sm:grid-cols-1 gap-1 p-2 sm:p-0">
-                        {[
-                            { id: 'diagnostic', label: 'Diagnóstico', icon: FileText },
-                            { id: 'anamnesis', label: 'Anamnese', icon: Users },
-                            { id: 'sessions', label: 'Atendimentos', icon: History },
-                            { id: 'ipo', label: 'IPO - Portage', icon: BarChart2 },
-                            { id: 'reports', label: 'Relatórios', icon: Printer },
-                        ].map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as any)}
-                                className={`min-h-[44px] p-3 sm:p-4 flex items-center justify-center sm:justify-start gap-2 sm:gap-3 text-xs sm:text-sm font-bold rounded-xl sm:rounded-none transition-all ${activeTab === tab.id ? 'bg-white text-pink-600 sm:border-l-4 border-pink-600 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
-                            >
-                                <tab.icon size={18} /> {tab.label}
-                            </button>
-                        ))}
+                        <div className="px-3 py-2.5 border-b border-slate-200 flex items-center gap-2">
+                            <FileText size={13} className="text-[#8B1A3A]" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Prontuário clínico</span>
+                        </div>
+                        <div className="flex flex-col">
+                        {(() => {
+                            const anamnesisV3 = (ppData.anamnesis as { schemaVersion?: string })?.schemaVersion === '3' ? ppData.anamnesis as any : null;
+                            const anamPct = anamnesisV3 ? Math.round(
+                                [anamnesisV3.identificacaoCrianca?.nome, anamnesisV3.responsaveisContextoFamiliar?.nomeMae || anamnesisV3.responsaveisContextoFamiliar?.nomePai, anamnesisV3.queixaHistorico?.queixaPrincipal, anamnesisV3.contextoEscolarAprendizagem?.rotinaEscolar || anamnesisV3.contextoEscolarAprendizagem?.areasMaiorDificuldade, anamnesisV3.comunicacaoLinguagemCognitivo?.verbal, anamnesisV3.comportamentoInteracaoRegulacao?.sensibilidadeSensorial, anamnesisV3.autonomiaVidaDiaria?.controleEsfincteres, anamnesisV3.rotinaSonoHabitos?.rotinaDetalhadaSemanaFimSemana, anamnesisV3.gestacaoPartoDesenvolvimento?.partoTipo || anamnesisV3.gestacaoPartoDesenvolvimento?.observacoesGravidez, anamnesisV3.saudeAcompanhamentos?.profissionaisQueAcompanham, anamnesisV3.fechamento?.observacoesFinaisPsicopedagoga || anamnesisV3.fechamento?.realizadaCom]
+                                .filter(Boolean).length / 11 * 100
+                            ) : null;
+                            const diagPct = [ppData.diagnosis?.queixaPrincipal, ppData.diagnosis?.hipoteseDiagnostica].filter(Boolean).length > 0 ? 100 : 0;
+                            const sessCount = ppData.sessions?.length || 0;
+                            const tabs = [
+                                { id: 'anamnesis', label: 'Anamnese', sub: 'Coleta de dados', icon: Users, pct: anamPct },
+                                { id: 'diagnostic', label: 'Diagnóstico', sub: 'Hipótese e CID', icon: FileText, pct: diagPct },
+                                { id: 'sessions', label: 'Atendimentos', sub: sessCount > 0 ? `${sessCount} sessões registradas` : 'Sessões e evolução', icon: History, pct: sessCount > 0 ? 100 : 0 },
+                                { id: 'ipo', label: 'Avaliação Portage', sub: 'Escala de desenvolvimento', icon: BarChart2, pct: null },
+                                { id: 'reports', label: 'Relatórios', sub: 'Laudos e documentos', icon: Printer, pct: null },
+                            ];
+                            return tabs.map(tab => {
+                                const isActive = activeTab === tab.id;
+                                const isDone = tab.pct === 100;
+                                const pctColor = tab.pct === null ? null : tab.pct === 100 ? '#10B981' : tab.pct >= 50 ? '#EF9F27' : '#E24B4A';
+                                const pctBg = tab.pct === null ? null : tab.pct === 100 ? '#EAF3DE' : tab.pct >= 50 ? '#FAEEDA' : '#FCEBEB';
+                                const pctText = tab.pct === null ? null : tab.pct === 100 ? '#3B6D11' : tab.pct >= 50 ? '#854F0B' : '#A32D2D';
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`min-h-[44px] px-3 py-3 flex items-center gap-3 text-left transition-all border-l-[3px] ${isActive ? 'border-[#8B1A3A] bg-white' : isDone ? 'border-[#97C459] hover:bg-white/60' : 'border-transparent hover:bg-white/60'}`}
+                                    >
+                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all ${isActive ? 'bg-[#8B1A3A] text-white' : isDone ? 'bg-[#EAF3DE] text-[#3B6D11]' : 'bg-slate-100 text-slate-400'}`}>
+                                            {isDone && !isActive ? <CheckCircle size={14} /> : <tab.icon size={14} />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className={`text-xs font-bold truncate ${isActive ? 'text-[#8B1A3A]' : 'text-slate-700'}`}>{tab.label}</div>
+                                            <div className="text-[10px] text-slate-400 truncate">{tab.sub}</div>
+                                        </div>
+                                        {tab.pct !== null && (
+                                            <div className="flex flex-col items-end gap-1 shrink-0">
+                                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: pctBg!, color: pctText! }}>{tab.pct}%</span>
+                                                <div className="w-8 h-1 rounded-full bg-slate-200 overflow-hidden">
+                                                    <div className="h-full rounded-full transition-all" style={{ width: `${tab.pct}%`, background: pctColor! }} />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            });
+                        })()}
                         </div>
                     </div>
 
@@ -2717,6 +2752,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                     <PPAnamnesisV3Form
                                         data={ppData.anamnesis as PPAnamnesisV3}
                                         onChange={updateAnamnesisV3}
+                                        onSave={handleSaveGeneral}
                                         student={selectedStudent}
                                         onCadastroSync={(mode) => {
                                             if (!selectedStudent) return;
