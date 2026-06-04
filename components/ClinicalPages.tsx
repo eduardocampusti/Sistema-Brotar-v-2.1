@@ -782,6 +782,8 @@ interface PPDiagnosisForm {
     hipoteseDiagnostica: string;
     parecerInicial: string;
     encaminhamentos: string;
+    nivelComprometimento?: 'Leve' | 'Moderado' | 'Severo' | '';
+    cidSuspeitos?: string;
 }
 
 interface PPAnamnesisForm {
@@ -993,7 +995,7 @@ const initialPPAnamnesisV2: PPAnamnesisV2 = {
 };
 
 const initialPPData: PPPrivateData = {
-    diagnosis: { queixaPrincipal: '', queixaSecundaria: '', contextoDemanda: '', instrumentosUtilizados: '', hipoteseDiagnostica: '', parecerInicial: '', encaminhamentos: '' },
+    diagnosis: { queixaPrincipal: '', queixaSecundaria: '', contextoDemanda: '', instrumentosUtilizados: '', hipoteseDiagnostica: '', parecerInicial: '', encaminhamentos: '', nivelComprometimento: '', cidSuspeitos: '' },
     anamnesis: createInitialPPAnamnesisV3(),
     sessions: [],
     ipoHistory: [],
@@ -2701,21 +2703,147 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
                         {/* TAB 1: DIAGNÓSTICO */}
                         {activeTab === 'diagnostic' && (
-                            <div className="space-y-6 animate-fadeIn">
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><FileText className="text-pink-600" /> Queixa e Diagnóstico</h3>
-                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-pink-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-pink-700"><Save size={18} /> Salvar</button>
-                                </div>
-                                <div className="bg-slate-200 p-4 sm:p-8 rounded-2xl shadow-sm border-2 border-slate-400 space-y-6">
-                                    <StyledInput label="Queixa Principal" rows={2} value={ppData.diagnosis.queixaPrincipal} onChange={(e: any) => updateDiagnosis('queixaPrincipal', e.target.value)} />
-                                    <StyledInput label="Queixa Secundária" value={ppData.diagnosis.queixaSecundaria} onChange={(e: any) => updateDiagnosis('queixaSecundaria', e.target.value)} />
-                                    <StyledInput label="Contexto da Demanda" rows={3} value={ppData.diagnosis.contextoDemanda} onChange={(e: any) => updateDiagnosis('contextoDemanda', e.target.value)} />
-                                    <StyledInput label="Instrumentos Utilizados" value={ppData.diagnosis.instrumentosUtilizados} onChange={(e: any) => updateDiagnosis('instrumentosUtilizados', e.target.value)} />
-                                    <div className="p-6 bg-slate-300/50 rounded-2xl border-2 border-slate-400/50">
-                                        <StyledInput label="Hipótese Diagnóstica Psicopedagógica" rows={3} value={ppData.diagnosis.hipoteseDiagnostica} onChange={(e: any) => updateDiagnosis('hipoteseDiagnostica', e.target.value)} />
-                                        <StyledInput label="Parecer Inicial" rows={3} value={ppData.diagnosis.parecerInicial} onChange={(e: any) => updateDiagnosis('parecerInicial', e.target.value)} />
+                            <div className="space-y-4 animate-fadeIn">
+                                {/* Header */}
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
+                                    <div>
+                                        <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><FileText size={16} className="text-[#8B1A3A]" /> Queixa e Diagnóstico</h3>
+                                        <p className="text-xs text-slate-400 mt-0.5">{selectedStudent?.fullName}</p>
                                     </div>
-                                    <StyledInput label="Encaminhamentos Iniciais" value={ppData.diagnosis.encaminhamentos} onChange={(e: any) => updateDiagnosis('encaminhamentos', e.target.value)} />
+                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-[#8B1A3A] hover:bg-[#731530] text-white px-5 py-2 rounded-xl font-bold flex items-center justify-center gap-2 text-sm transition-all shadow-sm"><Save size={15} /> Salvar</button>
+                                </div>
+
+                                {/* Autosave status */}
+                                <div className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-xl bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459] font-bold">
+                                    <CheckCircle size={12} /> Alterações salvas automaticamente ao clicar em Salvar
+                                </div>
+
+                                {/* Bloco 1: Queixa */}
+                                <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+                                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                                        <MessageCircle size={13} className="text-[#8B1A3A]" /> Queixa apresentada pela família
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Queixa principal</label>
+                                        <textarea
+                                            rows={2}
+                                            placeholder="Descreva a queixa com as palavras da família..."
+                                            className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all resize-none border ${ppData.diagnosis.queixaPrincipal ? 'bg-[#EAF3DE] border-[#97C459] text-[#27500A]' : 'bg-white border-slate-200 text-slate-800'} focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                            value={ppData.diagnosis.queixaPrincipal}
+                                            onChange={(e) => updateDiagnosis('queixaPrincipal', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Queixa secundária</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ex: agitação, dificuldade de atenção..."
+                                            className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all border ${ppData.diagnosis.queixaSecundaria ? 'bg-[#EAF3DE] border-[#97C459] text-[#27500A]' : 'bg-white border-slate-200 text-slate-800'} focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                            value={ppData.diagnosis.queixaSecundaria}
+                                            onChange={(e) => updateDiagnosis('queixaSecundaria', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Contexto da demanda</label>
+                                        <textarea
+                                            rows={2}
+                                            placeholder="Ex: encaminhado pela escola, iniciativa da família..."
+                                            className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all resize-none border ${ppData.diagnosis.contextoDemanda ? 'bg-[#EAF3DE] border-[#97C459] text-[#27500A]' : 'bg-white border-slate-200 text-slate-800'} focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                            value={ppData.diagnosis.contextoDemanda}
+                                            onChange={(e) => updateDiagnosis('contextoDemanda', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Bloco 2: Instrumentos */}
+                                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                                        <Activity size={13} className="text-[#8B1A3A]" /> Instrumentos e procedimentos
+                                    </div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Instrumentos utilizados</label>
+                                    <textarea
+                                        rows={2}
+                                        placeholder="Ex: Anamnese, Escala Portage, provas pedagógicas, observação clínica..."
+                                        className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all resize-none border ${ppData.diagnosis.instrumentosUtilizados ? 'bg-[#EAF3DE] border-[#97C459] text-[#27500A]' : 'bg-white border-slate-200 text-slate-800'} focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                        value={ppData.diagnosis.instrumentosUtilizados}
+                                        onChange={(e) => updateDiagnosis('instrumentosUtilizados', e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Bloco 3: Hipótese — área crítica */}
+                                <div className="bg-[#fdf8f9] border border-[#e8c4ce] rounded-xl p-4 space-y-3">
+                                    <div className="flex items-center gap-2 text-[10px] font-black text-[#8B1A3A] uppercase tracking-widest mb-1">
+                                        <Brain size={13} /> Hipótese diagnóstica — área crítica
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Hipótese diagnóstica psicopedagógica</label>
+                                        <textarea
+                                            rows={3}
+                                            placeholder="Hipótese baseada nos dados coletados — não é diagnóstico médico..."
+                                            className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all resize-none border ${ppData.diagnosis.hipoteseDiagnostica ? 'bg-[#fdf8f9] border-[#e8c4ce] text-[#5a1128]' : 'bg-white border-slate-200 text-slate-800'} focus:border-[#8B1A3A] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                            value={ppData.diagnosis.hipoteseDiagnostica}
+                                            onChange={(e) => updateDiagnosis('hipoteseDiagnostica', e.target.value)}
+                                        />
+                                    </div>
+
+                                    {/* CID + Nível lado a lado */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">CID-10 / CID-11 suspeito</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ex: F81.0, F90.0..."
+                                                className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all border ${ppData.diagnosis.cidSuspeitos ? 'bg-[#EEEDFE] border-[#AFA9EC] text-[#3C3489]' : 'bg-white border-slate-200 text-slate-800'} focus:border-[#8B1A3A] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                                value={ppData.diagnosis.cidSuspeitos || ''}
+                                                onChange={(e) => updateDiagnosis('cidSuspeitos', e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Nível de comprometimento</label>
+                                            <div className="flex gap-2">
+                                                {(['Leve', 'Moderado', 'Severo'] as const).map(nivel => (
+                                                    <button
+                                                        key={nivel}
+                                                        type="button"
+                                                        onClick={() => updateDiagnosis('nivelComprometimento', ppData.diagnosis.nivelComprometimento === nivel ? '' : nivel)}
+                                                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${ppData.diagnosis.nivelComprometimento === nivel
+                                                            ? nivel === 'Leve' ? 'bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459]'
+                                                            : nivel === 'Moderado' ? 'bg-[#8B1A3A] text-white'
+                                                            : 'bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595]'
+                                                            : 'bg-white border border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                                                    >
+                                                        {nivel}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Parecer inicial</label>
+                                        <textarea
+                                            rows={3}
+                                            placeholder="Recomendações, encaminhamentos sugeridos, plano inicial..."
+                                            className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all resize-none border ${ppData.diagnosis.parecerInicial ? 'bg-[#fdf8f9] border-[#e8c4ce] text-[#5a1128]' : 'bg-white border-slate-200 text-slate-800'} focus:border-[#8B1A3A] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                            value={ppData.diagnosis.parecerInicial}
+                                            onChange={(e) => updateDiagnosis('parecerInicial', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Bloco 4: Encaminhamentos */}
+                                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                                        <Send size={13} className="text-[#8B1A3A]" /> Encaminhamentos
+                                    </div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Encaminhamentos iniciais</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Neurologista pediátrico, psicólogo escolar..."
+                                        className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all border ${ppData.diagnosis.encaminhamentos ? 'bg-[#EAF3DE] border-[#97C459] text-[#27500A]' : 'bg-white border-slate-200 text-slate-800'} focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                        value={ppData.diagnosis.encaminhamentos}
+                                        onChange={(e) => updateDiagnosis('encaminhamentos', e.target.value)}
+                                    />
                                 </div>
                             </div>
                         )}
