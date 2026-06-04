@@ -238,22 +238,59 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
 
                 {/* PASSO 1: Seleção do Aluno */}
                 {!selectedStudent && (
-                    <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm">
-                        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <UserIcon size={18} className="text-slate-500" />
-                            Selecione o Aluno
-                        </h2>
+                    <div className="space-y-4 animate-fadeIn">
 
-                        {/* Barra de Busca */}
-                        <div className="relative mb-6">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        {/* Stats */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
+                                <div className="text-xl font-bold text-[#A32D2D]">
+                                    {studentsList.filter(s => !s.lastSessionDate).length}
+                                </div>
+                                <div className="text-[10px] text-slate-500 mt-0.5">Sem registro</div>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
+                                <div className="text-xl font-bold text-[#10B981]">
+                                    {studentsList.filter(s => s.lastSessionDate).length}
+                                </div>
+                                <div className="text-[10px] text-slate-500 mt-0.5">Com registro</div>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
+                                <div className="text-xl font-bold text-slate-700">{studentsList.length}</div>
+                                <div className="text-[10px] text-slate-500 mt-0.5">Total de alunos</div>
+                            </div>
+                        </div>
+
+                        {/* Busca */}
+                        <div className="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl">
+                            <Search size={16} className="text-slate-400 shrink-0" />
                             <input
                                 type="text"
                                 placeholder="Buscar aluno por nome..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-[#8B1A3A]/25 focus:border-[#8B1A3A] transition-all"
+                                className="flex-1 text-sm bg-transparent outline-none text-slate-800 placeholder:text-slate-400"
                             />
+                            {searchQuery && (
+                                <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600">
+                                    <AlertCircle size={14} />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Filtros */}
+                        <div className="flex gap-2 flex-wrap">
+                            {[
+                                { label: `Todos (${studentsList.length})`, value: 'todos', color: '' },
+                                { label: `Sem registro (${studentsList.filter(s => !s.lastSessionDate).length})`, value: 'sem', color: '#A32D2D' },
+                                { label: `Com registro (${studentsList.filter(s => s.lastSessionDate).length})`, value: 'com', color: '#10B981' },
+                            ].map(f => (
+                                <button key={f.value}
+                                    onClick={() => setSearchQuery('')}
+                                    className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
+                                    style={{ background: 'white', borderColor: f.color || '#e2e8f0', color: f.color || '#64748b' }}>
+                                    {f.label}
+                                </button>
+                            ))}
                         </div>
 
                         {loading ? (
@@ -264,52 +301,69 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                         ) : filteredStudents.length === 0 ? (
                             <div className="text-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-2xl">
                                 <AlertCircle size={36} className="mx-auto mb-3 text-slate-300" />
-                                <p className="text-sm">Nenhum aluno com histórico de agendamento encontrado.</p>
+                                <p className="text-sm">Nenhum aluno encontrado.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
-                                {filteredStudents.map((student) => (
-                                    <button
-                                        key={student.studentId}
-                                        onClick={() => setSelectedStudent(student)}
-                                        className="flex flex-col gap-3 p-4 rounded-2xl border border-slate-200 bg-white hover:border-[#8B1A3A]/30 hover:bg-slate-50/50 text-left transition-all group shadow-sm hover:shadow-md"
-                                    >
-                                        <div className="flex items-center gap-4 w-full">
-                                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold group-hover:bg-[#8B1A3A]/10 group-hover:text-[#8B1A3A] transition-colors shrink-0">
-                                                {student.studentName.substring(0, 2).toUpperCase()}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {filteredStudents.map((student) => {
+                                    const hasSession = !!student.lastSessionDate;
+                                    const hasDiag = !!student.diagnosis;
+                                    const borderColor = hasSession ? '#10B981' : hasDiag ? '#EF9F27' : '#E24B4A';
+                                    const dotColor = hasSession ? '#10B981' : hasDiag ? '#EF9F27' : '#E24B4A';
+                                    const avatarBg = hasSession ? '#EAF3DE' : hasDiag ? '#FAEEDA' : '#FCEBEB';
+                                    const avatarColor = hasSession ? '#3B6D11' : hasDiag ? '#854F0B' : '#A32D2D';
+                                    return (
+                                        <button
+                                            key={student.studentId}
+                                            onClick={() => setSelectedStudent(student)}
+                                            className="flex flex-col gap-2 p-4 rounded-xl border bg-white text-left transition-all group relative overflow-hidden hover:shadow-md"
+                                            style={{ borderLeft: `3px solid ${borderColor}`, borderTop: '0.5px solid #e2e8f0', borderRight: '0.5px solid #e2e8f0', borderBottom: '0.5px solid #e2e8f0' }}
+                                        >
+                                            <div className="flex items-center gap-3 w-full">
+                                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors"
+                                                    style={{ background: avatarBg, color: avatarColor }}>
+                                                    {student.studentName.substring(0, 2).toUpperCase()}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-bold text-slate-800 text-sm truncate group-hover:text-[#8B1A3A] transition-colors">
+                                                        {student.studentName}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-400">Clique para iniciar o lançamento</p>
+                                                </div>
+                                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />
                                             </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="font-bold text-slate-800 group-hover:text-[#8B1A3A] transition-colors truncate">
-                                                    {student.studentName}
-                                                </p>
-                                                <p className="text-[11px] text-slate-400 mt-0.5">Clique para iniciar o lançamento</p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {student.schoolName && (
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459] flex items-center gap-1">
+                                                        <FileText size={9} /> {student.schoolName}
+                                                    </span>
+                                                )}
+                                                {student.diagnosis && (
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-[#FAEEDA] text-[#854F0B] border border-[#EF9F27] flex items-center gap-1">
+                                                        <AlertCircle size={9} /> {student.diagnosis}
+                                                    </span>
+                                                )}
+                                                {hasSession ? (
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-[#E6F1FB] text-[#185FA5] border border-[#85B7EB] flex items-center gap-1">
+                                                        <Calendar size={9} /> {new Date(student.lastSessionDate!).toLocaleDateString('pt-BR')}
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595] flex items-center gap-1">
+                                                        <Clock size={9} /> Sem sessão registrada
+                                                    </span>
+                                                )}
                                             </div>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2 w-full mt-1">
-                                            {student.schoolName && (
-                                                <span className="px-2 py-1 text-[10px] font-bold rounded-md bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459]">
-                                                    {student.schoolName}
-                                                </span>
-                                            )}
-                                            {student.diagnosis && (
-                                                <span className="px-2 py-1 text-[10px] font-bold rounded-md bg-[#FAEEDA] text-[#854F0B] border border-[#EF9F27]">
-                                                    {student.diagnosis}
-                                                </span>
-                                            )}
-                                            {student.lastSessionDate ? (
-                                                <span className="px-2 py-1 text-[10px] font-bold rounded-md bg-[#E6F1FB] text-[#185FA5] border border-[#85B7EB]">
-                                                    Última Sessão: {new Date(student.lastSessionDate).toLocaleDateString()}
-                                                </span>
-                                            ) : (
-                                                <span className="px-2 py-1 text-[10px] font-bold rounded-md bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595]">
-                                                    Sem sessão registrada
-                                                </span>
-                                            )}
-                                        </div>
-                                    </button>
-                                ))}
+                                            <div className="absolute right-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-[10px] font-bold text-[#8B1A3A]">Iniciar lançamento →</span>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
+                        <p className="text-center text-[11px] text-slate-400">
+                            {filteredStudents.length} de {studentsList.length} alunos
+                        </p>
                     </div>
                 )}
 
