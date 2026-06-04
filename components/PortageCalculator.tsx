@@ -3,8 +3,9 @@ import {
     Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts';
-import { Save, Calculator, AlertTriangle, Info } from 'lucide-react';
+import { Save, Calculator, AlertTriangle, Info, CheckCircle, XCircle, MinusCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { calculatePortage, PORTAGE_CONSTANTS, AGE_RANGES } from '../utils/PortageLogic';
+import { PORTAGE_ITEMS, getItemsByDomainAndRange, calculateScoreFromResponses, ItemResponse } from '../utils/PortageItems';
 import { Student, PortageAssessment } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { SupabaseService } from '../services/SupabaseService';
@@ -37,6 +38,10 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
     const { addToast } = useToast();
 
     const [inputMode, setInputMode] = useState<InputMode>('DIRECT');
+    const [checklistResponses, setChecklistResponses] = useState<Record<string, ItemResponse>>({});
+    const [checklistDomain, setChecklistDomain] = useState<typeof DOMAINS[number]['key']>('socializacao');
+    const [checklistRange, setChecklistRange] = useState<number>(0);
+    const [expandedRanges, setExpandedRanges] = useState<Record<string, boolean>>({});
     const [scores, setScores] = useState<Record<string, number[]>>({
         socializacao: [0, 0, 0, 0, 0, 0],
         linguagem:    [0, 0, 0, 0, 0, 0],
@@ -58,7 +63,20 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
         }
     }, [student]);
 
-    const result = React.useMemo(() => calculatePortage(scores as any), [scores]);
+    useEffect(() => {
+        if (inputMode !== 'CHECKLIST') return;
+        const newScores = { ...scores };
+        DOMAINS.forEach(d => {
+            AGE_RANGES.forEach((_, rIndex) => {
+                newScores[d.key][rIndex] = calculateScoreFromResponses(checklistResponses, d.key as any, rIndex);
+            });
+        });
+        setScores({ ...newScores });
+    }, [checklistResponses, inputMode]);
+
+    const handleChecklistResponse = (itemId: string, resp: ItemResponse) => {
+        setChecklistResponses(prev => ({ ...prev, [itemId]: prev[itemId] === resp ? null : resp }));
+    };
 
     const handleScoreChange = (domainKey: string, rangeIndex: number, val: string) => {
         const num = parseFloat(val) || 0;
@@ -128,9 +146,7 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
                 <div className="flex items-center gap-2">
                     <div className="flex border border-slate-200 rounded-xl overflow-hidden">
                         <button onClick={() => setInputMode('DIRECT')} className={`px-4 py-2 text-xs font-bold transition-all ${inputMode === 'DIRECT' ? 'bg-[#10B981] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>Pontuação direta</button>
-                        <button disabled className="px-4 py-2 text-xs font-bold bg-white text-slate-300 cursor-not-allowed border-l border-slate-200">
-                            Checklist <span className="ml-1 text-[9px] bg-[#FAEEDA] text-[#854F0B] px-1.5 py-0.5 rounded">Em breve</span>
-                        </button>
+                        <button onClick={() => setInputMode('CHECKLIST')} className={`px-4 py-2 text-xs font-bold transition-all border-l border-slate-200 ${inputMode === 'CHECKLIST' ? 'bg-[#10B981] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>Checklist</button>
                     </div>
                     <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-5 py-2 bg-[#10B981] hover:bg-emerald-600 text-white font-bold rounded-xl text-sm transition-all shadow-sm disabled:opacity-50">
                         <Save size={14} /> {isSaving ? 'Salvando...' : 'Salvar avaliação'}
@@ -139,9 +155,87 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
             </div>
 
             <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl bg-[#E6F1FB] text-[#185FA5] border border-[#85B7EB] font-bold">
-                <Info size={13} /> Faixa etária atual destacada. Preencha as faixas abaixo da idade cronológica.
+                <Info size={13} /> {inputMode === 'CHECKLIST' ? 'Marque cada item. "Com ajuda" vale 0,5 ponto. O score é calculado automaticamente.' : 'Faixa etária atual destacada. Preencha as faixas abaixo da idade cronológica.'}
             </div>
 
+            {inputMode === 'CHECKLIST' && (
+                <div className="space-y-3">
+                    <div className="flex gap-2 flex-wrap">
+                        {DOMAINS.map(d => {
+                            const style = DOMAIN_STYLES[d.key];
+                            const isActive = checklistDomain === d.key;
+                            const total = PORTAGE_ITEMS.filter(i => i.domain === d.key).length;
+                            const answered = PORTAGE_ITEMS.filter(i => i.domain === d.key && checklistResponses[i.id] != null).length;
+                            return (
+                                <button key={d.key} onClick={() => setChecklistDomain(d.key as any)}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-all"
+                                    style={isActive ? { background: style.bg, borderColor: style.border, color: style.text } : { background: 'var(--color-background-secondary)', borderColor: 'var(--color-border-tertiary)', color: 'var(--color-text-secondary)' }}>
+                                    {d.label}
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: isActive ? style.border : '#e2e8f0', color: isActive ? '#fff' : '#64748b' }}>{answered}/{total}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {AGE_RANGES.map((rangeLabel, rIndex) => {
+                        const items = getItemsByDomainAndRange(checklistDomain as any, rIndex);
+                        if (items.length === 0) return null;
+                        const answered = items.filter(i => checklistResponses[i.id] != null).length;
+                        const score = calculateScoreFromResponses(checklistResponses, checklistDomain as any, rIndex);
+                        const key = `${checklistDomain}_${rIndex}`;
+                        const isExpanded = expandedRanges[key] !== false;
+                        const isCurrent = rIndex === currentRangeIndex;
+                        const style = DOMAIN_STYLES[checklistDomain];
+                        return (
+                            <div key={rIndex} className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: isCurrent ? style.border : 'var(--color-border-tertiary)' }}>
+                                <button onClick={() => setExpandedRanges(prev => ({ ...prev, [key]: !isExpanded }))}
+                                    className="w-full flex items-center justify-between px-4 py-3 text-left"
+                                    style={{ background: isCurrent ? `${style.bg}80` : 'var(--color-background-secondary)' }}>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs font-bold" style={{ color: isCurrent ? style.text : 'var(--color-text-primary)' }}>
+                                            {isCurrent && '↳ '}{rangeLabel}{isCurrent && <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded" style={{ background: '#8B1A3A', color: '#fff' }}>atual</span>}
+                                        </span>
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: style.bg, color: style.text, border: `0.5px solid ${style.border}` }}>{answered}/{items.length} · {score} pts</span>
+                                    </div>
+                                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                </button>
+                                {isExpanded && (
+                                    <div className="p-3 space-y-1.5">
+                                        <div className="flex items-center gap-4 text-[10px] text-slate-400 px-2 mb-2">
+                                            <span className="flex items-center gap-1"><CheckCircle size={11} className="text-[#3B6D11]" /> Sim = 1</span>
+                                            <span className="flex items-center gap-1"><MinusCircle size={11} className="text-[#854F0B]" /> Com ajuda = 0,5</span>
+                                            <span className="flex items-center gap-1"><XCircle size={11} className="text-[#A32D2D]" /> Não = 0</span>
+                                        </div>
+                                        {items.map(item => {
+                                            const resp = checklistResponses[item.id];
+                                            return (
+                                                <div key={item.id} className="flex items-center gap-3 px-2 py-2 rounded-lg transition-colors"
+                                                    style={{ background: resp != null ? `${style.bg}50` : 'transparent' }}>
+                                                    <span className="flex-1 text-xs" style={{ color: 'var(--color-text-primary)' }}>{item.text}</span>
+                                                    <div className="flex gap-1 shrink-0">
+                                                        {(['sim', 'ajuda', 'nao'] as ItemResponse[]).map(r => (
+                                                            <button key={r} onClick={() => handleChecklistResponse(item.id, r)}
+                                                                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all"
+                                                                style={resp === r
+                                                                    ? r === 'sim' ? { background: '#EAF3DE', color: '#3B6D11', borderColor: '#97C459' }
+                                                                    : r === 'ajuda' ? { background: '#FAEEDA', color: '#854F0B', borderColor: '#EF9F27' }
+                                                                    : { background: '#FCEBEB', color: '#A32D2D', borderColor: '#F09595' }
+                                                                    : { background: 'white', color: '#94a3b8', borderColor: '#e2e8f0' }}>
+                                                                {r === 'sim' ? 'Sim' : r === 'ajuda' ? 'C/ajuda' : 'Não'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {inputMode === 'DIRECT' && (
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-[500px] w-full text-sm">
@@ -200,6 +294,7 @@ export const PortageCalculator: React.FC<PortageCalculatorProps> = ({ student, o
                     </table>
                 </div>
             </div>
+            )}
 
             {result && (
                 <>
