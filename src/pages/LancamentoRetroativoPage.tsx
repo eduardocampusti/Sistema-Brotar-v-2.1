@@ -36,6 +36,7 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
     const [saving, setSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterStatus, setFilterStatus] = useState<'todos' | 'sem' | 'com'>('todos');
     const [studentsList, setStudentsList] = useState<StudentSummary[]>([]);
     
     // Estados do Formulário e Seleção
@@ -125,11 +126,15 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
     // Filtra alunos pela busca de texto
     const filteredStudents = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        if (!query) return studentsList;
-        return studentsList.filter((student) => 
-            student.studentName.toLowerCase().includes(query)
-        );
-    }, [studentsList, searchQuery]);
+        return studentsList.filter((student) => {
+            const matchSearch = !query || student.studentName.toLowerCase().includes(query);
+            const matchFilter =
+                filterStatus === 'todos' ? true :
+                filterStatus === 'sem' ? !student.lastSessionDate :
+                filterStatus === 'com' ? !!student.lastSessionDate : true;
+            return matchSearch && matchFilter;
+        });
+    }, [studentsList, searchQuery, filterStatus]);
 
     // Retorna para a seleção de alunos
     const handleBackToGrid = () => {
@@ -277,17 +282,19 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                             )}
                         </div>
 
-                        {/* Filtros */}
+                        {/* Filtros ativos */}
                         <div className="flex gap-2 flex-wrap">
-                            {[
-                                { label: `Todos (${studentsList.length})`, value: 'todos', color: '' },
-                                { label: `Sem registro (${studentsList.filter(s => !s.lastSessionDate).length})`, value: 'sem', color: '#A32D2D' },
-                                { label: `Com registro (${studentsList.filter(s => s.lastSessionDate).length})`, value: 'com', color: '#10B981' },
-                            ].map(f => (
+                            {([
+                                { label: `Todos (${studentsList.length})`, value: 'todos', bg: '#8B1A3A', border: '#8B1A3A', color: '#fff', inactiveBorder: '#e2e8f0', inactiveColor: '#64748b' },
+                                { label: `Sem registro (${studentsList.filter(s => !s.lastSessionDate).length})`, value: 'sem', bg: '#FCEBEB', border: '#F09595', color: '#A32D2D', inactiveBorder: '#F09595', inactiveColor: '#A32D2D' },
+                                { label: `Com registro (${studentsList.filter(s => s.lastSessionDate).length})`, value: 'com', bg: '#EAF3DE', border: '#97C459', color: '#3B6D11', inactiveBorder: '#97C459', inactiveColor: '#3B6D11' },
+                            ] as const).map(f => (
                                 <button key={f.value}
-                                    onClick={() => setSearchQuery('')}
+                                    onClick={() => setFilterStatus(f.value)}
                                     className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
-                                    style={{ background: 'white', borderColor: f.color || '#e2e8f0', color: f.color || '#64748b' }}>
+                                    style={filterStatus === f.value
+                                        ? { background: f.bg, borderColor: f.border, color: f.color }
+                                        : { background: 'white', borderColor: f.inactiveBorder, color: f.inactiveColor }}>
                                     {f.label}
                                 </button>
                             ))}
@@ -312,20 +319,32 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                                     const dotColor = hasSession ? '#10B981' : hasDiag ? '#EF9F27' : '#E24B4A';
                                     const avatarBg = hasSession ? '#EAF3DE' : hasDiag ? '#FAEEDA' : '#FCEBEB';
                                     const avatarColor = hasSession ? '#3B6D11' : hasDiag ? '#854F0B' : '#A32D2D';
+                                    const cardBg = hasSession ? '#F0FBF5' : 'white';
+                                    const statusTag = hasSession
+                                        ? { label: '✓ Lançado', bg: '#EAF3DE', color: '#3B6D11' }
+                                        : hasDiag
+                                        ? { label: 'Atenção', bg: '#FAEEDA', color: '#854F0B' }
+                                        : { label: 'Pendente', bg: '#FCEBEB', color: '#A32D2D' };
                                     return (
                                         <button
                                             key={student.studentId}
                                             onClick={() => setSelectedStudent(student)}
-                                            className="flex flex-col gap-2 p-4 rounded-xl border bg-white text-left transition-all group relative overflow-hidden hover:shadow-md"
-                                            style={{ borderLeft: `3px solid ${borderColor}`, borderTop: '0.5px solid #e2e8f0', borderRight: '0.5px solid #e2e8f0', borderBottom: '0.5px solid #e2e8f0' }}
+                                            className="flex flex-col gap-2 p-4 rounded-xl border text-left transition-all group relative overflow-hidden hover:shadow-md"
+                                            style={{ background: cardBg, borderLeft: `3px solid ${borderColor}`, borderTop: `0.5px solid ${hasSession ? '#97C459' : '#e2e8f0'}`, borderRight: `0.5px solid ${hasSession ? '#97C459' : '#e2e8f0'}`, borderBottom: `0.5px solid ${hasSession ? '#97C459' : '#e2e8f0'}` }}
                                         >
-                                            <div className="flex items-center gap-3 w-full">
-                                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors"
+                                            {/* Badge status */}
+                                            <span className="absolute top-2.5 right-3 text-[9px] font-bold px-2 py-0.5 rounded-full"
+                                                style={{ background: statusTag.bg, color: statusTag.color }}>
+                                                {statusTag.label}
+                                            </span>
+                                            <div className="flex items-center gap-3 w-full pr-16">
+                                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                                                     style={{ background: avatarBg, color: avatarColor }}>
                                                     {student.studentName.substring(0, 2).toUpperCase()}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="font-bold text-slate-800 text-sm truncate group-hover:text-[#8B1A3A] transition-colors">
+                                                    <p className="font-bold text-sm truncate transition-colors"
+                                                        style={{ color: hasSession ? '#0A5C38' : 'var(--color-text-primary)' }}>
                                                         {student.studentName}
                                                     </p>
                                                     <p className="text-[10px] text-slate-400">Clique para iniciar o lançamento</p>
@@ -344,8 +363,8 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                                                     </span>
                                                 )}
                                                 {hasSession ? (
-                                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-[#E6F1FB] text-[#185FA5] border border-[#85B7EB] flex items-center gap-1">
-                                                        <Calendar size={9} /> {new Date(student.lastSessionDate!).toLocaleDateString('pt-BR')}
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-[#EAF3DE] text-[#3B6D11] border border-[#97C459] flex items-center gap-1">
+                                                        <Calendar size={9} /> Lançado {new Date(student.lastSessionDate!).toLocaleDateString('pt-BR')}
                                                     </span>
                                                 ) : (
                                                     <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-[#FCEBEB] text-[#A32D2D] border border-[#F09595] flex items-center gap-1">
