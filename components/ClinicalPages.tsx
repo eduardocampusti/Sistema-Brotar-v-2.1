@@ -2924,59 +2924,177 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
                         {/* TAB 3: SESSÕES */}
                         {activeTab === 'sessions' && (
-                            <div className="space-y-6 animate-fadeIn">
+                            <div className="space-y-4 animate-fadeIn">
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><History className="text-pink-600" /> Registro de Atendimentos</h3>
+                                    <div>
+                                        <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><History size={16} className="text-[#8B1A3A]" /> Registro de Atendimentos</h3>
+                                        <p className="text-xs text-slate-400 mt-0.5">{selectedStudent?.fullName} · {ppData.sessions.length} sessões registradas</p>
+                                    </div>
                                     {!isEditingSession && (
-                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="w-full sm:w-auto bg-pink-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-pink-700"><Plus size={18} /> Nova Sessão</button>
+                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="w-full sm:w-auto bg-[#8B1A3A] hover:bg-[#731530] text-white px-5 py-2 rounded-xl font-bold flex items-center justify-center gap-2 text-sm transition-all shadow-sm"><Plus size={15} /> Nova Sessão</button>
                                     )}
                                 </div>
 
                                 {isEditingSession ? (
-                                    <div className="bg-slate-200 p-4 sm:p-8 rounded-2xl shadow-lg border-2 border-slate-400 animate-slideUp">
-                                        <h4 className="font-black text-slate-800 mb-6 border-b-2 border-slate-300 pb-2 uppercase tracking-wide">Detalhes da Sessão</h4>
+                                    <div className="space-y-3 animate-slideUp">
 
+                                        {/* Header da sessão */}
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="text-sm font-bold text-slate-800">{currentSession.id ? 'Editar sessão' : `Nova sessão — #${ppData.sessions.length + 1}`}</div>
+                                                <div className="text-xs text-slate-400 mt-0.5">{selectedStudent?.fullName}</div>
+                                            </div>
+                                            {ppData.sessions.length > 0 && (
+                                                <span className="text-[10px] bg-[#EEEDFE] text-[#3C3489] border border-[#AFA9EC] px-2.5 py-1 rounded-full font-bold">{ppData.sessions.length} sessões anteriores</span>
+                                            )}
+                                        </div>
+
+                                        {/* Resumo da última sessão */}
                                         {!currentSession.id && ppData.sessions.length > 0 && (
-                                            <div className="mb-6 p-4 bg-pink-100 border border-pink-200 rounded-xl text-sm">
-                                                <p className="font-bold text-pink-800 mb-1 flex items-center gap-2">
-                                                    <History size={14} /> Notas do Último Atendimento ({new Date(ppData.sessions[0].date).toLocaleDateString()}):
-                                                </p>
-                                                <p className="text-pink-700 italic">"{ppData.sessions[0].observacoes || 'Sem observações registradas'}"</p>
+                                            <div className="bg-[#E6F1FB] border border-[#85B7EB] rounded-xl p-3">
+                                                <div className="flex items-center gap-2 text-xs font-bold text-[#185FA5] mb-2">
+                                                    <History size={13} /> Última sessão — {new Date(ppData.sessions[0].date).toLocaleDateString('pt-BR')}
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {ppData.sessions[0].objetivo && (
+                                                        <div className="text-xs text-[#0C447C]">
+                                                            <span className="font-bold">Objetivo:</span> {ppData.sessions[0].objetivo}
+                                                        </div>
+                                                    )}
+                                                    {ppData.sessions[0].evolucao && (
+                                                        <div className="text-xs text-[#0C447C]">
+                                                            <span className="font-bold">Evolução:</span> {ppData.sessions[0].evolucao}
+                                                        </div>
+                                                    )}
+                                                    {ppData.sessions[0].estrategias && (
+                                                        <div className="text-xs text-[#0C447C]">
+                                                            <span className="font-bold">Estratégias:</span> {ppData.sessions[0].estrategias}
+                                                        </div>
+                                                    )}
+                                                    {!ppData.sessions[0].objetivo && !ppData.sessions[0].evolucao && (
+                                                        <div className="text-xs text-[#185FA5] italic">{ppData.sessions[0].observacoes || 'Sem detalhes registrados'}</div>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                                            <StyledInput label="Data" type="date" value={currentSession.date} onChange={(e: any) => setCurrentSession({ ...currentSession, date: e.target.value })} />
-                                            <div>
-                                                <label className="block text-xs font-black text-slate-800 uppercase mb-2.5 ml-1">Humor do Aluno</label>
-                                                <select className="w-full rounded-xl border-2 border-slate-400 bg-slate-300 p-4 text-sm font-black text-slate-900 outline-none focus:bg-slate-100 focus:border-slate-600" value={currentSession.humor} onChange={(e) => setCurrentSession({ ...currentSession, humor: e.target.value as any })}>
-                                                    <option>Neutro</option><option>Feliz</option><option>Triste</option><option>Agitado</option><option>Cansado</option>
-                                                </select>
+
+                                        {/* Bloco 1: Detalhes */}
+                                        <div className="bg-white border border-slate-200 rounded-xl p-4">
+                                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                                                <Calendar size={13} className="text-[#8B1A3A]" /> Detalhes da sessão
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Data</label>
+                                                    <input type="date" className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all border ${currentSession.date ? 'bg-[#EAF3DE] border-[#97C459] text-[#27500A]' : 'bg-white border-slate-200'} focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                                        value={currentSession.date || ''} onChange={(e) => setCurrentSession({ ...currentSession, date: e.target.value })} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Hora início</label>
+                                                    <input type="time" className="w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all border bg-white border-slate-200 focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20"
+                                                        value={currentSession.startTime || ''} onChange={(e) => setCurrentSession({ ...currentSession, startTime: e.target.value })} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Hora fim</label>
+                                                    <input type="time" className="w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all border bg-white border-slate-200 focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20"
+                                                        value={currentSession.endTime || ''} onChange={(e) => setCurrentSession({ ...currentSession, endTime: e.target.value })} />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">Status da sessão</label>
+                                                    <div className="flex gap-2">
+                                                        {(['Realizado','Falta','Justificada'] as const).map(s => (
+                                                            <button key={s} type="button" onClick={() => setCurrentSession({...currentSession, status: s})}
+                                                                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all border"
+                                                                style={currentSession.status === s
+                                                                    ? s==='Realizado' ? {background:'#EAF3DE',color:'#3B6D11',borderColor:'#97C459'}
+                                                                    : s==='Falta' ? {background:'#FCEBEB',color:'#A32D2D',borderColor:'#F09595'}
+                                                                    : {background:'#FAEEDA',color:'#854F0B',borderColor:'#EF9F27'}
+                                                                    : {background:'white',borderColor:'#e2e8f0',color:'#94a3b8'}}>
+                                                                {s}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">Humor do aluno</label>
+                                                    <div className="flex gap-2 flex-wrap">
+                                                        {(['Feliz','Neutro','Agitado','Triste','Cansado'] as const).map(h => (
+                                                            <button key={h} type="button" onClick={() => setCurrentSession({...currentSession, humor: h})}
+                                                                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all border min-w-[60px]"
+                                                                style={currentSession.humor === h
+                                                                    ? h==='Feliz' ? {background:'#EAF3DE',color:'#3B6D11',borderColor:'#97C459'}
+                                                                    : h==='Agitado' ? {background:'#FAEEDA',color:'#854F0B',borderColor:'#EF9F27'}
+                                                                    : h==='Triste' ? {background:'#E6F1FB',color:'#185FA5',borderColor:'#85B7EB'}
+                                                                    : h==='Cansado' ? {background:'#FCEBEB',color:'#A32D2D',borderColor:'#F09595'}
+                                                                    : {background:'#f1f5f9',color:'#64748b',borderColor:'#e2e8f0'}
+                                                                    : {background:'white',borderColor:'#e2e8f0',color:'#94a3b8'}}>
+                                                                {h}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Bloco 2: Conteúdo clínico */}
+                                        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+                                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                <FileText size={13} className="text-[#8B1A3A]" /> Conteúdo clínico
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-black text-slate-800 uppercase mb-2.5 ml-1">Status</label>
-                                                <select className="w-full rounded-xl border-2 border-slate-400 bg-slate-300 p-4 text-sm font-black text-slate-900 outline-none focus:bg-slate-100 focus:border-slate-600" value={currentSession.status} onChange={(e) => setCurrentSession({ ...currentSession, status: e.target.value as any })}>
-                                                    <option>Realizado</option><option>Falta</option><option>Justificada</option>
-                                                </select>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Objetivo da sessão</label>
+                                                <input type="text" placeholder="O que você planejou trabalhar nesta sessão?"
+                                                    className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all border ${currentSession.objetivo ? 'bg-[#EAF3DE] border-[#97C459] text-[#27500A]' : 'bg-white border-slate-200'} focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                                    value={currentSession.objetivo || ''} onChange={(e) => setCurrentSession({...currentSession, objetivo: e.target.value})} />
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Estratégias / instrumentos</label>
+                                                    <textarea rows={3} placeholder="Materiais e estratégias utilizados..."
+                                                        className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all resize-none border ${currentSession.estrategias ? 'bg-[#EAF3DE] border-[#97C459] text-[#27500A]' : 'bg-white border-slate-200'} focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                                        value={currentSession.estrategias || ''} onChange={(e) => setCurrentSession({...currentSession, estrategias: e.target.value})} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Observações clínicas</label>
+                                                    <textarea rows={3} placeholder="Notas privadas da profissional..."
+                                                        className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all resize-none border ${currentSession.observacoes ? 'bg-[#EAF3DE] border-[#97C459] text-[#27500A]' : 'bg-white border-slate-200'} focus:border-[#8B1A3A] focus:bg-[#fdf8f9] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                                        value={currentSession.observacoes || ''} onChange={(e) => setCurrentSession({...currentSession, observacoes: e.target.value})} />
+                                                </div>
                                             </div>
                                         </div>
-                                        <StyledInput label="Objetivo da Sessão" value={currentSession.objetivo} onChange={(e: any) => setCurrentSession({ ...currentSession, objetivo: e.target.value })} />
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
-                                            <StyledInput label="Estratégias / Instrumentos" rows={3} value={currentSession.estrategias} onChange={(e: any) => setCurrentSession({ ...currentSession, estrategias: e.target.value })} />
-                                            <StyledInput label="Observações Clínicas" rows={3} value={currentSession.observacoes} onChange={(e: any) => setCurrentSession({ ...currentSession, observacoes: e.target.value })} />
+
+                                        {/* Bloco 3: Evolução — área crítica */}
+                                        <div className="bg-[#fdf8f9] border border-[#e8c4ce] rounded-xl p-4">
+                                            <div className="flex items-center gap-2 text-[10px] font-black text-[#8B1A3A] uppercase tracking-widest mb-3">
+                                                <TrendingUp size={13} /> Evolução percebida — área crítica
+                                            </div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Descrição da evolução</label>
+                                            <textarea ref={evolutionInputRef} rows={4}
+                                                placeholder="Descreva o que evoluiu, o que ainda precisa de atenção e o encaminhamento para a próxima sessão..."
+                                                className={`w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all resize-none border-2 ${currentSession.evolucao ? 'bg-[#fdf8f9] border-[#e8c4ce] text-[#5a1128]' : 'bg-white border-[#e8c4ce]'} focus:border-[#8B1A3A] focus:ring-1 focus:ring-[#8B1A3A]/20`}
+                                                value={currentSession.evolucao || ''} onChange={(e) => setCurrentSession({...currentSession, evolucao: e.target.value})} />
+                                            <p className="text-[10px] text-slate-400 italic mt-1.5">Campo mais importante — descreva com detalhes para orientar a próxima sessão</p>
                                         </div>
-                                        <div className="mt-6">
-                                            <label className="block text-xs font-black text-slate-800 uppercase mb-2.5 ml-1">Evolução Percebida</label>
-                                            <textarea ref={evolutionInputRef} rows={2} className="w-full rounded-xl border-2 border-slate-400 bg-slate-300 p-4 text-sm font-black text-slate-900 outline-none focus:bg-slate-100 focus:border-slate-600" value={currentSession.evolucao || ''} onChange={(e) => setCurrentSession({ ...currentSession, evolucao: e.target.value })} />
-                                        </div>
-                                        <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8">
-                                            <button onClick={() => setIsEditingSession(false)} className="w-full sm:w-auto px-6 py-3 text-slate-700 hover:bg-slate-300 rounded-xl font-bold transition-all">Cancelar</button>
-                                            <button onClick={handleSaveSession} className="w-full sm:w-auto px-8 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-900 font-bold shadow-lg shadow-slate-400/20">Salvar Sessão</button>
+
+                                        {/* Footer */}
+                                        <div className="flex justify-between items-center pt-2">
+                                            <button onClick={() => setIsEditingSession(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-bold text-sm transition-all border border-slate-200">Cancelar</button>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => { handleSaveSession(); }} className="px-6 py-2.5 bg-[#10B981] hover:bg-emerald-600 text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-2">
+                                                    <Calendar size={14} /> Salvar e agendar
+                                                </button>
+                                                <button onClick={handleSaveSession} className="px-6 py-2.5 bg-[#8B1A3A] hover:bg-[#731530] text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-2">
+                                                    <Save size={14} /> Salvar sessão
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <div className="bg-pink-50 p-4 rounded-xl border border-pink-100 mb-6 text-sm">
-                                            <span className="font-bold text-pink-800">Resumo do Caso:</span> {ppData.diagnosis.hipoteseDiagnostica || 'Sem hipótese definida.'}
+                                        <div className="bg-[#E6F1FB] p-4 rounded-xl border border-[#85B7EB] text-sm">
+                                            <span className="font-bold text-[#185FA5]">Hipótese diagnóstica:</span> <span className="text-[#0C447C]">{ppData.diagnosis.hipoteseDiagnostica || 'Sem hipótese definida.'}</span>
                                         </div>
                                         {ppData.sessions.length === 0 ? (
                                             <p className="text-center text-slate-400 py-10">Nenhum atendimento registrado.</p>
