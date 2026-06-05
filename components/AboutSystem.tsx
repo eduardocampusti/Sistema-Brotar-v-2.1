@@ -1,5 +1,6 @@
 import React from 'react';
 import { APP_VERSION } from '../src/config/version';
+import { TaskWidgetDisclosure } from '../src/components/ui/TaskWidgetDisclosure';
 import {
     Code, Server, Database, Shield, Smartphone, Mail, Globe,
     CheckCircle, Info, QrCode, Building, User, Cpu, Layers, HeartPulse, ExternalLink,
@@ -32,12 +33,110 @@ const Separator: React.FC<{ className?: string }> = ({ className }) => (
     <div className={`h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent w-full ${className}`} />
 );
 
+const detailedReleases = [
+  {
+    version: "v2.4.24",
+    title: "Release v2.4.24",
+    date: "5 Jun 2026",
+    category: "Melhoria",
+    current: true,
+    defaultOpen: true,
+    summary: "Atualização de manutenção e estabilidade operacional.",
+    tasks: [
+      {
+        id: "maintenance",
+        label: "Atualização de manutenção",
+        description: "Aplicados ajustes preventivos para manter estabilidade da plataforma.",
+        status: "completed" as const
+      },
+      {
+        id: "supabase-stability",
+        label: "Revisão de estabilidade do Supabase",
+        description: "Validação de conexões, consultas críticas e comportamento em tempo real.",
+        status: "completed" as const
+      },
+      {
+        id: "modules-validation",
+        label: "Validação dos módulos ativos",
+        description: "Checagem dos módulos de Gestão Escolar, Prontuário Digital Clínico, Busca Ativa Inteligente, Agenda Multi-Sincronizada e Dashboards Analíticos.",
+        status: "completed" as const
+      }
+    ]
+  },
+  {
+    version: "v2.4.23",
+    title: "Release v2.4.23",
+    date: "5 Jun 2026",
+    category: "Melhoria",
+    current: false,
+    defaultOpen: false,
+    summary: "Atualização de manutenção.",
+    tasks: [
+      {
+        id: "maintenance",
+        label: "Atualização de manutenção",
+        description: "Ajustes preventivos e melhorias internas.",
+        status: "completed" as const
+      }
+    ]
+  },
+  {
+    version: "v2.4.22",
+    title: "Release v2.4.22",
+    date: "5 Jun 2026",
+    category: "Melhoria",
+    current: false,
+    defaultOpen: false,
+    summary: "Atualização de manutenção.",
+    tasks: [
+      {
+        id: "maintenance",
+        label: "Atualização de manutenção",
+        description: "Ajustes de manutenção e estabilidade.",
+        status: "completed" as const
+      }
+    ]
+  }
+];
+
+const detailedMap = new Map(detailedReleases.map(r => [r.version, r]));
+
 // --- Main Page Component ---
 
 export const AboutSystem: React.FC = () => {
     const currentYear = new Date().getFullYear();
     const [isHistoryExpanded, setIsHistoryExpanded] = React.useState(false);
     const hiddenVersionsCount = Math.max(APP_VERSION.releases.length - 3, 0);
+
+    const mappedReleases = React.useMemo(() => {
+        return APP_VERSION.releases.map((log) => {
+            const detail = detailedMap.get(log.version);
+            if (detail) {
+                return detail;
+            }
+            
+            const mappedCategory = 
+                log.type === 'feature' ? 'Funcionalidade' :
+                log.type === 'fix' ? 'Correção' :
+                log.type === 'improvement' ? 'Melhoria' :
+                log.type === 'security' ? 'Segurança' : log.type;
+
+            return {
+                version: log.version,
+                title: log.title,
+                date: log.date,
+                category: mappedCategory,
+                current: false,
+                defaultOpen: false,
+                summary: '',
+                tasks: log.changes?.map((change, idx) => ({
+                    id: `${log.version}-task-${idx}`,
+                    label: change,
+                    status: 'completed' as const
+                })) || []
+            };
+        });
+    }, []);
 
     return (
         <div className="max-w-5xl mx-auto space-y-12 animate-fadeIn pb-20 px-4">
@@ -300,70 +399,63 @@ export const AboutSystem: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                    {APP_VERSION.releases.map((log, index) => {
+                    {mappedReleases.map((release, index) => {
                         const isCurrent = index === 0;
                         const isHiddenHistory = index > 2 && !isHistoryExpanded;
+                        const useDisclosure = index < 3;
 
                         return (
-                        <div key={log.version} 
+                        <div key={release.version} 
                              className={`relative pl-8 md:pl-12 group animate-slideUp transition-all duration-500 ${isHiddenHistory ? 'hidden' : ''}`}
                              style={{ animationDelay: `${index * 150}ms` }}>
                             {/* Timeline Line */}
                             <div className="absolute left-0 top-0 w-px h-full bg-slate-200 group-last:h-12" />
                             {/* Timeline Point */}
-                            <div className={`absolute left-[-5px] top-2 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm transition-all duration-500 group-hover:scale-150 ${isCurrent ? 'bg-emerald-500 w-4 h-4 left-[-8px] shadow-emerald-500/30' : 'bg-slate-300'}`} />
+                            <div className={`absolute left-[-5px] rounded-full border-2 border-white shadow-sm transition-all duration-500 group-hover:scale-150 ${
+                                useDisclosure ? 'top-6' : 'top-4'
+                            } ${isCurrent ? 'bg-emerald-500 w-4 h-4 left-[-8px] shadow-emerald-500/30' : 'bg-slate-300 w-2.5 h-2.5'}`} />
 
-                            <div className={`rounded-[2rem] overflow-hidden transition-all duration-500 ${
-                                isCurrent
-                                    ? 'bg-emerald-50 border-2 border-emerald-500 shadow-2xl shadow-emerald-900/10 ring-4 ring-emerald-100/80 scale-[1.01]'
-                                    : 'bg-white shadow-premium border border-slate-100 hover:border-slate-300'
-                            }`}>
-                                <div className={`${isCurrent ? 'bg-white/70 p-6 md:p-7 border-emerald-100' : 'bg-slate-50/50 p-4 px-5 border-slate-100'} border-b flex flex-wrap justify-between items-center gap-5`}>
-                                    <div className="flex items-center gap-5">
-                                        <span className={`px-4 py-1.5 rounded-full font-black tracking-widest flex items-center gap-2 ${
-                                            isCurrent
-                                                ? 'bg-emerald-500 text-white text-sm shadow-lg shadow-emerald-900/20'
-                                                : 'bg-slate-200 text-slate-600 text-xs'
-                                        }`}>
-                                            {isCurrent && <Rocket size={16} />}
-                                            {log.version}
-                                        </span>
-                                        {isCurrent && (
-                                            <Badge variant="success" className="bg-emerald-500 text-white border-emerald-500 px-3 py-1.5">
-                                                ATUAL
+                            {useDisclosure ? (
+                                <TaskWidgetDisclosure {...release} />
+                            ) : (
+                                <div className="rounded-[2rem] overflow-hidden transition-all duration-500 bg-white shadow-premium border border-slate-100 hover:border-slate-300">
+                                    <div className="bg-slate-50/50 p-4 px-5 border-slate-100 border-b flex flex-wrap justify-between items-center gap-5">
+                                        <div className="flex items-center gap-5">
+                                            <span className="bg-slate-200 text-slate-600 text-xs px-4 py-1.5 rounded-full font-black tracking-widest flex items-center gap-2">
+                                                {release.version}
+                                            </span>
+                                            <h3 className="font-black text-slate-900 tracking-tight text-sm md:text-base">{release.title}</h3>
+                                        </div>
+                                        <div className="flex items-center gap-6">
+                                            <span className="text-xs text-slate-400 font-black uppercase tracking-widest flex items-center gap-2">
+                                                <History size={14} /> {release.date}
+                                            </span>
+                                            <Badge variant="secondary" 
+                                                   className={`${
+                                                       release.category === 'Funcionalidade' || release.category === 'feature' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                       release.category === 'Correção' || release.category === 'fix' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                                       release.category === 'Melhoria' || release.category === 'improvement' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                                       'bg-slate-100 text-slate-700'
+                                                   }`}>
+                                                {release.category === 'feature' ? 'Funcionalidade' :
+                                                 release.category === 'fix' ? 'Correção' :
+                                                 release.category === 'improvement' ? 'Melhoria' :
+                                                 release.category === 'security' ? 'Segurança' : release.category}
                                             </Badge>
-                                        )}
-                                        <h3 className={`font-black text-slate-900 tracking-tight ${isCurrent ? 'text-xl md:text-2xl' : 'text-sm md:text-base'}`}>{log.title}</h3>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-6">
-                                        <span className="text-xs text-slate-400 font-black uppercase tracking-widest flex items-center gap-2">
-                                            <History size={14} /> {log.date}
-                                        </span>
-                                        <Badge variant={log.type === 'security' ? 'default' : 'secondary'} 
-                                               className={`${
-                                                   log.type === 'feature' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                                   log.type === 'fix' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                                   log.type === 'improvement' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                                   'bg-slate-100 text-slate-700'
-                                               }`}>
-                                            {log.type === 'feature' ? 'Funcionalidade' :
-                                             log.type === 'fix' ? 'Correção' :
-                                             log.type === 'improvement' ? 'Melhoria' :
-                                             log.type === 'security' ? 'Segurança' : log.type}
-                                        </Badge>
+                                    <div className="p-4 px-5">
+                                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                                            {release.tasks?.map((task, i) => (
+                                                <li key={i} className="flex items-start gap-4 text-slate-600 leading-relaxed group/item text-sm">
+                                                    <div className="mt-2 w-1.5 h-1.5 rounded-full transition-colors flex-shrink-0 bg-slate-300 group-hover/item:bg-primary-500" />
+                                                    <span className="group-hover/item:text-slate-900 transition-colors">{task.label}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
                                 </div>
-                                <div className={`${isCurrent ? 'p-6 md:p-7' : 'p-4 px-5'}`}>
-                                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-                                        {log.changes?.map((change, i) => (
-                                            <li key={i} className={`flex items-start gap-4 text-slate-600 leading-relaxed group/item ${isCurrent ? 'text-[14px]' : 'text-sm'}`}>
-                                                <div className={`mt-2 w-1.5 h-1.5 rounded-full transition-colors flex-shrink-0 ${isCurrent ? 'bg-emerald-400 group-hover/item:bg-emerald-600' : 'bg-slate-300 group-hover/item:bg-primary-500'}`} />
-                                                <span className="group-hover/item:text-slate-900 transition-colors">{change}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     )})}
                 </div>
