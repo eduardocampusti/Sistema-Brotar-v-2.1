@@ -1081,15 +1081,15 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
         <div className="px-4 py-2 border-b border-slate-200">
           <div className="flex justify-between text-[9px] text-slate-400 mb-1">
             <span>{SECTIONS.filter(s => checkSectionCompletion(s.id)).length} de {SECTIONS.length}</span>
-            <span className="text-[#10B981] font-bold">{Math.round(SECTIONS.filter(s => checkSectionCompletion(s.id)).length / SECTIONS.length * 100)}%</span>
+            <span className="text-[#1A7A3A] font-bold">{Math.round(SECTIONS.filter(s => checkSectionCompletion(s.id)).length / SECTIONS.length * 100)}%</span>
           </div>
-          <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
-            <div className="h-full bg-[#10B981] rounded-full transition-all" style={{width:`${Math.round(SECTIONS.filter(s => checkSectionCompletion(s.id)).length / SECTIONS.length * 100)}%`}} />
+          <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-[#1A7A3A] rounded-full transition-all" style={{width:`${Math.round(SECTIONS.filter(s => checkSectionCompletion(s.id)).length / SECTIONS.length * 100)}%`}} />
           </div>
         </div>
         {/* Activity Feed Timeline */}
         <nav className="max-h-[60vh] overflow-y-auto px-3 py-3 relative">
-          <div className="absolute left-[1.65rem] top-4 bottom-4 w-px bg-slate-200" />
+          <div className="absolute left-[1.85rem] top-6 bottom-6 w-0.5 bg-slate-200 rounded-full" />
           {SECTIONS.map((s, idx) => {
             const isCompleted = checkSectionCompletion(s.id);
             const isActive = active === s.id;
@@ -1097,9 +1097,9 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
             const dotStyle = isActive
               ? 'bg-[#8B1A3A] border-[#8B1A3A] text-white shadow-[0_0_0_3px_rgba(139,26,58,0.15)]'
               : isCompleted
-              ? 'bg-[#EAF3DE] border-[#97C459] text-[#3B6D11]'
-              : 'bg-white border-slate-200 text-slate-400';
-            const labelStyle = isActive ? 'text-[#8B1A3A] font-bold' : isCompleted ? 'text-[#3B6D11] font-medium' : 'text-slate-500';
+              ? 'bg-[#1A7A3A] border-[#1A7A3A] text-white'
+              : 'bg-white border-slate-300 text-slate-400';
+            const labelStyle = isActive ? 'text-[#8B1A3A] font-bold' : isCompleted ? 'text-[#1A7A3A] font-semibold' : 'text-slate-500';
             return (
               <button key={s.id} type="button" onClick={() => scrollToSection(s.id)}
                 className="w-full text-left flex items-start gap-2.5 py-2 relative z-10 hover:opacity-80 transition-opacity">
@@ -1107,10 +1107,10 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
                   {isCompleted && !isActive ? <Check size={9} /> : idx + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className={`text-xs leading-tight truncate ${labelStyle}`}>{s.title}</div>
-                  {isActive && <div className="text-[9px] text-[#8B1A3A] mt-0.5">● Editando agora</div>}
+                  <div className={`text-xs leading-snug ${labelStyle}`}>{s.title}</div>
+                  {isActive && <div className="text-[9px] text-[#8B1A3A] mt-0.5 font-medium">● Editando agora</div>}
                   {isCompleted && !isActive && timestamp && <div className="text-[9px] text-slate-400 mt-0.5">{timestamp}</div>}
-                  {isCompleted && !isActive && !timestamp && <span className="inline-flex items-center text-[9px] px-1.5 py-0.5 rounded-full bg-[#EAF3DE] text-[#3B6D11] mt-1">✓ Concluído</span>}
+                  {isCompleted && !isActive && !timestamp && <span className="inline-flex items-center text-[9px] px-1.5 py-0.5 rounded-full bg-[#D1F0DC] text-[#1A7A3A] mt-1 font-medium">✓ Concluído</span>}
                   {!isCompleted && !isActive && <div className="text-[9px] text-slate-300 mt-0.5">Não iniciado</div>}
                 </div>
               </button>
