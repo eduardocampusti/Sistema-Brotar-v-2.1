@@ -235,8 +235,8 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       p.school?.schoolId === selectedSchoolId ||
       (selectedSchoolId !== 'ALL' && !p.school?.schoolId && p.school?.schoolName === selectedSchoolId);
 
-    return matchesSearch && matchesSchool && (!filterSemRegistro || !sessionsInfo[p.id]?.lastDate) && (!filterDiag || normalizeText(p.clinical?.diagnosis||'').includes(normalizeText(filterDiag)));
-  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional, filterSemRegistro, filterDiag, sessionsInfo, normalizeText]);
+    return matchesSearch && matchesSchool && (!filterSemRegistro || !sessionsInfo[p.id]?.lastDate) && (!filterDiag || normalizeText(p.clinical?.diagnosis||'').includes(normalizeText(filterDiag))) && (!filterSchool || normalizeText(p.school?.schoolName||'').includes(normalizeText(filterSchool)));
+  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional, filterSemRegistro, filterDiag, filterSchool, sessionsInfo, normalizeText]);
 
   // Sort + paginação sobre filteredStudents
   const sortedStudents = useMemo(() => {
