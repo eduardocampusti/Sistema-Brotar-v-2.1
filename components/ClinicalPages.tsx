@@ -1842,7 +1842,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         activity.sort((a, b) => new Date(b.session.date).getTime() - new Date(a.session.date).getTime());
 
         // Ordena agenda por horário de início
-        upcoming = upcomingMapped;
+        let upcoming: any[] = upcomingMapped;
         upcoming.sort((a, b) => (a.session.startTime || '').localeCompare(b.session.startTime || ''));
 
         setRecentActivity(activity);

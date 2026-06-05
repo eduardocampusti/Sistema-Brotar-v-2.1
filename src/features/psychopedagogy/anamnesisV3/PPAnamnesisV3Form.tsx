@@ -998,25 +998,7 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
       default:
         return null;
     }
-  }, [
-    active,
-    i,
-    r,
-    q,
-    e,
-    co,
-    b,
-    au,
-    ro,
-    ge,
-    sa,
-    fe,
-    patch,
-    labelMapCom,
-    labelMapPerfil,
-    labelMapSaude,
-    data.legacy,
-  ]);
+  }
 
   return (
     <div className="pb-28 animate-fadeIn space-y-4">
