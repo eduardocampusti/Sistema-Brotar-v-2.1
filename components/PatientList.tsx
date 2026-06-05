@@ -4,26 +4,10 @@ import { Student, School, User, Specialty, AuditAction } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
 import {
-  Search,
-  ChevronRight,
-  User as UserIcon,
-  Trash2,
-  AlertTriangle,
-  X,
-  UserPlus,
-  Edit,
-  Filter,
-  Globe,
-  FileText,
-  MoreVertical,
-  Activity,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  FileEdit,
-  Loader2,
-  GitMerge,
-  CopyCheck
+  Search, ChevronRight, ChevronDown, User as UserIcon, Trash2, AlertTriangle, X,
+  UserPlus, Edit, Filter, Globe, FileText, MoreVertical, Activity, Clock,
+  CheckCircle2, AlertCircle, FileEdit, Loader2, GitMerge, CopyCheck,
+  Building2, Dna, Calendar, SortAsc, SortDesc
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import { CSVImporter } from './CSVImporter';
@@ -94,6 +78,27 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
 
   // Menu de Ações
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [filterSchool, setFilterSchool] = useState<string>('');
+  const [filterDiag, setFilterDiag] = useState<string>('');
+  const [filterSemRegistro, setFilterSemRegistro] = useState(false);
+  const [sortField, setSortField] = useState<'name'|'age'|'lastSession'>('name');
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  const toggleExpand = (id: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Fechar menu ao clicar fora
@@ -232,6 +237,27 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
 
     return matchesSearch && matchesSchool;
   }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional]);
+
+  // Sort + paginação sobre filteredStudents
+  const sortedStudents = useMemo(() => {
+    return [...filteredStudents].sort((a, b) => {
+      if (sortField === 'name') return sortDir === 'asc' ? a.fullName.localeCompare(b.fullName) : b.fullName.localeCompare(a.fullName);
+      if (sortField === 'age') return sortDir === 'asc' ? (a.birthDate||'').localeCompare(b.birthDate||'') : (b.birthDate||'').localeCompare(a.birthDate||'');
+      if (sortField === 'lastSession') {
+        const da = sessionsInfo[a.id]?.lastDate || '0000';
+        const db = sessionsInfo[b.id]?.lastDate || '0000';
+        return sortDir === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+      }
+      return 0;
+    });
+  }, [filteredStudents, sortField, sortDir, sessionsInfo]);
+
+  const pagedStudents = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedStudents.slice(start, start + PAGE_SIZE);
+  }, [sortedStudents, currentPage]);
+
+  const totalPages = Math.ceil(sortedStudents.length / PAGE_SIZE);
 
   // Memoize school options — recomputed only when students list changes
   const schoolOptions = useMemo(() => [
@@ -580,172 +606,112 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
         </div>
       )}
 
-      {/* TABLE */}
-      <div className="bg-white rounded-[1.5rem] shadow-sm border border-slate-100 overflow-hidden relative min-h-[400px]">
+      {/* TABLE PREMIUM */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100">
-            <thead className="bg-slate-50/80">
-              <tr>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno / Identificação</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Situação / Status</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Idade • Série</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Última Sessão</th>
-                <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Ações</th>
+          <table className="min-w-full" style={{borderCollapse:'separate',borderSpacing:0}}>
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="w-10 px-3 py-3"></th>
+                <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer select-none" onClick={() => toggleSort('name')}>
+                  <div className="flex items-center gap-1">Aluno / Identificação {sortField==='name' ? (sortDir==='asc'?<SortAsc size={11}/>:<SortDesc size={11}/>) : <span className="opacity-30">↕</span>}</div>
+                </th>
+                <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Situação</th>
+                <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer select-none" onClick={() => toggleSort('age')}>
+                  <div className="flex items-center gap-1">Idade {sortField==='age' ? (sortDir==='asc'?<SortAsc size={11}/>:<SortDesc size={11}/>) : <span className="opacity-30">↕</span>}</div>
+                </th>
+                <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer select-none" onClick={() => toggleSort('lastSession')}>
+                  <div className="flex items-center gap-1">Última Sessão {sortField==='lastSession' ? (sortDir==='asc'?<SortAsc size={11}/>:<SortDesc size={11}/>) : <span className="opacity-30">↕</span>}</div>
+                </th>
+                <th className="px-4 py-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Ações</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-slate-50">
-              {filteredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center justify-center text-slate-400">
-                      <UserIcon size={48} className="mb-4 opacity-20" />
-                      <p className="font-bold text-slate-600">
-                        {listaSomenteAgendaProfissional
-                          ? 'Nenhum aluno agendado para você ainda.'
-                          : 'Nenhum registro encontrado'}
-                      </p>
-                      <p className="text-sm">
-                        {listaSomenteAgendaProfissional
-                          ? 'Os alunos aparecem aqui quando a secretaria vincular você a um agendamento na Central de Agendamentos.'
-                          : 'Tente ajustar os filtros de busca'}
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredStudents.map((student) => {
-                  const status = getStudentStatus(student);
-                  const StatusIcon = status.icon;
-                  const age = new Date().getFullYear() - new Date(student.birthDate).getFullYear();
-
-                  return (
-                    <tr key={student.id} className="hover:bg-slate-50/80 transition-colors group">
-                      {/* ALUNO */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center text-slate-500 overflow-hidden border-2 border-white shadow-sm">
-                            {student.photoUrl ? (
-                              <img className="h-full w-full object-cover" src={student.photoUrl} alt="" />
-                            ) : (
-                              <span className="font-bold text-xs">{student.fullName.charAt(0)}</span>
-                            )}
+            <tbody>
+              {pagedStudents.length === 0 ? (
+                <tr><td colSpan={6} className="px-6 py-16 text-center">
+                  <div className="flex flex-col items-center text-slate-400">
+                    <UserIcon size={40} className="mb-3 opacity-20"/>
+                    <p className="font-bold text-slate-500 text-sm">{listaSomenteAgendaProfissional ? 'Nenhum aluno agendado para você ainda.' : 'Nenhum registro encontrado'}</p>
+                    <p className="text-xs mt-1">{listaSomenteAgendaProfissional ? 'Os alunos aparecem quando a secretaria vincular você a um agendamento.' : 'Tente ajustar os filtros'}</p>
+                  </div>
+                </td></tr>
+              ) : pagedStudents.map((student) => {
+                const status = getStudentStatus(student);
+                const StatusIcon = status.icon;
+                const age = new Date().getFullYear() - new Date(student.birthDate).getFullYear();
+                const isExpanded = expandedRows.has(student.id);
+                const sessInfo = sessionsInfo[student.id];
+                const lastDate = sessInfo?.lastDate;
+                const diasSemRegistro = lastDate ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000) : null;
+                const nextAppt = null; // placeholder — pode ser implementado
+                return (
+                  <React.Fragment key={student.id}>
+                    <tr className={`transition-colors border-b border-slate-100 ${isExpanded ? 'bg-slate-50/80' : 'hover:bg-slate-50/50'}`}>
+                      <td className="px-3 py-3">
+                        <button onClick={() => toggleExpand(student.id)}
+                          className="w-6 h-6 rounded flex items-center justify-center border transition-all text-xs"
+                          style={isExpanded ? {background:'#8B1A3A',color:'#fff',borderColor:'#8B1A3A'} : {background:'var(--color-background-secondary)',borderColor:'var(--color-border-tertiary)',color:'var(--color-text-secondary)'}}>
+                          {isExpanded ? '▾' : '▸'}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden"
+                            style={{background: lastDate ? '#EAF3DE' : '#FCEBEB', color: lastDate ? '#3B6D11' : '#A32D2D'}}>
+                            {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover" alt=""/> : student.fullName.charAt(0)}
                           </div>
-                          <div className="ml-4">
+                          <div>
                             <div className="text-sm font-bold text-slate-700">{student.fullName}</div>
-                            {canViewClinical && student.clinical.diagnosis ? (
-                              <div className="text-[10px] font-bold text-rose-500 mt-0.5 bg-rose-50 px-1.5 py-0.5 rounded w-fit">
-                                {student.clinical.diagnosis}
-                              </div>
-                            ) : (
-                              <div className="text-[10px] font-medium text-slate-400 mt-0.5">SUS: {student.susCard || 'N/A'}</div>
-                            )}
+                            <div className="text-[10px] text-slate-400">SUS: {student.susCard||'N/A'} · {student.school?.schoolName||'—'}</div>
                           </div>
                         </div>
                       </td>
-
-                      {/* STATUS */}
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide border ${status.color}`}>
-                          <StatusIcon size={12} />
-                          {status.label}
-                        </span>
-                        <div className="text-[10px] text-slate-400 font-medium mt-1 truncate max-w-[150px]">
-                          {student.school.schoolName}
-                        </div>
-                      </td>
-
-                      {/* IDADE / ESCOLA */}
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex flex-col items-center">
-                          <span className="text-sm font-bold text-slate-700">{age} anos</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase">{student.school.grade || '-'}</span>
-                        </div>
-                      </td>
-
-                      {/* ÚLTIMA SESSÃO */}
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-600">
-                            {sessionsInfo[student.id]?.lastDate 
-                              ? new Date(sessionsInfo[student.id].lastDate!).toLocaleDateString() 
-                              : '—'}
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${status.color}`}>
+                            <StatusIcon size={10}/> {status.label}
                           </span>
-                          <span className="text-[10px] text-slate-400">
-                            {sessionsInfo[student.id]?.total ? `${sessionsInfo[student.id].total} sessões` : 'Nenhum registro'}
-                          </span>
+                          {canViewClinical && student.clinical?.diagnosis && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#EEEDFE] text-[#3C3489] border border-[#AFA9EC]">
+                              <Dna size={9}/> {student.clinical.diagnosis}
+                            </span>
+                          )}
                         </div>
                       </td>
-
-                      {/* AÇÕES */}
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 py-3">
+                        <span className="text-sm font-bold text-slate-700">{age} anos</span>
+                        <div className="text-[10px] text-slate-400">{student.school?.grade||'—'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {lastDate ? (
+                          <>
+                            <span className="text-xs font-bold" style={{color: diasSemRegistro && diasSemRegistro > 30 ? '#A32D2D' : '#3B6D11'}}>
+                              {new Date(lastDate).toLocaleDateString('pt-BR')}
+                            </span>
+                            <div className="text-[10px]" style={{color: diasSemRegistro && diasSemRegistro > 30 ? '#A32D2D' : 'var(--color-text-secondary)'}}>
+                              {sessInfo?.total} sessão{sessInfo?.total !== 1 ? 'ões' : ''}{diasSemRegistro && diasSemRegistro > 30 ? ` · há ${diasSemRegistro} dias` : ''}
+                            </div>
+                          </>
+                        ) : <span className="text-slate-400 text-xs">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2 relative">
-                          {/* Botão Principal: Abrir Prontuário */}
-                          <button
-                            onClick={() => void abrirProntuario(student)}
-                            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-primary-600 hover:shadow-lg hover:shadow-primary-600/20 transition-all active:scale-95"
-                          >
-                            Abrir Prontuário <ChevronRight size={14} />
+                          <button onClick={() => void abrirProntuario(student)}
+                            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#8B1A3A] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#731530] transition-all">
+                            Abrir <ChevronRight size={12}/>
                           </button>
-
-                          {/* Menu de Contexto */}
                           <div className="relative">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveMenuId(activeMenuId === student.id ? null : student.id);
-                              }}
-                              className={`p-2 rounded-lg transition-colors ${activeMenuId === student.id ? 'bg-slate-200 text-slate-800' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
-                            >
-                              <MoreVertical size={18} />
+                            <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId===student.id?null:student.id); }}
+                              className={`p-1.5 rounded-lg transition-colors ${activeMenuId===student.id?'bg-slate-200 text-slate-800':'text-slate-400 hover:bg-slate-100'}`}>
+                              <MoreVertical size={16}/>
                             </button>
-
                             {activeMenuId === student.id && (
-                              <div ref={menuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
+                              <div ref={menuRef} className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
                                 <div className="p-1">
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }}
-                                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-primary-600 rounded-lg flex items-center gap-2 sm:hidden"
-                                  >
-                                    <FileText size={14} /> Abrir Prontuário
-                                  </button>
-
-                                  {/* Ações para Clínicos e Social */}
-                                  {(isClinician || isSocialWorker) && (
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); /* Navegação para sessão deve ser via perfil ou ajustar prop onNewSession */ setActiveMenuId(null); }}
-                                      className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-primary-600 rounded-lg flex items-center gap-2"
-                                    >
-                                      <Activity size={14} /> Novo Atendimento
-                                    </button>
-                                  )}
-
-                                  {/* Ações Administrativas */}
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); onEdit(student); setActiveMenuId(null); }}
-                                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 rounded-lg flex items-center gap-2"
-                                  >
-                                    <Edit size={14} /> Editar Cadastro
-                                  </button>
-
-                                  {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SECRETARIA_SEDE') && (
-                                    <>
-                                      <div className="h-px bg-slate-100 my-1" />
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); setStudentToDelete(student); setActiveMenuId(null); }}
-                                        className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg flex items-center gap-2"
-                                      >
-                                        <Trash2 size={14} /> Excluir Registro
-                                      </button>
-                                    </>
-                                  )}
-
-                                  {/* PDF (Visível para todos com acesso a lista) */}
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); generateStudentPDF(student); setActiveMenuId(null); }}
-                                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-emerald-600 rounded-lg flex items-center gap-2"
-                                  >
-                                    <FileText size={14} /> Gerar Relatório PDF
-                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2 sm:hidden"><FileText size={13}/> Abrir Prontuário</button>
+                                  {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
+                                  <button onClick={(e) => { e.stopPropagation(); onEdit(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
+                                  {(currentUser?.role==='ADMIN'||currentUser?.role==='SECRETARIA_SEDE') && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setStudentToDelete(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"><Trash2 size={13}/> Excluir</button></>)}
                                 </div>
                               </div>
                             )}
@@ -753,14 +719,73 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                         </div>
                       </td>
                     </tr>
-                  );
-                })
-              )}
+                    {/* EXPANDED ROW */}
+                    {isExpanded && (
+                      <tr className="border-b border-slate-100">
+                        <td colSpan={6} className="px-0 py-0">
+                          <div className="px-6 py-4 pl-16 grid grid-cols-2 md:grid-cols-3 gap-3 bg-slate-50/50">
+                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Diagnóstico / CID</div>
+                              <div className="text-xs font-bold text-slate-700">{student.clinical?.diagnosis || <span className="text-slate-400 font-normal">Sem diagnóstico</span>}</div>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Escola · Turma · Turno</div>
+                              <div className="text-xs font-bold text-slate-700">{student.school?.schoolName||'—'}</div>
+                              <div className="text-[10px] text-slate-400">{student.school?.grade||'—'} · {student.school?.shift||'—'}</div>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Total de sessões</div>
+                              <div className="text-xs font-bold text-slate-700">{sessInfo?.total||0} sessão{(sessInfo?.total||0)!==1?'ões':''}</div>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Responsável</div>
+                              <div className="text-xs font-bold text-slate-700">{student.guardianName||'—'}</div>
+                              <div className="text-[10px] text-slate-400">{student.guardianPhone||'—'}</div>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Data de nascimento</div>
+                              <div className="text-xs font-bold text-slate-700">{student.birthDate ? new Date(student.birthDate).toLocaleDateString('pt-BR') : '—'}</div>
+                              <div className="text-[10px] text-slate-400">{age} anos</div>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">SUS / CPF</div>
+                              <div className="text-xs font-bold text-slate-700">SUS: {student.susCard||'N/A'}</div>
+                              <div className="text-[10px] text-slate-400">CPF: {student.cpf||'—'}</div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
+        {/* PAGINAÇÃO */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+          <span className="text-xs text-slate-400">
+            Mostrando {Math.min((currentPage-1)*PAGE_SIZE+1, sortedStudents.length)}–{Math.min(currentPage*PAGE_SIZE, sortedStudents.length)} de {sortedStudents.length} alunos
+          </span>
+          <div className="flex gap-1">
+            <button disabled={currentPage===1} onClick={() => setCurrentPage(p=>p-1)}
+              className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 disabled:opacity-30 hover:bg-slate-50 transition-all">
+              <ChevronRight size={12} className="rotate-180"/>
+            </button>
+            {Array.from({length:Math.min(totalPages,5)}, (_,i) => i+1).map(p => (
+              <button key={p} onClick={() => setCurrentPage(p)}
+                className="w-7 h-7 rounded-lg border text-xs font-bold transition-all"
+                style={currentPage===p ? {background:'#8B1A3A',color:'#fff',borderColor:'#8B1A3A'} : {background:'white',borderColor:'#e2e8f0',color:'#64748b'}}>
+                {p}
+              </button>
+            ))}
+            <button disabled={currentPage===totalPages||totalPages===0} onClick={() => setCurrentPage(p=>p+1)}
+              className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 disabled:opacity-30 hover:bg-slate-50 transition-all">
+              <ChevronRight size={12}/>
+            </button>
+          </div>
+        </div>
       </div>
-
       {/* Delete Confirmation Modal */}
       {studentToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
