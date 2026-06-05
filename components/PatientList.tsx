@@ -235,8 +235,8 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       p.school?.schoolId === selectedSchoolId ||
       (selectedSchoolId !== 'ALL' && !p.school?.schoolId && p.school?.schoolName === selectedSchoolId);
 
-    return matchesSearch && matchesSchool;
-  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional]);
+    return matchesSearch && matchesSchool && (!filterSemRegistro || !sessionsInfo[p.id]?.lastDate);
+  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional, filterSemRegistro, sessionsInfo]);
 
   // Sort + paginação sobre filteredStudents
   const sortedStudents = useMemo(() => {
@@ -422,6 +422,22 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                 />
               </div>
             </>
+          )}
+
+          {/* Filtros rápidos premium */}
+          {!listaSomenteAgendaProfissional && (
+            <div className="flex gap-2 flex-wrap w-full">
+              {[
+                { label: `Todos (${filteredStudents.length})`, value: 'todos', style: filterSemRegistro ? {} : {background:'#8B1A3A',color:'#fff',borderColor:'#8B1A3A'} },
+                { label: `Sem registro`, value: 'sem', style: filterSemRegistro ? {background:'#FCEBEB',color:'#A32D2D',borderColor:'#F09595'} : {} },
+              ].map(f => (
+                <button key={f.value} onClick={() => setFilterSemRegistro(f.value === 'sem' ? !filterSemRegistro : false)}
+                  className="px-3 py-2 rounded-xl text-xs font-bold border transition-all"
+                  style={Object.keys(f.style).length ? f.style : {background:'white',borderColor:'#e2e8f0',color:'#64748b'}}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
           )}
 
           {canRegister && (
@@ -656,9 +672,12 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden"
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden border-2 border-white shadow-sm"
                             style={{background: lastDate ? '#EAF3DE' : '#FCEBEB', color: lastDate ? '#3B6D11' : '#A32D2D'}}>
-                            {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover" alt=""/> : student.fullName.charAt(0)}
+                            {student.photoUrl
+                              ? <img src={student.photoUrl} className="w-full h-full object-cover" alt={student.fullName}/>
+                              : <span className="font-bold">{student.fullName.charAt(0)}</span>
+                            }
                           </div>
                           <div>
                             <div className="text-sm font-bold text-slate-700">{student.fullName}</div>
