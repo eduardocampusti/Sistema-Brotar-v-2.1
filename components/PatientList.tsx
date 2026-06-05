@@ -219,7 +219,11 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
     }
 
     if (listaSomenteAgendaProfissional) {
-      return true;
+      // Para perfis restritos, aplica os filtros visuais mas mantém a lista do agendamento
+      const matchesSem = !filterSemRegistro || !sessionsInfo[p.id]?.lastDate;
+      const matchesDiagFilter = !filterDiag || normalizeText(p.clinical?.diagnosis||'').includes(normalizeText(filterDiag));
+      const matchesSchoolFilter = !filterSchool || normalizeText(p.school?.schoolName||'').includes(normalizeText(filterSchool));
+      return matchesSem && matchesDiagFilter && matchesSchoolFilter;
     }
 
     // 2. Search Term Filter
