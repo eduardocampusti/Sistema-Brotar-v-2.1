@@ -1754,7 +1754,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         setStudents(allStudents);
 
         const activity: { session: PPSession, studentName: string, studentId: string }[] = [];
-        const upcoming: { session: PPSession, studentName: string, studentId: string }[] = [];
+        let upcoming: any[] = [];
         let sessionCount = 0;
         let patientCount = 0;
         let activeCount = 0;
@@ -1790,7 +1790,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
             setTodayCount(todayAppointments.length);
 
             // MELHORIA 3: Puxa agendamentos corretos do dia
-            const upcomingMapped = todayAppointments.map((app: any) => ({
+            upcoming = todayAppointments.map((app: any) => ({
                 session: { startTime: app.startTime, date: app.date, objetivo: app.notes || '' },
                 studentName: app.studentName,
                 studentId: app.studentId
@@ -1842,7 +1842,6 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         activity.sort((a, b) => new Date(b.session.date).getTime() - new Date(a.session.date).getTime());
 
         // Ordena agenda por horário de início
-        let upcoming: any[] = upcomingMapped;
         upcoming.sort((a, b) => (a.session.startTime || '').localeCompare(b.session.startTime || ''));
 
         setRecentActivity(activity);
