@@ -1088,8 +1088,8 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
           </div>
         </div>
         {/* Activity Feed Timeline */}
-        <nav className="max-h-[60vh] overflow-y-auto px-3 py-3 relative">
-          <div className="absolute left-[1.85rem] top-6 bottom-6 w-0.5 bg-slate-200 rounded-full" />
+        <nav className="max-h-[60vh] overflow-y-auto py-3 relative">
+          <div className="absolute left-[2.05rem] top-0 bottom-0 w-0.5 bg-slate-200" />
           {SECTIONS.map((s, idx) => {
             const isCompleted = checkSectionCompletion(s.id);
             const isActive = active === s.id;
@@ -1102,8 +1102,8 @@ export const PPAnamnesisV3Form: React.FC<PPAnamnesisV3FormProps> = ({ data, onCh
             const labelStyle = isActive ? 'text-[#8B1A3A] font-bold' : isCompleted ? 'text-[#1A7A3A] font-semibold' : 'text-slate-500';
             return (
               <button key={s.id} type="button" onClick={() => scrollToSection(s.id)}
-                className="w-full text-left flex items-start gap-2.5 py-2 relative z-10 hover:opacity-80 transition-opacity">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 border-[1.5px] transition-all mt-0.5 ${dotStyle}`}>
+                className="w-full text-left flex items-start gap-2.5 px-3 py-2 relative z-10 hover:opacity-80 transition-opacity">
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 border-[1.5px] transition-all mt-0.5 relative z-10 ${dotStyle}`}>
                   {isCompleted && !isActive ? <Check size={9} /> : idx + 1}
                 </span>
                 <div className="flex-1 min-w-0">
