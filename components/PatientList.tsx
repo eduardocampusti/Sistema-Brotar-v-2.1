@@ -235,8 +235,8 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       p.school?.schoolId === selectedSchoolId ||
       (selectedSchoolId !== 'ALL' && !p.school?.schoolId && p.school?.schoolName === selectedSchoolId);
 
-    return matchesSearch && matchesSchool && (!filterSemRegistro || !sessionsInfo[p.id]?.lastDate);
-  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional, filterSemRegistro, sessionsInfo]);
+    return matchesSearch && matchesSchool && (!filterSemRegistro || !sessionsInfo[p.id]?.lastDate) && (!filterDiag || normalizeText(p.clinical?.diagnosis||'').includes(normalizeText(filterDiag)));
+  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional, filterSemRegistro, filterDiag, sessionsInfo, normalizeText]);
 
   // Sort + paginação sobre filteredStudents
   const sortedStudents = useMemo(() => {
@@ -624,24 +624,65 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
         </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap mb-2">
+      <div className="flex gap-2 flex-wrap items-center mb-2">
+        {/* Filtros de status */}
         <button onClick={() => setFilterSemRegistro(false)}
           className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
           style={!filterSemRegistro ? {background:'#8B1A3A',color:'#fff',borderColor:'#8B1A3A'} : {background:'white',borderColor:'#e2e8f0',color:'#64748b'}}>
-          Todos ({filteredStudents.length})
+          Todos ({pagedStudents.length > 0 ? filteredStudents.length : 0})
         </button>
         <button onClick={() => setFilterSemRegistro(true)}
           className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
           style={filterSemRegistro ? {background:'#FCEBEB',color:'#A32D2D',borderColor:'#F09595'} : {background:'white',borderColor:'#F09595',color:'#A32D2D'}}>
-          Sem registro ({filteredStudents.filter(s => !sessionsInfo[s.id]?.lastDate).length})
+          Sem registro
         </button>
         <button onClick={() => setFilterSemRegistro(false)}
           className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
           style={{background:'white',borderColor:'#97C459',color:'#3B6D11'}}>
-          Com registro ({filteredStudents.filter(s => !!sessionsInfo[s.id]?.lastDate).length})
+          Com registro
         </button>
-      </div>
 
+        {/* Separador */}
+        <div className="w-px h-6 bg-slate-200 mx-1"/>
+
+        {/* Filtro por Escola */}
+        <div className="relative">
+          <select
+            value={filterSchool}
+            onChange={e => { setFilterSchool(e.target.value); setCurrentPage(1); }}
+            className="pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
+            style={filterSchool ? {borderColor:'#85B7EB',background:'#E6F1FB',color:'#185FA5'} : {}}>
+            <option value="">🏫 Todas as escolas</option>
+            {Array.from(new Set(baseStudentList.map(s => s.school?.schoolName).filter(Boolean))).sort().map(school => (
+              <option key={school} value={school!}>{school}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
+        </div>
+
+        {/* Filtro por CID/Diagnóstico */}
+        <div className="relative">
+          <select
+            value={filterDiag}
+            onChange={e => { setFilterDiag(e.target.value); setCurrentPage(1); }}
+            className="pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
+            style={filterDiag ? {borderColor:'#AFA9EC',background:'#EEEDFE',color:'#3C3489'} : {}}>
+            <option value="">🧬 Todos os diagnósticos</option>
+            {Array.from(new Set(baseStudentList.map(s => s.clinical?.diagnosis).filter(Boolean))).sort().map(diag => (
+              <option key={diag} value={diag!}>{diag}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
+        </div>
+
+        {/* Limpar filtros */}
+        {(filterSchool || filterDiag || filterSemRegistro) && (
+          <button onClick={() => { setFilterSchool(''); setFilterDiag(''); setFilterSemRegistro(false); setCurrentPage(1); }}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 text-slate-400 hover:bg-slate-50 transition-all">
+            ✕ Limpar filtros
+          </button>
+        )}
+      </div>
       {/* TABLE PREMIUM */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
