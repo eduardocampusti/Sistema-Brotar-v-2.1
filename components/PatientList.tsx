@@ -424,21 +424,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
             </>
           )}
 
-          {/* Filtros rápidos premium */}
-          {!listaSomenteAgendaProfissional && (
-            <div className="flex gap-2 flex-wrap w-full">
-              {[
-                { label: `Todos (${filteredStudents.length})`, value: 'todos', style: filterSemRegistro ? {} : {background:'#8B1A3A',color:'#fff',borderColor:'#8B1A3A'} },
-                { label: `Sem registro`, value: 'sem', style: filterSemRegistro ? {background:'#FCEBEB',color:'#A32D2D',borderColor:'#F09595'} : {} },
-              ].map(f => (
-                <button key={f.value} onClick={() => setFilterSemRegistro(f.value === 'sem' ? !filterSemRegistro : false)}
-                  className="px-3 py-2 rounded-xl text-xs font-bold border transition-all"
-                  style={Object.keys(f.style).length ? f.style : {background:'white',borderColor:'#e2e8f0',color:'#64748b'}}>
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Filtros rápidos já aparecem acima da tabela para todos os perfis */}
 
           {canRegister && (
             <div className="flex gap-2">
@@ -621,6 +607,40 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           </div>
         </div>
       )}
+
+      {/* STATS + FILTROS RÁPIDOS — visível para todos os perfis */}
+      <div className="grid grid-cols-3 gap-3 mb-2">
+        <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
+          <div className="text-xl font-bold" style={{color:'#A32D2D'}}>{filteredStudents.filter(s => !sessionsInfo[s.id]?.lastDate).length}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Sem registro</div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
+          <div className="text-xl font-bold" style={{color:'#10B981'}}>{filteredStudents.filter(s => !!sessionsInfo[s.id]?.lastDate).length}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Com registro</div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
+          <div className="text-xl font-bold text-slate-700">{filteredStudents.length}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Total</div>
+        </div>
+      </div>
+
+      <div className="flex gap-2 flex-wrap mb-2">
+        <button onClick={() => setFilterSemRegistro(false)}
+          className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
+          style={!filterSemRegistro ? {background:'#8B1A3A',color:'#fff',borderColor:'#8B1A3A'} : {background:'white',borderColor:'#e2e8f0',color:'#64748b'}}>
+          Todos ({filteredStudents.length})
+        </button>
+        <button onClick={() => setFilterSemRegistro(true)}
+          className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
+          style={filterSemRegistro ? {background:'#FCEBEB',color:'#A32D2D',borderColor:'#F09595'} : {background:'white',borderColor:'#F09595',color:'#A32D2D'}}>
+          Sem registro ({filteredStudents.filter(s => !sessionsInfo[s.id]?.lastDate).length})
+        </button>
+        <button onClick={() => setFilterSemRegistro(false)}
+          className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
+          style={{background:'white',borderColor:'#97C459',color:'#3B6D11'}}>
+          Com registro ({filteredStudents.filter(s => !!sessionsInfo[s.id]?.lastDate).length})
+        </button>
+      </div>
 
       {/* TABLE PREMIUM */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
