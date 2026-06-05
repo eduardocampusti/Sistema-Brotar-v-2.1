@@ -1,6 +1,7 @@
 import React from 'react';
 import { APP_VERSION } from '../src/config/version';
 import { TaskWidgetDisclosure } from '../src/components/ui/TaskWidgetDisclosure';
+import { AboutDisclosureCard } from '../src/components/ui/AboutDisclosureCard';
 import {
     Code, Server, Database, Shield, Smartphone, Mail, Globe,
     CheckCircle, Info, QrCode, Building, User, Cpu, Layers, HeartPulse, ExternalLink,
@@ -201,17 +202,14 @@ export const AboutSystem: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 
                 {/* DESENVOLVEDOR */}
-                <Card className="flex flex-col">
-                    <div className="bg-slate-50/50 p-5 border-b border-slate-100 flex justify-between items-center px-8">
-                        <h3 className="font-extrabold text-slate-800 flex items-center gap-3">
-                            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-600"><Code size={18} /></div>
-                            Arquitetura & Suporte
-                        </h3>
-                        <Badge variant="secondary">IMPDIGITAL</Badge>
-                    </div>
-                    
-                    <div className="p-5 flex-1 flex flex-col gap-4">
-                        <div className="flex items-center gap-6">
+                <AboutDisclosureCard
+                    title="Arquitetura & Suporte"
+                    icon={Code}
+                    variant="support"
+                    badge={{ text: "IMPDIGITAL", variant: "secondary" }}
+                    defaultOpen={true}
+                    alwaysVisibleContent={
+                        <div className="flex items-center gap-6 py-2">
                             <div className="relative">
                                 <div className="absolute -inset-1 bg-gradient-to-tr from-blue-600 to-indigo-400 rounded-full blur-sm opacity-20" />
                                 <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-black text-xl border-4 border-white shadow-xl">
@@ -223,53 +221,54 @@ export const AboutSystem: React.FC = () => {
                                 <p className="text-sm text-blue-600 font-bold tracking-tight mt-0.5">CEO • IMPDIGITAL Soluções Inteligentes</p>
                             </div>
                         </div>
+                    }
+                    expandableContent={
+                        <div className="space-y-4 pt-2">
+                            <div className="grid grid-cols-1 gap-3">
+                                <a href="https://wa.me/5577991290375" target="_blank" rel="noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-emerald-50 transition-all duration-300 border border-slate-100 group">
+                                    <div className="p-2 bg-white rounded-xl shadow-sm group-hover:scale-110 transition-transform"><Smartphone size={20} className="text-slate-400 group-hover:text-emerald-600" /></div>
+                                    <div className="flex-1">
+                                        <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Suporte Direto</p>
+                                        <p className="font-bold text-slate-700">(77) 99129-0375</p>
+                                    </div>
+                                    <ExternalLink size={16} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </a>
 
-                        <div className="grid grid-cols-1 gap-3">
-                            <a href="https://wa.me/5577991290375" target="_blank" rel="noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-emerald-50 transition-all duration-300 border border-slate-100 group">
-                                <div className="p-2 bg-white rounded-xl shadow-sm group-hover:scale-110 transition-transform"><Smartphone size={20} className="text-slate-400 group-hover:text-emerald-600" /></div>
-                                <div className="flex-1">
-                                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Suporte Direto</p>
-                                    <p className="font-bold text-slate-700">(77) 99129-0375</p>
-                                </div>
-                                <ExternalLink size={16} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </a>
-
-                            <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                                <div className="p-2 bg-white rounded-xl shadow-sm"><Mail size={20} className="text-slate-400" /></div>
-                                <div>
-                                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Canal Oficial</p>
-                                    <p className="font-bold text-slate-700">impdigital@gmail.com</p>
+                                <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                    <div className="p-2 bg-white rounded-xl shadow-sm"><Mail size={20} className="text-slate-400" /></div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Canal Oficial</p>
+                                        <p className="font-bold text-slate-700">impdigital@gmail.com</p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="mt-auto pt-6">
-                            <p className="text-xs text-slate-400 italic text-center font-medium bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
-                                "Comprometidos com a excelência técnica e o impacto social através da tecnologia."
-                            </p>
+                            <div className="pt-2">
+                                <p className="text-xs text-slate-400 italic text-center font-medium bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
+                                    "Comprometidos com a excelência técnica e o impacto social através da tecnologia."
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                </Card>
+                    }
+                />
 
                 {/* INSTITUIÇÃO */}
-                <Card className="flex flex-col">
-                    <div className="bg-slate-50/50 p-5 border-b border-slate-100 flex justify-between items-center px-8">
-                        <h3 className="font-extrabold text-slate-800 flex items-center gap-3">
-                            <div className="p-2 bg-orange-500/10 rounded-lg text-orange-600"><Building size={18} /></div>
-                            Instituição Licenciada
-                        </h3>
-                        <Badge variant="success">Parceiro Ativo</Badge>
-                    </div>
-                    
-                    <div className="p-5 flex-1 flex flex-col">
-                        <div className="text-center mb-6">
+                <AboutDisclosureCard
+                    title="Instituição Licenciada"
+                    icon={Building}
+                    variant="institution"
+                    badge={{ text: "Parceiro Ativo", variant: "success" }}
+                    defaultOpen={true}
+                    alwaysVisibleContent={
+                        <div className="text-center py-2 flex-1 flex flex-col justify-center">
                             <h4 className="text-2xl font-black text-slate-900 tracking-tight">Prefeitura Municipal</h4>
                             <h5 className="text-xl font-bold text-orange-600 mt-1">Brotas de Macaúbas - BA</h5>
                             <div className="w-20 h-1.5 bg-gradient-to-r from-orange-400 to-orange-200 mx-auto mt-4 rounded-full" />
                         </div>
-
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-5 p-4 rounded-2xl border border-slate-50 bg-slate-50/30">
+                    }
+                    expandableContent={
+                        <div className="space-y-4 pt-2">
+                            <div className="flex items-center gap-5 p-4 rounded-2xl border border-slate-100 bg-slate-50/30">
                                 <div className="p-3 bg-white rounded-2xl shadow-sm text-orange-600"><Layers size={22} /></div>
                                 <div>
                                     <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Gestão</p>
@@ -277,7 +276,7 @@ export const AboutSystem: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-5 p-4 rounded-2xl border border-slate-50 bg-slate-50/30">
+                            <div className="flex items-center gap-5 p-4 rounded-2xl border border-slate-100 bg-slate-50/30">
                                 <div className="p-3 bg-white rounded-2xl shadow-sm text-orange-600"><User size={22} /></div>
                                 <div>
                                     <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Liderança</p>
@@ -285,103 +284,105 @@ export const AboutSystem: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="relative mt-4">
+                            <div className="relative mt-2">
                                 <div className="absolute left-0 top-0 w-1 h-full bg-orange-200 rounded-full" />
                                 <p className="text-[14px] text-slate-500 italic leading-relaxed pl-6 font-medium">
                                     "Tecnologia a serviço da inclusão e do monitoramento preciso do desenvolvimento estudantil."
                                 </p>
                             </div>
                         </div>
-                    </div>
-                </Card>
+                    }
+                />
             </div>
 
             {/* SEO C - ESPECIFICAÇÕES TÉCNICAS */}
-            <Card className="p-6">
-                <div className="flex flex-col lg:flex-row gap-8">
-                    <div className="lg:w-2/3 space-y-8">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600">
-                                <Cpu size={28} />
+            <AboutDisclosureCard
+                title="Core Tecnológico"
+                icon={Cpu}
+                variant="tech"
+                defaultOpen={true}
+                alwaysVisibleContent={
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-2">
+                        {[
+                            { label: 'Front-end Engine', value: 'React 18 + TypeScript 5', icon: Globe },
+                            { label: 'Data Infrastructure', value: 'Supabase Enterprise (Edge)', icon: Database },
+                            { label: 'Styling System', value: 'Tailwind CSS (Ultra Custom)', icon: Sparkles },
+                            { label: 'Security Layer', value: 'RBAC + JWT + AES-256', icon: ShieldCheck }
+                        ].map((item, idx) => (
+                            <div key={idx} className="group cursor-default bg-slate-50/50 p-4 rounded-2xl border border-slate-100 hover:border-emerald-200 transition-colors">
+                                <div className="flex items-center gap-3 mb-1.5">
+                                    <item.icon size={16} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.label}</span>
+                                </div>
+                                <p className="text-slate-800 font-bold text-sm">
+                                    {item.value}
+                                </p>
                             </div>
-                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Core Tecnológico</h3>
+                        ))}
+                    </div>
+                }
+                expandableContent={
+                    <div className="flex flex-col lg:flex-row gap-8 pt-4">
+                        {/* Módulos */}
+                        <div className="lg:w-2/3 space-y-6">
+                            <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100">
+                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 text-center">Ecossistema de Módulos</h4>
+                                <div className="flex flex-wrap justify-center gap-3">
+                                    {[
+                                        'Gestão Escolar 360', 'Prontuário Digital Clínico', 'Busca Ativa Inteligente', 
+                                        'Agenda Multi-Sincronizada', 'Dashboards Analíticos', 'Segurança Bancária'
+                                    ].map(tag => (
+                                        <span key={tag} className="px-3 py-1.5 bg-white border border-slate-200 rounded-2xl text-[11px] font-bold text-slate-700 shadow-sm flex items-center gap-2 hover:border-emerald-300 hover:text-emerald-700 transition-all cursor-default">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500" /> {tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                            {[
-                                { label: 'Front-end Engine', value: 'React 18 + TypeScript 5', icon: Globe },
-                                { label: 'Data Infrastructure', value: 'Supabase Enterprise (Edge)', icon: Database },
-                                { label: 'Styling System', value: 'Tailwind CSS (Ultra Custom)', icon: Sparkles },
-                                { label: 'Security Layer', value: 'RBAC + JWT + AES-256', icon: ShieldCheck }
-                            ].map((item, idx) => (
-                                <div key={idx} className="group cursor-default">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <item.icon size={16} className="text-slate-400 group-hover:text-primary-600 transition-colors" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.label}</span>
+                        {/* Métricas e QR Code */}
+                        <div className="lg:w-1/3 flex flex-col sm:flex-row lg:flex-col gap-6">
+                            <div className="bg-slate-900 rounded-[2rem] p-6 text-white shadow-2xl relative overflow-hidden flex-1 flex flex-col justify-center">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 rotate-45">
+                                    <Shield size={120} />
+                                </div>
+                                
+                                <h4 className="font-black text-sm mb-4 flex items-center gap-3 border-b border-white/10 pb-3">
+                                    <Server size={18} className="text-emerald-400" /> System Metrics
+                                </h4>
+                                
+                                <ul className="space-y-4 text-xs">
+                                    <li className="flex items-center justify-between">
+                                        <span className="text-slate-400 font-bold uppercase tracking-wider">Network</span>
+                                        <span className="flex items-center gap-2 text-emerald-400 font-black">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> CLOUD ONLINE
+                                        </span>
+                                    </li>
+                                    <li className="flex items-center justify-between">
+                                        <span className="text-slate-400 font-bold uppercase tracking-wider">Database</span>
+                                        <span className="text-emerald-400 font-black">PROTECTED</span>
+                                    </li>
+                                    <li className="flex items-center justify-between">
+                                        <span className="text-slate-400 font-bold uppercase tracking-wider">Encryption</span>
+                                        <span className="text-blue-400 font-black">SSL/TLS 1.3</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 flex flex-col items-center text-center group cursor-pointer hover:border-emerald-200 transition-colors flex-1">
+                                <div className="relative mb-3">
+                                    <div className="absolute -inset-2 bg-emerald-500/20 rounded-2xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="relative bg-white p-2 rounded-2xl shadow-lg border border-slate-100">
+                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://wa.me/5577991290375`} alt="QR Code Suporte" className="w-24 h-24" />
                                     </div>
-                                    <p className="text-slate-800 font-bold border-b border-slate-100 pb-2 group-hover:border-primary-200 transition-all">
-                                        {item.value}
-                                    </p>
                                 </div>
-                            ))}
-                        </div>
-
-                        <div className="bg-slate-50 rounded-[2rem] p-8 border border-slate-100">
-                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 text-center">Ecossistema de Módulos</h4>
-                            <div className="flex flex-wrap justify-center gap-3">
-                                {[
-                                    'Gestão Escolar 360', 'Prontuário Digital Clínico', 'Busca Ativa Inteligente', 
-                                    'Agenda Multi-Sincronizada', 'Dashboards Analíticos', 'Segurança Bancária'
-                                ].map(tag => (
-                                    <span key={tag} className="px-3 py-1.5 bg-white border border-slate-200 rounded-2xl text-[11px] font-bold text-slate-700 shadow-sm flex items-center gap-2 hover:border-primary-300 hover:text-primary-700 transition-all cursor-default">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500" /> {tag}
-                                    </span>
-                                ))}
+                                <h5 className="font-black text-slate-900 text-xs tracking-tight uppercase">Support Quick Connect</h5>
+                                <p className="text-[9px] text-slate-500 font-bold mt-1 tracking-widest">TAP OR SCAN FOR WHATSAPP</p>
                             </div>
                         </div>
                     </div>
-
-                    <div className="lg:w-1/3 flex flex-col gap-6">
-                        <div className="bg-slate-900 rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden flex-1 flex flex-col justify-center">
-                            <div className="absolute top-0 right-0 p-8 opacity-10 rotate-45">
-                                <Shield size={120} />
-                            </div>
-                            
-                            <h4 className="font-black text-lg mb-8 flex items-center gap-3 border-b border-white/10 pb-4">
-                                <Server size={20} className="text-emerald-400" /> System Metrics
-                            </h4>
-                            
-                            <ul className="space-y-6">
-                                <li className="flex items-center justify-between">
-                                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Network</span>
-                                    <span className="flex items-center gap-2 text-emerald-400 font-black text-sm">
-                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" /> CLOUD ONLINE
-                                    </span>
-                                </li>
-                                <li className="flex items-center justify-between">
-                                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Database</span>
-                                    <span className="text-emerald-400 font-black text-sm">PROTECTED</span>
-                                </li>
-                                <li className="flex items-center justify-between">
-                                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Encryption</span>
-                                    <span className="text-blue-400 font-black text-sm">SSL/TLS 1.3</span>
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 flex flex-col items-center text-center group cursor-pointer hover:border-emerald-200 transition-colors">
-                            <div className="relative mb-4">
-                                <div className="absolute -inset-2 bg-emerald-500/20 rounded-2xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="relative bg-white p-3 rounded-2xl shadow-lg border border-slate-100">
-                                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://wa.me/5577991290375`} alt="QR Code Suporte" className="w-28 h-28" />
-                                </div>
-                            </div>
-                            <h5 className="font-black text-slate-900 text-sm tracking-tight uppercase">Support Quick Connect</h5>
-                            <p className="text-[11px] text-slate-500 font-bold mt-1 tracking-widest">TAP OR SCAN FOR WHATSAPP</p>
-                        </div>
-                    </div>
-                </div>
-            </Card>
+                }
+            />
 
             {/* SEO F - NOTAS DE LANÇAMENTO */}
             <section className="space-y-10">
