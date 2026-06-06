@@ -633,11 +633,11 @@ export const UserManagement: React.FC = () => {
                                 const showAllDivider = idx === pinnedUsers.size && pinnedUsers.size > 0;
                                 const rowStyle = (() => {
                                   switch(user.role) {
-                                    case 'ADMIN': return {borderLeft:'3px solid #8B1A3A', background:'#fdf8f9'};
-                                    case 'EDUCATION_SECRETARY': case 'SECRETARIA_SEDE': case 'SECRETARIA_COCAL': return {borderLeft:'3px solid #EF9F27', background:'#FEF3DC'};
-                                    case 'SPECIALIST': return {borderLeft:'3px solid #7F77DD', background:'#EEEDFE'};
-                                    case 'ESCOLA': return {borderLeft:'3px solid #378ADD', background:'#E6F1FB'};
-                                    default: return {borderLeft:'3px solid #e2e8f0'};
+                                    case 'ADMIN': return {borderLeft:'4px solid #8B1A3A', background:'#FAE8ED'};
+                                    case 'EDUCATION_SECRETARY': case 'SECRETARIA_SEDE': case 'SECRETARIA_COCAL': return {borderLeft:'4px solid #EF9F27', background:'#FDE8B0'};
+                                    case 'SPECIALIST': return {borderLeft:'4px solid #7F77DD', background:'#D8D6FB'};
+                                    case 'ESCOLA': return {borderLeft:'4px solid #378ADD', background:'#C8DEFA'};
+                                    default: return {borderLeft:'3px solid #e2e8f0', background:'white'};
                                   }
                                 })();
                                 const avatarStyle = (() => {
