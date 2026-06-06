@@ -720,25 +720,34 @@ export const UserManagement: React.FC = () => {
                                         {isExpanded && (
                                             <tr className="border-b border-slate-100">
                                                 <td colSpan={6} className="px-0 py-0 bg-slate-50/50">
-                                                    <div className="px-4 py-4 pl-16">
+                                                    <div className="px-4 py-4 pl-16"
+                                                         style={{background: (() => {
+                                                           switch(user.role) {
+                                                             case 'ADMIN': return '#FEF0F4';
+                                                             case 'EDUCATION_SECRETARY': case 'SECRETARIA_SEDE': case 'SECRETARIA_COCAL': return '#FEF7E6';
+                                                             case 'SPECIALIST': return '#EEEDFB';
+                                                             case 'ESCOLA': return '#EAF3FD';
+                                                             default: return '#F8F9FA';
+                                                           }
+                                                         })()}}>
                                                         <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Detalhes do usuário · {user.name}</div>
                                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                                                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                                                            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
                                                                 <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Perfil / Papel</div>
                                                                 <div className="text-xs font-bold text-slate-700">{getRoleLabel(user.role)}</div>
                                                                 {user.specialty && <div className="text-[10px] text-slate-400 mt-0.5">{user.specialty}</div>}
                                                             </div>
-                                                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                                                            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
                                                                 <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Contato</div>
                                                                 <div className="text-xs font-bold text-slate-700">{user.phone || '—'}</div>
                                                                 <div className="text-[10px] text-slate-400">{user.email || '—'}</div>
                                                             </div>
-                                                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                                                            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
                                                                 <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Escopo / Unidade</div>
                                                                 <div className="text-xs font-bold text-slate-700">{user.scope || 'GLOBAL'}</div>
                                                                 <div className="text-[10px] text-slate-400">{user.schoolInep ? `INEP: ${user.schoolInep}` : '—'}</div>
                                                             </div>
-                                                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                                                            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
                                                                 <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Login</div>
                                                                 <div className="text-xs font-bold text-slate-700">{user.username}</div>
                                                                 <div className="text-[10px]" style={{color: user.isActive ? '#3B6D11' : '#64748b'}}>{user.isActive ? '● Ativo' : '○ Inativo'}</div>
