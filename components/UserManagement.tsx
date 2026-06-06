@@ -632,11 +632,13 @@ export const UserManagement: React.FC = () => {
                                 const showPinnedDivider = idx === 0 && pinnedUsers.size > 0;
                                 const showAllDivider = idx === pinnedUsers.size && pinnedUsers.size > 0;
                                 const rowStyle = (() => {
+                                  if (!user.isActive) return {borderLeft:'3px solid #e2e8f0', background:'#f8f9fa', opacity: 0.7};
                                   switch(user.role) {
-                                    case 'ADMIN': return {borderLeft:'4px solid #8B1A3A', background:'#FAE8ED'};
-                                    case 'EDUCATION_SECRETARY': case 'SECRETARIA_SEDE': case 'SECRETARIA_COCAL': return {borderLeft:'4px solid #EF9F27', background:'#FDE8B0'};
-                                    case 'SPECIALIST': return {borderLeft:'4px solid #7F77DD', background:'#D8D6FB'};
-                                    case 'ESCOLA': return {borderLeft:'4px solid #378ADD', background:'#C8DEFA'};
+                                    case 'ADMIN': return {borderLeft:'4px solid #8B1A3A', background:'#FDF2F5'};
+                                    case 'EDUCATION_SECRETARY': case 'SECRETARIA_SEDE': case 'SECRETARIA_COCAL': return {borderLeft:'4px solid #EF9F27', background:'#FFFBF0'};
+                                    case 'SPECIALIST': return {borderLeft:'4px solid #7F77DD', background:'#F5F5FE'};
+                                    case 'ESCOLA': return {borderLeft:'4px solid #378ADD', background:'#F0F7FF'};
+                                    case 'COORDENADOR': return {borderLeft:'4px solid #10B981', background:'#F0FBF6'};
                                     default: return {borderLeft:'3px solid #e2e8f0', background:'white'};
                                   }
                                 })();
