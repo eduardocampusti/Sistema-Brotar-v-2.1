@@ -772,7 +772,8 @@ export const UserManagement: React.FC = () => {
                                         )}
                                     </React.Fragment>
                                 );
-                            })}
+                            });
+                            })()}
                         </tbody>
                     </table>
                 </div>
