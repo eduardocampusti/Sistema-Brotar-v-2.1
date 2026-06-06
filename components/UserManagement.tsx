@@ -625,11 +625,8 @@ export const UserManagement: React.FC = () => {
                                 <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">
                                     Nenhum usuário encontrado com os filtros selecionados.
                                 </td></tr>
-                            ) : (() => {
-                                const pinnedList = [...filteredUsers].filter(u => pinnedUsers.has(u.id));
-                                const unpinnedList = [...filteredUsers].filter(u => !pinnedUsers.has(u.id));
-                                const sortedList = [...pinnedList, ...unpinnedList];
-                                return sortedList.map((user, idx) => {
+                            ) : [...filteredUsers].sort((a,b)=>(pinnedUsers.has(a.id)?0:1)-(pinnedUsers.has(b.id)?0:1)).map((user, idx, arr) => {
+                                const pinnedCount = arr.filter(u=>pinnedUsers.has(u.id)).length;
                                 const isPinned = pinnedUsers.has(user.id);
                                 const isExpanded = expandedUsers.has(user.id);
                                 const roleBadge = getRoleBadgeStyle(user.role);
@@ -772,8 +769,7 @@ export const UserManagement: React.FC = () => {
                                         )}
                                     </React.Fragment>
                                 );
-                            });
-                            })()}
+                            })}
                         </tbody>
                     </table>
                 </div>
