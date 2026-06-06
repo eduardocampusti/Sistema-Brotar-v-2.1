@@ -4,7 +4,7 @@ import { User, UserRole, Specialty, UserScope } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { useToast } from '../contexts/ToastContext';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle, Eye, EyeOff, Search, KeyRound } from 'lucide-react';
+import { Save, UserPlus, Shield, X, MapPin, Phone, Mail, Briefcase, Lock, User as UserIcon, Upload, Globe, Trash2, AlertTriangle, Eye, EyeOff, Search, KeyRound, ChevronDown, ChevronRight, Pin, PinOff } from 'lucide-react';
 
 const ROLE_FILTER_ALL = 'ALL' as const;
 type RoleFilterValue = typeof ROLE_FILTER_ALL | UserRole;
@@ -20,6 +20,19 @@ function getRoleLabel(role: UserRole): string {
         case 'COORDENADOR': return 'Coordenador';
         case 'ESCOLA': return 'Escola';
         default: return role;
+    }
+}
+
+function getRoleBadgeStyle(role: UserRole): string {
+    switch (role) {
+        case 'ADMIN': return 'bg-[#FCEBEB] text-[#A32D2D] border-[#F09595]';
+        case 'SPECIALIST': return 'bg-[#EEEDFE] text-[#3C3489] border-[#AFA9EC]';
+        case 'EDUCATION_SECRETARY': return 'bg-[#FAEEDA] text-[#854F0B] border-[#EF9F27]';
+        case 'SECRETARIA_SEDE': return 'bg-[#FAEEDA] text-[#854F0B] border-[#EF9F27]';
+        case 'SECRETARIA_COCAL': return 'bg-[#FAEEDA] text-[#854F0B] border-[#EF9F27]';
+        case 'ESCOLA': return 'bg-[#E6F1FB] text-[#185FA5] border-[#85B7EB]';
+        case 'COORDENADOR': return 'bg-[#EAF3DE] text-[#3B6D11] border-[#97C459]';
+        default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
 }
 
@@ -53,6 +66,24 @@ export const UserManagement: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState<RoleFilterValue>(ROLE_FILTER_ALL);
+    const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+    const [pinnedUsers, setPinnedUsers] = useState<Set<string>>(new Set());
+
+    const toggleExpand = (id: string) => {
+        setExpandedUsers(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
+
+    const togglePin = (id: string) => {
+        setPinnedUsers(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
 
 
     const [formData, setFormData] = useState<Partial<User>>({
@@ -545,120 +576,183 @@ export const UserManagement: React.FC = () => {
                 </div>
             )}
 
-            <div className="bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
                     <div className="flex-1 min-w-[200px] max-w-xl">
                         <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Pesquisar</label>
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                                type="search"
-                                placeholder="Nome, e-mail, login, telefone ou cargo…"
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
-                            />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input type="search" placeholder="Nome, e-mail, login, telefone ou cargo…"
+                                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#8B1A3A] focus:ring-1 focus:ring-[#8B1A3A]/20 transition-all" />
                         </div>
                     </div>
                     <div className="w-full sm:w-auto sm:min-w-[200px]">
                         <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Tipo de perfil</label>
-                        <select
-                            value={roleFilter}
-                            onChange={e => setRoleFilter(e.target.value as RoleFilterValue)}
-                            className="w-full rounded-lg border border-slate-300 py-2.5 px-3 text-sm bg-white shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
-                        >
-                            {roleFilterOptions.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
+                        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value as RoleFilterValue)}
+                            className="w-full rounded-xl border border-slate-200 py-2.5 px-3 text-sm bg-white outline-none focus:border-[#8B1A3A] transition-all">
+                            {roleFilterOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                         </select>
                     </div>
                 </div>
+
+                {/* Indicador de pinados */}
+                {pinnedUsers.size > 0 && (
+                    <div className="px-4 py-2 bg-[#fdf8f9] border-b border-[#e8c4ce] flex items-center gap-2 text-xs text-[#8B1A3A] font-bold">
+                        <Pin size={11} /> {pinnedUsers.size} usuário{pinnedUsers.size > 1 ? 's' : ''} fixado{pinnedUsers.size > 1 ? 's' : ''} no topo
+                    </div>
+                )}
+
                 <p className="px-4 py-2 text-xs text-slate-500 bg-slate-50/80 border-b border-slate-100">
-                    {filteredUsers.length === users.length
-                        ? `${users.length} usuário(s) cadastrado(s).`
-                        : `Mostrando ${filteredUsers.length} de ${users.length} usuário(s) com os filtros atuais.`}
+                    {filteredUsers.length === users.length ? `${users.length} usuário(s) cadastrado(s).` : `Mostrando ${filteredUsers.length} de ${users.length} usuário(s).`}
                 </p>
-                <div className="max-h-[620px] overflow-y-auto p-4 space-y-2">
-                    {filteredUsers.length === 0 && (
-                        <div className="py-12 text-center text-slate-400 text-sm">
-                            Nenhum usuário encontrado com os filtros selecionados.
-                        </div>
-                    )}
-                    {filteredUsers.map((user, idx) => {
-                        const cardBg = [
-                            'bg-white border-slate-200',
-                            'bg-blue-50/40 border-blue-100',
-                            'bg-emerald-50/40 border-emerald-100',
-                            'bg-purple-50/40 border-purple-100',
-                            'bg-amber-50/40 border-amber-100',
-                        ][idx % 5];
-                        const avatarBg = [
-                            'bg-blue-100 text-blue-700',
-                            'bg-emerald-100 text-emerald-700',
-                            'bg-purple-100 text-purple-700',
-                            'bg-amber-100 text-amber-700',
-                            'bg-rose-100 text-rose-700',
-                        ][idx % 5];
-                        return (
-                            <div key={user.id} className={`flex items-center gap-4 px-4 py-3 rounded-xl border shadow-sm ${cardBg} hover:shadow-md transition-all`}>
-                                {/* Avatar */}
-                                <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border-2 border-white shadow-sm overflow-hidden ${!user.photoUrl ? avatarBg : ''}`}>
-                                    {user.photoUrl
-                                        ? <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" />
-                                        : user.name.charAt(0).toUpperCase()
-                                    }
-                                </div>
-                                {/* Nome + cargo */}
-                                <div className="min-w-0 flex-1">
-                                    <p className="font-medium text-slate-800 text-[13px] truncate">{user.name}</p>
-                                    <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
-                                        <Briefcase size={10} /> {user.jobTitle || 'Sem cargo definido'}
-                                    </p>
-                                </div>
-                                {/* Contato */}
-                                <div className="hidden md:block min-w-0 w-44">
-                                    {user.email && <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate"><Mail size={10} /> {user.email}</p>}
-                                    {user.phone && <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate mt-0.5"><Phone size={10} /> {user.phone}</p>}
-                                </div>
-                                {/* Perfil */}
-                                <div className="hidden lg:block w-36 shrink-0">
-                                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium ${
-                                        user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
-                                        user.role === 'SPECIALIST' ? 'bg-blue-100 text-blue-800' :
-                                        user.role === 'EDUCATION_SECRETARY' ? 'bg-orange-100 text-orange-800' :
-                                        user.role === 'ESCOLA' ? 'bg-emerald-100 text-emerald-800' :
-                                        user.role === 'COORDENADOR' ? 'bg-indigo-100 text-indigo-800' :
-                                        user.role === 'SECRETARIA_SEDE' || user.role === 'SECRETARIA_COCAL' ? 'bg-amber-100 text-amber-900' :
-                                        'bg-slate-100 text-slate-700'
-                                    }`}>
-                                        {user.role === 'ADMIN' && <Shield size={10} />}
-                                        {getRoleLabel(user.role)}
-                                    </span>
-                                    <p className="text-[10px] text-slate-400 mt-1 truncate">Login: {user.username}</p>
-                                </div>
-                                {/* Status */}
-                                <button onClick={() => toggleStatus(user)} disabled={user.username === 'admin'}
-                                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 disabled:cursor-not-allowed ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                    {user.isActive ? 'Ativo' : 'Inativo'}
-                                </button>
-                                {/* Ações */}
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <button onClick={() => handleEdit(user)} title="Editar usuário"
-                                        className="text-[11px] font-medium text-primary-600 hover:text-primary-800 border border-primary-200 hover:bg-primary-50 px-2.5 py-1 rounded-md transition-colors">
-                                        Editar
-                                    </button>
-                                    <button onClick={() => { setResetPasswordUser(user); setNewPassword(''); }} title="Redefinir senha"
-                                        className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors">
-                                        <KeyRound size={15} />
-                                    </button>
-                                    <button onClick={() => handleDelete(user)} disabled={user.username === 'admin'} title="Excluir usuário"
-                                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-                                        <Trash2 size={15} />
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
+
+                {/* TABELA PREMIUM */}
+                <div className="overflow-x-auto">
+                    <table className="min-w-full" style={{borderCollapse:'separate',borderSpacing:0}}>
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="w-8 px-3 py-3"></th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Usuário</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Perfil</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">E-mail / Login</th>
+                                <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                                <th className="px-4 py-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredUsers.length === 0 ? (
+                                <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">
+                                    Nenhum usuário encontrado com os filtros selecionados.
+                                </td></tr>
+                            ) : [...filteredUsers].sort((a, b) => {
+                                const aPin = pinnedUsers.has(a.id) ? 0 : 1;
+                                const bPin = pinnedUsers.has(b.id) ? 0 : 1;
+                                return aPin - bPin;
+                            }).map((user) => {
+                                const isPinned = pinnedUsers.has(user.id);
+                                const isExpanded = expandedUsers.has(user.id);
+                                const roleBadge = getRoleBadgeStyle(user.role);
+                                return (
+                                    <React.Fragment key={user.id}>
+                                        <tr className={`border-b border-slate-100 transition-colors ${isPinned ? 'bg-[#fdf8f9]' : 'hover:bg-slate-50/50'} ${isExpanded ? 'bg-slate-50/80' : ''}`}
+                                            style={isPinned ? {borderLeft:'3px solid #8B1A3A'} : {}}>
+                                            <td className="px-3 py-3">
+                                                <button onClick={() => toggleExpand(user.id)}
+                                                    className="w-6 h-6 rounded flex items-center justify-center border text-xs transition-all"
+                                                    style={isExpanded ? {background:'#8B1A3A',color:'#fff',borderColor:'#8B1A3A'} : {background:'var(--color-background-secondary)',borderColor:'#e2e8f0',color:'#94a3b8'}}>
+                                                    {isExpanded ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}
+                                                </button>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border-2 border-white shadow-sm overflow-hidden"
+                                                        style={{background: user.isActive ? '#EAF3DE' : '#f1f5f9', color: user.isActive ? '#3B6D11' : '#64748b'}}>
+                                                        {user.photoUrl ? <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover"/> : user.name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-bold text-slate-700 flex items-center gap-1">
+                                                            {user.name}
+                                                            {isPinned && <span className="text-[9px] bg-[#fdf8f9] text-[#8B1A3A] border border-[#e8c4ce] px-1.5 py-0.5 rounded-full font-bold">📌</span>}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-400">{user.jobTitle || 'Sem cargo definido'}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${roleBadge}`}>
+                                                    {getRoleLabel(user.role)}
+                                                </span>
+                                                {user.specialty && (
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{user.specialty}</div>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="text-xs text-slate-700">{user.email || '—'}</div>
+                                                <div className="text-[10px] text-slate-400">Login: {user.username}</div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${user.isActive ? 'bg-[#EAF3DE] text-[#3B6D11] border-[#97C459]' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                                    {user.isActive ? 'Ativo' : 'Inativo'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button onClick={() => togglePin(user.id)} title={isPinned ? 'Desafixar' : 'Fixar no topo'}
+                                                        className="w-7 h-7 rounded-lg border flex items-center justify-center transition-all"
+                                                        style={isPinned ? {background:'#fdf8f9',borderColor:'#e8c4ce',color:'#8B1A3A'} : {background:'white',borderColor:'#e2e8f0',color:'#94a3b8'}}>
+                                                        {isPinned ? <PinOff size={12}/> : <Pin size={12}/>}
+                                                    </button>
+                                                    <button onClick={() => { setFormData({...user}); setIsAdding(true); }}
+                                                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 transition-all">
+                                                        Editar
+                                                    </button>
+                                                    <button onClick={() => setResetPasswordUser(user)}
+                                                        className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-[#8B1A3A] hover:border-[#e8c4ce] transition-all">
+                                                        <KeyRound size={12}/>
+                                                    </button>
+                                                    <button onClick={() => setUserToDelete(user)}
+                                                        className="w-7 h-7 rounded-lg border border-[#F09595] bg-[#FCEBEB] flex items-center justify-center text-[#A32D2D] hover:bg-[#f5d5d5] transition-all">
+                                                        <Trash2 size={12}/>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {/* SUB DATA GRID */}
+                                        {isExpanded && (
+                                            <tr className="border-b border-slate-100">
+                                                <td colSpan={6} className="px-0 py-0 bg-slate-50/50">
+                                                    <div className="px-4 py-4 pl-16">
+                                                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Detalhes do usuário · {user.name}</div>
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Perfil / Papel</div>
+                                                                <div className="text-xs font-bold text-slate-700">{getRoleLabel(user.role)}</div>
+                                                                {user.specialty && <div className="text-[10px] text-slate-400 mt-0.5">{user.specialty}</div>}
+                                                            </div>
+                                                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Contato</div>
+                                                                <div className="text-xs font-bold text-slate-700">{user.phone || '—'}</div>
+                                                                <div className="text-[10px] text-slate-400">{user.email || '—'}</div>
+                                                            </div>
+                                                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Escopo / Unidade</div>
+                                                                <div className="text-xs font-bold text-slate-700">{user.scope || 'GLOBAL'}</div>
+                                                                <div className="text-[10px] text-slate-400">{user.schoolInep ? `INEP: ${user.schoolInep}` : '—'}</div>
+                                                            </div>
+                                                            <div className="bg-white border border-slate-200 rounded-xl p-3">
+                                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Login</div>
+                                                                <div className="text-xs font-bold text-slate-700">{user.username}</div>
+                                                                <div className="text-[10px]" style={{color: user.isActive ? '#3B6D11' : '#64748b'}}>{user.isActive ? '● Ativo' : '○ Inativo'}</div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            <button onClick={() => { setFormData({...user}); setIsAdding(true); }}
+                                                                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-1">
+                                                                ✏️ Editar cadastro
+                                                            </button>
+                                                            <button onClick={() => setResetPasswordUser(user)}
+                                                                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-[#85B7EB] bg-[#E6F1FB] text-[#185FA5] hover:bg-[#d0e8f7] transition-all flex items-center gap-1">
+                                                                🔑 Redefinir senha
+                                                            </button>
+                                                            <button onClick={() => togglePin(user.id)}
+                                                                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-[#e8c4ce] bg-[#fdf8f9] text-[#8B1A3A] hover:bg-[#f5e8ed] transition-all flex items-center gap-1">
+                                                                {isPinned ? '📌 Desafixar' : '📌 Fixar no topo'}
+                                                            </button>
+                                                            <button onClick={() => setUserToDelete(user)}
+                                                                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-[#F09595] bg-[#FCEBEB] text-[#A32D2D] hover:bg-[#f5d5d5] transition-all flex items-center gap-1">
+                                                                🗑 Excluir usuário
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             </div>
             {/* Modal Redefinir Senha */}
