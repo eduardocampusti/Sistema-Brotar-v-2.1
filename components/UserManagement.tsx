@@ -631,6 +631,15 @@ export const UserManagement: React.FC = () => {
                                 const roleBadge = getRoleBadgeStyle(user.role);
                                 const showPinnedDivider = idx === 0 && pinnedUsers.size > 0;
                                 const showAllDivider = idx === pinnedUsers.size && pinnedUsers.size > 0;
+                                const rowStyle = (() => {
+                                  switch(user.role) {
+                                    case 'ADMIN': return {borderLeft:'3px solid #8B1A3A', background:'#fdf8f9'};
+                                    case 'EDUCATION_SECRETARY': case 'SECRETARIA_SEDE': case 'SECRETARIA_COCAL': return {borderLeft:'3px solid #EF9F27', background:'#FEF3DC'};
+                                    case 'SPECIALIST': return {borderLeft:'3px solid #7F77DD', background:'#EEEDFE'};
+                                    case 'ESCOLA': return {borderLeft:'3px solid #378ADD', background:'#E6F1FB'};
+                                    default: return {borderLeft:'3px solid #e2e8f0'};
+                                  }
+                                })();
                                 const avatarStyle = (() => {
                                   switch(user.role) {
                                     case 'ADMIN': return {background:'#fdf8f9', color:'#8B1A3A'};
@@ -645,15 +654,7 @@ export const UserManagement: React.FC = () => {
                                         {showPinnedDivider && <tr><td colSpan={6} className="px-4 py-1.5 bg-[#fdf8f9] border-b border-[#e8c4ce]"><div className="flex items-center gap-2 text-[9px] font-black text-[#8B1A3A] uppercase tracking-widest">📌 Fixados no topo</div></td></tr>}
                                         {showAllDivider && <tr><td colSpan={6} className="px-4 py-1.5 bg-slate-50 border-b border-slate-100"><div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">Todos os usuários</div></td></tr>}
                                         <tr className={`border-b border-slate-100 transition-colors ${isExpanded ? 'border-b-0' : ''}`}
-                                            style={isPinned ? {borderLeft:'3px solid #8B1A3A', background:'#fdf8f9'} : (() => {
-                                              switch(user.role) {
-                                                case 'ADMIN': return {borderLeft:'3px solid #8B1A3A', background:'#fdf8f9'};
-                                                case 'EDUCATION_SECRETARY': case 'SECRETARIA_SEDE': case 'SECRETARIA_COCAL': return {borderLeft:'3px solid #EF9F27', background:'#FEF3DC'};
-                                                case 'SPECIALIST': return {borderLeft:'3px solid #7F77DD', background:'#EEEDFE'};
-                                                case 'ESCOLA': return {borderLeft:'3px solid #378ADD', background:'#E6F1FB'};
-                                                default: return {borderLeft:'3px solid #e2e8f0'};
-                                              }
-                                            })()}>
+                                            style={isPinned ? {borderLeft:'3px solid #8B1A3A', background:'#fdf8f9'} : rowStyle}>
                                             <td className="px-3 py-3">
                                                 <button onClick={() => toggleExpand(user.id)}
                                                     className="w-6 h-6 rounded flex items-center justify-center border text-xs transition-all"

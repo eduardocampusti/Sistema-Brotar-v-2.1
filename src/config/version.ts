@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.35',
+  version: 'v2.4.36',
   date: 'Jun 2026',
-  display: 'v2.4.35 • Jun 2026',
+  display: 'v2.4.36 • Jun 2026',
   changelog: [
     'Atualização de manutenção'  
   ],
   releases: [
+    {
+      version: 'v2.4.36',
+      date: '6 Jun 2026',
+      title: 'Release v2.4.36 — 6 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.35',
       date: '6 Jun 2026',
