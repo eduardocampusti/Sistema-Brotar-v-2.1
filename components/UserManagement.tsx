@@ -648,9 +648,9 @@ export const UserManagement: React.FC = () => {
                                             style={isPinned ? {borderLeft:'3px solid #8B1A3A', background:'#fdf8f9'} : (() => {
                                               switch(user.role) {
                                                 case 'ADMIN': return {borderLeft:'3px solid #8B1A3A', background:'#fdf8f9'};
-                                                case 'EDUCATION_SECRETARY': case 'SECRETARIA_SEDE': case 'SECRETARIA_COCAL': return {borderLeft:'3px solid #EF9F27', background:'rgba(250,238,218,0.3)'};
-                                                case 'SPECIALIST': return {borderLeft:'3px solid #7F77DD', background:'rgba(238,237,254,0.3)'};
-                                                case 'ESCOLA': return {borderLeft:'3px solid #378ADD', background:'rgba(230,241,251,0.3)'};
+                                                case 'EDUCATION_SECRETARY': case 'SECRETARIA_SEDE': case 'SECRETARIA_COCAL': return {borderLeft:'3px solid #EF9F27', background:'#FEF3DC'};
+                                                case 'SPECIALIST': return {borderLeft:'3px solid #7F77DD', background:'#EEEDFE'};
+                                                case 'ESCOLA': return {borderLeft:'3px solid #378ADD', background:'#E6F1FB'};
                                                 default: return {borderLeft:'3px solid #e2e8f0'};
                                               }
                                             })()}>
