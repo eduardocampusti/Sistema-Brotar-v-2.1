@@ -630,8 +630,8 @@ export const UserManagement: React.FC = () => {
                                 const isPinned = pinnedUsers.has(user.id);
                                 const isExpanded = expandedUsers.has(user.id);
                                 const roleBadge = getRoleBadgeStyle(user.role);
-                                const showPinnedDivider = idx === 0 && pinnedList.length > 0;
-                                const showAllDivider = idx === pinnedList.length && pinnedList.length > 0;
+                                const showPinnedDivider = idx === 0 && pinnedUsers.size > 0;
+                                const showAllDivider = idx === pinnedUsers.size && pinnedUsers.size > 0;
                                 const rowStyle = (() => {
                                   switch(user.role) {
                                     case 'ADMIN': return {borderLeft:'3px solid #8B1A3A', background:'#fdf8f9'};
