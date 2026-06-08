@@ -24,7 +24,9 @@ const PERFIS_EXCLUIDOS_LISTA_AGENDAMENTO: UserRole[] = [
 
 const ESPECIALIDADES_CLINICAS = new Set<Specialty>(Object.values(Specialty) as Specialty[]);
 
-const SUGGESTED_START_TIMES = ['08:00', '08:40', '09:20', '10:00', '13:00', '13:40', '14:20', '15:00', '15:40', '16:20'] as const;
+const SUGGESTED_START_TIMES_MANHA = ['08:00', '08:40', '09:20', '10:00', '11:00'] as const;
+const SUGGESTED_START_TIMES_TARDE = ['13:00', '13:40', '14:20', '15:00', '15:40', '16:20'] as const;
+const SUGGESTED_START_TIMES = [...SUGGESTED_START_TIMES_MANHA, ...SUGGESTED_START_TIMES_TARDE] as const;
 
 /** Visual por especialidade — espelha `edu/code.html` (Material Symbols + superfícies). */
 const SPECIALTY_STITCH: Record<
@@ -956,7 +958,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                         <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-8 items-start">
                             {/* COLUNA ESQUERDA */}
                             <div className="grid grid-cols-1 gap-6">
-                                <section className="grid min-w-0 grid-cols-1 gap-6">
+                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-white p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-100">
                                     <h2 className="font-headline flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"><span className="flex h-6 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>Contexto do Paciente</h2>
                                     <div className="grid min-w-0 max-w-3xl grid-cols-1 gap-3">
                                         <div className="grid grid-cols-1 gap-1.5">
@@ -1049,7 +1051,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     </div>
                                 </section>
 
-                                <section className="grid min-w-0 grid-cols-1 gap-6">
+                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-white p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-100">
                                     <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
                                         <h2 className="font-headline text-2xl font-bold text-on-background">2. Especialidades</h2>
                                         <button type="button" onClick={() => setShowAllSpecialties((v) => !v)} className="w-fit font-semibold text-primary underline-offset-4 transition-colors duration-300 hover:underline sm:justify-self-end">{showAllSpecialties ? 'Mostrar menos' : 'Ver todas'}</button>
@@ -1084,7 +1086,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     </div>
                                 </section>
 
-                                <section className="grid min-w-0 grid-cols-1 gap-4">
+                                <section className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl bg-white p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-100">
                                     <h2 className="font-headline text-2xl font-bold text-on-background">3. Profissionais disponíveis</h2>
                                     {!newApt.specialty ? (
                                         <p className="text-on-surface-variant">Selecione uma especialidade para listar os profissionais.</p>
@@ -1155,7 +1157,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             <div className="lg:sticky lg:top-4 grid grid-cols-1 gap-6">
                                 <div className="grid grid-cols-1 gap-3">
                                     <h2 className="font-headline text-lg font-bold text-on-background">4. Data e horário</h2>
-                                    <div className="overflow-hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+                                    <div className="overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-200">
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-2">
                                                 <span className="material-symbols-outlined text-base text-primary">calendar_month</span>
@@ -1193,25 +1195,53 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     </div>
                                 </div>
 
-                                <div className={`grid grid-cols-1 gap-3 transition-opacity duration-300 ${!newApt.professionalId ? 'opacity-40' : ''}`}>
+                                <div className={`grid grid-cols-1 gap-3 transition-opacity duration-300 rounded-2xl bg-white p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-100 ${!newApt.professionalId ? 'opacity-40' : ''}`}>
                                     <div className="flex items-center justify-between gap-2">
                                         <h3 className="font-headline flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 sm:text-xl"><span className="flex h-5 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>Horários Disponíveis</h3>
                                         <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">Duração: {duration}m</span>
                                     </div>
                                     {!newApt.professionalId && <p className="text-center text-xs text-on-surface-variant">Selecione um profissional na lista</p>}
-                                    <div className="grid grid-cols-3 gap-3" style={!newApt.professionalId ? { pointerEvents: 'none' } : {}}>
-                                        {SUGGESTED_START_TIMES.map((time) => {
-                                            const nextEnd = addMinutesToClock(time, duration);
-                                            const past = !!newApt.date && isDateToday && combineLocalDateAndTime(newApt.date, time) <= now;
-                                            const ocupado = profApptsDay !== null && !!newApt.professionalId && SupabaseService.filtrarAgendamentosSobrepostosJanela(profApptsDay, time, nextEnd, initialData?.id).length > 0;
-                                            const disabled = past || ocupado;
-                                            const selected = newApt.startTime === time;
-                                            return (
-                                                <button key={time} type="button" disabled={disabled} onClick={() => { if (!disabled) setNewApt({ ...newApt, startTime: time, endTime: nextEnd }); }} className={`w-full rounded-full px-3 py-2.5 text-sm font-semibold transition-all duration-300 ${disabled ? 'cursor-not-allowed border border-slate-100 bg-slate-50 text-slate-400' : selected ? 'bg-[#2D6A4F] font-bold text-white shadow-md ring-2 ring-[#2D6A4F] ring-offset-1' : 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-[#2D6A4F]/50 hover:bg-emerald-50/50 hover:text-[#2D6A4F]'}`}>
-                                                    <span className={disabled && past ? 'line-through' : ''}>{time}</span>
-                                                </button>
-                                            );
-                                        })}
+                                    {/* MATUTINO */}
+                                    <div style={{marginBottom:'4px'}}>
+                                        <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}}>
+                                            <div style={{width:'3px',height:'14px',borderRadius:'2px',background:'#2D6A4F',flexShrink:0}} />
+                                            <span style={{fontSize:'10px',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.06em',color:'#6b7280'}}>Matutino</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-3" style={!newApt.professionalId ? { pointerEvents: 'none' } : {}}>
+                                            {SUGGESTED_START_TIMES_MANHA.map((time) => {
+                                                const nextEnd = addMinutesToClock(time, duration);
+                                                const past = !!newApt.date && isDateToday && combineLocalDateAndTime(newApt.date, time) <= now;
+                                                const ocupado = profApptsDay !== null && !!newApt.professionalId && SupabaseService.filtrarAgendamentosSobrepostosJanela(profApptsDay, time, nextEnd, initialData?.id).length > 0;
+                                                const disabled = past || ocupado;
+                                                const selected = newApt.startTime === time;
+                                                return (
+                                                    <button key={time} type="button" disabled={disabled} onClick={() => { if (!disabled) setNewApt({ ...newApt, startTime: time, endTime: nextEnd }); }} className={`w-full rounded-full px-3 py-2.5 text-sm font-semibold transition-all duration-300 ${disabled ? 'cursor-not-allowed border border-slate-100 bg-slate-50 text-slate-400' : selected ? 'bg-[#2D6A4F] font-bold text-white shadow-md ring-2 ring-[#2D6A4F] ring-offset-1' : 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-[#2D6A4F]/50 hover:bg-emerald-50/50 hover:text-[#2D6A4F]'}`}>
+                                                        <span className={disabled && past ? 'line-through' : ''}>{time}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    {/* VESPERTINO */}
+                                    <div>
+                                        <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px',marginTop:'12px'}}>
+                                            <div style={{width:'3px',height:'14px',borderRadius:'2px',background:'#2D6A4F',flexShrink:0}} />
+                                            <span style={{fontSize:'10px',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.06em',color:'#6b7280'}}>Vespertino</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-3" style={!newApt.professionalId ? { pointerEvents: 'none' } : {}}>
+                                            {SUGGESTED_START_TIMES_TARDE.map((time) => {
+                                                const nextEnd = addMinutesToClock(time, duration);
+                                                const past = !!newApt.date && isDateToday && combineLocalDateAndTime(newApt.date, time) <= now;
+                                                const ocupado = profApptsDay !== null && !!newApt.professionalId && SupabaseService.filtrarAgendamentosSobrepostosJanela(profApptsDay, time, nextEnd, initialData?.id).length > 0;
+                                                const disabled = past || ocupado;
+                                                const selected = newApt.startTime === time;
+                                                return (
+                                                    <button key={time} type="button" disabled={disabled} onClick={() => { if (!disabled) setNewApt({ ...newApt, startTime: time, endTime: nextEnd }); }} className={`w-full rounded-full px-3 py-2.5 text-sm font-semibold transition-all duration-300 ${disabled ? 'cursor-not-allowed border border-slate-100 bg-slate-50 text-slate-400' : selected ? 'bg-[#2D6A4F] font-bold text-white shadow-md ring-2 ring-[#2D6A4F] ring-offset-1' : 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-[#2D6A4F]/50 hover:bg-emerald-50/50 hover:text-[#2D6A4F]'}`}>
+                                                        <span className={disabled && past ? 'line-through' : ''}>{time}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" style={{display:'none'}}>
