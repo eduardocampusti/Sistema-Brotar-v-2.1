@@ -414,8 +414,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
               <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.60)' }}>Release estável</span>
             </div>
           )}
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className="absolute -right-3 top-6 w-6 h-6 rounded-full flex items-center justify-center shadow-lg border border-white/20 hover:scale-110 transition-all duration-200 z-10" style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)' }} title={isCollapsed ? 'Expandir menu' : 'Recolher menu'}>
-            {isCollapsed ? <ChevronRight size={12} className="text-white" /> : <ChevronLeft size={12} className="text-white" />}
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className="absolute -right-4 top-6 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 z-50 hover:scale-110 group" style={{ background: '#ffffff', boxShadow: '0 4px 16px rgba(0,0,0,0.30), 0 1px 4px rgba(0,0,0,0.12)', border: '2px solid #e2e8f0' }} title={isCollapsed ? 'Expandir menu' : 'Recolher menu'}>
+            {isCollapsed ? <ChevronRight size={14} className="text-slate-600 group-hover:text-slate-800" /> : <ChevronLeft size={14} className="text-slate-600 group-hover:text-slate-800" />}
           </button>
         </div>
 
@@ -490,11 +490,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
         </nav>
 
-        <div className="p-4 mt-auto">
+        <div className={isCollapsed ? "px-2 py-3 mt-auto" : "p-4 mt-auto"}>
           <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(30,0,60,0.55)', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 4px 16px rgba(0,0,0,0.50), 0 1px 4px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
             
             {/* Avatar + Nome + Role */}
-            <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className={isCollapsed ? "flex justify-center py-3" : "flex items-center gap-3 p-4"} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.18)', border: '2px solid rgba(255,255,255,0.28)' }}>
                 {currentUser.photoUrl ? (
                   <img src={currentUser.photoUrl} alt={`Foto de ${currentUser.name}`} className="w-full h-full rounded-full object-cover" />
@@ -511,7 +511,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
             </div>
 
             {/* Versão + Data em destaque */}
-            <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            {!isCollapsed && (<div className="px-4 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Tag size={11} style={{ color: 'rgba(255,255,255,0.55)' }} />
@@ -522,24 +522,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                   <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.55)' }}>{APP_VERSION.display.split('•')[1]?.trim() || APP_VERSION.display}</span>
                 </div>
               </div>
-            </div>
+            </div>)}
 
             {/* Botões Sobre + Sair */}
-            <div className="grid grid-cols-2 gap-0">
-              <button
-                onClick={() => onNavigate('about')}
-                className="flex items-center justify-center gap-1.5 text-[11px] font-semibold py-3 transition-all hover:bg-white/10"
-                style={{ color: 'rgba(255,255,255,0.65)', borderRight: '1px solid rgba(255,255,255,0.1)' }}
-              >
-                <Info size={13} /> Sobre
-              </button>
-              <button
-                onClick={onLogout}
-                className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-red-300/70 hover:text-red-200 hover:bg-red-500/15 py-3 transition-all"
-              >
-                <LogOut size={13} /> Sair
-              </button>
-            </div>
+            {isCollapsed ? (
+              <div className="flex flex-col">
+                <button onClick={() => onNavigate('about')} title="Sobre" className="flex items-center justify-center py-2.5 w-full transition-all hover:bg-white/10" style={{ color: 'rgba(255,255,255,0.65)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                  <Info size={15} />
+                </button>
+                <button onClick={onLogout} title="Sair" className="flex items-center justify-center py-2.5 w-full text-red-300/70 hover:text-red-200 hover:bg-red-500/15 transition-all">
+                  <LogOut size={15} />
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-0">
+                <button onClick={() => onNavigate('about')} className="flex items-center justify-center gap-1.5 text-[11px] font-semibold py-3 transition-all hover:bg-white/10" style={{ color: 'rgba(255,255,255,0.65)', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+                  <Info size={13} /> Sobre
+                </button>
+                <button onClick={onLogout} className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-red-300/70 hover:text-red-200 hover:bg-red-500/15 py-3 transition-all">
+                  <LogOut size={13} /> Sair
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </aside>
