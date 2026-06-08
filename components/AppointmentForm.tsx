@@ -957,8 +957,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
                         <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-8 items-start">
                             {/* COLUNA ESQUERDA */}
-                            <div className="grid grid-cols-1 gap-6">
-                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04]">
+                            <div className="grid grid-cols-1 gap-5">
+                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04] overflow-hidden">
                                     <h2 className="font-headline flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"><span className="flex h-6 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>Contexto do Paciente</h2>
                                     <div className="grid min-w-0 max-w-3xl grid-cols-1 gap-3">
                                         <div className="grid grid-cols-1 gap-1.5">
@@ -1002,7 +1002,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                             <h3 className="font-headline text-lg font-semibold text-on-background">Alunos Pacientes</h3>
                                             {selectedSchoolId && studentsBySchool.length > 0 && <span style={{fontSize:'12px',color:'#6b7280'}}>{studentCardsList.length} aluno(s)</span>}
                                         </div>
-                                        <div role="list" aria-label="Lista de alunos pacientes" style={{border:'1px solid #e5e7eb',borderRadius:'16px',overflow:'hidden',background:'#fff'}}>
+                                        <div role="list" aria-label="Lista de alunos pacientes" style={{border:'1.5px solid #d1fae5',borderRadius:'16px',overflow:'hidden',background:'#fff',boxShadow:'0 1px 4px rgba(0,0,0,0.05)'}}>
                                             {!selectedSchoolId ? (
                                                 <p style={{padding:'32px 16px',textAlign:'center',fontSize:'14px',color:'#6b7280'}}>Selecione uma unidade escolar para ver os alunos.</p>
                                             ) : loadingStudents || loadingSchoolStudents ? (
@@ -1010,7 +1010,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                             ) : studentCardsList.length === 0 ? (
                                                 <p style={{padding:'24px 16px',textAlign:'center',fontSize:'14px',color:'#6b7280'}}>{studentsBySchool.length === 0 ? 'Nenhum aluno matriculado nesta unidade escolar.' : searchName.trim() ? 'Nenhum aluno corresponde à busca.' : 'Nenhum aluno encontrado.'}</p>
                                             ) : (
-                                                <div style={{maxHeight:'260px',overflowY:'auto'}}>
+                                                <div style={{maxHeight:'210px',overflowY:'auto'}}>
                                                     {studentCardsList.map((s) => {
                                                         const selected = newApt.studentId === s.id;
                                                         const diag = (s.clinical?.diagnosis || (s.clinical?.specialNeeds && s.clinical.specialNeeds[0]) || '').substring(0, 25);
@@ -1089,7 +1089,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 <section className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04]">
                                     <h2 className="font-headline text-2xl font-bold text-on-background">3. Profissionais disponíveis</h2>
                                     {!newApt.specialty ? (
-                                        <p className="text-on-surface-variant">Selecione uma especialidade para listar os profissionais.</p>
+                                        <p className="rounded-xl bg-surface-container px-4 py-5 text-center text-sm text-on-surface-variant">Selecione uma especialidade para listar os profissionais.</p>
                                     ) : loadingProfissionaisCache ? (
                                         <div className="flex gap-3">
                                             {[1, 2, 3].map((i) => <div key={i} className="h-12 w-36 shrink-0 animate-pulse rounded-full bg-surface-container-low" />)}
@@ -1146,7 +1146,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                                     </div>
                                                 </article>
                                             ) : (
-                                                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 py-10 text-center text-sm text-slate-500">Toque em um profissional na lista acima para ver a ficha e os horários.</div>
+                                                <div className="rounded-2xl bg-surface-container px-6 py-8 text-center text-sm text-on-surface-variant ring-1 ring-black/[0.04]">Toque em um profissional na lista acima para ver a ficha e os horários.</div>
                                             )}
                                         </>
                                     )}
