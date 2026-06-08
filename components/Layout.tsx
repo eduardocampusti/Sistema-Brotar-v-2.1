@@ -385,7 +385,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   );
 
   return (
-    <div className="flex min-h-screen bg-[#EEF2F8] font-sans selection:bg-primary-500 selection:text-white">
+    <div className="flex min-h-screen bg-[#f8fafc] font-sans selection:bg-primary-500 selection:text-white">
       {/* Sidebar - Desktop */}
       <aside className={`hidden lg:flex flex-col fixed h-full z-30 shadow-2xl ${theme.sidebar} ${isCollapsed ? "w-[72px]" : "w-72"} transition-all duration-300`} style={(theme as any).sidebarStyle || {}}>
         <div className="px-5 pt-5 pb-4 relative" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>

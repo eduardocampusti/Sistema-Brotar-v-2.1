@@ -143,7 +143,7 @@ export default {
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
         'glow': '0 0 15px rgba(var(--color-primary-500-rgb), 0.3)',
         'glow-green': '0 0 20px rgba(16, 185, 129, 0.4)',
-        'card': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+        'card': '0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06)',
         'premium': '0 10px 40px -10px rgba(0, 0, 0, 0.1)',
       },
       animation: {
