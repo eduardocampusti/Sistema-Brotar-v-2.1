@@ -1053,10 +1053,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
                                 <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04]">
                                     <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
-                                        <h2 className="font-headline text-2xl font-bold text-on-background">2. Especialidades</h2>
+                                        <h2 className="font-headline flex items-center gap-2 text-xl font-bold tracking-tight text-on-background"><span className="flex h-6 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>2. Especialidades</h2>
                                         <button type="button" onClick={() => setShowAllSpecialties((v) => !v)} className="w-fit font-semibold text-primary underline-offset-4 transition-colors duration-300 hover:underline sm:justify-self-end">{showAllSpecialties ? 'Mostrar menos' : 'Ver todas'}</button>
                                     </div>
-                                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3 md:grid-cols-6 lg:grid-cols-7">
+                                    <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                                         {loadingProfissionaisCache ? (
                                             <>
                                                 {[1, 2, 3, 4, 5, 6, 7].map((i) => <div key={i} className="flex h-[92px] animate-pulse flex-col items-center justify-center gap-2 rounded-xl bg-surface-container-low px-2 py-2.5 sm:h-[100px]" />)}
@@ -1072,12 +1072,12 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                                         type="button"
                                                         disabled={semProfissionais}
                                                         onClick={() => { if (!semProfissionais) selectSpecialty(specialty); }}
-                                                        className={`group flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-center transition-all duration-300 sm:gap-2 sm:px-2 sm:py-3 ${semProfissionais ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-50 grayscale' : selected ? 'border-[#2D6A4F]/30 bg-emerald-50/80 shadow-md ring-1 ring-[#2D6A4F]/20' : 'cursor-pointer border-slate-200/80 bg-white shadow-sm hover:scale-[1.02] hover:border-emerald-200 hover:shadow-md'}`}
+                                                        className={`group flex w-full flex-col items-center justify-center gap-2 rounded-xl border px-2 py-3 text-center transition-all duration-200 ${semProfissionais ? 'cursor-not-allowed border-slate-100 bg-surface-container opacity-40' : selected ? 'border-[#2D6A4F]/40 bg-emerald-50 shadow-card ring-2 ring-[#2D6A4F]/25' : 'cursor-pointer border-slate-200 bg-surface-container-lowest shadow-sm hover:border-emerald-300 hover:shadow-card hover:-translate-y-0.5'}`}
                                                     >
-                                                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full sm:h-10 sm:w-10 ${stitch.iconWrap}`}>
+                                                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${stitch.iconWrap}`}>
                                                             <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{stitch.symbol}</span>
                                                         </div>
-                                                        <span className="line-clamp-2 w-full px-0.5 text-[10px] font-semibold leading-tight text-on-surface sm:text-[11px]">{specialty}</span>
+                                                        <span className="line-clamp-2 w-full text-[11px] font-semibold leading-tight text-on-surface sm:text-xs">{specialty}</span>
                                                         <span className="sr-only">{count} {count === 1 ? 'profissional' : 'profissionais'}</span>
                                                     </button>
                                                 );
@@ -1087,9 +1087,9 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 </section>
 
                                 <section className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04]">
-                                    <h2 className="font-headline text-2xl font-bold text-on-background">3. Profissionais disponíveis</h2>
+                                    <h2 className="font-headline flex items-center gap-2 text-xl font-bold tracking-tight text-on-background"><span className="flex h-6 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>3. Profissionais disponíveis</h2>
                                     {!newApt.specialty ? (
-                                        <p className="rounded-xl bg-surface-container px-4 py-5 text-center text-sm text-on-surface-variant">Selecione uma especialidade para listar os profissionais.</p>
+                                        <div className="flex flex-col items-center gap-2 py-6 text-center"><span className="material-symbols-outlined text-[32px] text-on-surface-variant/40">manage_search</span><p className="text-sm text-on-surface-variant">Selecione uma especialidade acima para ver os profissionais disponÃ­veis.</p></div>
                                     ) : loadingProfissionaisCache ? (
                                         <div className="flex gap-3">
                                             {[1, 2, 3].map((i) => <div key={i} className="h-12 w-36 shrink-0 animate-pulse rounded-full bg-surface-container-low" />)}
@@ -1110,19 +1110,19 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                                             aria-selected={selected}
                                                             disabled={ocupado}
                                                             onClick={() => { if (!ocupado) selectProfessional(p); }}
-                                                            className={`flex max-w-[220px] shrink-0 items-center gap-2.5 rounded-full border py-2 pl-2 pr-3 text-left transition-all duration-300 ${selected ? 'border-primary/40 bg-emerald-50/90 shadow-sm ring-2 ring-primary/15' : 'border-slate-200/90 bg-white shadow-sm hover:border-primary/30'} ${ocupado ? 'cursor-not-allowed opacity-45' : ''}`}
+                                                            className={`flex max-w-[220px] shrink-0 items-center gap-2.5 rounded-full border py-2 pl-2 pr-4 text-left transition-all duration-200 ${selected ? 'border-[#2D6A4F] bg-emerald-50 shadow-card ring-2 ring-[#2D6A4F]/20' : 'border-slate-200 bg-surface-container-lowest shadow-sm hover:border-[#2D6A4F]/50 hover:bg-emerald-50/40'} ${ocupado ? 'cursor-not-allowed opacity-40' : ''}`}
                                                         >
                                                             {p.photoUrl ? <img src={p.photoUrl} alt="" className="size-9 shrink-0 rounded-full object-cover ring-2 ring-white" /> : (
                                                                 <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 ring-2 ring-white">{initialsFromName(p.name)}</div>
                                                             )}
-                                                            <span className="min-w-0 truncate text-xs font-bold text-on-background sm:text-sm">{p.name}</span>
+                                                            <span className="min-w-0 truncate text-sm font-semibold text-on-background">{p.name}</span>
                                                             {ocupado ? <span className="shrink-0 rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-red-700">Ocup.</span> : null}
                                                         </button>
                                                     );
                                                 })}
                                             </div>
                                             {profissionalSelecionado ? (
-                                                <article className="grid min-h-[4.25rem] w-full max-w-full grid-cols-[4.5rem_1fr] overflow-hidden rounded-2xl border-2 border-primary/35 bg-white shadow-md ring-1 ring-slate-100 sm:min-h-[4.5rem] sm:grid-cols-[5rem_1fr]">
+                                                <article className="grid min-h-[4.25rem] w-full max-w-full grid-cols-[4.5rem_1fr] overflow-hidden rounded-2xl border-2 border-[#2D6A4F]/40 bg-surface-container-lowest shadow-card ring-1 ring-[#2D6A4F]/10 sm:min-h-[4.5rem] sm:grid-cols-[5rem_1fr]">
                                                     <div className="relative h-full min-h-[4.25rem] bg-slate-200 sm:min-h-[4.5rem]">
                                                         {profissionalSelecionado.photoUrl ? <img src={profissionalSelecionado.photoUrl} alt="" className="absolute inset-0 h-full w-full object-cover" /> : (
                                                             <div className="absolute inset-0 flex items-center justify-center bg-primary text-sm font-bold text-on-primary sm:text-base">{initialsFromName(profissionalSelecionado.name)}</div>
