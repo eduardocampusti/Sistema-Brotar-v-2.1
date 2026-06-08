@@ -895,7 +895,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     const resumoNomeEscola =
         selectedSchoolId ? (selectedSchoolName.trim() || searchQuery.trim() || undefined) : undefined;
     return (
-        <div className="appointment-stitch-shell flex min-h-0 w-full flex-col overflow-x-hidden bg-background font-body text-on-background transition-colors duration-300">
+        <div className="appointment-stitch-shell flex min-h-0 w-full flex-col overflow-x-hidden bg-[#f8fafc] font-body text-on-background transition-colors duration-300">
             <main className="flex w-full flex-1 justify-center px-3 pb-10 pt-3 sm:px-4 sm:pb-12 md:pb-14 md:pt-4">
                 <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10">
                     <div className="grid w-full grid-cols-1 gap-y-6 md:gap-y-8">
