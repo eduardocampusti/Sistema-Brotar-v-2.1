@@ -18,7 +18,7 @@ type RowProps = {
 function SummaryRow({ label, value, pending, icon, isLast }: RowProps) {
     const filled = Boolean(value && value.trim());
     return (
-        <div className={`flex items-start gap-3 py-3 sm:py-3.5 ${!isLast ? 'border-b border-dashed border-slate-200' : ''}`}>
+        <div className={`flex items-start gap-3 py-2.5 ${!isLast ? 'border-b border-black/[0.04]' : ''}`}>
             <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${filled ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
                 {icon}
             </div>
@@ -63,11 +63,11 @@ export const AppointmentSummaryCard: React.FC<AppointmentSummaryCardProps> = ({
 
     return (
         <article
-            className="flex w-full flex-col overflow-hidden rounded-2xl bg-white shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/60"
+            className="flex w-full flex-col overflow-hidden rounded-2xl bg-surface-container-lowest shadow-card ring-1 ring-black/[0.04]"
             aria-labelledby="appointment-summary-heading"
         >
-            <div className="relative border-b border-slate-100 bg-gradient-to-b from-emerald-50/50 to-white px-4 py-4 sm:px-5 sm:py-5">
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 to-[#2D6A4F]" />
+            <div className="relative border-b border-black/[0.04] bg-surface-container-lowest px-4 py-4 sm:px-5 sm:py-4">
+                <div className="absolute inset-x-0 top-0 h-0.5 bg-[#2D6A4F]/60" />
                 <h3
                     id="appointment-summary-heading"
                     className="font-headline text-base font-bold tracking-tight text-slate-900 sm:text-lg"
@@ -119,7 +119,7 @@ export const AppointmentSummaryCard: React.FC<AppointmentSummaryCardProps> = ({
                 />
             </dl>
 
-            <div className="bg-slate-50/80 px-4 py-4 sm:px-5">
+            <div className="bg-surface-container px-4 py-4 sm:px-5 border-t border-black/[0.04]">
                 {confirmDisabled && (
                     <div className="mb-4 flex items-start gap-2 rounded-xl bg-amber-50 p-3 ring-1 ring-amber-200/50">
                         <AlertCircle className="mt-0.5 shrink-0 text-amber-500" size={16} />

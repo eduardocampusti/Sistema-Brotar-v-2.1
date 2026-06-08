@@ -955,10 +955,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             </div>
                         </section>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-8 items-start">
+                        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 items-start">
                             {/* COLUNA ESQUERDA */}
                             <div className="grid grid-cols-1 gap-5">
-                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04] overflow-hidden">
+                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04]">
                                     <h2 className="font-headline flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"><span className="flex h-6 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>Contexto do Paciente</h2>
                                     <div className="grid min-w-0 max-w-3xl grid-cols-1 gap-3">
                                         <div className="grid grid-cols-1 gap-1.5">
@@ -1154,10 +1154,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             </div>
 
                             {/* COLUNA DIREITA */}
-                            <div className="lg:sticky lg:top-4 grid grid-cols-1 gap-6">
+                            <div className="lg:sticky lg:top-4 grid grid-cols-1 gap-4 self-start">
                                 <div className="grid grid-cols-1 gap-3">
-                                    <h2 className="font-headline text-lg font-bold text-on-background">4. Data e horário</h2>
-                                    <div className="overflow-hidden rounded-2xl bg-surface-container-lowest p-4 shadow-card ring-1 ring-black/[0.04]">
+                                    <h2 className="font-headline flex items-center gap-2 text-lg font-bold text-on-background"><span className="flex h-5 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>4. Data e horário</h2>
+                                    <div className="overflow-hidden rounded-2xl bg-surface-container-lowest p-3.5 shadow-card ring-1 ring-black/[0.04]">
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-2">
                                                 <span className="material-symbols-outlined text-base text-primary">calendar_month</span>
@@ -1195,7 +1195,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     </div>
                                 </div>
 
-                                <div className={`grid grid-cols-1 gap-3 transition-opacity duration-300 rounded-2xl bg-surface-container-lowest p-5 shadow-card ring-1 ring-black/[0.04] ${!newApt.professionalId ? 'opacity-40' : ''}`}>
+                                <div className={`grid grid-cols-1 gap-3 transition-opacity duration-300 rounded-2xl bg-surface-container-lowest p-4 shadow-card ring-1 ring-black/[0.04] ${!newApt.professionalId ? 'opacity-40' : ''}`}>
                                     <div className="flex items-center justify-between gap-2">
                                         <h3 className="font-headline flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 sm:text-xl"><span className="flex h-5 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>Horários Disponíveis</h3>
                                         <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">Duração: {duration}m</span>
