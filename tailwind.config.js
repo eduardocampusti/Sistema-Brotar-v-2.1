@@ -22,17 +22,17 @@ export default {
       colors: {
         /** Tokens do Stitch — `projects/2943493648880348875` (uso: `bg-sanctuary-*`, `text-sanctuary-*`) */
         sanctuary: {
-          background: '#f9faf6',
+          background: '#f8fafc',
           onBackground: '#2f3430',
-          surface: '#f9faf6',
+          surface: '#f8fafc',
           onSurface: '#2f3430',
           onSurfaceVariant: '#5b605d',
-          surfaceContainerLow: '#f2f4f0',
-          surfaceContainer: '#ecefea',
-          surfaceContainerHigh: '#e6e9e5',
-          surfaceContainerHighest: '#dfe4df',
+          surfaceContainerLow: '#f1f5f9',
+          surfaceContainer: '#e8edf2',
+          surfaceContainerHigh: '#e2e8f0',
+          surfaceContainerHighest: '#d1d9e4',
           surfaceContainerLowest: '#ffffff',
-          surfaceVariant: '#dfe4df',
+          surfaceVariant: '#e2e8f0',
           primary: '#2d6a4f',
           primaryDim: '#1f5e44',
           primaryContainer: '#b1f0ce',
@@ -83,7 +83,7 @@ export default {
           container: '#f5f1e3',
         },
         /** Nomes de token iguais ao `edu/code.html` (classes com hífen) */
-        background: '#f9faf6',
+        background: '#f8fafc',
         'on-background': '#2f3430',
         'on-surface': '#2f3430',
         'on-surface-variant': '#5b605d',
