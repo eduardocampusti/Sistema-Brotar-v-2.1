@@ -1938,10 +1938,19 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                         localStorage.removeItem('brotar_auto_open_session');
                     }
                 } else if (autoOpenSession) {
-                    // Mantém compatibilidade com a rota new-session estática
+                    // Preenche data e hora atual ao abrir nova sessao sem agendamento vinculado
+                    const _now = new Date();
+                    const _pad = (n: number) => String(n).padStart(2, '0');
+                    const _hFim = _now.getHours() < 23 ? _now.getHours() + 1 : 23;
                     setActiveTab('sessions');
                     setIsEditingSession(true);
-                    setCurrentSession({});
+                    setCurrentSession({
+                        date: _now.toISOString().split('T')[0],
+                        startTime: `${_pad(_now.getHours())}:${_pad(_now.getMinutes())}`,
+                        endTime: `${_pad(_hFim)}:${_pad(_now.getMinutes())}`,
+                        status: 'Realizado',
+                        humor: 'Neutro'
+                    });
                 }
             } catch (err) {
                 console.error("Erro ao carregar dados de psicopedagogia:", err);
@@ -2978,7 +2987,18 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                         <p className="text-xs text-slate-400 mt-0.5">{selectedStudent?.fullName} · {ppData.sessions.length} sessões registradas</p>
                                     </div>
                                     {!isEditingSession && (
-                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="w-full sm:w-auto bg-[#8B1A3A] hover:bg-[#731530] text-white px-5 py-2 rounded-xl font-bold flex items-center justify-center gap-2 text-sm transition-all shadow-sm"><Plus size={15} /> Nova Sessão</button>
+                                        <button onClick={() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setIsEditingSession(true);
+    setCurrentSession({
+        date: now.toISOString().split('T')[0],
+        startTime: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+        endTime: `${pad(now.getHours() + 1)}:${pad(now.getMinutes())}`,
+        status: 'Realizado',
+        humor: 'Neutro'
+    });
+}} className="w-full sm:w-auto bg-[#8B1A3A] hover:bg-[#731530] text-white px-5 py-2 rounded-xl font-bold flex items-center justify-center gap-2 text-sm transition-all shadow-sm"><Plus size={15} /> Nova Sessão</button>
                                     )}
                                 </div>
 
@@ -3239,7 +3259,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                         <h3 className="text-xl font-black text-slate-800 mb-2">Sessão Salva com Sucesso!</h3>
                         <p className="text-sm text-slate-500 mb-8">O que você deseja fazer agora?</p>
                         <div className="flex flex-col gap-3">
-                            <button onClick={() => onNavigate ? onNavigate('scheduling') : (window.location.href = '/app/scheduling')} className="w-full px-5 py-3 font-black text-white bg-[#8B1A3A] hover:bg-[#72142e] rounded-xl shadow-md transition-all">
+                            <button onClick={() => { setShowPostSaveModal(false); setIsEditingSession(false); setCurrentSession({}); if (onNavigate) { onNavigate('scheduling'); } else if (onNavigateNew) { onNavigateNew(); } }} className="w-full px-5 py-3 font-black text-white bg-[#8B1A3A] hover:bg-[#72142e] rounded-xl shadow-md transition-all">
                                 Agendar Próxima Sessão
                             </button>
                             <button onClick={() => { setShowPostSaveModal(false); setIsEditingSession(false); setCurrentSession({}); }} className="w-full px-5 py-3 font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all">
@@ -3551,7 +3571,18 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white/50 p-4 rounded-xl backdrop-blur-sm border border-white/40 shadow-sm">
                                     <h3 className="font-bold text-cyan-900 text-xl">Sessões Realizadas</h3>
                                     {!isEditingSession && (
-                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="w-full sm:w-auto bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Plus size={18} /> Nova Sessão</button>
+                                        <button onClick={() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setIsEditingSession(true);
+    setCurrentSession({
+        date: now.toISOString().split('T')[0],
+        startTime: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+        endTime: `${pad(now.getHours() + 1)}:${pad(now.getMinutes())}`,
+        status: 'Realizado',
+        humor: 'Neutro'
+    });
+}} className="w-full sm:w-auto bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Plus size={18} /> Nova Sessão</button>
                                     )}
                                 </div>
 
@@ -4601,7 +4632,18 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                     <h3 className="text-xl font-bold text-slate-800">Histórico de Atendimentos</h3>
                                     {!isEditingSession && (
-                                        <button onClick={() => { setIsEditingSession(true); setCurrentSession({}); }} className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700"><Plus size={18} /> Novo Atendimento</button>
+                                        <button onClick={() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setIsEditingSession(true);
+    setCurrentSession({
+        date: now.toISOString().split('T')[0],
+        startTime: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+        endTime: `${pad(now.getHours() + 1)}:${pad(now.getMinutes())}`,
+        status: 'Realizado',
+        humor: 'Neutro'
+    });
+}} className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700"><Plus size={18} /> Novo Atendimento</button>
                                     )}
                                 </div>
 
