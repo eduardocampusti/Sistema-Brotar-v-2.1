@@ -897,7 +897,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     return (
         <div className="appointment-stitch-shell flex min-h-0 w-full flex-col overflow-x-hidden bg-background font-body text-on-background transition-colors duration-300">
             <main className="flex w-full flex-1 justify-center px-3 pb-10 pt-3 sm:px-4 sm:pb-12 md:pb-14 md:pt-4">
-                <div className="mx-auto w-full max-w-6xl rounded-2xl bg-[#F9FAFB] px-4 py-6 shadow-sm ring-1 ring-slate-200/60 sm:px-6 sm:py-8 md:px-8 md:py-10">
+                <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10">
                     <div className="grid w-full grid-cols-1 gap-y-6 md:gap-y-8">
                         <header className="grid grid-cols-[auto_1fr] items-center gap-4 sm:gap-6">
                             <button type="button" onClick={onCancel} className="group w-fit rounded-full bg-surface-container-low p-3 text-on-surface-variant transition-all duration-300 hover:bg-surface-container-high hover:text-primary" aria-label="Voltar">
