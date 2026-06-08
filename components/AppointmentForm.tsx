@@ -958,7 +958,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                         <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-8 items-start">
                             {/* COLUNA ESQUERDA */}
                             <div className="grid grid-cols-1 gap-6">
-                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-white p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-100">
+                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04]">
                                     <h2 className="font-headline flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"><span className="flex h-6 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>Contexto do Paciente</h2>
                                     <div className="grid min-w-0 max-w-3xl grid-cols-1 gap-3">
                                         <div className="grid grid-cols-1 gap-1.5">
@@ -1051,7 +1051,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     </div>
                                 </section>
 
-                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-white p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-100">
+                                <section className="grid min-w-0 grid-cols-1 gap-6 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04]">
                                     <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto] sm:gap-4">
                                         <h2 className="font-headline text-2xl font-bold text-on-background">2. Especialidades</h2>
                                         <button type="button" onClick={() => setShowAllSpecialties((v) => !v)} className="w-fit font-semibold text-primary underline-offset-4 transition-colors duration-300 hover:underline sm:justify-self-end">{showAllSpecialties ? 'Mostrar menos' : 'Ver todas'}</button>
@@ -1086,7 +1086,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     </div>
                                 </section>
 
-                                <section className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl bg-white p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-100">
+                                <section className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl bg-surface-container-lowest p-6 shadow-card ring-1 ring-black/[0.04]">
                                     <h2 className="font-headline text-2xl font-bold text-on-background">3. Profissionais disponíveis</h2>
                                     {!newApt.specialty ? (
                                         <p className="text-on-surface-variant">Selecione uma especialidade para listar os profissionais.</p>
@@ -1157,7 +1157,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             <div className="lg:sticky lg:top-4 grid grid-cols-1 gap-6">
                                 <div className="grid grid-cols-1 gap-3">
                                     <h2 className="font-headline text-lg font-bold text-on-background">4. Data e horário</h2>
-                                    <div className="overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-200">
+                                    <div className="overflow-hidden rounded-2xl bg-surface-container-lowest p-4 shadow-card ring-1 ring-black/[0.04]">
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-2">
                                                 <span className="material-symbols-outlined text-base text-primary">calendar_month</span>
@@ -1195,7 +1195,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     </div>
                                 </div>
 
-                                <div className={`grid grid-cols-1 gap-3 transition-opacity duration-300 rounded-2xl bg-white p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] ring-1 ring-slate-100 ${!newApt.professionalId ? 'opacity-40' : ''}`}>
+                                <div className={`grid grid-cols-1 gap-3 transition-opacity duration-300 rounded-2xl bg-surface-container-lowest p-5 shadow-card ring-1 ring-black/[0.04] ${!newApt.professionalId ? 'opacity-40' : ''}`}>
                                     <div className="flex items-center justify-between gap-2">
                                         <h3 className="font-headline flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 sm:text-xl"><span className="flex h-5 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>Horários Disponíveis</h3>
                                         <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">Duração: {duration}m</span>
