@@ -895,8 +895,8 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     const resumoNomeEscola =
         selectedSchoolId ? (selectedSchoolName.trim() || searchQuery.trim() || undefined) : undefined;
     return (
-        <div className="appointment-stitch-shell flex min-h-0 w-full flex-col overflow-x-hidden bg-background font-body text-on-background transition-colors duration-300 md:max-h-[calc(100dvh-5.5rem)] md:overflow-y-hidden">
-            <main className="flex w-full flex-1 justify-center overflow-y-auto px-3 pb-10 pt-3 sm:px-4 sm:pb-12 md:pb-14 md:pt-4">
+        <div className="appointment-stitch-shell flex min-h-0 w-full flex-col overflow-x-hidden bg-background font-body text-on-background transition-colors duration-300">
+            <main className="flex w-full flex-1 justify-center px-3 pb-10 pt-3 sm:px-4 sm:pb-12 md:pb-14 md:pt-4">
                 <div className="mx-auto w-full max-w-6xl rounded-2xl bg-[#F9FAFB] px-4 py-6 shadow-sm ring-1 ring-slate-200/60 sm:px-6 sm:py-8 md:px-8 md:py-10">
                     <div className="grid w-full grid-cols-1 gap-y-6 md:gap-y-8">
                         <header className="grid grid-cols-[auto_1fr] items-center gap-4 sm:gap-6">
@@ -1154,7 +1154,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             </div>
 
                             {/* COLUNA DIREITA */}
-                            <div className="lg:sticky lg:top-4 grid grid-cols-1 gap-4 self-start" style={{maxHeight:"calc(100vh - 2rem)",overflowY:"auto",scrollbarWidth:"thin"}}>
+                            <div className="lg:sticky lg:top-8 grid grid-cols-1 gap-4 self-start">
                                 <div className="grid grid-cols-1 gap-3">
                                     <h2 className="font-headline flex items-center gap-2 text-lg font-bold text-on-background"><span className="flex h-5 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>4. Data e horário</h2>
                                     <div className="overflow-hidden rounded-2xl bg-surface-container-lowest p-3.5 shadow-card ring-1 ring-black/[0.04]">
