@@ -1902,6 +1902,7 @@ export class SupabaseService {
     // --- Clinical Sessions (Evoluções) ---
     static async saveSession(session: Session, studentId: string, professionalId: string): Promise<void> {
         const payload = this.cleanDataForSupabase({
+            id: session.id, // Envia o ID para que o upsert consiga identificar registros existentes
             student_id: studentId,
             professional_id: professionalId,
             specialty: this.SPECIALTY_MAP[session.specialty] || session.specialty,
@@ -1909,7 +1910,7 @@ export class SupabaseService {
             content: session.content || { summary: session.notes }, // Usa o content completo se existir
             private_notes: session.privateNotes
         });
-        const { error } = await supabase.from('clinical_sessions').insert(payload);
+        const { error } = await supabase.from('clinical_sessions').upsert(payload);
         if (error) {
             console.error('[SupabaseService] Erro ao salvar clinical_session:', error);
             throw new Error(error.message || JSON.stringify(error));

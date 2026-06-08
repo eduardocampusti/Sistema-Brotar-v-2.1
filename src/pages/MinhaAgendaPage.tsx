@@ -225,6 +225,11 @@ export const MinhaAgendaPage: React.FC<MinhaAgendaPageProps> = ({ currentUser, o
     const proceedToSession = () => {
         if (selectedAptForStart) {
             localStorage.setItem('brotar_auto_open_session', selectedAptForStart.studentId);
+            localStorage.setItem('brotar_appointment_details', JSON.stringify({
+                date: selectedAptForStart.date,
+                startTime: selectedAptForStart.startTime,
+                endTime: selectedAptForStart.endTime
+            }));
             setShowSummaryModal(false);
             onReschedule(selectedAptForStart);
         }

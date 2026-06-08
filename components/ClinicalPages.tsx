@@ -819,6 +819,7 @@ interface IPOAssessment {
 
 interface PPSession {
     id: string;
+    appointmentId?: string;
     date: string;
     objetivo: string;
     estrategias: string;
@@ -826,6 +827,7 @@ interface PPSession {
     evolucao: string;
     recomendacoes: string;
     startTime?: string;
+    endTime?: string;
     status: 'Realizado' | 'Agendado' | 'Falta' | 'Justificada';
     humor: 'Feliz' | 'Triste' | 'Agitado' | 'Cansado' | 'Neutro';
 }
@@ -1913,10 +1915,33 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         if (selectedStudent && isPP) {
             try {
                 setPPData(extractPPData(selectedStudent));
-                // Se autoOpenSession for true, garante que a aba de sessões está ativa e abre o form
-                if (autoOpenSession) {
+                
+                // Recupera dados do agendamento prévio no localStorage (fluxo vindo da agenda clínica)
+                const aptDetailsStr = localStorage.getItem('brotar_appointment_details');
+                if (aptDetailsStr) {
+                    try {
+                        const details = JSON.parse(aptDetailsStr);
+                        setCurrentSession({
+                            appointmentId: details.id || '',
+                            date: details.date || new Date().toISOString().split('T')[0],
+                            startTime: details.startTime || '',
+                            endTime: details.endTime || '',
+                            status: 'Realizado',
+                            humor: 'Neutro'
+                        });
+                        setActiveTab('sessions');
+                        setIsEditingSession(true);
+                    } catch (e) {
+                        console.error('Erro ao fazer parse dos detalhes do agendamento:', e);
+                    } finally {
+                        localStorage.removeItem('brotar_appointment_details');
+                        localStorage.removeItem('brotar_auto_open_session');
+                    }
+                } else if (autoOpenSession) {
+                    // Mantém compatibilidade com a rota new-session estática
                     setActiveTab('sessions');
                     setIsEditingSession(true);
+                    setCurrentSession({});
                 }
             } catch (err) {
                 console.error("Erro ao carregar dados de psicopedagogia:", err);
@@ -1934,6 +1959,13 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         // Busca profunda dos dados para o prontuário (clinical_info, documentos, etc)
         const fullStudent = await SupabaseService.getStudentById(id);
         if (fullStudent) {
+            try {
+                // Busca o histórico de sessões do aluno no banco de dados para evitar tela vazia
+                const sessions = await SupabaseService.getStudentSessions(id);
+                fullStudent.history = sessions;
+            } catch (err) {
+                console.error("Erro ao carregar histórico de sessões no handleStudentSelect:", err);
+            }
             setSelectedStudent(fullStudent);
         }
         
@@ -2029,12 +2061,15 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
 
         const newSession: PPSession = {
             id: currentSession.id || crypto.randomUUID(),
+            appointmentId: currentSession.appointmentId || '',
             date: currentSession.date || new Date().toISOString().split('T')[0],
             objetivo: currentSession.objetivo || '',
             estrategias: currentSession.estrategias || '',
             observacoes: currentSession.observacoes || '',
             evolucao: currentSession.evolucao || '',
             recomendacoes: currentSession.recomendacoes || '',
+            startTime: currentSession.startTime || '',
+            endTime: currentSession.endTime || '',
             status: currentSession.status || 'Realizado',
             humor: currentSession.humor || 'Neutro'
         };
@@ -2063,7 +2098,20 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
             setPPData(newData);
 
             // Também atualiza o objeto student localmente para manter coerência sem reload
-            // (Isso é opcional mas melhora a UX)
+            const updatedHistorySession = {
+                id: newSession.id,
+                date: newSession.date,
+                specialty: Specialty.PSYCHOPEDAGOGY,
+                professionalName: currentUser.name,
+                notes: newSession.objetivo,
+                content: newSession,
+                privateNotes: newSession.observacoes
+            };
+            const updatedHistory = currentSession.id
+                ? (selectedStudent.history || []).map(h => h.id === currentSession.id ? updatedHistorySession : h)
+                : [updatedHistorySession, ...(selectedStudent.history || [])];
+
+            setSelectedStudent(prev => prev ? { ...prev, history: updatedHistory } : null);
 
             setShowPostSaveModal(true);
         } catch (e) {
@@ -3081,9 +3129,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                         <div className="flex justify-between items-center pt-2">
                                             <button onClick={() => setIsEditingSession(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-bold text-sm transition-all border border-slate-200">Cancelar</button>
                                             <div className="flex gap-2">
-                                                <button onClick={() => { handleSaveSession(); }} className="px-6 py-2.5 bg-[#10B981] hover:bg-emerald-600 text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-2">
-                                                    <Calendar size={14} /> Salvar e agendar
-                                                </button>
+
                                                 <button onClick={handleSaveSession} className="px-6 py-2.5 bg-[#8B1A3A] hover:bg-[#731530] text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-2">
                                                     <Save size={14} /> Salvar sessão
                                                 </button>

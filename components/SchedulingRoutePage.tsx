@@ -14,7 +14,7 @@ function clinicalRouteStateAfterAgendaStart(
 ): { path: string; state: { openStudentId: string; openTab: string } } | null {
     switch (specialty) {
         case Specialty.PSYCHOPEDAGOGY:
-            return { path: '/app/psychopedagogy', state: { openStudentId: studentId, openTab: 'anamnesis' } };
+            return { path: '/app/psychopedagogy', state: { openStudentId: studentId, openTab: 'sessions' } };
         case Specialty.PSYCHOLOGY:
             return { path: '/app/psychology', state: { openStudentId: studentId, openTab: 'anamnese' } };
         case Specialty.SPEECH_THERAPY:
