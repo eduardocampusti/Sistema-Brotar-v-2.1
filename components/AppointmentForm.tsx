@@ -1154,7 +1154,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                             </div>
 
                             {/* COLUNA DIREITA */}
-                            <div className="lg:sticky lg:top-4 grid grid-cols-1 gap-4 self-start">
+                            <div className="lg:sticky lg:top-4 grid grid-cols-1 gap-4 self-start" style={{maxHeight:"calc(100vh - 2rem)",overflowY:"auto",scrollbarWidth:"thin"}}>
                                 <div className="grid grid-cols-1 gap-3">
                                     <h2 className="font-headline flex items-center gap-2 text-lg font-bold text-on-background"><span className="flex h-5 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>4. Data e horário</h2>
                                     <div className="overflow-hidden rounded-2xl bg-surface-container-lowest p-3.5 shadow-card ring-1 ring-black/[0.04]">
