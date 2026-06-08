@@ -36,6 +36,8 @@ import {
   Tag,
   CalendarDays,
   Building2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission, canViewSystemAuditLogs } from '../types';
 import { APP_VERSION } from '../src/config/version';
@@ -53,6 +55,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const activePage = location.pathname.split('/').pop() || 'dashboard';
 
@@ -309,14 +312,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   const MenuButton: React.FC<{ item: any }> = ({ item }) => (
     <button
       onClick={() => onNavigate(item.id)}
-      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden ${isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id)) ? theme.active : theme.hover
-        }`}
+      title={isCollapsed ? item.label : undefined}
+      className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden ${isCollapsed ? "px-0 py-3 justify-center" : "px-4 py-3.5"} ${isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id)) ? theme.active : theme.hover}`}
     >
-      {(isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id))) && <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>}
-      <span className={`relative z-10 ${(isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id))) ? 'scale-110' : 'group-hover:scale-110'} transition-transform duration-200`}>
+      {(isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id))) && !isCollapsed && <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>}
+      <span className={`relative z-10 flex-shrink-0 ${(isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id))) ? "scale-110" : "group-hover:scale-110"} transition-transform duration-200`}>
         {item.icon}
       </span>
-      <span className="relative z-10">{item.label}</span>
+      {!isCollapsed && <span className="relative z-10 truncate">{item.label}</span>}
     </button>
   );
 
@@ -371,38 +374,49 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   );
 
   const SectionHeader = ({ title, icon: Icon }: { title: string, icon?: any }) => (
-    <div className="px-4 mt-6 mb-2 flex items-center gap-2 opacity-50">
-      {Icon && <Icon size={12} />}
-      <p className="text-[10px] font-bold uppercase tracking-widest">{title}</p>
-    </div>
+    isCollapsed ? (
+      <div className="my-2 mx-2 border-t border-white/10" />
+    ) : (
+      <div className="px-4 mt-6 mb-2 flex items-center gap-2 opacity-50">
+        {Icon && <Icon size={12} />}
+        <p className="text-[10px] font-bold uppercase tracking-widest">{title}</p>
+      </div>
+    )
   );
 
   return (
     <div className="flex min-h-screen bg-[#EEF2F8] font-sans selection:bg-primary-500 selection:text-white">
       {/* Sidebar - Desktop */}
-      <aside className={`hidden lg:flex flex-col w-72 fixed h-full z-30 transition-all duration-300 shadow-2xl ${theme.sidebar}`} style={(theme as any).sidebarStyle || {}}>
-        <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
+      <aside className={`hidden lg:flex flex-col fixed h-full z-30 shadow-2xl ${theme.sidebar} ${isCollapsed ? "w-[72px]" : "w-72"} transition-all duration-300`} style={(theme as any).sidebarStyle || {}}>
+        <div className="px-5 pt-5 pb-4 relative" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.20)', border: '1.5px solid rgba(255,255,255,0.35)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.20)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.20)', border: '1.5px solid rgba(255,255,255,0.35)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.20)' }}>
               <LogoComponent />
             </div>
-            <div className="flex-1 min-w-0">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: '3px' }}>
-                <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '11px', fontWeight: 400, letterSpacing: '0.5px' }}>Sistema</span>
-                <span style={{ color: 'white', fontSize: '20px', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1 }}>Brotar</span>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: '3px' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '11px', fontWeight: 400, letterSpacing: '0.5px' }}>Sistema</span>
+                  <span style={{ color: 'white', fontSize: '20px', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1 }}>Brotar</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Sparkles size={10} style={{ color: 'rgba(253,224,71,0.90)' }} />
+                  <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: '10px', fontStyle: 'italic' }}>Gestão Premium</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Sparkles size={10} style={{ color: 'rgba(253,224,71,0.90)' }} />
-                <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: '10px', fontStyle: 'italic' }}>Gestão Premium</span>
-              </div>
+            )}
+          </div>
+          {!isCollapsed && (
+            <div className="flex items-center justify-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></div>
+              <span className="text-[10px] tracking-wide font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>{APP_VERSION.version}</span>
+              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.30)' }}>•</span>
+              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.60)' }}>Release estável</span>
             </div>
-          </div>
-          <div className="flex items-center justify-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}>
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></div>
-            <span className="text-[10px] tracking-wide font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>{APP_VERSION.version}</span>
-            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.30)' }}>•</span>
-            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.60)' }}>Release estável</span>
-          </div>
+          )}
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className="absolute -right-3 top-6 w-6 h-6 rounded-full flex items-center justify-center shadow-lg border border-white/20 hover:scale-110 transition-all duration-200 z-10" style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)' }} title={isCollapsed ? 'Expandir menu' : 'Recolher menu'}>
+            {isCollapsed ? <ChevronRight size={12} className="text-white" /> : <ChevronLeft size={12} className="text-white" />}
+          </button>
         </div>
 
         <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar pb-6">
@@ -488,10 +502,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                   <span className="text-white text-xs font-black">{currentUser.username.substring(0, 2).toUpperCase()}</span>
                 )}
               </div>
-              <div className="overflow-hidden flex-1">
-                <p className="text-white text-[13px] font-bold truncate leading-tight">{currentUser.name.split(' ')[0]}</p>
-                <p className="text-[9px] uppercase font-semibold tracking-wider mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.50)' }}>{getRoleLabel()}</p>
-              </div>
+              {!isCollapsed && (
+                <div className="overflow-hidden flex-1">
+                  <p className="text-white text-[13px] font-bold truncate leading-tight">{currentUser.name.split(' ')[0]}</p>
+                  <p className="text-[9px] uppercase font-semibold tracking-wider mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.50)' }}>{getRoleLabel()}</p>
+                </div>
+              )}
             </div>
 
             {/* Versão + Data em destaque */}
@@ -689,7 +705,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 lg:ml-72 p-4 lg:p-8 mt-16 lg:mt-0 transition-all duration-300">
+      <main className={`flex-1 ${isCollapsed ? "lg:ml-[72px]" : "lg:ml-72"} p-4 lg:p-8 mt-16 lg:mt-0 transition-all duration-300`}>
         <div className="max-w-7xl mx-auto animate-slideUp">
           {children}
         </div>
