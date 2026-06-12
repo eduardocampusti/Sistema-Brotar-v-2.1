@@ -38,12 +38,9 @@
 ---
 
 ### BUG-04 — Lista de alunos quebra em celular (tabela estoura a tela)
-- **Status:** ⏳ Pendente
-- **Arquivo:** `components/PatientList.tsx` — linhas 558–620
-- **Causa:** Tabela com 5 colunas não tem scroll horizontal isolado nem versão mobile em cards.
-- **Impacto:** No celular, o usuário precisa rolar a página toda para clicar nas ações.
-- **Solução:** Criar visualização alternativa em cards para telas menores que 640px (ocultar tabela com `hidden sm:table`, mostrar cards com `grid grid-cols-1 gap-4 sm:hidden`).
-- **Risco:** Médio. Precisa preservar todos os dados e ações visíveis.
+- **Status:** ✅ Resolvido (10/06/2026)
+- **Arquivo:** `components/PatientList.tsx`
+- **Como foi resolvido:** Adicionada visualização em cards (`sm:hidden`) para telas menores que 640px. A tabela original foi marcada como `hidden sm:block`, aparecendo apenas em telas maiores. Os cards exibem nome, escola, status, última sessão e todas as ações (Abrir, menu contextual).
 
 ---
 

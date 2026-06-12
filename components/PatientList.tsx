@@ -687,8 +687,75 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           </button>
         )}
       </div>
-      {/* TABLE PREMIUM */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      {/* CARDS MOBILE — visível apenas em telas < 640px */}
+      <div className="sm:hidden space-y-2 mb-4">
+        {pagedStudents.length === 0 ? (
+          <div className="flex flex-col items-center py-12 text-slate-400">
+            <UserIcon size={36} className="mb-3 opacity-20"/>
+            <p className="font-bold text-slate-500 text-sm">{listaSomenteAgendaProfissional ? 'Nenhum aluno agendado para você ainda.' : 'Nenhum registro encontrado'}</p>
+            <p className="text-xs mt-1">{listaSomenteAgendaProfissional ? 'Os alunos aparecem quando a secretaria vincular você a um agendamento.' : 'Tente ajustar os filtros'}</p>
+          </div>
+        ) : pagedStudents.map((student) => {
+          const status = getStudentStatus(student);
+          const StatusIcon = status.icon;
+          const sessInfo = sessionsInfo[student.id];
+          const lastDate = sessInfo?.lastDate;
+          const diasSemRegistro = lastDate ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000) : null;
+          return (
+            <div key={student.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden border-2 border-white shadow-sm"
+                  style={{background: lastDate ? '#EAF3DE' : '#FCEBEB', color: lastDate ? '#3B6D11' : '#A32D2D'}}>
+                  {student.photoUrl
+                    ? <img src={student.photoUrl} className="w-full h-full object-cover" alt={student.fullName}/>
+                    : <span className="font-bold">{student.fullName.charAt(0)}</span>
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-800 truncate">{student.fullName}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{student.school?.schoolName||'—'} · {student.school?.grade||'—'}</p>
+                </div>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border shrink-0 ${status.color}`}>
+                  <StatusIcon size={10}/> {status.label}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                <div className="text-xs text-slate-500">
+                  {lastDate ? (
+                    <span style={{color: diasSemRegistro && diasSemRegistro > 30 ? '#A32D2D' : '#3B6D11'}}>
+                      {new Date(lastDate).toLocaleDateString('pt-BR')} · {sessInfo?.total} sessão{sessInfo?.total !== 1 ? 'ões' : ''}
+                    </span>
+                  ) : <span className="text-slate-400">Sem registro</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => void abrirProntuario(student)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8B1A3A] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#731530] transition-all">
+                    Abrir <ChevronRight size={12}/>
+                  </button>
+                  <div className="relative">
+                    <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId===student.id?null:student.id); }}
+                      className={`p-1.5 rounded-lg transition-colors ${activeMenuId===student.id?'bg-slate-200 text-slate-800':'text-slate-400 hover:bg-slate-100'}`}>
+                      <MoreVertical size={16}/>
+                    </button>
+                    {activeMenuId === student.id && (
+                      <div ref={menuRef} className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
+                        <div className="p-1">
+                          {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
+                          <button onClick={(e) => { e.stopPropagation(); onEdit(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
+                          {(currentUser?.role==='ADMIN'||currentUser?.role==='SECRETARIA_SEDE') && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setStudentToDelete(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"><Trash2 size={13}/> Excluir</button></>)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* TABLE PREMIUM — visível apenas em telas >= 640px */}
+      <div className="hidden sm:block bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full" style={{borderCollapse:'separate',borderSpacing:0}}>
             <thead>
