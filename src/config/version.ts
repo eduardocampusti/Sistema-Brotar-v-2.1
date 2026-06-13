@@ -1,11 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.64',
+  version: 'v2.4.65',
   date: 'Jun 2026',
-  display: 'v2.4.64 • Jun 2026',
+  display: 'v2.4.65 • Jun 2026',
   changelog: [
-    'Atualização de manutenção'  
+    'Correção de queries NAE e tratamento de erro no dashboard nutricionista'
   ],
   releases: [
+    {
+      version: 'v2.4.65',
+      date: '13 Jun 2026',
+      title: 'Fix: Módulo Nutricionista — queries NAE e try-catch dashboard',
+      type: 'fix',
+      changes: [
+        "getExpiredOrExpiringNAE: lógica de data corrigida com Date.now() + daysAhead * 86400000",
+        "getAllActiveNAE: console.error adicionado para rastreio de erros Supabase",
+        "NutritionDashboard: try-catch explícito com stats zeradas em caso de falha (sem redirecionamento)"
+      ]
+    },
     {
       version: 'v2.4.64',
       date: '13 Jun 2026',
