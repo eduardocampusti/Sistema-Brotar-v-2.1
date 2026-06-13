@@ -89,9 +89,18 @@ const NutritionDashboard: React.FC = () => {
     try {
       const s = await SupabaseService.getNutritionDashboardStats();
       setStats(s);
-    } catch (err) {
-      console.warn('[NutritionDashboard] Erro ao carregar stats — exibindo dashboard vazio:', err);
-      setStats(EMPTY_STATS);
+    } catch (error) {
+      console.error('Erro ao carregar dashboard nutrição:', error);
+      // NÃO redirecionar — manter stats zeradas
+      setStats({
+        totalAlunos: 0,
+        avaliados: 0,
+        pendentes: 0,
+        perfilNutricional: { baixoPeso: 0, eutrofia: 0, sobrepeso: 0, obesidade: 0, obesidadeGrave: 0 },
+        naeAtivos: 0,
+        laudosVencendo: 0,
+        alertas: [],
+      });
     } finally {
       setLoadingStats(false);
     }

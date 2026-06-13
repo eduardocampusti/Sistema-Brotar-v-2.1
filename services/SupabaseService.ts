@@ -3849,7 +3849,10 @@ export class SupabaseService {
             .select('*, students(id, full_name, school_id)')
             .eq('status', 'ATIVO')
             .order('created_at', { ascending: false });
-        if (error) throw error;
+        if (error) {
+            console.error('[getAllActiveNAE] Supabase error:', error);
+            throw error;
+        }
         return (data ?? []) as NutritionNAE[];
     }
 
@@ -3875,18 +3878,21 @@ export class SupabaseService {
     }
 
     static async getExpiredOrExpiringNAE(daysAhead: number = 30): Promise<NutritionNAE[]> {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() + daysAhead);
-        const cutoffIso = cutoff.toISOString().split('T')[0];
+        const hoje = new Date().toISOString().split('T')[0];
+        const limite = new Date(Date.now() + daysAhead * 86400000).toISOString().split('T')[0];
 
         const { data, error } = await supabase
             .from('nutrition_nae')
-            .select('*, students(id, full_name, school_id)')
+            .select('*, students(id, full_name)')
             .eq('status', 'ATIVO')
             .not('laudo_validade', 'is', null)
-            .lte('laudo_validade', cutoffIso)
+            .lte('laudo_validade', limite)
             .order('laudo_validade', { ascending: true });
-        if (error) throw error;
+        if (error) {
+            console.error('[getExpiredOrExpiringNAE] Supabase error:', error);
+            throw error;
+        }
+        void hoje; // usado no caller (getNutritionDashboardStats) para classificar vencido/vencendo
         return (data ?? []) as NutritionNAE[];
     }
 
