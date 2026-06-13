@@ -3,25 +3,33 @@ export const APP_VERSION = {
   date: 'Jun 2026',
   display: 'v2.4.62 • Jun 2026',
   changelog: [
-    'Atualização de manutenção'  
+    'Auditoria completa do perfil Psicopedagoga — RLS, JWT e índices corrigidos',
+    'Lista de alunos responsiva — visualização em cards no celular',
+    'MCP Supabase reconfigurado para projeto correto (indshiztdvjgvgnzigqd)',
+    'Documentação técnica interna criada (.brotar-docs/)',
   ],
   releases: [
     {
       version: 'v2.4.62',
       date: '13 Jun 2026',
-      title: 'Release v2.4.62 — 13 Jun 2026',
+      title: 'Auditoria Psicopedagoga + Responsividade Mobile',
       type: 'improvement',
       changes: [
-        "Atualização de manutenção"
+        "Auditoria completa do módulo Psicopedagoga: RLS corrigido (UPDATE + SELECT), specialty via JWT, índices V40-V42",
+        "Lista de alunos: cards responsivos no celular com todas as ações preservadas",
+        "BUG-03 confirmado resolvido: sidebar apenas em telas maiores que 1024px (lg:)",
+        "MCP Supabase reconfigurado para projeto correto (indshiztdvjgvgnzigqd)",
+        "Documentação técnica .brotar-docs/ criada com 7 arquivos .md"
       ]
     },
     {
       version: 'v2.4.61',
       date: '13 Jun 2026',
-      title: 'Release v2.4.61 — 13 Jun 2026',
-      type: 'improvement',
+      title: 'Correção de imports ClinicalPages',
+      type: 'fix',
       changes: [
-        "Atualização de manutenção"
+        "Correção de import do ícone CheckCircle2 em ClinicalPages.tsx (lucide-react)",
+        "Estabilização do build após auditoria do módulo clínico"
       ]
     },
     {
