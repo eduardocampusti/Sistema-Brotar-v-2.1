@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.66',
+  version: 'v2.4.67',
   date: 'Jun 2026',
-  display: 'v2.4.66 • Jun 2026',
+  display: 'v2.4.67 • Jun 2026',
   changelog: [
-    'Correção crítica: try-catch no NutritionDashboard e resiliência a tabelas inexistentes'
+    'Atualização de manutenção'  
   ],
   releases: [
+    {
+      version: 'v2.4.67',
+      date: '13 Jun 2026',
+      title: 'Release v2.4.67 — 13 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.66',
       date: '13 Jun 2026',

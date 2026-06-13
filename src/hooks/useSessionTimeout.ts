@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
 
-const TIMEOUT_CLINICAL = 15 * 60 * 1000;
+const TIMEOUT_CLINICAL = 60 * 60 * 1000;
 const TIMEOUT_ADMIN = 30 * 60 * 1000;
 const WARNING_DURATION = 60 * 1000;
 
@@ -14,6 +14,7 @@ export function useSessionTimeout(role: string | undefined, onLogout: () => void
   const [countdown, setCountdown] = useState(60);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { warning } = useToast();
 
   const lastActivityRef = useRef<number>(Date.now());
@@ -98,7 +99,7 @@ export function useSessionTimeout(role: string | undefined, onLogout: () => void
     lastActivityRef.current = Date.now();
     warningActiveRef.current = false;
 
-    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
+    const events = ['mousemove', 'mousedown', 'keydown', 'keypress', 'scroll', 'touchstart', 'click'];
     events.forEach((e) => window.addEventListener(e, handleActivity, { passive: true }));
 
     scheduleCheck();
@@ -108,6 +109,19 @@ export function useSessionTimeout(role: string | undefined, onLogout: () => void
       clearAllTimers();
     };
   }, [role]);
+
+  // Reseta o timer ao navegar entre rotas
+  useEffect(() => {
+    if (!role) return;
+    lastActivityRef.current = Date.now();
+    if (warningActiveRef.current) {
+      if (countdownTimerRef.current) { clearInterval(countdownTimerRef.current); countdownTimerRef.current = null; }
+      warningActiveRef.current = false;
+      setShowWarning(false);
+      setCountdown(60);
+    }
+    scheduleCheck();
+  }, [location.pathname]);
 
   if (!showWarning) return null;
 
