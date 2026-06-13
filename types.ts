@@ -488,3 +488,182 @@ export interface RelatorioTEAData {
     cid?: string;
   }[];
 }
+
+// ─── NUTRIÇÃO ────────────────────────────────────────────────────────────────
+
+export interface NutritionAssessment {
+  id: string;
+  student_id: string;
+  professional_id: string;
+  assessment_date: string;
+  status: 'RASCUNHO' | 'FINALIZADA';
+  turno?: string;
+  email_responsavel?: string;
+  historico_familiar?: string[];
+  historico_familiar_obs?: string;
+  peso_kg?: number;
+  altura_m?: number;
+  imc?: number;
+  imc_classificacao?: string;
+  circunferencia_cintura_cm?: number;
+  circunferencia_braco_cm?: number;
+  condicoes_saude?: string[];
+  medicamentos?: string;
+  tem_tea?: boolean;
+  tem_nae?: boolean;
+  sono_horario_dorme?: string;
+  sono_horario_acorda?: string;
+  sono_qualidade?: string;
+  sono_ronca?: boolean;
+  sono_acorda_noite?: string;
+  sono_classificacao?: string;
+  refeicoes_por_dia?: number;
+  r24h_cafe?: string;
+  r24h_lanche_manha?: string;
+  r24h_almoco?: string;
+  r24h_lanche_tarde?: string;
+  r24h_jantar?: string;
+  consumo_frutas?: string;
+  consumo_verduras?: string;
+  consumo_legumes?: string;
+  consumo_feijao?: string;
+  consumo_leite?: string;
+  consumo_agua_litros?: number;
+  consumo_refrigerante?: string;
+  consumo_salgadinho?: string;
+  consumo_bolacha?: string;
+  consumo_fastfood?: string;
+  consumo_doces?: string;
+  indicador_qualidade_alimentar?: number;
+  come_sozinho?: string;
+  aceita_novos_alimentos?: string;
+  recusa_alimentos?: boolean;
+  seletividade_alimentar?: string;
+  dificuldade_mastigacao?: boolean;
+  dificuldade_degluticao?: boolean;
+  avaliacao_comportamento?: string;
+  consome_pnae?: string;
+  motivo_nao_consome_pnae?: string;
+  preparacoes_favoritas?: string;
+  preparacoes_rejeitadas?: string;
+  pratica_atividade_fisica?: boolean;
+  atividade_fisica_tipo?: string;
+  atividade_fisica_frequencia?: string;
+  tempo_tela?: string;
+  dificuldade_aquisicao_alimentos?: boolean;
+  recebe_beneficio_social?: boolean;
+  faltou_alimento_em_casa?: boolean;
+  crianca_deixa_refeicoes?: boolean;
+  classificacao_ebia?: string;
+  tea_texturas_aceitas?: string[];
+  tea_temperatura_preferida?: string;
+  tea_neofobia?: string;
+  tea_rituais?: string[];
+  tea_obs?: string;
+  diagnostico_nutricional?: string;
+  condutas?: string[];
+  orientacoes?: string;
+  proxima_avaliacao?: string;
+  gemini_orientacao?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface NutritionAnthropometryHistory {
+  id: string;
+  student_id: string;
+  professional_id: string;
+  data_medicao: string;
+  peso_kg?: number;
+  altura_m?: number;
+  imc?: number;
+  imc_classificacao?: string;
+  circunferencia_cintura_cm?: number;
+  circunferencia_braco_cm?: number;
+  created_at?: string;
+}
+
+export interface NutritionNAE {
+  id: string;
+  student_id: string;
+  professional_id: string;
+  tipo: string;
+  gravidade: 'LEVE' | 'MODERADA' | 'GRAVE';
+  alimentos_proibidos?: string;
+  alimentos_permitidos?: string;
+  contaminacao_cruzada?: boolean;
+  utensilios_exclusivos?: boolean;
+  alimentacao_de_casa?: boolean;
+  monitoramento_individual?: boolean;
+  laudo_presente?: boolean;
+  laudo_data?: string;
+  laudo_medico?: string;
+  laudo_crm?: string;
+  laudo_obs?: string;
+  laudo_validade?: string;
+  plano_alimentar_escola?: string;
+  status?: 'ATIVO' | 'INATIVO';
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface NutritionEanActivity {
+  id: string;
+  professional_id: string;
+  tipo: 'OFICINA' | 'PALESTRA' | 'PROJETO' | 'CAMPANHA' | 'HORTA' | 'SEMANA_ALIMENTACAO' | 'OUTRO';
+  titulo: string;
+  data_atividade: string;
+  escola_id?: string;
+  publico?: string;
+  num_participantes?: number;
+  resultados?: string;
+  observacoes?: string;
+  created_at?: string;
+}
+
+export interface NutritionEvolution {
+  id: string;
+  assessment_id?: string;
+  student_id: string;
+  professional_id: string;
+  data_retorno: string;
+  novos_alimentos_aceitos?: string;
+  alimentos_recusados?: string;
+  comportamento_refeicoes?: string;
+  reducao_pressao_alimentar?: boolean;
+  mudancas_familia?: string;
+  uso_telas_refeicoes?: boolean;
+  aceitacao_alimentar?: number;
+  consumo_frutas_score?: number;
+  consumo_verduras_score?: number;
+  hidratacao_score?: number;
+  participacao_pnae_score?: number;
+  orientacoes_realizadas?: string;
+  objetivos_proximo_retorno?: string;
+  observacoes_gerais?: string;
+  created_at?: string;
+}
+
+export interface NutritionAlerta {
+  tipo: 'LAUDO_VENCIDO' | 'LAUDO_VENCENDO' | 'IMC_CRITICO' | 'SEM_AVALIACAO' | 'QUEDA_PESO' | 'AUMENTO_PESO';
+  severidade: 'CRITICO' | 'ATENCAO';
+  student_id: string;
+  studentName: string;
+  mensagem: string;
+}
+
+export interface NutritionDashboardStats {
+  totalAlunos: number;
+  avaliados: number;
+  pendentes: number;
+  perfilNutricional: {
+    baixoPeso: number;
+    eutrofia: number;
+    sobrepeso: number;
+    obesidade: number;
+    obesidadeGrave: number;
+  };
+  naeAtivos: number;
+  laudosVencendo: number;
+  alertas: NutritionAlerta[];
+}

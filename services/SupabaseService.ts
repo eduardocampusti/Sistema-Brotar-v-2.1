@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
-import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog, AgendamentoProfissionalView, statusAgendamentoOcupandoHorarioConflito, RelatorioTEAData } from '../types';
+import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog, AgendamentoProfissionalView, statusAgendamentoOcupandoHorarioConflito, RelatorioTEAData, NutritionAssessment, NutritionAnthropometryHistory, NutritionNAE, NutritionEanActivity, NutritionEvolution, NutritionDashboardStats, NutritionAlerta } from '../types';
 import { categorizeSecretaryDiagnosis } from '../utils/teaAutismCount';
 import { isPerfilRestritoProntuario, STATUS_AGENDAMENTO_VINCULO_PRONTUARIO } from '@/src/config/perfilRestrito';
 
@@ -3762,5 +3762,274 @@ export class SupabaseService {
             }
             throw err;
         }
+    }
+
+    // ─── NUTRIÇÃO ────────────────────────────────────────────────────────────
+
+    // --- Anamnese Nutricional ---
+
+    static async getNutritionAssessments(studentId: string): Promise<NutritionAssessment[]> {
+        const { data, error } = await supabase
+            .from('nutrition_assessments')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('assessment_date', { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as NutritionAssessment[];
+    }
+
+    static async getNutritionAssessmentById(id: string): Promise<NutritionAssessment | null> {
+        const { data, error } = await supabase
+            .from('nutrition_assessments')
+            .select('*')
+            .eq('id', id)
+            .single();
+        if (error) throw error;
+        return data as NutritionAssessment | null;
+    }
+
+    static async createNutritionAssessment(data: Partial<NutritionAssessment>): Promise<NutritionAssessment> {
+        const { data: created, error } = await supabase
+            .from('nutrition_assessments')
+            .insert(data)
+            .select()
+            .single();
+        if (error) throw error;
+        return created as NutritionAssessment;
+    }
+
+    static async updateNutritionAssessment(id: string, data: Partial<NutritionAssessment>): Promise<NutritionAssessment> {
+        const { data: updated, error } = await supabase
+            .from('nutrition_assessments')
+            .update(data)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return updated as NutritionAssessment;
+    }
+
+    // --- Histórico Antropométrico ---
+
+    static async getAnthropometryHistory(studentId: string): Promise<NutritionAnthropometryHistory[]> {
+        const { data, error } = await supabase
+            .from('nutrition_anthropometry_history')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('data_medicao', { ascending: true });
+        if (error) throw error;
+        return (data ?? []) as NutritionAnthropometryHistory[];
+    }
+
+    static async addAnthropometryRecord(data: Partial<NutritionAnthropometryHistory>): Promise<NutritionAnthropometryHistory> {
+        const { data: created, error } = await supabase
+            .from('nutrition_anthropometry_history')
+            .insert(data)
+            .select()
+            .single();
+        if (error) throw error;
+        return created as NutritionAnthropometryHistory;
+    }
+
+    // --- Necessidades Alimentares Especiais (NAE) ---
+
+    static async getNAEByStudent(studentId: string): Promise<NutritionNAE[]> {
+        const { data, error } = await supabase
+            .from('nutrition_nae')
+            .select('*')
+            .eq('student_id', studentId)
+            .eq('status', 'ATIVO');
+        if (error) throw error;
+        return (data ?? []) as NutritionNAE[];
+    }
+
+    static async getAllActiveNAE(): Promise<NutritionNAE[]> {
+        const { data, error } = await supabase
+            .from('nutrition_nae')
+            .select('*, students(id, nome_completo, escola_id)')
+            .eq('status', 'ATIVO')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as NutritionNAE[];
+    }
+
+    static async createNAE(data: Partial<NutritionNAE>): Promise<NutritionNAE> {
+        const { data: created, error } = await supabase
+            .from('nutrition_nae')
+            .insert(data)
+            .select()
+            .single();
+        if (error) throw error;
+        return created as NutritionNAE;
+    }
+
+    static async updateNAE(id: string, data: Partial<NutritionNAE>): Promise<NutritionNAE> {
+        const { data: updated, error } = await supabase
+            .from('nutrition_nae')
+            .update(data)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return updated as NutritionNAE;
+    }
+
+    static async getExpiredOrExpiringNAE(daysAhead: number = 30): Promise<NutritionNAE[]> {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() + daysAhead);
+        const cutoffIso = cutoff.toISOString().split('T')[0];
+
+        const { data, error } = await supabase
+            .from('nutrition_nae')
+            .select('*, students(id, nome_completo, escola_id)')
+            .eq('status', 'ATIVO')
+            .not('laudo_validade', 'is', null)
+            .lte('laudo_validade', cutoffIso)
+            .order('laudo_validade', { ascending: true });
+        if (error) throw error;
+        return (data ?? []) as NutritionNAE[];
+    }
+
+    // --- Educação Alimentar e Nutricional (EAN) ---
+
+    static async getEANActivities(): Promise<NutritionEanActivity[]> {
+        const { data, error } = await supabase
+            .from('nutrition_ean_activities')
+            .select('*')
+            .order('data_atividade', { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as NutritionEanActivity[];
+    }
+
+    static async createEANActivity(data: Partial<NutritionEanActivity>): Promise<NutritionEanActivity> {
+        const { data: created, error } = await supabase
+            .from('nutrition_ean_activities')
+            .insert(data)
+            .select()
+            .single();
+        if (error) throw error;
+        return created as NutritionEanActivity;
+    }
+
+    // --- Evolução Nutricional ---
+
+    static async getNutritionEvolutions(studentId: string): Promise<NutritionEvolution[]> {
+        const { data, error } = await supabase
+            .from('nutrition_evolution')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('data_retorno', { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as NutritionEvolution[];
+    }
+
+    static async createNutritionEvolution(data: Partial<NutritionEvolution>): Promise<NutritionEvolution> {
+        const { data: created, error } = await supabase
+            .from('nutrition_evolution')
+            .insert(data)
+            .select()
+            .single();
+        if (error) throw error;
+        return created as NutritionEvolution;
+    }
+
+    // --- Dashboard de Nutrição ---
+
+    static async getNutritionDashboardStats(): Promise<NutritionDashboardStats> {
+        const cutoff180 = new Date();
+        cutoff180.setDate(cutoff180.getDate() - 180);
+        const cutoff180Iso = cutoff180.toISOString().split('T')[0];
+
+        const [assessmentsRes, naeRes, expiringRes, studentsRes] = await Promise.all([
+            supabase
+                .from('nutrition_assessments')
+                .select('student_id, imc_classificacao, assessment_date')
+                .eq('status', 'FINALIZADA')
+                .order('assessment_date', { ascending: false }),
+            supabase
+                .from('nutrition_nae')
+                .select('id', { count: 'exact', head: true })
+                .eq('status', 'ATIVO'),
+            this.getExpiredOrExpiringNAE(30),
+            supabase
+                .from('students')
+                .select('id', { count: 'exact', head: true })
+                .eq('ativo', true),
+        ]);
+
+        if (assessmentsRes.error) throw assessmentsRes.error;
+        if (naeRes.error) throw naeRes.error;
+        if (studentsRes.error) throw studentsRes.error;
+
+        // Pegar apenas a avaliação mais recente por aluno
+        const latestByStudent = new Map<string, { imc_classificacao: string | null; assessment_date: string }>();
+        for (const row of (assessmentsRes.data ?? [])) {
+            if (!latestByStudent.has(row.student_id)) {
+                latestByStudent.set(row.student_id, {
+                    imc_classificacao: row.imc_classificacao ?? null,
+                    assessment_date: row.assessment_date,
+                });
+            }
+        }
+
+        const perfilNutricional = { baixoPeso: 0, eutrofia: 0, sobrepeso: 0, obesidade: 0, obesidadeGrave: 0 };
+        for (const { imc_classificacao } of latestByStudent.values()) {
+            const cls = (imc_classificacao ?? '').toLowerCase();
+            if (cls.includes('baixo peso') || cls.includes('magreza')) perfilNutricional.baixoPeso++;
+            else if (cls.includes('eutrofia') || cls.includes('adequado')) perfilNutricional.eutrofia++;
+            else if (cls.includes('sobrepeso')) perfilNutricional.sobrepeso++;
+            else if (cls.includes('obesidade grave') || cls.includes('obesidade severa') || cls.includes('obesidade grau iii')) perfilNutricional.obesidadeGrave++;
+            else if (cls.includes('obesidade')) perfilNutricional.obesidade++;
+        }
+
+        const totalAlunos = studentsRes.count ?? 0;
+        const avaliados = latestByStudent.size;
+        const naeAtivos = naeRes.count ?? 0;
+
+        // Alertas
+        const alertas: NutritionAlerta[] = [];
+        const hoje = new Date().toISOString().split('T')[0];
+
+        for (const row of (expiringRes as any[])) {
+            const nome = row.students?.nome_completo ?? 'Aluno';
+            const vencido = row.laudo_validade < hoje;
+            alertas.push({
+                tipo: vencido ? 'LAUDO_VENCIDO' : 'LAUDO_VENCENDO',
+                severidade: vencido ? 'CRITICO' : 'ATENCAO',
+                student_id: row.student_id,
+                studentName: nome,
+                mensagem: vencido
+                    ? `Laudo NAE vencido em ${row.laudo_validade}`
+                    : `Laudo NAE vence em ${row.laudo_validade}`,
+            });
+        }
+
+        // Alunos sem avaliação nos últimos 180 dias (amostral — laudos críticos já cobertos)
+        const avaliadosRecentes = new Set(
+            (assessmentsRes.data ?? [])
+                .filter(r => r.assessment_date >= cutoff180Iso)
+                .map(r => r.student_id)
+        );
+        for (const [sid] of latestByStudent.entries()) {
+            if (!avaliadosRecentes.has(sid)) {
+                alertas.push({
+                    tipo: 'SEM_AVALIACAO',
+                    severidade: 'ATENCAO',
+                    student_id: sid,
+                    studentName: '',
+                    mensagem: 'Sem avaliação nutricional nos últimos 180 dias',
+                });
+            }
+        }
+
+        return {
+            totalAlunos,
+            avaliados,
+            pendentes: Math.max(0, totalAlunos - avaliados),
+            perfilNutricional,
+            naeAtivos,
+            laudosVencendo: expiringRes.length,
+            alertas,
+        };
     }
 }

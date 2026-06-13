@@ -64,6 +64,11 @@ const PhysiotherapyDashboardPage = React.lazy(() => import('../components/Clinic
 const PhysiotherapySessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PhysiotherapySessionFormPage })));
 const NutritionDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.NutritionDashboardPage })));
 const NutritionSessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.NutritionSessionFormPage })));
+// Módulo Nutricionista Escolar — Fase 3
+const NutricaoDashboard = React.lazy(() => import('../components/NutritionDashboard'));
+const NutricaoAvaliacao = React.lazy(() => import('../components/NutritionAssessment'));
+const NutricaoNAE = React.lazy(() => import('../components/NutritionNAEModule'));
+const NutricaoEAN = React.lazy(() => import('../components/NutritionEANModule'));
 
 // Dashboards
 const AdminDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.AdminDashboard })));
@@ -441,6 +446,12 @@ function AppContent() {
 
           <Route path="nutrition" element={<React.Suspense fallback={<PageLoading />}><NutritionDashboardPage onNavigateNew={() => handleNavigate('nutrition/new-session')} currentUser={user!} /></React.Suspense>} />
           <Route path="nutrition/new-session" element={<React.Suspense fallback={<PageLoading />}><NutritionSessionFormPage onCancel={() => handleNavigate('nutrition')} currentUser={user!} /></React.Suspense>} />
+          {/* ── Módulo Nutricionista Escolar — Fase 3 ── */}
+          <Route path="nutricion/dashboard" element={<React.Suspense fallback={<PageLoading />}><NutricaoDashboard /></React.Suspense>} />
+          <Route path="nutricion/avaliacao" element={<React.Suspense fallback={<PageLoading />}><NutricaoAvaliacao /></React.Suspense>} />
+          <Route path="nutricion/avaliacao/:id" element={<React.Suspense fallback={<PageLoading />}><NutricaoAvaliacao /></React.Suspense>} />
+          <Route path="nutricion/nae" element={<React.Suspense fallback={<PageLoading />}><NutricaoNAE /></React.Suspense>} />
+          <Route path="nutricion/ean" element={<React.Suspense fallback={<PageLoading />}><NutricaoEAN /></React.Suspense>} />
           <Route path="retroativo" element={
             <React.Suspense fallback={<PageLoading />}>
               <LancamentoRetroativoPage 

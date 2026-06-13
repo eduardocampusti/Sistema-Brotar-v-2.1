@@ -120,7 +120,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     { id: 'occupational-therapy', label: 'Terapia Ocupacional', icon: <Puzzle size={20} />, specialty: Specialty.OCCUPATIONAL_THERAPY },
     { id: 'speech-therapy', label: 'Fonoaudiologia', icon: <Mic size={20} />, specialty: Specialty.SPEECH_THERAPY },
     { id: 'physiotherapy', label: 'Fisioterapia', icon: <Activity size={20} />, specialty: Specialty.PHYSIOTHERAPY },
-    { id: 'nutrition', label: 'Nutrição', icon: <Apple size={20} />, specialty: Specialty.NUTRITION },
+    { id: 'nutricion/dashboard', label: 'Nutrição', icon: <Apple size={20} />, specialty: Specialty.NUTRITION },
   ];
 
   // 2. Menu Estruturado para ADMINISTRADOR
@@ -289,6 +289,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     if (activePage === itemId) return true;
     // Highlight list menu when editing/registering
     if (itemId === 'list' && (activePage === 'register' || activePage === 'profile' || activePage === 'edit-student')) return true;
+    // Highlight nutrição menu for all /nutricion/* sub-routes
+    if (itemId === 'nutricion/dashboard' && location.pathname.includes('/nutricion/')) return true;
     return false;
   };
 

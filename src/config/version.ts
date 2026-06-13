@@ -1,14 +1,29 @@
 export const APP_VERSION = {
-  version: 'v2.4.62',
+  version: 'v2.4.64',
   date: 'Jun 2026',
-  display: 'v2.4.62 • Jun 2026',
+  display: 'v2.4.64 • Jun 2026',
   changelog: [
-    'Auditoria completa do perfil Psicopedagoga — RLS, JWT e índices corrigidos',
-    'Lista de alunos responsiva — visualização em cards no celular',
-    'MCP Supabase reconfigurado para projeto correto (indshiztdvjgvgnzigqd)',
-    'Documentação técnica interna criada (.brotar-docs/)',
+    'Atualização de manutenção'  
   ],
   releases: [
+    {
+      version: 'v2.4.64',
+      date: '13 Jun 2026',
+      title: 'Release v2.4.64 — 13 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
+    {
+      version: 'v2.4.63',
+      date: '13 Jun 2026',
+      title: 'Release v2.4.63 — 13 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.62',
       date: '13 Jun 2026',
