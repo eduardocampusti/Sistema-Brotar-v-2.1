@@ -263,7 +263,7 @@ const NAECard: React.FC<{
   const days = daysUntil(nae.laudo_validade);
   const isExpired = days !== null && days < 0;
   const isExpiring = days !== null && days >= 0 && days <= 30;
-  const studentName = (nae as any).students?.nome_completo ?? 'Aluno';
+  const studentName = (nae as any).students?.full_name ?? 'Aluno';
 
   const chips = [
     nae.contaminacao_cruzada && 'Contam. cruzada',

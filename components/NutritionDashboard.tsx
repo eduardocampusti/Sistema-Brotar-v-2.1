@@ -73,7 +73,13 @@ const NutritionDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [stats, setStats] = useState<NutritionDashboardStats | null>(null);
+  const EMPTY_STATS: NutritionDashboardStats = {
+    totalAlunos: 0, avaliados: 0, pendentes: 0,
+    perfilNutricional: { baixoPeso: 0, eutrofia: 0, sobrepeso: 0, obesidade: 0, obesidadeGrave: 0 },
+    naeAtivos: 0, laudosVencendo: 0, alertas: [],
+  };
+
+  const [stats, setStats] = useState<NutritionDashboardStats>(EMPTY_STATS);
   const [recentAssessments, setRecentAssessments] = useState<(NutritionAssessment & { studentName?: string })[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
@@ -83,11 +89,13 @@ const NutritionDashboard: React.FC = () => {
     try {
       const s = await SupabaseService.getNutritionDashboardStats();
       setStats(s);
-    } catch {
-      // silenciar — sem dados ainda é estado válido
+    } catch (err) {
+      console.warn('[NutritionDashboard] Erro ao carregar stats — exibindo dashboard vazio:', err);
+      setStats(EMPTY_STATS);
     } finally {
       setLoadingStats(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -95,17 +103,15 @@ const NutritionDashboard: React.FC = () => {
   }, [load]);
 
   // gráfico de perfil nutricional
-  const chartData = stats
-    ? [
-        { name: 'Baixo peso', value: stats.perfilNutricional.baixoPeso, color: '#3B82F6' },
-        { name: 'Eutrofia', value: stats.perfilNutricional.eutrofia, color: '#10B981' },
-        { name: 'Sobrepeso', value: stats.perfilNutricional.sobrepeso, color: '#F59E0B' },
-        { name: 'Obesidade', value: stats.perfilNutricional.obesidade, color: '#F97316' },
-        { name: 'Ob. grave', value: stats.perfilNutricional.obesidadeGrave, color: '#EF4444' },
-      ]
-    : [];
+  const chartData = [
+    { name: 'Baixo peso', value: stats.perfilNutricional.baixoPeso, color: '#3B82F6' },
+    { name: 'Eutrofia', value: stats.perfilNutricional.eutrofia, color: '#10B981' },
+    { name: 'Sobrepeso', value: stats.perfilNutricional.sobrepeso, color: '#F59E0B' },
+    { name: 'Obesidade', value: stats.perfilNutricional.obesidade, color: '#F97316' },
+    { name: 'Ob. grave', value: stats.perfilNutricional.obesidadeGrave, color: '#EF4444' },
+  ];
 
-  const alertas = stats?.alertas ?? [];
+  const alertas = stats.alertas;
   const visibleAlerts = showAllAlerts ? alertas : alertas.slice(0, 5);
   const userName = user?.name ?? 'Nutricionista';
 

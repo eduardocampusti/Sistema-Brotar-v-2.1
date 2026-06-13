@@ -3846,7 +3846,7 @@ export class SupabaseService {
     static async getAllActiveNAE(): Promise<NutritionNAE[]> {
         const { data, error } = await supabase
             .from('nutrition_nae')
-            .select('*, students(id, nome_completo, escola_id)')
+            .select('*, students(id, full_name, school_id)')
             .eq('status', 'ATIVO')
             .order('created_at', { ascending: false });
         if (error) throw error;
@@ -3881,7 +3881,7 @@ export class SupabaseService {
 
         const { data, error } = await supabase
             .from('nutrition_nae')
-            .select('*, students(id, nome_completo, escola_id)')
+            .select('*, students(id, full_name, school_id)')
             .eq('status', 'ATIVO')
             .not('laudo_validade', 'is', null)
             .lte('laudo_validade', cutoffIso)
@@ -3953,8 +3953,7 @@ export class SupabaseService {
             this.getExpiredOrExpiringNAE(30),
             supabase
                 .from('students')
-                .select('id', { count: 'exact', head: true })
-                .eq('ativo', true),
+                .select('id', { count: 'exact', head: true }),
         ]);
 
         if (assessmentsRes.error) throw assessmentsRes.error;
@@ -3991,7 +3990,7 @@ export class SupabaseService {
         const hoje = new Date().toISOString().split('T')[0];
 
         for (const row of (expiringRes as any[])) {
-            const nome = row.students?.nome_completo ?? 'Aluno';
+            const nome = row.students?.full_name ?? 'Aluno';
             const vencido = row.laudo_validade < hoje;
             alertas.push({
                 tipo: vencido ? 'LAUDO_VENCIDO' : 'LAUDO_VENCENDO',
