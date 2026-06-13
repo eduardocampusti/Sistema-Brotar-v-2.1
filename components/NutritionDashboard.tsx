@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertCircle, AlertTriangle, BarChart2, ChevronRight,
+  AlertCircle, AlertTriangle, BarChart2,
   ClipboardList, Salad, Scale, Users, Plus, Leaf, Megaphone,
 } from 'lucide-react';
 import {
@@ -9,7 +9,14 @@ import {
 } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { SupabaseService } from '../services/SupabaseService';
-import type { NutritionDashboardStats, NutritionAssessment } from '../types';
+import type { NutritionDashboardStats } from '../types';
+
+// ─── constante fora do componente para evitar stale closure ──────────────────
+const EMPTY_STATS: NutritionDashboardStats = {
+  totalAlunos: 0, avaliados: 0, pendentes: 0,
+  perfilNutricional: { baixoPeso: 0, eutrofia: 0, sobrepeso: 0, obesidade: 0, obesidadeGrave: 0 },
+  naeAtivos: 0, laudosVencendo: 0, alertas: [],
+};
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -20,30 +27,6 @@ function getInitials(name: string): string {
     .slice(0, 2)
     .map((w) => w[0].toUpperCase())
     .join('');
-}
-
-function fmtDate(iso: string): string {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-');
-  return `${d}/${m}/${y}`;
-}
-
-const IMC_BADGE: Record<string, string> = {
-  'Baixo peso': 'bg-blue-50 text-blue-800',
-  Magreza: 'bg-blue-50 text-blue-800',
-  Eutrofia: 'bg-green-50 text-green-800',
-  Adequado: 'bg-green-50 text-green-800',
-  Sobrepeso: 'bg-amber-50 text-amber-800',
-  Obesidade: 'bg-orange-50 text-orange-800',
-  'Obesidade grave': 'bg-red-50 text-red-800',
-};
-
-function imcBadgeClass(cls?: string): string {
-  if (!cls) return 'bg-gray-100 text-gray-500';
-  for (const [k, v] of Object.entries(IMC_BADGE)) {
-    if (cls.toLowerCase().includes(k.toLowerCase())) return v;
-  }
-  return 'bg-gray-100 text-gray-500';
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -73,43 +56,25 @@ const NutritionDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const EMPTY_STATS: NutritionDashboardStats = {
-    totalAlunos: 0, avaliados: 0, pendentes: 0,
-    perfilNutricional: { baixoPeso: 0, eutrofia: 0, sobrepeso: 0, obesidade: 0, obesidadeGrave: 0 },
-    naeAtivos: 0, laudosVencendo: 0, alertas: [],
-  };
-
   const [stats, setStats] = useState<NutritionDashboardStats>(EMPTY_STATS);
-  const [recentAssessments, setRecentAssessments] = useState<(NutritionAssessment & { studentName?: string })[]>([]);
-  const [loadingStats, setLoadingStats] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoadingStats(true);
-    try {
-      const s = await SupabaseService.getNutritionDashboardStats();
-      setStats(s);
-    } catch (error) {
-      console.error('Erro ao carregar dashboard nutrição:', error);
-      // NÃO redirecionar — manter stats zeradas
-      setStats({
-        totalAlunos: 0,
-        avaliados: 0,
-        pendentes: 0,
-        perfilNutricional: { baixoPeso: 0, eutrofia: 0, sobrepeso: 0, obesidade: 0, obesidadeGrave: 0 },
-        naeAtivos: 0,
-        laudosVencendo: 0,
-        alertas: [],
-      });
-    } finally {
-      setLoadingStats(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
+    const load = async () => {
+      try {
+        const s = await SupabaseService.getNutritionDashboardStats();
+        setStats(s);
+      } catch (err) {
+        console.error('Erro dashboard nutrição:', err);
+        // NÃO redirecionar — manter stats zeradas
+        setStats(EMPTY_STATS);
+      } finally {
+        setLoading(false);
+      }
+    };
     load();
-  }, [load]);
+  }, []);
 
   // gráfico de perfil nutricional
   const chartData = [
@@ -154,7 +119,7 @@ const NutritionDashboard: React.FC = () => {
         </div>
 
         {/* ── SEÇÃO 2 — Métricas ── */}
-        {loadingStats ? (
+        {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 h-24 animate-pulse" />
@@ -198,7 +163,7 @@ const NutritionDashboard: React.FC = () => {
         )}
 
         {/* ── SEÇÃO 3 — Perfil nutricional ── */}
-        {!loadingStats && chartData.some((d) => d.value > 0) && (
+        {!loading && chartData.some((d) => d.value > 0) && (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
               <BarChart2 size={18} className="text-slate-400" />
@@ -272,37 +237,7 @@ const NutritionDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* ── SEÇÃO 5 — Últimos avaliados ── */}
-        {recentAssessments.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Últimas avaliações</h2>
-            <div className="divide-y divide-gray-50">
-              {recentAssessments.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => navigate(`/nutricion/avaliacao?id=${a.id}`)}
-                  className="w-full flex items-center gap-3 py-3 hover:bg-gray-50 rounded-lg px-2 transition-colors text-left"
-                >
-                  <div className="w-9 h-9 rounded-full bg-green-100 text-green-700 font-bold text-sm flex items-center justify-center shrink-0">
-                    {getInitials(a.studentName ?? '?')}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-800 text-sm truncate">{a.studentName ?? a.student_id}</p>
-                    <p className="text-xs text-slate-400">{fmtDate(a.assessment_date)}</p>
-                  </div>
-                  {a.imc_classificacao && (
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${imcBadgeClass(a.imc_classificacao)}`}>
-                      {a.imc_classificacao}
-                    </span>
-                  )}
-                  <ChevronRight size={14} className="text-gray-300 shrink-0" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── SEÇÃO 6 — Acesso rápido ── */}
+        {/* ── SEÇÃO 5 — Acesso rápido ── */}
         <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => navigate('/nutricion/nae')}

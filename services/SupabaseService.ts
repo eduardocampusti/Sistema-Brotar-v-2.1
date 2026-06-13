@@ -2217,9 +2217,9 @@ export class SupabaseService {
             const { data, error } = await supabase
                 .from('system_settings')
                 .select('*')
-                .single();
+                .maybeSingle(); // retorna null (não 406) quando não há rows
 
-            if (error && error.code !== 'PGRST116') throw error; // PGRST116 means "no rows found"
+            if (error) throw error;
 
             const settings = {
                 systemName: data?.system_name || 'Sistema Brotar',
@@ -3946,29 +3946,42 @@ export class SupabaseService {
         cutoff180.setDate(cutoff180.getDate() - 180);
         const cutoff180Iso = cutoff180.toISOString().split('T')[0];
 
-        const [assessmentsRes, naeRes, expiringRes, studentsRes] = await Promise.all([
-            supabase
+        let assessmentsData: { student_id: string; imc_classificacao: string | null; assessment_date: string }[] = [];
+        let naeCount = 0;
+        let expiringRows: NutritionNAE[] = [];
+        let studentsCount = 0;
+
+        try {
+            const res = await supabase
                 .from('nutrition_assessments')
                 .select('student_id, imc_classificacao, assessment_date')
                 .eq('status', 'FINALIZADA')
-                .order('assessment_date', { ascending: false }),
-            supabase
+                .order('assessment_date', { ascending: false });
+            if (!res.error) assessmentsData = (res.data ?? []) as typeof assessmentsData;
+        } catch { /* tabela pode não existir ainda */ }
+
+        try {
+            const res = await supabase
                 .from('nutrition_nae')
                 .select('id', { count: 'exact', head: true })
-                .eq('status', 'ATIVO'),
-            this.getExpiredOrExpiringNAE(30),
-            supabase
-                .from('students')
-                .select('id', { count: 'exact', head: true }),
-        ]);
+                .eq('status', 'ATIVO');
+            if (!res.error) naeCount = res.count ?? 0;
+        } catch { /* tabela pode não existir ainda */ }
 
-        if (assessmentsRes.error) throw assessmentsRes.error;
-        if (naeRes.error) throw naeRes.error;
-        if (studentsRes.error) throw studentsRes.error;
+        try {
+            expiringRows = await this.getExpiredOrExpiringNAE(30);
+        } catch { /* tabela pode não existir ainda */ }
+
+        try {
+            const res = await supabase
+                .from('students')
+                .select('id', { count: 'exact', head: true });
+            if (!res.error) studentsCount = res.count ?? 0;
+        } catch { /* segurança */ }
 
         // Pegar apenas a avaliação mais recente por aluno
         const latestByStudent = new Map<string, { imc_classificacao: string | null; assessment_date: string }>();
-        for (const row of (assessmentsRes.data ?? [])) {
+        for (const row of assessmentsData) {
             if (!latestByStudent.has(row.student_id)) {
                 latestByStudent.set(row.student_id, {
                     imc_classificacao: row.imc_classificacao ?? null,
@@ -3987,15 +4000,11 @@ export class SupabaseService {
             else if (cls.includes('obesidade')) perfilNutricional.obesidade++;
         }
 
-        const totalAlunos = studentsRes.count ?? 0;
-        const avaliados = latestByStudent.size;
-        const naeAtivos = naeRes.count ?? 0;
-
         // Alertas
         const alertas: NutritionAlerta[] = [];
         const hoje = new Date().toISOString().split('T')[0];
 
-        for (const row of (expiringRes as any[])) {
+        for (const row of (expiringRows as any[])) {
             const nome = row.students?.full_name ?? 'Aluno';
             const vencido = row.laudo_validade < hoje;
             alertas.push({
@@ -4009,9 +4018,9 @@ export class SupabaseService {
             });
         }
 
-        // Alunos sem avaliação nos últimos 180 dias (amostral — laudos críticos já cobertos)
+        // Alunos sem avaliação nos últimos 180 dias
         const avaliadosRecentes = new Set(
-            (assessmentsRes.data ?? [])
+            assessmentsData
                 .filter(r => r.assessment_date >= cutoff180Iso)
                 .map(r => r.student_id)
         );
@@ -4028,12 +4037,12 @@ export class SupabaseService {
         }
 
         return {
-            totalAlunos,
-            avaliados,
-            pendentes: Math.max(0, totalAlunos - avaliados),
+            totalAlunos: studentsCount,
+            avaliados: latestByStudent.size,
+            pendentes: Math.max(0, studentsCount - latestByStudent.size),
             perfilNutricional,
-            naeAtivos,
-            laudosVencendo: expiringRes.length,
+            naeAtivos: naeCount,
+            laudosVencendo: expiringRows.length,
             alertas,
         };
     }

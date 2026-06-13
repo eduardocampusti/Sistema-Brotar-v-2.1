@@ -1,11 +1,23 @@
 export const APP_VERSION = {
-  version: 'v2.4.65',
+  version: 'v2.4.66',
   date: 'Jun 2026',
-  display: 'v2.4.65 • Jun 2026',
+  display: 'v2.4.66 • Jun 2026',
   changelog: [
-    'Correção de queries NAE e tratamento de erro no dashboard nutricionista'
+    'Correção crítica: try-catch no NutritionDashboard e resiliência a tabelas inexistentes'
   ],
   releases: [
+    {
+      version: 'v2.4.66',
+      date: '13 Jun 2026',
+      title: 'Fix crítico: NutritionDashboard — erro 406 settings e redirect para /',
+      type: 'fix',
+      changes: [
+        "getSystemSettings: trocado .single() por .maybeSingle() — elimina erro 406 em system_settings sem rows",
+        "getNutritionDashboardStats: cada query em try/catch independente — tabelas nutrition_* inexistentes retornam zeros sem throw",
+        "NutritionDashboard: reescrito para padrão useEffect + inline async + EMPTY_STATS fora do componente (sem stale closure)",
+        "Removido estado recentAssessments morto (nunca populado) — redução de 9.38 kB para 7.50 kB no bundle"
+      ]
+    },
     {
       version: 'v2.4.65',
       date: '13 Jun 2026',
