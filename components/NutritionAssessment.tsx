@@ -94,12 +94,13 @@ const SegBtn: React.FC<{
         key={opt}
         type="button"
         onClick={() => onChange(opt)}
-        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
+        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border-2 ${
           value === opt
-            ? 'bg-blue-500 text-white border-blue-500'
-            : 'bg-white text-slate-600 border-gray-200 hover:border-blue-300'
+            ? 'bg-blue-500 text-white border-blue-500 shadow-sm scale-105'
+            : 'bg-white text-slate-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
         }`}
       >
+        {value === opt && <Check size={12} className="inline mr-1.5 -mt-0.5" />}
         {opt}
       </button>
     ))}
@@ -116,23 +117,25 @@ const Toggle: React.FC<{
     <button
       type="button"
       onClick={() => onChange(true)}
-      className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+      className={`px-5 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
         value === true
-          ? 'bg-green-500 text-white border-green-500'
-          : 'bg-white text-slate-600 border-gray-200 hover:border-green-300'
+          ? 'bg-green-500 text-white border-green-500 shadow-sm scale-105'
+          : 'bg-white text-slate-600 border-gray-200 hover:border-green-300 hover:bg-green-50'
       }`}
     >
+      {value === true && <Check size={12} className="inline mr-1.5 -mt-0.5" />}
       {labelOn}
     </button>
     <button
       type="button"
       onClick={() => onChange(false)}
-      className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+      className={`px-5 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
         value === false
-          ? 'bg-slate-500 text-white border-slate-500'
-          : 'bg-white text-slate-600 border-gray-200 hover:border-slate-300'
+          ? 'bg-slate-500 text-white border-slate-500 shadow-sm scale-105'
+          : 'bg-white text-slate-600 border-gray-200 hover:border-slate-300 hover:bg-slate-50'
       }`}
     >
+      {value === false && <Check size={12} className="inline mr-1.5 -mt-0.5" />}
       {labelOff}
     </button>
   </div>
@@ -154,13 +157,13 @@ const Pills: React.FC<{
           key={opt}
           type="button"
           onClick={() => toggle(opt)}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+          className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
             value.includes(opt)
-              ? 'bg-blue-500 text-white border-blue-500'
-              : 'bg-white text-slate-600 border-gray-200 hover:border-blue-300'
+              ? 'bg-blue-500 text-white border-blue-500 shadow-sm scale-105'
+              : 'bg-white text-slate-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
           }`}
         >
-          {value.includes(opt) && <Check size={12} className="inline mr-1" />}
+          {value.includes(opt) && <Check size={12} className="inline mr-1.5 -mt-0.5" />}
           {opt}
         </button>
       ))}
@@ -169,12 +172,15 @@ const Pills: React.FC<{
 };
 
 const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p className="text-sm font-semibold text-slate-700 mb-1.5">{children}</p>
+  <p className="text-sm font-semibold text-slate-700 mb-2">{children}</p>
 );
 
-const FieldGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="space-y-1.5">
-    <Label>{label}</Label>
+const FieldGroup: React.FC<{ label: string; icon?: React.ReactNode; children: React.ReactNode }> = ({ label, icon, children }) => (
+  <div className="space-y-2">
+    <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+      {icon && <span className="text-slate-400">{icon}</span>}
+      {label}
+    </p>
     {children}
   </div>
 );
@@ -211,19 +217,23 @@ const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { options
   </select>
 );
 
-const Banner: React.FC<{ color: 'blue' | 'orange' | 'purple' | 'yellow' | 'gray'; children: React.ReactNode }> = ({
+const Banner: React.FC<{ color: 'blue' | 'orange' | 'purple' | 'yellow' | 'gray'; icon?: React.ReactNode; children: React.ReactNode }> = ({
   color,
+  icon,
   children,
 }) => {
   const cls = {
-    blue: 'bg-blue-50 border-blue-200 text-blue-800',
-    orange: 'bg-orange-50 border-orange-200 text-orange-800',
-    purple: 'bg-purple-50 border-purple-200 text-purple-800',
-    yellow: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-    gray: 'bg-gray-50 border-gray-200 text-gray-600',
+    blue: 'bg-blue-50 border-blue-300 text-blue-800',
+    orange: 'bg-orange-50 border-orange-300 text-orange-800',
+    purple: 'bg-purple-50 border-purple-300 text-purple-800',
+    yellow: 'bg-yellow-50 border-yellow-300 text-yellow-800',
+    gray: 'bg-gray-50 border-gray-300 text-gray-600',
   }[color];
   return (
-    <div className={`rounded-lg border px-4 py-3 text-sm font-medium ${cls}`}>{children}</div>
+    <div className={`rounded-xl border-2 px-4 py-3 text-sm font-medium flex items-start gap-2.5 ${cls}`}>
+      {icon && <span className="mt-0.5 shrink-0">{icon}</span>}
+      <span>{children}</span>
+    </div>
   );
 };
 
@@ -233,7 +243,7 @@ const Step1: React.FC<{ formData: Partial<NAssessment>; student: Student | null;
   formData, student, onChange,
 }) => (
   <div className="space-y-5">
-    <Banner color="blue">Dados pré-preenchidos do prontuário — revise e confirme</Banner>
+    <Banner color="blue" icon={<AlertCircle size={16} />}>Dados pré-preenchidos do prontuário — revise e confirme</Banner>
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <FieldGroup label="Nome completo">
@@ -409,8 +419,8 @@ const Step4: React.FC<{ formData: Partial<NAssessment>; onChange: (d: Partial<NA
       </FieldGroup>
 
       {hasTEA && (
-        <Banner color="purple">
-          Etapa 11 — Perfil sensorial TEA foi habilitada automaticamente.
+        <Banner color="purple" icon={<AlertCircle size={16} />}>
+          🧠 TEA identificado — etapa 11 (Perfil sensorial) foi habilitada automaticamente. Os campos de textura, temperatura e rituais alimentares estarão disponíveis.
         </Banner>
       )}
 
@@ -745,17 +755,26 @@ const Step11: React.FC<{ formData: Partial<NAssessment>; onChange: (d: Partial<N
   if (!formData.tem_tea) {
     return (
       <div className="space-y-4">
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center text-gray-500 text-sm">
-          <p className="font-semibold text-gray-600 mb-1">Esta etapa não se aplica a este aluno.</p>
-          <p>Caso o diagnóstico de TEA seja confirmado, retorne à Etapa 4 e marque a condição.</p>
+        <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle size={28} className="text-gray-400" />
+          </div>
+          <p className="font-bold text-gray-700 text-base mb-2">Esta etapa não se aplica a este aluno</p>
+          <p className="text-gray-500 text-sm mb-5 max-w-xs mx-auto">O perfil sensorial TEA só é habilitado quando o diagnóstico de TEA está marcado na etapa 4 (Condições de saúde).</p>
+          <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-500 text-white rounded-xl text-sm font-semibold cursor-pointer hover:bg-purple-600 transition-colors"
+            onClick={() => onChange({ condicoes_saude: [...(formData.condicoes_saude ?? []), 'TEA'], tem_tea: true })}
+          >
+            <Check size={14} />
+            Marcar TEA e habilitar esta etapa
+          </div>
         </div>
       </div>
     );
   }
   return (
     <div className="space-y-5">
-      <Banner color="purple">
-        Perfil sensorial habilitado — TEA identificado na Etapa 4.
+      <Banner color="purple" icon={<AlertCircle size={16} />}>
+        🧠 Perfil sensorial habilitado — TEA identificado na Etapa 4. Preencha com atenção — estas informações são essenciais para o plano alimentar escolar.
       </Banner>
       <FieldGroup label="Texturas aceitas">
         <Pills
@@ -879,16 +898,24 @@ const Step12: React.FC<{
         />
       </FieldGroup>
 
-      <div className="space-y-2">
-        <button
-          type="button"
-          onClick={handleGemini}
-          disabled={geminiLoading || !student}
-          className="flex items-center gap-2 px-4 py-2.5 border-2 border-blue-400 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50"
-        >
-          <Sparkles size={16} />
-          {geminiLoading ? 'Gerando…' : 'Gerar orientação com Gemini'}
-        </button>
+      <div className="space-y-3">
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shrink-0">
+            <Sparkles size={20} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-blue-800 mb-0.5">Gerar orientação com Gemini</p>
+            <p className="text-xs text-blue-600">Orientação nutricional personalizada com base nos dados desta anamnese</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleGemini}
+            disabled={geminiLoading || !student}
+            className="shrink-0 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
+          >
+            {geminiLoading ? 'Gerando…' : 'Gerar'}
+          </button>
+        </div>
         {formData.gemini_orientacao && (
           <Textarea
             rows={5}
@@ -903,7 +930,7 @@ const Step12: React.FC<{
         type="button"
         onClick={onFinalize}
         disabled={isSaving}
-        className="w-full py-3.5 bg-[#F97316] hover:bg-orange-600 text-white rounded-xl font-bold text-base transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+        className="w-full py-4 bg-[#F97316] hover:bg-orange-600 text-white rounded-2xl font-bold text-base transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {isSaving ? <><Clock size={16} className="animate-spin" /> Salvando…</> : <><CheckCircle size={16} /> Finalizar e salvar</>}
       </button>
@@ -1102,15 +1129,18 @@ const NutritionAssessmentPage: React.FC = () => {
             <button
               key={i}
               onClick={() => setCurrentStep(i)}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 i === currentStep
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-blue-500 text-white shadow-sm'
                   : i < currentStep
-                  ? 'bg-green-50 text-green-700'
-                  : 'bg-gray-50 text-gray-400'
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
               }`}
             >
-              {i < currentStep ? <Check size={10} /> : <span>{i + 1}</span>}
+              {i < currentStep
+                ? <span className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center" style={{fontSize: '9px'}}><Check size={9} /></span>
+                : <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${i === currentStep ? 'bg-white/30 text-white' : 'bg-gray-200 text-gray-500'}`}>{i + 1}</span>
+              }
               {label}
             </button>
           ))}
@@ -1122,9 +1152,9 @@ const NutritionAssessmentPage: React.FC = () => {
         {renderStep()}
       </div>
 
-      {/* Rodapé de navegação fixo */}
+      {/* Rodapé de navegação fixo — sempre visível */}
       {currentStep < 11 && (
-        <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3 max-w-2xl mx-auto">
+        <div className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-sm border-t-2 border-gray-100 px-4 py-4 flex gap-3 max-w-2xl mx-auto" style={{paddingBottom: 'max(1rem, env(safe-area-inset-bottom))'}}>
           <button
             type="button"
             disabled={currentStep === 0}
