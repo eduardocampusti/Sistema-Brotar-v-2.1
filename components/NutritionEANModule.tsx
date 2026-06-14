@@ -302,7 +302,7 @@ const NutritionEANModule: React.FC = () => {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <button
-          onClick={() => navigate('/nutricion/dashboard')}
+          onClick={() => navigate('/app/nutricion/dashboard')}
           className="p-2 rounded-lg hover:bg-gray-100 text-slate-500 transition-colors"
         >
           <ChevronLeft size={20} />

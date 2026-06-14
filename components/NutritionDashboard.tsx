@@ -110,7 +110,7 @@ const NutritionDashboard: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/nutricion/avaliacao')}
+            onClick={() => navigate('/app/nutricion/avaliacao')}
             className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-[#F97316] hover:bg-orange-600 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
           >
             <Plus size={16} />
@@ -217,7 +217,7 @@ const NutritionDashboard: React.FC = () => {
                   </div>
                   {a.student_id && (
                     <button
-                      onClick={() => navigate(`/nutricion/avaliacao?studentId=${a.student_id}`)}
+                      onClick={() => navigate(`/app/nutricion/avaliacao?studentId=${a.student_id}`)}
                       className="shrink-0 text-xs font-semibold text-blue-600 hover:underline"
                     >
                       Avaliar
@@ -240,7 +240,7 @@ const NutritionDashboard: React.FC = () => {
         {/* ── SEÇÃO 5 — Acesso rápido ── */}
         <div className="grid grid-cols-3 gap-3">
           <button
-            onClick={() => navigate('/nutricion/nae')}
+            onClick={() => navigate('/app/nutricion/nae')}
             className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-green-200 hover:shadow-md transition-all"
           >
             <div className="p-3 rounded-xl bg-green-50 text-green-600">
@@ -250,7 +250,7 @@ const NutritionDashboard: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/nutricion/ean')}
+            onClick={() => navigate('/app/nutricion/ean')}
             className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-purple-200 hover:shadow-md transition-all"
           >
             <div className="p-3 rounded-xl bg-purple-50 text-purple-600">
