@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.75',
+  version: 'v2.4.76',
   date: 'Jun 2026',
-  display: 'v2.4.75 • Jun 2026',
+  display: 'v2.4.76 • Jun 2026',
   changelog: [
-    'Dashboard nutricionista — sombras premium, fundos coloridos suaves, gradientes, ícones com sombra'  
+    'Dashboard nutricionista — cores solidas, sombras fortes, gradientes visiveis'  
   ],
   releases: [
+    {
+      version: 'v2.4.76',
+      date: '14 Jun 2026',
+      title: 'Release v2.4.76 — 14 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Dashboard nutricionista — cores solidas visiveis nos cards, sombras fortes, header verde forte, botoes NAE/EAN com gradiente visivel"
+      ]
+    },
     {
       version: 'v2.4.75',
       date: '14 Jun 2026',

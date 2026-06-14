@@ -60,7 +60,7 @@ const NutritionDashboard: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 pt-6 space-y-4">
 
         {/* ── HEADER ── */}
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{boxShadow: '0 2px 12px rgba(16,185,129,0.08)'}}>
+        <div className="bg-gradient-to-r from-green-100 to-emerald-50 rounded-2xl border border-green-200 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{boxShadow: '0 4px 20px rgba(16,185,129,0.12)'}}>
           <div className="flex items-center gap-4 flex-1">
             <div className="w-[52px] h-[52px] rounded-2xl bg-white flex items-center justify-center text-green-700 font-medium text-lg shrink-0" style={{boxShadow: '0 2px 8px rgba(0,0,0,0.06)'}}>
               {getInitials(userName)}
@@ -86,10 +86,10 @@ const NutritionDashboard: React.FC = () => {
         {/* ── 4 CARDS DE MÉTRICAS ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'TOTAL ALUNOS', value: stats.totalAlunos, sub: 'rede municipal', barColor: 'bg-blue-500', cardBg: 'bg-blue-50/40', borderColor: 'border-blue-100', iconBg: 'bg-white text-blue-600', shadowColor: 'rgba(59,130,246,0.08)', Icon: Users },
-            { label: 'AVALIADOS', value: stats.avaliados, sub: `${stats.totalAlunos > 0 ? Math.round((stats.avaliados / stats.totalAlunos) * 100) : 0}% da meta`, barColor: 'bg-emerald-500', cardBg: 'bg-emerald-50/40', borderColor: 'border-emerald-100', iconBg: 'bg-white text-emerald-600', shadowColor: 'rgba(16,185,129,0.08)', Icon: ClipboardList },
-            { label: 'PENDENTES', value: stats.pendentes, sub: 'sem avaliação', barColor: 'bg-amber-500', cardBg: 'bg-amber-50/40', borderColor: 'border-amber-100', iconBg: 'bg-white text-amber-600', shadowColor: 'rgba(245,158,11,0.08)', Icon: Clock },
-            { label: 'NAE ATIVOS', value: stats.naeAtivos, sub: `${stats.laudosVencendo} laudos vencendo`, barColor: 'bg-red-500', cardBg: stats.naeAtivos > 0 ? 'bg-red-50/40' : 'bg-gray-50/40', borderColor: stats.naeAtivos > 0 ? 'border-red-100' : 'border-gray-100', iconBg: stats.naeAtivos > 0 ? 'bg-white text-red-600' : 'bg-white text-gray-400', shadowColor: stats.naeAtivos > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(0,0,0,0.04)', Icon: ShieldCheck },
+            { label: 'TOTAL ALUNOS', value: stats.totalAlunos, sub: 'rede municipal', barColor: 'bg-blue-500', cardBg: 'bg-blue-50', borderColor: 'border-blue-200', iconBg: 'bg-white text-blue-600', shadowColor: 'rgba(59,130,246,0.15)', Icon: Users },
+            { label: 'AVALIADOS', value: stats.avaliados, sub: `${stats.totalAlunos > 0 ? Math.round((stats.avaliados / stats.totalAlunos) * 100) : 0}% da meta`, barColor: 'bg-emerald-500', cardBg: 'bg-emerald-50', borderColor: 'border-emerald-200', iconBg: 'bg-white text-emerald-600', shadowColor: 'rgba(16,185,129,0.15)', Icon: ClipboardList },
+            { label: 'PENDENTES', value: stats.pendentes, sub: 'sem avaliação', barColor: 'bg-amber-500', cardBg: 'bg-amber-50', borderColor: 'border-amber-200', iconBg: 'bg-white text-amber-600', shadowColor: 'rgba(245,158,11,0.15)', Icon: Clock },
+            { label: 'NAE ATIVOS', value: stats.naeAtivos, sub: `${stats.laudosVencendo} laudos vencendo`, barColor: 'bg-red-500', cardBg: stats.naeAtivos > 0 ? 'bg-red-50' : 'bg-gray-50', borderColor: stats.naeAtivos > 0 ? 'border-red-200' : 'border-gray-200', iconBg: stats.naeAtivos > 0 ? 'bg-white text-red-600' : 'bg-white text-gray-400', shadowColor: stats.naeAtivos > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(0,0,0,0.06)', Icon: ShieldCheck },
           ].map((m) => (
             <div key={m.label} className={`${m.cardBg} rounded-2xl border ${m.borderColor} p-4 relative overflow-hidden`} style={{boxShadow: `0 2px 12px ${m.shadowColor}`}}>
               <div className={`absolute top-0 left-0 w-full h-1 ${m.barColor}`} />
@@ -106,8 +106,8 @@ const NutritionDashboard: React.FC = () => {
         {/* ── PERFIL NUTRICIONAL + ALERTAS ── */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-3">
           {/* Perfil nutricional */}
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{boxShadow: '0 2px 12px rgba(0,0,0,0.04)'}}>
-            <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between bg-gradient-to-r from-green-50/50 to-transparent">
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden" style={{boxShadow: '0 4px 20px rgba(0,0,0,0.06)'}}>
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-green-50">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-green-700">
                   <BarChart2 size={14} />
@@ -135,8 +135,8 @@ const NutritionDashboard: React.FC = () => {
           </div>
 
           {/* Alertas */}
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{boxShadow: '0 2px 12px rgba(0,0,0,0.04)'}}>
-            <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between bg-gradient-to-r from-red-50/30 to-transparent">
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden" style={{boxShadow: '0 4px 20px rgba(0,0,0,0.06)'}}>
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-red-50/60">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
                   <AlertTriangle size={14} />
@@ -176,8 +176,8 @@ const NutritionDashboard: React.FC = () => {
         </div>
 
         {/* ── ÚLTIMOS ALUNOS AVALIADOS ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{boxShadow: '0 2px 12px rgba(0,0,0,0.04)'}}>
-          <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-2 bg-gradient-to-r from-blue-50/40 to-transparent">
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden" style={{boxShadow: '0 4px 20px rgba(0,0,0,0.06)'}}>
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 bg-blue-50/60">
             <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
               <Activity size={14} />
             </div>
@@ -196,7 +196,7 @@ const NutritionDashboard: React.FC = () => {
         <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => navigate('/app/nutricion/nae')}
-            className="bg-gradient-to-b from-green-50/60 to-white rounded-2xl border border-green-100 p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-green-200 hover:from-green-50 transition-all" style={{boxShadow: '0 2px 12px rgba(16,185,129,0.06)'}}
+            className="bg-gradient-to-b from-green-100 to-green-50 rounded-2xl border border-green-200 p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-green-300 hover:from-green-100 transition-all" style={{boxShadow: '0 4px 16px rgba(16,185,129,0.12)'}}
           >
             <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-green-700" style={{boxShadow: '0 1px 4px rgba(0,0,0,0.06)'}}>
               <ShieldCheck size={20} />
@@ -207,7 +207,7 @@ const NutritionDashboard: React.FC = () => {
 
           <button
             onClick={() => navigate('/app/nutricion/ean')}
-            className="bg-gradient-to-b from-purple-50/60 to-white rounded-2xl border border-purple-100 p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-purple-200 hover:from-purple-50 transition-all" style={{boxShadow: '0 2px 12px rgba(139,92,246,0.06)'}}
+            className="bg-gradient-to-b from-purple-100 to-purple-50 rounded-2xl border border-purple-200 p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-purple-300 hover:from-purple-100 transition-all" style={{boxShadow: '0 4px 16px rgba(139,92,246,0.12)'}}
           >
             <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-purple-700" style={{boxShadow: '0 1px 4px rgba(0,0,0,0.06)'}}>
               <BookOpen size={20} />
