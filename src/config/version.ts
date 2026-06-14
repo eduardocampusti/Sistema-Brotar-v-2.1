@@ -1,11 +1,23 @@
 export const APP_VERSION = {
-  version: 'v2.4.73',
+  version: 'v2.4.74',
   date: 'Jun 2026',
-  display: 'v2.4.73 • Jun 2026',
+  display: 'v2.4.74 • Jun 2026',
   changelog: [
-    'Atualização de manutenção'  
+    'Dashboard nutricionista premium com cards coloridos e barra de destaque',
+    'Perfil nutricional com segmentos coloridos por classificação IMC',
+    'Alertas com indicador visual dot vermelho/amarelo',
+    'Sidebar colapsada com ícones centralizados em container 40x40 e tooltip hover'  
   ],
   releases: [
+    {
+      version: 'v2.4.74',
+      date: '14 Jun 2026',
+      title: 'Release v2.4.74 — 14 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Dashboard nutricionista premium — cards com barra colorida, perfil nutricional segmentado, alertas com dots, sidebar colapsada com tooltips"
+      ]
+    },
     {
       version: 'v2.4.73',
       date: '14 Jun 2026',

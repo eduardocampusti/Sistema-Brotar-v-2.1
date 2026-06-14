@@ -311,19 +311,32 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     }
   };
 
-  const MenuButton: React.FC<{ item: any }> = ({ item }) => (
-    <button
-      onClick={() => onNavigate(item.id)}
-      title={isCollapsed ? item.label : undefined}
-      className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden ${isCollapsed ? "px-0 py-3 justify-center" : "px-4 py-3.5"} ${isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id)) ? theme.active : theme.hover}`}
-    >
-      {(isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id))) && !isCollapsed && <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>}
-      <span className={`relative z-10 flex-shrink-0 ${(isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id))) ? "scale-110" : "group-hover:scale-110"} transition-transform duration-200`}>
-        {item.icon}
-      </span>
-      {!isCollapsed && <span className="relative z-10 truncate">{item.label}</span>}
-    </button>
-  );
+  const MenuButton: React.FC<{ item: any }> = ({ item }) => {
+    const active = isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id));
+    return (
+      <button
+        onClick={() => onNavigate(item.id)}
+        className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden ${isCollapsed ? "justify-center py-1.5" : "px-4 py-3.5"} ${active ? theme.active : theme.hover}`}
+      >
+        {active && !isCollapsed && <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>}
+        {isCollapsed ? (
+          <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center transition-all ${active ? 'bg-white/20' : 'bg-transparent group-hover:bg-white/10'}`}>
+            <span className={`${active ? 'text-white' : 'text-white/50 group-hover:text-white/80'} transition-colors`}>{item.icon}</span>
+          </div>
+        ) : (
+          <span className={`relative z-10 flex-shrink-0 ${active ? "scale-110" : "group-hover:scale-110"} transition-transform duration-200`}>
+            {item.icon}
+          </span>
+        )}
+        {!isCollapsed && <span className="relative z-10 truncate">{item.label}</span>}
+        {isCollapsed && (
+          <div className="absolute left-[56px] top-1/2 -translate-y-1/2 hidden group-hover:block z-50">
+            <div className="bg-slate-800 text-white text-[11px] font-medium px-2.5 py-1 rounded-md whitespace-nowrap shadow-lg">{item.label}</div>
+          </div>
+        )}
+      </button>
+    );
+  };
 
   const MenuCardButton: React.FC<{ item: any }> = ({ item }) => {
     const isActive = isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id));
