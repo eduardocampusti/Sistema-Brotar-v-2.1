@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.77',
+  version: 'v2.4.78',
   date: 'Jun 2026',
-  display: 'v2.4.77 • Jun 2026',
+  display: 'v2.4.78 • Jun 2026',
   changelog: [
-    'Modulo relatorios nutricionais — individual, familia, escola, secretaria, PNAE com geracao PDF'  
+    'Anamnese nutricional redesenhada com Scrollspy — navegação lateral fixa, todas as 12 seções em página unica, IntersectionObserver, seções com SectionCard premium'
   ],
   releases: [
+    {
+      version: 'v2.4.78',
+      date: '15 Jun 2026',
+      title: 'Release v2.4.78 — 15 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Anamnese nutricional redesenhada com Scrollspy — navegação lateral fixa, todas as 12 seções em página unica, IntersectionObserver, seções com SectionCard premium"
+      ]
+    },
     {
       version: 'v2.4.77',
       date: '15 Jun 2026',
