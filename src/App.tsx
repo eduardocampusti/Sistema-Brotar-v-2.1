@@ -69,6 +69,7 @@ const NutricaoDashboard = React.lazy(() => import('../components/NutritionDashbo
 const NutricaoAvaliacao = React.lazy(() => import('../components/NutritionAssessment'));
 const NutricaoNAE = React.lazy(() => import('../components/NutritionNAEModule'));
 const NutricaoEAN = React.lazy(() => import('../components/NutritionEANModule'));
+const NutricaoRelatorios = React.lazy(() => import('../components/NutritionReportsModule'));
 
 // Dashboards
 const AdminDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.AdminDashboard })));
@@ -452,6 +453,7 @@ function AppContent() {
           <Route path="nutricion/avaliacao/:id" element={<React.Suspense fallback={<PageLoading />}><NutricaoAvaliacao /></React.Suspense>} />
           <Route path="nutricion/nae" element={<React.Suspense fallback={<PageLoading />}><NutricaoNAE /></React.Suspense>} />
           <Route path="nutricion/ean" element={<React.Suspense fallback={<PageLoading />}><NutricaoEAN /></React.Suspense>} />
+          <Route path="nutricion/relatorios" element={<React.Suspense fallback={<PageLoading />}><NutricaoRelatorios /></React.Suspense>} />
           <Route path="retroativo" element={
             <React.Suspense fallback={<PageLoading />}>
               <LancamentoRetroativoPage 

@@ -216,13 +216,16 @@ const NutritionDashboard: React.FC = () => {
             <span className="text-[10px] text-slate-400">Educação alimentar</span>
           </button>
 
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 opacity-50 cursor-not-allowed relative">
-            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
+          <button
+            onClick={() => navigate('/app/nutricion/relatorios')}
+            className="bg-gradient-to-b from-slate-100 to-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-slate-300 transition-all" style={{boxShadow: '0 4px 16px rgba(0,0,0,0.06)'}}
+          >
+            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-600" style={{boxShadow: '0 1px 4px rgba(0,0,0,0.06)'}}>
               <BarChart2 size={20} />
             </div>
-            <span className="text-[12px] font-medium text-slate-500">Relatórios</span>
-            <span className="text-[10px] text-slate-400">em breve</span>
-          </div>
+            <span className="text-[12px] font-medium text-slate-700">Relatórios</span>
+            <span className="text-[10px] text-slate-400">Gerar PDFs</span>
+          </button>
         </div>
 
       </div>

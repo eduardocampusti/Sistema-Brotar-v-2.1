@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.76',
+  version: 'v2.4.77',
   date: 'Jun 2026',
-  display: 'v2.4.76 • Jun 2026',
+  display: 'v2.4.77 • Jun 2026',
   changelog: [
-    'Dashboard nutricionista — cores solidas, sombras fortes, gradientes visiveis'  
+    'Modulo relatorios nutricionais — individual, familia, escola, secretaria, PNAE com geracao PDF'  
   ],
   releases: [
+    {
+      version: 'v2.4.77',
+      date: '15 Jun 2026',
+      title: 'Release v2.4.77 — 15 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Modulo relatorios nutricionais — 5 tipos de relatorio com geracao PDF automatica: individual, familia, escola, secretaria e PNAE"
+      ]
+    },
     {
       version: 'v2.4.76',
       date: '14 Jun 2026',
