@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.78',
+  version: 'v2.4.79',
   date: 'Jun 2026',
-  display: 'v2.4.78 • Jun 2026',
+  display: 'v2.4.79 • Jun 2026',
   changelog: [
-    'Anamnese nutricional redesenhada com Scrollspy — navegação lateral fixa, todas as 12 seções em página unica, IntersectionObserver, seções com SectionCard premium'
+    'Portal clínico nutricionista unificado — perfil do aluno premium, resumo da última avaliação com IMC e indicadores, timeline de evoluções com scores visuais, integração com módulo novo, encerramento profissional'
   ],
   releases: [
+    {
+      version: 'v2.4.79',
+      date: '15 Jun 2026',
+      title: 'Release v2.4.79 — 15 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Portal clínico nutricionista unificado — perfil do aluno premium, resumo da última avaliação com IMC e indicadores, timeline de evoluções com scores visuais, integração com módulo novo, encerramento profissional"
+      ]
+    },
     {
       version: 'v2.4.78',
       date: '15 Jun 2026',

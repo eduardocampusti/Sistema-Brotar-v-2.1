@@ -62,8 +62,7 @@ const SpeechTherapyDashboardPage = React.lazy(() => import('../components/Clinic
 const SpeechTherapySessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.SpeechTherapySessionFormPage })));
 const PhysiotherapyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PhysiotherapyDashboardPage })));
 const PhysiotherapySessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PhysiotherapySessionFormPage })));
-const NutritionDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.NutritionDashboardPage })));
-const NutritionSessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.NutritionSessionFormPage })));
+const NutritionClinicalPortal = React.lazy(() => import('../components/NutritionClinicalPortal'));
 // Módulo Nutricionista Escolar — Fase 3
 const NutricaoDashboard = React.lazy(() => import('../components/NutritionDashboard'));
 const NutricaoAvaliacao = React.lazy(() => import('../components/NutritionAssessment'));
@@ -445,8 +444,7 @@ function AppContent() {
           <Route path="physiotherapy" element={<React.Suspense fallback={<PageLoading />}><PhysiotherapyDashboardPage onNavigateNew={() => handleNavigate('physiotherapy/new-session')} currentUser={user!} /></React.Suspense>} />
           <Route path="physiotherapy/new-session" element={<React.Suspense fallback={<PageLoading />}><PhysiotherapySessionFormPage onCancel={() => handleNavigate('physiotherapy')} currentUser={user!} /></React.Suspense>} />
 
-          <Route path="nutrition" element={<React.Suspense fallback={<PageLoading />}><NutritionDashboardPage onNavigateNew={() => handleNavigate('nutrition/new-session')} currentUser={user!} /></React.Suspense>} />
-          <Route path="nutrition/new-session" element={<React.Suspense fallback={<PageLoading />}><NutritionSessionFormPage onCancel={() => handleNavigate('nutrition')} currentUser={user!} /></React.Suspense>} />
+          <Route path="nutrition" element={<React.Suspense fallback={<PageLoading />}><NutritionClinicalPortal currentUser={user!} onNavigate={handleNavigate} /></React.Suspense>} />
           {/* ── Módulo Nutricionista Escolar — Fase 3 ── */}
           <Route path="nutricion/dashboard" element={<React.Suspense fallback={<PageLoading />}><NutricaoDashboard /></React.Suspense>} />
           <Route path="nutricion/avaliacao" element={<React.Suspense fallback={<PageLoading />}><NutricaoAvaliacao /></React.Suspense>} />
