@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Student, Specialty, Session, User, hasPermission } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { SpecialistClinicalHomeDashboard } from './RoleDashboards';
+import CadastroRapidoModal from './CadastroRapidoModal';
 import {
     Brain, Calendar, Users, FileText, History, TrendingUp,
     Shield, FolderLock, LayoutDashboard, Clock,
     Printer, Search, PlusCircle, ArrowRight,
     Download, Lock, Eye, EyeOff, MessageSquare, BookOpen,
-    ClipboardList, PieChart as PieIcon, Activity
+    ClipboardList, PieChart as PieIcon, Activity, UserPlus, Plus
 } from 'lucide-react';
 import {
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -25,6 +26,7 @@ export const PsychologyDashboard: React.FC<{
     const [activeTab, setActiveTab] = useState('resumo');
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showCadastroRapido, setShowCadastroRapido] = useState(false);
 
     useEffect(() => {
         const loadData = async () => {
@@ -63,12 +65,18 @@ export const PsychologyDashboard: React.FC<{
                 <h1 className="text-2xl font-black text-slate-800 tracking-tight">Painel de Psicologia</h1>
                 <p className="text-slate-500 font-medium">Bem-vindo(a), {currentUser.name}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => setShowCadastroRapido(true)}
+                    className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md shadow-purple-100"
+                >
+                    <UserPlus size={16} /> Cadastro Rápido
+                </button>
                 <button
                     onClick={() => onNavigate('psychology/new-session')}
-                    className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-purple-100"
+                    className="flex items-center gap-2 bg-[#F97316] hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md"
                 >
-                    <PlusCircle size={18} /> Nova Ativação (H.15.1.1)
+                    <Plus size={16} /> Nova Sessão
                 </button>
             </div>
         </div>
@@ -549,6 +557,16 @@ export const PsychologyDashboard: React.FC<{
             <div className="max-w-7xl mx-auto">
                 {renderContent()}
             </div>
+
+            {/* ── Cadastro Rápido Modal ── */}
+            <CadastroRapidoModal
+                isOpen={showCadastroRapido}
+                onClose={() => setShowCadastroRapido(false)}
+                currentUserId={currentUser.id}
+                currentUserName={currentUser.name}
+                currentUserRole={'SPECIALIST'}
+                currentUserSpecialty={'Psicologia'}
+            />
         </div>
     );
 };

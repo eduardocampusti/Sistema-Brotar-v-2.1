@@ -18,9 +18,11 @@ import {
     AlertTriangle,
     Flag,
     Puzzle,
+    UserPlus,
 } from 'lucide-react';
 import { Student, User, Specialty, Appointment } from '../types';
 import { countTeaAutismStudents } from '../utils/teaAutismCount';
+import CadastroRapidoModal from './CadastroRapidoModal';
 
 // Helper simples para idade se não conseguir importar
 const getAge = (birthDate?: string) => {
@@ -51,6 +53,7 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
 
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showCadastroRapido, setShowCadastroRapido] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -165,9 +168,19 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                         Bem-vindo(a), <span className="text-[#1E7F85] font-bold">{currentUser.name}</span>
                     </p>
                 </div>
-                <div className="bg-white px-4 py-2 rounded-full border border-slate-100 shadow-sm flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                    <MapPin size={14} className="text-[#1E7F85]" />
-                    {currentUser.scope || 'Sede Administrativa'}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowCadastroRapido(true)}
+                        className="flex items-center gap-2 bg-[#1E7F85] hover:bg-[#145f63] text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md"
+                    >
+                        <UserPlus size={16} /> Cadastro Rápido
+                    </button>
+                    <button
+                        onClick={() => onNavigate('social-interview')}
+                        className="flex items-center gap-2 bg-[#F97316] hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md"
+                    >
+                        <Plus size={16} /> Nova Entrevista
+                    </button>
                 </div>
             </div>
 
@@ -427,6 +440,16 @@ export const SocialWorkerDashboard: React.FC<SocialWorkerDashboardProps> = ({
                 </div>
 
             </div>
+
+            {/* ── Cadastro Rápido Modal ── */}
+            <CadastroRapidoModal
+                isOpen={showCadastroRapido}
+                onClose={() => setShowCadastroRapido(false)}
+                currentUserId={currentUser.id}
+                currentUserName={currentUser.name}
+                currentUserRole={'SPECIALIST'}
+                currentUserSpecialty={'Serviço Social'}
+            />
         </div>
     );
 };

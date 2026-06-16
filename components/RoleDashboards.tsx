@@ -17,7 +17,8 @@ import {
 import { StorageService } from '../services/storageService';
 import { SupabaseService } from '../services/SupabaseService';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer, ShieldAlert, Bell, ClipboardList, MessageSquare, UserCheck, Phone, Loader2, Send, Building2, Link2, Wifi, WifiOff, Info, ChevronRight, Sparkles } from 'lucide-react';
+import { Users, Calendar, Activity, Clock, School, AlertTriangle, FileText, CheckCircle, Brain, HeartPulse, Stethoscope, Baby, Mic, Puzzle, Heart, Search, Settings, Shield, Download, UserPlus, Globe, TrendingUp, ArrowRight, Palette, PlusCircle, Printer, ShieldAlert, Bell, ClipboardList, MessageSquare, UserCheck, Phone, Loader2, Send, Building2, Link2, Wifi, WifiOff, Info, ChevronRight, Sparkles, Plus } from 'lucide-react';
+import CadastroRapidoModal from './CadastroRapidoModal';
 import { PatientList } from './PatientList';
 import { WelcomeHeader } from './WelcomeHeader';
 import { countTeaAutismStudents } from '../utils/teaAutismCount';
@@ -300,6 +301,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
     // 2. Estado local e busca de agendamentos (Mantidos)
     const [appointments, setAppointments] = useState<any[]>([]);
     const [loadingApts, setLoadingApts] = useState(true);
+    const [showCadastroRapido, setShowCadastroRapido] = useState(false);
 
     useEffect(() => {
         SupabaseService.getAppointments({ professionalId: currentUser.id })
@@ -447,13 +449,20 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                             {specialtyLabel} · {todayDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
                         </p>
                     </div>
-                    <button 
-                        onClick={() => onNavigate(clinicalRoute)}
-                        className="flex items-center justify-center gap-2.5 px-5 py-3 rounded-2xl text-sm font-bold shrink-0 transition-all bg-white text-slate-800 hover:bg-slate-50 active:scale-95 shadow-md border border-slate-100 hover:shadow-lg duration-200"
-                    >
-                        Abrir Módulo Clínico
-                        <ArrowRight size={16} className="text-slate-700" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button 
+                            onClick={() => setShowCadastroRapido(true)}
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all bg-white/90 text-slate-800 hover:bg-white active:scale-95 shadow-md border border-white/30 hover:shadow-lg duration-200 backdrop-blur-sm"
+                        >
+                            <UserPlus size={16} /> Cadastro Rápido
+                        </button>
+                        <button 
+                            onClick={() => onNavigate(registerSessionRoute)}
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold shrink-0 transition-all bg-[#F97316] hover:bg-orange-600 text-white active:scale-95 shadow-md hover:shadow-lg duration-200"
+                        >
+                            <Plus size={16} /> Nova Sessão
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -832,6 +841,16 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                     })}
                 </div>
             </div>
+
+            {/* ── Cadastro Rápido Modal ── */}
+            <CadastroRapidoModal
+                isOpen={showCadastroRapido}
+                onClose={() => setShowCadastroRapido(false)}
+                currentUserId={currentUser.id}
+                currentUserName={currentUser.name}
+                currentUserRole={currentUser.role}
+                currentUserSpecialty={currentUser.specialty}
+            />
         </div>
     );
 };

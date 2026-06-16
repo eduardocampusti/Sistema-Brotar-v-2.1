@@ -1,11 +1,29 @@
 export const APP_VERSION = {
-  version: 'v2.4.86',
+  version: 'v2.4.88',
   date: 'Jun 2026',
-  display: 'v2.4.86 • Jun 2026',
+  display: 'v2.4.88 • Jun 2026',
   changelog: [
-    'Cadastro rápido permite selecionar aluno existente na verificação de duplicidade e ir direto para atendimento sem criar duplicata'  
+    'Atualização de manutenção'  
   ],
   releases: [
+    {
+      version: 'v2.4.88',
+      date: '16 Jun 2026',
+      title: 'Release v2.4.88 — 16 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
+    {
+      version: 'v2.4.87',
+      date: '16 Jun 2026',
+      title: 'Release v2.4.87 — 16 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.86',
       date: '16 Jun 2026',
