@@ -250,6 +250,8 @@ const NutritionDashboard: React.FC = () => {
           onClose={() => setShowCadastroRapido(false)}
           currentUserId={user.id}
           currentUserName={user.name}
+          currentUserRole={user.role}
+          currentUserSpecialty={user.specialty}
         />
       )}
     </div>

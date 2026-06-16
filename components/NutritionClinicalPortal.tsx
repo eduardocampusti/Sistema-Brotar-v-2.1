@@ -770,6 +770,8 @@ const NutritionClinicalPortal: React.FC<PortalProps> = ({ currentUser, onNavigat
         onClose={() => setShowCadastroRapido(false)}
         currentUserId={currentUser.id}
         currentUserName={currentUser.name}
+        currentUserRole={currentUser.role}
+        currentUserSpecialty={currentUser.specialty}
         onCreated={() => { SupabaseService.getStudentsForUser(currentUser).then(setStudents).catch(() => {}); }}
       />
     </div>

@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.84',
+  version: 'v2.4.85',
   date: 'Jun 2026',
-  display: 'v2.4.84 • Jun 2026',
+  display: 'v2.4.85 • Jun 2026',
   changelog: [
-    'Cadastro rápido com upload de foto do aluno e notificação automática para secretárias completarem o cadastro'  
+    'Cadastro rápido com tela de sucesso e ações imediatas — iniciar atendimento, lançamento histórico ou voltar à lista, redirect inteligente por especialidade'
   ],
   releases: [
+    {
+      version: 'v2.4.85',
+      date: '16 Jun 2026',
+      title: 'Release v2.4.85 — 16 Jun 2026',
+      type: 'feature',
+      changes: [
+        "Cadastro rápido com tela de sucesso e ações imediatas — iniciar atendimento, lançamento histórico ou voltar à lista, redirect inteligente por especialidade"
+      ]
+    },
     {
       version: 'v2.4.84',
       date: '16 Jun 2026',

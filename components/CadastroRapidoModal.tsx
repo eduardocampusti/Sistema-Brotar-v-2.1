@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search, AlertTriangle, CheckCircle2, UserPlus, Loader2, Camera, User, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Search, AlertTriangle, CheckCircle2, UserPlus, Loader2, Camera, User, Trash2, FileText, Clock, ArrowLeft } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import type { Student, School } from '../types';
 
@@ -8,18 +9,35 @@ interface CadastroRapidoModalProps {
   onClose: () => void;
   currentUserId: string;
   currentUserName: string;
+  currentUserRole?: string;
+  currentUserSpecialty?: string;
   onCreated?: (studentId: string) => void;
 }
 
-type Step = 'form' | 'duplicates' | 'confirm';
+type Step = 'form' | 'duplicates' | 'confirm' | 'success';
+
+const SPECIALTY_ROUTES: Record<string, string> = {
+  'Psicologia': 'psychology',
+  'Serviço Social': 'social-service-hub',
+  'Psicopedagogia': 'psychopedagogy',
+  'Terapia Ocupacional': 'occupational-therapy',
+  'Fonoaudiologia': 'speech-therapy',
+  'Fisioterapia': 'physiotherapy',
+  'Nutrição': 'nutrition',
+};
+
+const ALL_STEPS: Step[] = ['form', 'duplicates', 'confirm', 'success'];
 
 const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
   isOpen,
   onClose,
   currentUserId,
   currentUserName,
+  currentUserRole,
+  currentUserSpecialty,
   onCreated,
 }) => {
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>('form');
   const [loading, setLoading] = useState(false);
   const [schools, setSchools] = useState<School[]>([]);
@@ -36,6 +54,8 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -62,10 +82,14 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
     setDuplicates([]);
     setPhotoFile(null);
     setPhotoPreview(null);
+    setCreatedStudentId(null);
     setLoading(false);
   };
 
   const handleClose = () => {
+    if (step === 'success' && createdStudentId) {
+      onCreated?.(createdStudentId);
+    }
     resetForm();
     onClose();
   };
@@ -133,8 +157,8 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
         );
       }
 
-      onCreated?.(studentId);
-      handleClose();
+      setCreatedStudentId(studentId);
+      setStep('success');
     } catch (err) {
       console.error('[CadastroRapido] Erro:', err);
     } finally {
@@ -142,9 +166,33 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
     }
   };
 
+  const handleSuccessAction = (action: 'atendimento' | 'retroativo' | 'voltar') => {
+    const id = createdStudentId;
+    if (id) onCreated?.(id);
+    resetForm();
+    onClose();
+
+    if (action === 'atendimento') {
+      if (currentUserRole === 'SPECIALIST' && currentUserSpecialty) {
+        const route = SPECIALTY_ROUTES[currentUserSpecialty];
+        if (route) {
+          navigate(`/app/${route}`, { state: { openStudentId: id } });
+        } else {
+          navigate('/app/list');
+        }
+      } else {
+        navigate('/app/list');
+      }
+    } else if (action === 'retroativo') {
+      navigate('/app/retroativo');
+    }
+  };
+
   if (!isOpen) return null;
 
   const schoolName = schools.find(s => s.id === schoolId)?.name || '';
+  const isSpecialist = currentUserRole === 'SPECIALIST';
+  const stepIndex = ALL_STEPS.indexOf(step);
 
   return (
     <div
@@ -156,15 +204,20 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-lg">
-              <UserPlus size={18} />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg ${
+              step === 'success' ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' : 'bg-gradient-to-br from-amber-400 to-orange-500'
+            }`}>
+              {step === 'success' ? <CheckCircle2 size={18} /> : <UserPlus size={18} />}
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-800">Cadastro Rápido</h2>
+              <h2 className="text-base font-bold text-slate-800">
+                {step === 'success' ? 'Cadastro Concluído' : 'Cadastro Rápido'}
+              </h2>
               <p className="text-xs text-slate-400">
                 {step === 'form' && 'Preencha os dados mínimos'}
                 {step === 'duplicates' && 'Possíveis duplicidades encontradas'}
                 {step === 'confirm' && 'Confirme os dados'}
+                {step === 'success' && 'Escolha a próxima ação'}
               </p>
             </div>
           </div>
@@ -175,14 +228,20 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
 
         {/* Steps indicator */}
         <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-50">
-          {(['form', 'duplicates', 'confirm'] as Step[]).map((s, i) => (
+          {ALL_STEPS.map((s, i) => (
             <React.Fragment key={s}>
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                step === s ? 'bg-amber-500 text-white' : i < ['form', 'duplicates', 'confirm'].indexOf(step) ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-slate-400'
+                step === s
+                  ? (s === 'success' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white')
+                  : i < stepIndex
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-gray-100 text-slate-400'
               }`}>
-                {i + 1}
+                {i < stepIndex ? '✓' : i + 1}
               </div>
-              {i < 2 && <div className={`flex-1 h-0.5 ${i < ['form', 'duplicates', 'confirm'].indexOf(step) ? 'bg-emerald-400' : 'bg-gray-200'}`} />}
+              {i < ALL_STEPS.length - 1 && (
+                <div className={`flex-1 h-0.5 ${i < stepIndex ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+              )}
             </React.Fragment>
           ))}
         </div>
@@ -391,57 +450,146 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
               </div>
             </>
           )}
+
+          {/* STEP 4: Success */}
+          {step === 'success' && (
+            <div className="space-y-5">
+              <div
+                className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-b from-emerald-50 to-white p-6 text-center space-y-3"
+                style={{ boxShadow: '0 4px 20px rgba(16,185,129,0.15)' }}
+              >
+                <div className="flex justify-center">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <CheckCircle2 size={28} className="text-emerald-600" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-bold text-emerald-800">Aluno cadastrado com sucesso!</h3>
+
+                {photoPreview && (
+                  <div className="flex justify-center">
+                    <img src={photoPreview} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-emerald-300 shadow" />
+                  </div>
+                )}
+
+                <p className="text-base font-medium text-slate-800">{fullName}</p>
+
+                <span className="inline-block bg-amber-100 text-amber-700 rounded-full px-3 py-1 text-xs font-bold">
+                  Cadastro pendente — secretaria notificada
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {isSpecialist ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSuccessAction('atendimento')}
+                    className="w-full flex items-center justify-center gap-2.5 bg-[#F97316] hover:bg-orange-600 text-white rounded-xl py-3.5 font-bold text-sm transition-colors"
+                    style={{ boxShadow: '0 4px 14px rgba(249,115,22,0.35)' }}
+                  >
+                    <FileText size={18} />
+                    <div className="text-left">
+                      <div>Iniciar atendimento</div>
+                      <div className="text-[10px] font-normal opacity-80">Abrir ficha clínica deste aluno</div>
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSuccessAction('atendimento')}
+                    className="w-full flex items-center justify-center gap-2.5 bg-[#F97316] hover:bg-orange-600 text-white rounded-xl py-3.5 font-bold text-sm transition-colors"
+                    style={{ boxShadow: '0 4px 14px rgba(249,115,22,0.35)' }}
+                  >
+                    <User size={18} />
+                    <div className="text-left">
+                      <div>Abrir lista de alunos</div>
+                      <div className="text-[10px] font-normal opacity-80">Ver o aluno cadastrado na lista</div>
+                    </div>
+                  </button>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-xs text-slate-400">ou</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleSuccessAction('retroativo')}
+                  className="w-full flex items-center justify-center gap-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl py-3 font-medium text-sm transition-colors"
+                  style={{ boxShadow: '0 4px 14px rgba(59,130,246,0.3)' }}
+                >
+                  <Clock size={16} />
+                  <div className="text-left">
+                    <div>Lançamento histórico</div>
+                    <div className="text-[10px] font-normal opacity-80">Registrar atendimentos já realizados em papel</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSuccessAction('voltar')}
+                  className="w-full flex items-center justify-center gap-2 bg-white border-2 border-gray-200 text-slate-600 hover:bg-gray-50 rounded-xl py-3 font-medium text-sm transition-colors"
+                >
+                  <ArrowLeft size={16} />
+                  Voltar à lista
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 px-5 py-4 border-t border-gray-100 shrink-0">
-          {step === 'form' && (
-            <>
-              <button onClick={handleClose} className="flex-1 py-2.5 bg-gray-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">
-                Cancelar
-              </button>
-              <button
-                onClick={handleCheckDuplicates}
-                disabled={!fullName.trim() || loading}
-                className="flex-[2] py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-                {loading ? 'Verificando...' : 'Verificar duplicidades'}
-              </button>
-            </>
-          )}
+        {step !== 'success' && (
+          <div className="flex gap-3 px-5 py-4 border-t border-gray-100 shrink-0">
+            {step === 'form' && (
+              <>
+                <button onClick={handleClose} className="flex-1 py-2.5 bg-gray-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCheckDuplicates}
+                  disabled={!fullName.trim() || loading}
+                  className="flex-[2] py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+                  {loading ? 'Verificando...' : 'Verificar duplicidades'}
+                </button>
+              </>
+            )}
 
-          {step === 'duplicates' && (
-            <>
-              <button onClick={() => setStep('form')} className="flex-1 py-2.5 bg-gray-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">
-                Voltar
-              </button>
-              <button
-                onClick={() => setStep('confirm')}
-                className="flex-[2] py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-              >
-                <UserPlus size={15} />
-                Não é duplicidade — prosseguir
-              </button>
-            </>
-          )}
+            {step === 'duplicates' && (
+              <>
+                <button onClick={() => setStep('form')} className="flex-1 py-2.5 bg-gray-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">
+                  Voltar
+                </button>
+                <button
+                  onClick={() => setStep('confirm')}
+                  className="flex-[2] py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  <UserPlus size={15} />
+                  Não é duplicidade — prosseguir
+                </button>
+              </>
+            )}
 
-          {step === 'confirm' && (
-            <>
-              <button onClick={() => setStep('form')} className="flex-1 py-2.5 bg-gray-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">
-                Voltar
-              </button>
-              <button
-                onClick={handleConfirmCreate}
-                disabled={loading}
-                className="flex-[2] py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                {loading ? 'Cadastrando...' : 'Confirmar cadastro rápido'}
-              </button>
-            </>
-          )}
-        </div>
+            {step === 'confirm' && (
+              <>
+                <button onClick={() => setStep('form')} className="flex-1 py-2.5 bg-gray-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">
+                  Voltar
+                </button>
+                <button
+                  onClick={handleConfirmCreate}
+                  disabled={loading}
+                  className="flex-[2] py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  {loading ? 'Cadastrando...' : 'Confirmar cadastro rápido'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

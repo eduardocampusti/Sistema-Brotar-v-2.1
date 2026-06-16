@@ -986,6 +986,8 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           onClose={() => setShowCadastroRapido(false)}
           currentUserId={currentUser.id}
           currentUserName={currentUser.name}
+          currentUserRole={currentUser.role}
+          currentUserSpecialty={currentUser.specialty}
           onCreated={() => { onRefresh?.(); }}
         />
       )}
