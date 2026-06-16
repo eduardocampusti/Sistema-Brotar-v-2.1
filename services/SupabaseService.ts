@@ -4150,6 +4150,34 @@ export class SupabaseService {
         }
     }
 
+    static async uploadStudentPhoto(studentId: string, file: File): Promise<string> {
+        const fileName = `student_${studentId}_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('students-photos')
+            .upload(fileName, file);
+
+        if (uploadError || !uploadData) {
+            console.error('[SupabaseService] uploadStudentPhoto:', uploadError);
+            throw new Error(`Falha no upload da foto: ${uploadError?.message || 'Erro desconhecido'}`);
+        }
+
+        const { data: publicUrlData } = supabase.storage
+            .from('students-photos')
+            .getPublicUrl(uploadData.path);
+        const photoUrl = publicUrlData.publicUrl;
+
+        const { error: updateError } = await supabase
+            .from('students')
+            .update({ photo_url: photoUrl })
+            .eq('id', studentId);
+
+        if (updateError) {
+            console.warn('[SupabaseService] Foto enviada mas falha ao gravar URL:', updateError);
+        }
+
+        return photoUrl;
+    }
+
     static async getSecretariaUserIds(): Promise<string[]> {
         const { data, error } = await supabase
             .from('profiles')

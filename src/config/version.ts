@@ -1,12 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.83',
+  version: 'v2.4.84',
   date: 'Jun 2026',
-  display: 'v2.4.83 • Jun 2026',
+  display: 'v2.4.84 • Jun 2026',
   changelog: [
-    'Fix: endereço profissional apoio — upsert com onConflict id explícito + log diagnóstico',
-    'Cadastro Rápido visível para todos os perfis (SPECIALIST, SOCIAL_WORKER, ADMIN, EDUCATION_SECRETARY, SECRETARIA_SEDE, SECRETARIA_COCAL)'
+    'Cadastro rápido com upload de foto do aluno e notificação automática para secretárias completarem o cadastro'  
   ],
   releases: [
+    {
+      version: 'v2.4.84',
+      date: '16 Jun 2026',
+      title: 'Release v2.4.84 — 16 Jun 2026',
+      type: 'feature',
+      changes: [
+        "Cadastro rápido com upload de foto do aluno e notificação automática para secretárias completarem o cadastro"
+      ]
+    },
     {
       version: 'v2.4.83',
       date: '16 Jun 2026',

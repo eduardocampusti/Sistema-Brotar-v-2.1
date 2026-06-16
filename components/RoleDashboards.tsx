@@ -1731,7 +1731,8 @@ function studentLooksTea(s: Student): boolean {
 export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
     const [schools, setSchools] = useState<SchoolEntity[]>([]);
     const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
-    const pendingCount = useMemo(() => students.filter(s => s.cadastroStatus === 'PENDENTE').length, [students]);
+    const pendingStudents = useMemo(() => students.filter(s => s.cadastroStatus === 'PENDENTE'), [students]);
+    const pendingCount = pendingStudents.length;
     const [sedeAppointments, setSedeAppointments] = useState<Appointment[]>([]);
     const [documents, setDocuments] = useState<SavedDocument[]>([]);
     const [loading, setLoading] = useState(true);
@@ -1989,24 +1990,48 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
             </div>
 
             {pendingCount > 0 && (
-                <button
-                    type="button"
-                    onClick={() => onNavigate('list')}
-                    className="w-full flex items-center gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition-all hover:shadow-md hover:border-amber-300"
-                >
-                    <div className="rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 p-3 text-white shadow-lg">
-                        <UserPlus size={20} />
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm space-y-3">
+                    <button
+                        type="button"
+                        onClick={() => onNavigate('list')}
+                        className="w-full flex items-center gap-4 transition-all hover:opacity-80"
+                    >
+                        <div className="rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 p-3 text-white shadow-lg">
+                            <UserPlus size={20} />
+                        </div>
+                        <div className="flex-1 text-left">
+                            <p className="text-sm font-bold text-amber-800">
+                                {pendingCount} cadastro{pendingCount > 1 ? 's' : ''} rápido{pendingCount > 1 ? 's' : ''} pendente{pendingCount > 1 ? 's' : ''}
+                            </p>
+                            <p className="text-xs text-amber-600 mt-0.5">
+                                Alunos cadastrados por especialistas aguardando complementação de dados
+                            </p>
+                        </div>
+                        <ChevronRight size={18} className="text-amber-400" />
+                    </button>
+                    <div className="space-y-1.5">
+                        {pendingStudents.slice(0, 5).map(s => (
+                            <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => onNavigate('profile', s.id)}
+                                className="w-full flex items-center gap-3 rounded-xl bg-white/70 border border-amber-100 px-3 py-2 text-left hover:bg-white transition-colors"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-[10px] font-bold text-amber-700 shrink-0 overflow-hidden">
+                                    {s.photoUrl ? <img src={s.photoUrl} alt="" className="w-full h-full object-cover" /> : s.fullName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold text-slate-800 truncate">{s.fullName}</p>
+                                    <p className="text-[10px] text-slate-500 truncate">
+                                        {s.school?.schoolName || 'Sem escola'}
+                                        {s.dataCadastroRapido ? ` • ${new Date(s.dataCadastroRapido).toLocaleDateString('pt-BR')}` : ''}
+                                    </p>
+                                </div>
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">Completar</span>
+                            </button>
+                        ))}
                     </div>
-                    <div className="flex-1 text-left">
-                        <p className="text-sm font-bold text-amber-800">
-                            {pendingCount} cadastro{pendingCount > 1 ? 's' : ''} rápido{pendingCount > 1 ? 's' : ''} pendente{pendingCount > 1 ? 's' : ''}
-                        </p>
-                        <p className="text-xs text-amber-600 mt-0.5">
-                            Alunos cadastrados por especialistas aguardando complementação de dados
-                        </p>
-                    </div>
-                    <ChevronRight size={18} className="text-amber-400" />
-                </button>
+                </div>
             )}
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -2202,7 +2227,8 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
     const [schools, setSchools] = useState<SchoolEntity[]>([]);
     const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
     const [cocalAppointments, setCocalAppointments] = useState<Appointment[]>([]);
-    const pendingCount = useMemo(() => students.filter(s => s.cadastroStatus === 'PENDENTE').length, [students]);
+    const pendingStudents = useMemo(() => students.filter(s => s.cadastroStatus === 'PENDENTE'), [students]);
+    const pendingCount = pendingStudents.length;
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -2486,24 +2512,48 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
             </div>
 
             {pendingCount > 0 && (
-                <button
-                    type="button"
-                    onClick={() => onNavigate('list')}
-                    className="w-full flex items-center gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition-all hover:shadow-md hover:border-amber-300"
-                >
-                    <div className="rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 p-3 text-white shadow-lg">
-                        <UserPlus size={20} />
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm space-y-3">
+                    <button
+                        type="button"
+                        onClick={() => onNavigate('list')}
+                        className="w-full flex items-center gap-4 transition-all hover:opacity-80"
+                    >
+                        <div className="rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 p-3 text-white shadow-lg">
+                            <UserPlus size={20} />
+                        </div>
+                        <div className="flex-1 text-left">
+                            <p className="text-sm font-bold text-amber-800">
+                                {pendingCount} cadastro{pendingCount > 1 ? 's' : ''} rápido{pendingCount > 1 ? 's' : ''} pendente{pendingCount > 1 ? 's' : ''}
+                            </p>
+                            <p className="text-xs text-amber-600 mt-0.5">
+                                Alunos cadastrados por especialistas aguardando complementação de dados
+                            </p>
+                        </div>
+                        <ChevronRight size={18} className="text-amber-400" />
+                    </button>
+                    <div className="space-y-1.5">
+                        {pendingStudents.slice(0, 5).map(s => (
+                            <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => onNavigate('profile', s.id)}
+                                className="w-full flex items-center gap-3 rounded-xl bg-white/70 border border-amber-100 px-3 py-2 text-left hover:bg-white transition-colors"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-[10px] font-bold text-amber-700 shrink-0 overflow-hidden">
+                                    {s.photoUrl ? <img src={s.photoUrl} alt="" className="w-full h-full object-cover" /> : s.fullName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold text-slate-800 truncate">{s.fullName}</p>
+                                    <p className="text-[10px] text-slate-500 truncate">
+                                        {s.school?.schoolName || 'Sem escola'}
+                                        {s.dataCadastroRapido ? ` • ${new Date(s.dataCadastroRapido).toLocaleDateString('pt-BR')}` : ''}
+                                    </p>
+                                </div>
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">Completar</span>
+                            </button>
+                        ))}
                     </div>
-                    <div className="flex-1 text-left">
-                        <p className="text-sm font-bold text-amber-800">
-                            {pendingCount} cadastro{pendingCount > 1 ? 's' : ''} rápido{pendingCount > 1 ? 's' : ''} pendente{pendingCount > 1 ? 's' : ''}
-                        </p>
-                        <p className="text-xs text-amber-600 mt-0.5">
-                            Alunos cadastrados por especialistas aguardando complementação de dados
-                        </p>
-                    </div>
-                    <ChevronRight size={18} className="text-amber-400" />
-                </button>
+                </div>
             )}
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

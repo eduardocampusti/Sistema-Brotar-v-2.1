@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Search, AlertTriangle, CheckCircle2, UserPlus, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Search, AlertTriangle, CheckCircle2, UserPlus, Loader2, Camera, User, Trash2 } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import type { Student, School } from '../types';
 
@@ -33,11 +33,22 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
   const [guardianPhone, setGuardianPhone] = useState('');
   const [motivo, setMotivo] = useState('');
 
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (isOpen) {
       SupabaseService.getSchools().then(setSchools).catch(() => {});
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!photoFile) { setPhotoPreview(null); return; }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
 
   const resetForm = () => {
     setStep('form');
@@ -49,12 +60,24 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
     setGuardianPhone('');
     setMotivo('');
     setDuplicates([]);
+    setPhotoFile(null);
+    setPhotoPreview(null);
     setLoading(false);
   };
 
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('A foto deve ter no máximo 5 MB.');
+      return;
+    }
+    setPhotoFile(file);
   };
 
   const handleCheckDuplicates = async () => {
@@ -88,6 +111,14 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
         motivo: motivo || undefined,
         cadastradoPor: currentUserId,
       });
+
+      if (photoFile) {
+        try {
+          await SupabaseService.uploadStudentPhoto(studentId, photoFile);
+        } catch (photoErr) {
+          console.warn('[CadastroRapido] Foto não enviada, cadastro prosseguiu:', photoErr);
+        }
+      }
 
       const secretariaIds = await SupabaseService.getSecretariaUserIds();
       const schoolName = schools.find(s => s.id === schoolId)?.name || '';
@@ -162,6 +193,45 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
           {/* STEP 1: Form */}
           {step === 'form' && (
             <>
+              {/* Photo upload */}
+              <div className="flex flex-col items-center gap-1.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`relative w-20 h-20 rounded-full flex items-center justify-center overflow-hidden transition-all ${
+                    photoPreview
+                      ? 'border-2 border-emerald-400 shadow-md'
+                      : 'border-2 border-dashed border-slate-300 bg-slate-50 hover:border-amber-400 hover:bg-amber-50'
+                  }`}
+                >
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Camera size={22} className="text-slate-400" />
+                    </div>
+                  )}
+                </button>
+                {photoPreview ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setPhotoFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                    className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    <Trash2 size={12} /> Remover
+                  </button>
+                ) : (
+                  <span className="text-xs text-slate-400">Foto do aluno (opcional)</span>
+                )}
+              </div>
+
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-slate-700">Nome completo *</label>
                 <input
@@ -297,13 +367,19 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
                 </div>
               </div>
 
-              <div className="space-y-2 p-4 rounded-xl bg-gray-50 border border-gray-200">
+              <div className="space-y-3 p-4 rounded-xl bg-gray-50 border border-gray-200">
+                {photoPreview && (
+                  <div className="flex justify-center pb-2">
+                    <img src={photoPreview} alt="Foto do aluno" className="w-16 h-16 rounded-full object-cover border-2 border-emerald-300 shadow" />
+                  </div>
+                )}
                 <Row label="Nome" value={fullName} />
                 {birthDate && <Row label="Nascimento" value={new Date(birthDate + 'T12:00:00').toLocaleDateString('pt-BR')} />}
                 {gender && <Row label="Sexo" value={gender} />}
                 {schoolName && <Row label="Escola" value={schoolName} />}
                 {guardianName && <Row label="Responsável" value={`${guardianName}${guardianPhone ? ` — ${guardianPhone}` : ''}`} />}
                 {motivo && <Row label="Motivo" value={motivo} />}
+                {photoFile && <Row label="Foto" value={photoFile.name} />}
                 <Row label="Cadastrado por" value={currentUserName} />
               </div>
 
