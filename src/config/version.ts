@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.85',
+  version: 'v2.4.86',
   date: 'Jun 2026',
-  display: 'v2.4.85 • Jun 2026',
+  display: 'v2.4.86 • Jun 2026',
   changelog: [
-    'Cadastro rápido com tela de sucesso e ações imediatas — iniciar atendimento, lançamento histórico ou voltar à lista, redirect inteligente por especialidade'
+    'Cadastro rápido permite selecionar aluno existente na verificação de duplicidade e ir direto para atendimento sem criar duplicata'  
   ],
   releases: [
+    {
+      version: 'v2.4.86',
+      date: '16 Jun 2026',
+      title: 'Release v2.4.86 — 16 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Cadastro rápido permite selecionar aluno existente na verificação de duplicidade e ir direto para atendimento sem criar duplicata"
+      ]
+    },
     {
       version: 'v2.4.85',
       date: '16 Jun 2026',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Search, AlertTriangle, CheckCircle2, UserPlus, Loader2, Camera, User, Trash2, FileText, Clock, ArrowLeft } from 'lucide-react';
+import { X, Search, AlertTriangle, CheckCircle2, UserPlus, Loader2, Camera, User, Trash2, FileText, Clock, ArrowLeft, Check } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import type { Student, School } from '../types';
 
@@ -56,6 +56,10 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
+  const [isFromDuplicate, setIsFromDuplicate] = useState(false);
+  const [selectedStudentName, setSelectedStudentName] = useState<string | null>(null);
+  const [selectedStudentStatus, setSelectedStudentStatus] = useState<string | null>(null);
+  const [selectedStudentPhoto, setSelectedStudentPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -83,6 +87,10 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
     setPhotoFile(null);
     setPhotoPreview(null);
     setCreatedStudentId(null);
+    setIsFromDuplicate(false);
+    setSelectedStudentName(null);
+    setSelectedStudentStatus(null);
+    setSelectedStudentPhoto(null);
     setLoading(false);
   };
 
@@ -164,6 +172,15 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSelectExisting = (student: Student) => {
+    setCreatedStudentId(student.id);
+    setIsFromDuplicate(true);
+    setSelectedStudentName(student.fullName);
+    setSelectedStudentStatus((student as any).cadastro_status || (student.status === 'Active' ? 'COMPLETO' : 'PENDENTE'));
+    setSelectedStudentPhoto((student as any).photo_url || null);
+    setStep('success');
   };
 
   const handleSuccessAction = (action: 'atendimento' | 'retroativo' | 'voltar') => {
@@ -385,33 +402,59 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
                 <AlertTriangle size={18} className="text-amber-600 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-sm font-semibold text-amber-800">Alunos similares encontrados</p>
-                  <p className="text-xs text-amber-600 mt-0.5">Verifique se o aluno já existe antes de prosseguir.</p>
+                  <p className="text-xs text-amber-600 mt-0.5">Selecione o aluno se ele já está cadastrado, ou cadastre um novo.</p>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {duplicates.map(d => (
-                  <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-gray-50">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
-                      {d.fullName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
+                  <div
+                    key={d.id}
+                    onClick={() => handleSelectExisting(d)}
+                    className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:border-emerald-300 hover:bg-emerald-50/30 cursor-pointer transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
+                        {d.fullName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">{d.fullName}</p>
+                        <p className="text-xs text-slate-500">
+                          {d.birthDate ? new Date(d.birthDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'Sem data nasc.'}
+                          {d.school?.schoolName ? ` • ${d.school.schoolName}` : ''}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${d.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {d.status === 'Active' ? 'Ativo' : 'Pendente'}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{d.fullName}</p>
-                      <p className="text-xs text-slate-500">
-                        {d.birthDate ? new Date(d.birthDate + 'T12:00:00').toLocaleDateString('pt-BR') : 'Sem data nasc.'}
-                        {d.school?.schoolName ? ` • ${d.school.schoolName}` : ''}
-                      </p>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${d.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {d.status === 'Active' ? 'Ativo' : 'Pendente'}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleSelectExisting(d); }}
+                      className="w-full mt-3 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg py-2.5 font-bold text-sm transition-colors"
+                    >
+                      <Check size={16} />
+                      Selecionar e iniciar atendimento
+                    </button>
                   </div>
                 ))}
               </div>
 
-              <p className="text-xs text-slate-500 text-center">
-                Se nenhum destes é o aluno desejado, prossiga com o cadastro.
-              </p>
+              {/* Separador e botão de cadastrar novo */}
+              <div className="flex items-center gap-3 pt-2">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs text-slate-400 whitespace-nowrap">Se nenhum destes é o aluno desejado:</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setStep('confirm')}
+                className="w-full flex items-center justify-center gap-2 border-2 border-orange-300 text-orange-600 hover:bg-orange-50 rounded-xl py-2.5 font-bold text-sm transition-colors"
+              >
+                <UserPlus size={16} />
+                Cadastrar novo aluno mesmo assim
+              </button>
             </>
           )}
 
@@ -463,19 +506,35 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
                     <CheckCircle2 size={28} className="text-emerald-600" />
                   </div>
                 </div>
-                <h3 className="text-lg font-bold text-emerald-800">Aluno cadastrado com sucesso!</h3>
+                <h3 className="text-lg font-bold text-emerald-800">
+                  {isFromDuplicate ? 'Aluno selecionado!' : 'Aluno cadastrado com sucesso!'}
+                </h3>
 
-                {photoPreview && (
+                {isFromDuplicate && selectedStudentPhoto ? (
+                  <div className="flex justify-center">
+                    <img src={selectedStudentPhoto} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-emerald-300 shadow" />
+                  </div>
+                ) : photoPreview ? (
                   <div className="flex justify-center">
                     <img src={photoPreview} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-emerald-300 shadow" />
                   </div>
+                ) : null}
+
+                <p className="text-base font-medium text-slate-800">
+                  {isFromDuplicate ? (selectedStudentName || fullName) : fullName}
+                </p>
+
+                {isFromDuplicate ? (
+                  selectedStudentStatus !== 'COMPLETO' && (
+                    <span className="inline-block bg-amber-100 text-amber-700 rounded-full px-3 py-1 text-xs font-bold">
+                      Cadastro pendente — secretaria notificada
+                    </span>
+                  )
+                ) : (
+                  <span className="inline-block bg-amber-100 text-amber-700 rounded-full px-3 py-1 text-xs font-bold">
+                    Cadastro pendente — secretaria notificada
+                  </span>
                 )}
-
-                <p className="text-base font-medium text-slate-800">{fullName}</p>
-
-                <span className="inline-block bg-amber-100 text-amber-700 rounded-full px-3 py-1 text-xs font-bold">
-                  Cadastro pendente — secretaria notificada
-                </span>
               </div>
 
               <div className="space-y-3">
@@ -562,13 +621,6 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
               <>
                 <button onClick={() => setStep('form')} className="flex-1 py-2.5 bg-gray-100 text-slate-600 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">
                   Voltar
-                </button>
-                <button
-                  onClick={() => setStep('confirm')}
-                  className="flex-[2] py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-                >
-                  <UserPlus size={15} />
-                  Não é duplicidade — prosseguir
                 </button>
               </>
             )}
