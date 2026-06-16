@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.80',
+  version: 'v2.4.81',
   date: 'Jun 2026',
-  display: 'v2.4.80 • Jun 2026',
+  display: 'v2.4.81 • Jun 2026',
   changelog: [
-    'Cadastro rápido de aluno — especialistas podem cadastrar alunos com dados mínimos, detecção de duplicidade, notificação automática para secretarias, badge pendente no perfil, card de alerta nos dashboards'
+    'Fix: dados do aluno carregados corretamente na avaliação nutricional — fullName, birthDate, school, guardians'  
   ],
   releases: [
+    {
+      version: 'v2.4.81',
+      date: '15 Jun 2026',
+      title: 'Release v2.4.81 — 15 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Fix: campos do aluno na avaliacao nutricional — corrigido mapeamento fullName, birthDate, school.schoolName, guardians"
+      ]
+    },
     {
       version: 'v2.4.80',
       date: '15 Jun 2026',

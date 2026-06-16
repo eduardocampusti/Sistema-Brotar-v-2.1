@@ -519,7 +519,7 @@ const NutritionAssessmentPage: React.FC = () => {
             <ChevronLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-slate-700 truncate">{student?.nome_completo ?? 'Avaliação nutricional'}</p>
+            <p className="text-xs font-bold text-slate-700 truncate">{student?.fullName ?? 'Avaliação nutricional'}</p>
           </div>
           {isSaving && (
             <div className="flex items-center gap-1 text-[10px] text-blue-500 font-semibold bg-blue-50 px-2 py-0.5 rounded">
@@ -573,8 +573,8 @@ const NutritionAssessmentPage: React.FC = () => {
 
           {/* Aluno */}
           <div className="px-4 pb-3 border-b border-gray-100 mb-3">
-            <p className="text-sm font-medium text-slate-800 truncate">{student?.nome_completo ?? '—'}</p>
-            <p className="text-xs text-slate-400 truncate">{(student as any)?.schools?.name ?? ''}</p>
+            <p className="text-sm font-medium text-slate-800 truncate">{student?.fullName ?? '—'}</p>
+            <p className="text-xs text-slate-400 truncate">{student?.school?.schoolName ?? ''}</p>
           </div>
 
           {/* Barra de progresso */}
@@ -629,14 +629,14 @@ const NutritionAssessmentPage: React.FC = () => {
               </Banner>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FieldGroup label="Nome completo" icon={<User size={14} />}>
-                  <Input value={student?.nome_completo ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed" />
+                  <Input value={student?.fullName ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed" />
                 </FieldGroup>
                 <FieldGroup label="Data de nascimento">
                   <div className="flex gap-2 items-center">
-                    <Input value={student?.date_of_birth ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed flex-1" />
-                    {student?.date_of_birth && (
+                    <Input value={student?.birthDate ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed flex-1" />
+                    {student?.birthDate && (
                       <span className="shrink-0 text-xs font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg">
-                        {Math.floor((Date.now() - new Date(student.date_of_birth).getTime()) / 31557600000)} anos
+                        {Math.floor((Date.now() - new Date(student.birthDate).getTime()) / 31557600000)} anos
                       </span>
                     )}
                   </div>
@@ -644,7 +644,7 @@ const NutritionAssessmentPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FieldGroup label="Escola">
-                  <Input value={(student as any)?.schools?.name ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed" />
+                  <Input value={student?.school?.schoolName ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed" />
                 </FieldGroup>
                 <FieldGroup label="Turma / Série">
                   <Input value={formData.turma ?? ''} onChange={(e) => handleChange({ turma: e.target.value })} placeholder="Ex: 3º ano B" />
@@ -659,10 +659,10 @@ const NutritionAssessmentPage: React.FC = () => {
               <SectionCard title="Responsável" icon={<Users size={16} />}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FieldGroup label="Nome do responsável">
-                    <Input value={student?.guardian_name ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed" />
+                    <Input value={student?.guardians?.[0]?.name ?? student?.motherName ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed" />
                   </FieldGroup>
                   <FieldGroup label="Telefone">
-                    <Input value={student?.guardian_phone ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed" />
+                    <Input value={student?.guardians?.[0]?.phone ?? ''} readOnly className="bg-gray-50 text-gray-500 cursor-not-allowed" />
                   </FieldGroup>
                 </div>
                 <FieldGroup label="E-mail do responsável">
