@@ -64,9 +64,13 @@ const NutritionDashboard: React.FC = () => {
         {/* ── HEADER ── */}
         <div className="bg-gradient-to-r from-green-100 to-emerald-50 rounded-2xl border border-green-200 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{boxShadow: '0 4px 20px rgba(16,185,129,0.12)'}}>
           <div className="flex items-center gap-4 flex-1">
-            <div className="w-[52px] h-[52px] rounded-2xl bg-white flex items-center justify-center text-green-700 font-medium text-lg shrink-0" style={{boxShadow: '0 2px 8px rgba(0,0,0,0.06)'}}>
-              {getInitials(userName)}
-            </div>
+            {user?.photoUrl ? (
+              <img src={user.photoUrl} alt={userName} className="w-[52px] h-[52px] rounded-2xl object-cover shrink-0" style={{boxShadow: '0 2px 8px rgba(0,0,0,0.1)'}} />
+            ) : (
+              <div className="w-[52px] h-[52px] rounded-2xl bg-white flex items-center justify-center text-green-700 font-medium text-lg shrink-0" style={{boxShadow: '0 2px 8px rgba(0,0,0,0.06)'}}>
+                {getInitials(userName)}
+              </div>
+            )}
             <div>
               <h1 className="text-lg font-medium text-slate-800">{userName}</h1>
               <p className="text-sm text-slate-500">Nutrição Escolar — PNAE · SEMED Brotas de Macaúbas</p>

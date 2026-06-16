@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.81',
+  version: 'v2.4.82',
   date: 'Jun 2026',
-  display: 'v2.4.81 • Jun 2026',
+  display: 'v2.4.82 • Jun 2026',
   changelog: [
-    'Fix: dados do aluno carregados corretamente na avaliação nutricional — fullName, birthDate, school, guardians'  
+    'Dashboard nutricionista exibe foto do profissional quando disponível, fallback para iniciais'  
   ],
   releases: [
+    {
+      version: 'v2.4.82',
+      date: '15 Jun 2026',
+      title: 'Release v2.4.82 — 15 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Dashboard nutricionista exibe foto do profissional com fallback para iniciais"
+      ]
+    },
     {
       version: 'v2.4.81',
       date: '15 Jun 2026',
