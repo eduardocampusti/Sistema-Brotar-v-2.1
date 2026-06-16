@@ -3513,11 +3513,14 @@ export class SupabaseService {
             return this.cleanDataForSupabase(payload);
         });
 
-        console.log(`[SupabaseService] Realizando bulk upsert de ${payloads.length} profissionais...`);
+        payloads.forEach((p, i) => {
+            console.log(`[SupabaseService] Payload profissional[${i}] address:`, JSON.stringify(p.address));
+        });
+        console.log(`[SupabaseService] Realizando bulk upsert de ${payloads.length} profissionais (onConflict: id)...`);
 
         return safeCall(async () => {
             let toUpsert: any[] = payloads;
-            let { error } = await supabase.from('support_professionals').upsert(toUpsert);
+            let { error } = await supabase.from('support_professionals').upsert(toUpsert, { onConflict: 'id' });
 
             // DB sem migration V14: coluna attachments inexistente (42703)
             if (error?.code === '42703' && /attachments/i.test(String(error.message || ''))) {
@@ -3527,7 +3530,7 @@ export class SupabaseService {
                     delete copy.attachments;
                     return copy;
                 });
-                ({ error } = await supabase.from('support_professionals').upsert(toUpsert));
+                ({ error } = await supabase.from('support_professionals').upsert(toUpsert, { onConflict: 'id' }));
             }
             if (error?.code === '42703' && /photo_url/i.test(String(error.message || ''))) {
                 console.warn('[SupabaseService] upsert support_professionals: coluna photo_url ausente; repetindo sem photo_url.');
@@ -3536,7 +3539,7 @@ export class SupabaseService {
                     delete copy.photo_url;
                     return copy;
                 });
-                ({ error } = await supabase.from('support_professionals').upsert(toUpsert));
+                ({ error } = await supabase.from('support_professionals').upsert(toUpsert, { onConflict: 'id' }));
             }
 
             if (error) {

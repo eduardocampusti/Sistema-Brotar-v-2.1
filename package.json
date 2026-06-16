@@ -1,7 +1,7 @@
 {
   "name": "backup-v5.3.5---brotar---psicopedagoga-ok",
   "private": true,
-  "version": "2.4.82",
+  "version": "2.4.83",
   "type": "module",
   "main": "server.mjs",
   "engines": {

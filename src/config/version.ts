@@ -1,11 +1,23 @@
 export const APP_VERSION = {
-  version: 'v2.4.82',
+  version: 'v2.4.83',
   date: 'Jun 2026',
-  display: 'v2.4.82 • Jun 2026',
+  display: 'v2.4.83 • Jun 2026',
   changelog: [
-    'Dashboard nutricionista exibe foto do profissional quando disponível, fallback para iniciais'  
+    'Fix: endereço profissional apoio — upsert com onConflict id explícito + log diagnóstico',
+    'Cadastro Rápido visível para todos os perfis (SPECIALIST, SOCIAL_WORKER, ADMIN, EDUCATION_SECRETARY, SECRETARIA_SEDE, SECRETARIA_COCAL)'
   ],
   releases: [
+    {
+      version: 'v2.4.83',
+      date: '16 Jun 2026',
+      title: 'Fix endereço profissional apoio + Cadastro Rápido multi-perfil',
+      type: 'fix',
+      changes: [
+        "Fix: upsert profissional de apoio com onConflict:'id' explícito — resolve conflito com constraint UNIQUE(cpf) que impedia gravação do endereço",
+        "Log diagnóstico do payload address antes do upsert para rastreio em produção",
+        "Cadastro Rápido de aluno acessível a SPECIALIST, SOCIAL_WORKER, ADMIN, EDUCATION_SECRETARY, SECRETARIA_SEDE e SECRETARIA_COCAL"
+      ]
+    },
     {
       version: 'v2.4.82',
       date: '15 Jun 2026',

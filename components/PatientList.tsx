@@ -448,7 +448,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                 <FileText size={16} />
                 Importar CSV
               </button>
-              {currentUser?.role === 'SPECIALIST' && (
+              {(['SPECIALIST', 'SOCIAL_WORKER', 'ADMIN', 'EDUCATION_SECRETARY', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL'] as string[]).includes(currentUser?.role ?? '') && (
                 <button
                   onClick={() => setShowCadastroRapido(true)}
                   className="flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all font-bold text-xs uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-95 whitespace-nowrap"
