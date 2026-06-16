@@ -1,11 +1,26 @@
 export const APP_VERSION = {
-  version: 'v2.4.79',
+  version: 'v2.4.80',
   date: 'Jun 2026',
-  display: 'v2.4.79 • Jun 2026',
+  display: 'v2.4.80 • Jun 2026',
   changelog: [
-    'Portal clínico nutricionista unificado — perfil do aluno premium, resumo da última avaliação com IMC e indicadores, timeline de evoluções com scores visuais, integração com módulo novo, encerramento profissional'
+    'Cadastro rápido de aluno — especialistas podem cadastrar alunos com dados mínimos, detecção de duplicidade, notificação automática para secretarias, badge pendente no perfil, card de alerta nos dashboards'
   ],
   releases: [
+    {
+      version: 'v2.4.80',
+      date: '15 Jun 2026',
+      title: 'Release v2.4.80 — 15 Jun 2026',
+      type: 'feature',
+      changes: [
+        "Cadastro rápido de aluno acessível a todos os especialistas",
+        "Detecção automática de duplicidade por nome e data de nascimento",
+        "Notificação automática para secretarias via system_messages",
+        "Badge 'Cadastro Rápido — Pendente' no perfil do aluno",
+        "Card de alerta nos dashboards das secretarias (Sede e Cocal)",
+        "Botão integrado em PatientList, NutritionDashboard e NutritionClinicalPortal",
+        "Migration V41 — colunas cadastro_status, cadastrado_por, data_cadastro_rapido + RLS"
+      ]
+    },
     {
       version: 'v2.4.79',
       date: '15 Jun 2026',

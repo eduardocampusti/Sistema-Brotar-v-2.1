@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, BarChart2, Clock,
   ClipboardList, Users, Plus, Leaf, BookOpen,
-  ShieldCheck, Activity,
+  ShieldCheck, Activity, UserPlus,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { SupabaseService } from '../services/SupabaseService';
 import type { NutritionDashboardStats } from '../types';
+import CadastroRapidoModal from './CadastroRapidoModal';
 
 const EMPTY_STATS: NutritionDashboardStats = {
   totalAlunos: 0, avaliados: 0, pendentes: 0,
@@ -25,6 +26,7 @@ const NutritionDashboard: React.FC = () => {
   const [stats, setStats] = useState<NutritionDashboardStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
   const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const [showCadastroRapido, setShowCadastroRapido] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -75,12 +77,20 @@ const NutritionDashboard: React.FC = () => {
               )}
             </div>
           </div>
-          <button
-            onClick={() => navigate('/app/nutricion/avaliacao')}
-            className="shrink-0 flex items-center gap-2 px-5 py-2.5 bg-[#F97316] hover:bg-orange-600 text-white rounded-xl font-medium text-sm transition-colors"
-          >
-            <Plus size={16} /> Nova avaliação
-          </button>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => setShowCadastroRapido(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium text-sm transition-colors"
+            >
+              <UserPlus size={16} /> Cadastro Rápido
+            </button>
+            <button
+              onClick={() => navigate('/app/nutricion/avaliacao')}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#F97316] hover:bg-orange-600 text-white rounded-xl font-medium text-sm transition-colors"
+            >
+              <Plus size={16} /> Nova avaliação
+            </button>
+          </div>
         </div>
 
         {/* ── 4 CARDS DE MÉTRICAS ── */}
@@ -229,6 +239,15 @@ const NutritionDashboard: React.FC = () => {
         </div>
 
       </div>
+
+      {user && (
+        <CadastroRapidoModal
+          isOpen={showCadastroRapido}
+          onClose={() => setShowCadastroRapido(false)}
+          currentUserId={user.id}
+          currentUserName={user.name}
+        />
+      )}
     </div>
   );
 };

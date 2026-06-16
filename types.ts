@@ -340,6 +340,10 @@ export interface Student {
 
   status: 'Active' | 'Inactive' | 'Pending';
   createdAt: string;
+
+  cadastroStatus?: 'PENDENTE' | 'COMPLETO';
+  cadastradoPor?: string;
+  dataCadastroRapido?: string;
 }
 
 export interface DashboardStats {

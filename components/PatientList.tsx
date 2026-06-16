@@ -15,6 +15,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '@/src/hooks/useAuth';
 import { isPerfilRestritoProntuario } from '@/src/config/perfilRestrito';
+import CadastroRapidoModal from './CadastroRapidoModal';
 
 interface StudentListProps {
   students: Student[];
@@ -67,6 +68,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
   const [showConfirmFinal, setShowConfirmFinal] = useState(false);
   const [isMerging, setIsMerging] = useState(false);
   const [listaEscopo, setListaEscopo] = useState<'todos' | 'meus'>('todos');
+  const [showCadastroRapido, setShowCadastroRapido] = useState(false);
   const [sessionsInfo, setSessionsInfo] = useState<Record<string, { total: number, lastDate: string | null }>>({});
   const [meusAlunoIds, setMeusAlunoIds] = useState<Set<string> | null>(null);
   const { addToast } = useToast();
@@ -446,6 +448,15 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                 <FileText size={16} />
                 Importar CSV
               </button>
+              {currentUser?.role === 'SPECIALIST' && (
+                <button
+                  onClick={() => setShowCadastroRapido(true)}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all font-bold text-xs uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-95 whitespace-nowrap"
+                >
+                  <UserPlus size={16} />
+                  Cadastro Rápido
+                </button>
+              )}
               <button
                 onClick={onRegister}
                 data-testid="btn-cadastrar"
@@ -967,6 +978,16 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
             </div>
           </div>
         </div>
+      )}
+
+      {currentUser && (
+        <CadastroRapidoModal
+          isOpen={showCadastroRapido}
+          onClose={() => setShowCadastroRapido(false)}
+          currentUserId={currentUser.id}
+          currentUserName={currentUser.name}
+          onCreated={() => { onRefresh?.(); }}
+        />
       )}
     </div>
   );

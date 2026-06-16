@@ -105,7 +105,10 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => {
             content: s.content, // Mapeia o JSON completo
         })),
         status: dbStudent.status,
-        createdAt: dbStudent.created_at
+        createdAt: dbStudent.created_at,
+        cadastroStatus: dbStudent.cadastro_status ?? 'COMPLETO',
+        cadastradoPor: dbStudent.cadastrado_por ?? undefined,
+        dataCadastroRapido: dbStudent.data_cadastro_rapido ?? undefined,
     };
 };
 
@@ -4045,5 +4048,112 @@ export class SupabaseService {
             laudosVencendo: expiringRows.length,
             alertas,
         };
+    }
+
+    // ─── Cadastro Rápido ─────────────────────────────────────────────────────
+
+    static async checkDuplicateStudent(fullName: string, birthDate?: string): Promise<Student[]> {
+        const normalized = fullName.trim().toLowerCase();
+        const words = normalized.split(/\s+/).filter(w => w.length >= 3);
+        if (!words.length) return [];
+
+        let query = supabase
+            .from('students')
+            .select('id,full_name,birth_date,cpf,school_id,status,schools(name,district)')
+            .limit(10);
+
+        if (birthDate) {
+            query = query.eq('birth_date', birthDate);
+        }
+
+        const { data, error } = await query;
+        if (error || !data) return [];
+
+        return data
+            .filter((s: any) => {
+                const dbName = (s.full_name || '').toLowerCase();
+                return words.some(w => dbName.includes(w));
+            })
+            .map((s: any) => mapStudentFromDB(s));
+    }
+
+    static async createStudentQuick(payload: {
+        fullName: string;
+        birthDate?: string;
+        gender?: string;
+        schoolId?: string;
+        guardianName?: string;
+        guardianPhone?: string;
+        motivo?: string;
+        cadastradoPor: string;
+    }): Promise<string> {
+        const guardians = payload.guardianName
+            ? [{ name: payload.guardianName, phone: payload.guardianPhone || '', relationship: 'Responsável' }]
+            : null;
+
+        const row: Record<string, unknown> = {
+            full_name: payload.fullName.trim(),
+            birth_date: payload.birthDate || null,
+            school_id: payload.schoolId || null,
+            status: 'Active',
+            cadastro_status: 'PENDENTE',
+            cadastrado_por: payload.cadastradoPor,
+            data_cadastro_rapido: new Date().toISOString(),
+            guardians,
+            clinical_info: {
+                gender: payload.gender || 'Outro',
+                motivo_cadastro_rapido: payload.motivo || null,
+            },
+        };
+
+        const { data, error } = await supabase
+            .from('students')
+            .insert(this.cleanDataForSupabase(row))
+            .select('id')
+            .single();
+
+        if (error) {
+            console.error('[CadastroRapido] Erro ao inserir:', error);
+            throw error;
+        }
+
+        return data.id;
+    }
+
+    static async getPendingRegistrations(): Promise<Student[]> {
+        const { data, error } = await supabase
+            .from('students')
+            .select('*,schools(name,district)')
+            .eq('cadastro_status', 'PENDENTE')
+            .order('data_cadastro_rapido', { ascending: false });
+
+        if (error) {
+            console.error('[CadastroRapido] Erro ao buscar pendentes:', error);
+            return [];
+        }
+
+        return (data || []).map((s: any) => mapStudentFromDB(s));
+    }
+
+    static async completeStudentRegistration(studentId: string): Promise<void> {
+        const { error } = await supabase
+            .from('students')
+            .update({ cadastro_status: 'COMPLETO' })
+            .eq('id', studentId);
+
+        if (error) {
+            console.error('[CadastroRapido] Erro ao completar cadastro:', error);
+            throw error;
+        }
+    }
+
+    static async getSecretariaUserIds(): Promise<string[]> {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id')
+            .in('role', ['SECRETARIA_SEDE', 'SECRETARIA_COCAL']);
+
+        if (error || !data) return [];
+        return data.map((p: any) => p.id);
     }
 }

@@ -1731,6 +1731,7 @@ function studentLooksTea(s: Student): boolean {
 export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
     const [schools, setSchools] = useState<SchoolEntity[]>([]);
     const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
+    const pendingCount = useMemo(() => students.filter(s => s.cadastroStatus === 'PENDENTE').length, [students]);
     const [sedeAppointments, setSedeAppointments] = useState<Appointment[]>([]);
     const [documents, setDocuments] = useState<SavedDocument[]>([]);
     const [loading, setLoading] = useState(true);
@@ -1987,6 +1988,27 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
                 />
             </div>
 
+            {pendingCount > 0 && (
+                <button
+                    type="button"
+                    onClick={() => onNavigate('list')}
+                    className="w-full flex items-center gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition-all hover:shadow-md hover:border-amber-300"
+                >
+                    <div className="rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 p-3 text-white shadow-lg">
+                        <UserPlus size={20} />
+                    </div>
+                    <div className="flex-1 text-left">
+                        <p className="text-sm font-bold text-amber-800">
+                            {pendingCount} cadastro{pendingCount > 1 ? 's' : ''} rápido{pendingCount > 1 ? 's' : ''} pendente{pendingCount > 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-amber-600 mt-0.5">
+                            Alunos cadastrados por especialistas aguardando complementação de dados
+                        </p>
+                    </div>
+                    <ChevronRight size={18} className="text-amber-400" />
+                </button>
+            )}
+
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800">
@@ -2180,6 +2202,7 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
     const [schools, setSchools] = useState<SchoolEntity[]>([]);
     const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
     const [cocalAppointments, setCocalAppointments] = useState<Appointment[]>([]);
+    const pendingCount = useMemo(() => students.filter(s => s.cadastroStatus === 'PENDENTE').length, [students]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -2461,6 +2484,27 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                     onClick={() => onNavigate('list')}
                 />
             </div>
+
+            {pendingCount > 0 && (
+                <button
+                    type="button"
+                    onClick={() => onNavigate('list')}
+                    className="w-full flex items-center gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm transition-all hover:shadow-md hover:border-amber-300"
+                >
+                    <div className="rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 p-3 text-white shadow-lg">
+                        <UserPlus size={20} />
+                    </div>
+                    <div className="flex-1 text-left">
+                        <p className="text-sm font-bold text-amber-800">
+                            {pendingCount} cadastro{pendingCount > 1 ? 's' : ''} rápido{pendingCount > 1 ? 's' : ''} pendente{pendingCount > 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-amber-600 mt-0.5">
+                            Alunos cadastrados por especialistas aguardando complementação de dados
+                        </p>
+                    </div>
+                    <ChevronRight size={18} className="text-amber-400" />
+                </button>
+            )}
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

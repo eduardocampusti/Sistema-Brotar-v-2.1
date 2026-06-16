@@ -178,6 +178,11 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${student.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                     {student.status === 'Active' ? 'Ativo' : 'Pendente'}
                                 </span>
+                                {student.cadastroStatus === 'PENDENTE' && (
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300">
+                                        Cadastro Rápido — Pendente
+                                    </span>
+                                )}
                             </div>
                         </div>
                         {currentUser.role === 'SPECIALIST' && currentUser.specialty && (

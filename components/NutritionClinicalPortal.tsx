@@ -4,11 +4,12 @@ import {
   ChevronLeft, Search, ClipboardList, Activity, FileText,
   ShieldCheck, Brain, AlertTriangle, CheckCircle, Check,
   Scale, Clock, Download, Plus, ChevronRight, User as UserIcon,
-  Loader2,
+  Loader2, UserPlus,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { SupabaseService } from '../services/SupabaseService';
 import NutritionEvolutionModal from './NutritionEvolutionModal';
+import CadastroRapidoModal from './CadastroRapidoModal';
 import type { User, Student, NutritionAssessment, NutritionEvolution, NutritionNAE } from '../types';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -132,6 +133,7 @@ const NutritionClinicalPortal: React.FC<PortalProps> = ({ currentUser, onNavigat
   // Modal
   const [showEvolution, setShowEvolution] = useState(false);
   const [confirmDischarge, setConfirmDischarge] = useState(false);
+  const [showCadastroRapido, setShowCadastroRapido] = useState(false);
 
   // Load students
   useEffect(() => {
@@ -213,10 +215,16 @@ const NutritionClinicalPortal: React.FC<PortalProps> = ({ currentUser, onNavigat
             <button onClick={() => onNavigate('dashboard')} className="p-2 rounded-xl hover:bg-gray-100 text-slate-400 transition-colors">
               <ChevronLeft size={20} />
             </button>
-            <div>
+            <div className="flex-1">
               <h1 className="text-lg font-bold text-slate-800">Portal Clínico — Nutrição</h1>
               <p className="text-sm text-slate-400">Selecione o aluno para acessar o prontuário nutricional</p>
             </div>
+            <button
+              onClick={() => setShowCadastroRapido(true)}
+              className="shrink-0 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-xs transition-colors"
+            >
+              <UserPlus size={14} /> Cadastro Rápido
+            </button>
           </div>
 
           {/* Search */}
@@ -754,6 +762,15 @@ const NutritionClinicalPortal: React.FC<PortalProps> = ({ currentUser, onNavigat
         studentName={selectedStudent.fullName}
         assessmentId={assessment?.id}
         onSaved={() => loadClinicalData(selectedStudent.id)}
+      />
+
+      {/* ── Cadastro Rápido Modal ── */}
+      <CadastroRapidoModal
+        isOpen={showCadastroRapido}
+        onClose={() => setShowCadastroRapido(false)}
+        currentUserId={currentUser.id}
+        currentUserName={currentUser.name}
+        onCreated={() => { SupabaseService.getStudentsForUser(currentUser).then(setStudents).catch(() => {}); }}
       />
     </div>
   );
