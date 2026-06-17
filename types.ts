@@ -212,6 +212,7 @@ export interface SchoolInfo {
   hasSpecialAide: boolean; // Se tem acompanhante terapêutico/monitor
   difficulties: string;
   district?: string; // Bairro ou Distrito Administrativo
+  regentTeacher?: string; // Professora Regente
 }
 
 export interface Session {

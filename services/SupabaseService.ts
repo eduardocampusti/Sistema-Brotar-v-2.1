@@ -91,7 +91,8 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => {
             teachingType: dbStudent.educational_info?.teachingType || 'Regular',
             district: getSchoolDistrict(dbStudent.schools),
             hasSpecialAide: dbStudent.educational_info?.hasSpecialAide || false,
-            difficulties: dbStudent.educational_info?.difficulties || ''
+            difficulties: dbStudent.educational_info?.difficulties || '',
+            regentTeacher: dbStudent.educational_info?.regentTeacher || undefined
         },
         socialInfo: dbStudent.family_info || dbStudent.social_info,
         documents: dbStudent.documents || [],
@@ -1609,7 +1610,8 @@ export class SupabaseService {
                 teachingType: student.school?.teachingType || null,
                 hasSpecialAide: student.school?.hasSpecialAide || false,
                 difficulties: student.school?.difficulties || null,
-                schoolName: student.school?.schoolName || null
+                schoolName: student.school?.schoolName || null,
+                regentTeacher: student.school?.regentTeacher || null
             } : null,
             status: student.status || 'Active'
         };

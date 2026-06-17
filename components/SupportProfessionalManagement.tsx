@@ -1341,7 +1341,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                         <h2 className="text-2xl font-bold text-[#1E293B] tracking-tight">Profissionais de Apoio Escolar</h2>
                         <p className="text-slate-500 text-sm mt-0.5">Gestão de acompanhantes terapêuticos e monitores</p>
                     </div>
-                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA' || currentUser?.role === 'SECRETARIA_SEDE') && (
+                    {['ADMIN', 'EDUCATION_SECRETARY', 'ESCOLA', 'SECRETARIA_SEDE'].includes(currentUser?.role?.toUpperCase() ?? '') && (
                         <div className="flex items-center gap-2.5 flex-wrap">
                             <button
                                 onClick={handleExportCSV}
@@ -1420,50 +1420,51 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     </div>
                 </div>
 
-                {/* ══════════ TABS ══════════ */}
-                <div
-                    className="flex border-b border-slate-200 bg-white rounded-t-[14px] overflow-x-auto mt-6"
-                    role="tablist"
-                    aria-label="Lista, histórico de desvinculações ou relatórios"
-                >
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={mainListTab === 'lista'}
-                        className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'lista'
-                            ? 'border-[#3B82F6] text-[#3B82F6]'
-                            : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                        onClick={() => setMainListTab('lista')}
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-4 pt-2 pb-0 mt-6">
+                    <div
+                        className="flex border-b border-slate-200 overflow-x-auto"
+                        role="tablist"
+                        aria-label="Lista, histórico de desvinculações ou relatórios"
                     >
-                        <LayoutList size={18} />
-                        Lista
-                    </button>
-                    {seesSupportProfInactive ? (
                         <button
                             type="button"
                             role="tab"
-                            aria-selected={mainListTab === 'historico'}
-                            className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'historico'
-                                ? 'border-[#3B82F6] text-[#3B82F6]'
+                            aria-selected={mainListTab === 'lista'}
+                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'lista'
+                                ? 'border-blue-600 text-blue-600'
                                 : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                            onClick={() => setMainListTab('historico')}
+                            onClick={() => setMainListTab('lista')}
                         >
-                            <History size={18} />
-                            Histórico de Desvinculações
+                            <LayoutList size={18} />
+                            Lista
                         </button>
-                    ) : null}
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={mainListTab === 'relatorios'}
-                        className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'relatorios'
-                            ? 'border-[#3B82F6] text-[#3B82F6]'
-                            : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                        onClick={() => setMainListTab('relatorios')}
-                    >
-                        <FileBarChart size={18} />
-                        Relatórios
-                    </button>
+                        {seesSupportProfInactive ? (
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={mainListTab === 'historico'}
+                                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'historico'
+                                    ? 'border-blue-600 text-blue-600'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                                onClick={() => setMainListTab('historico')}
+                            >
+                                <History size={18} />
+                                Histórico de Desvinculações
+                            </button>
+                        ) : null}
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={mainListTab === 'relatorios'}
+                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'relatorios'
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            onClick={() => setMainListTab('relatorios')}
+                        >
+                            <FileBarChart size={18} />
+                            Relatórios
+                        </button>
+                    </div>
                 </div>
 
             {mainListTab === 'relatorios' ? (
@@ -1784,7 +1785,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 
                                 {/* ── Kebab / Actions ── */}
                                 <div className="flex items-center gap-0.5 flex-shrink-0 ml-2">
-                                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA' || currentUser?.role === 'SECRETARIA_SEDE') && (
+                                    {['ADMIN', 'EDUCATION_SECRETARY', 'ESCOLA', 'SECRETARIA_SEDE'].includes(currentUser?.role?.toUpperCase() ?? '') && (
                                         <button 
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); handleEdit(prof); }}
