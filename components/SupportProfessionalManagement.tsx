@@ -16,7 +16,7 @@ import {
 } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Link2Off, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart, ListFilter, History, RotateCcw, Users, UserCheck, UserX, UserMinus, Plus } from 'lucide-react';
+import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Link2Off, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, Calendar, FileBarChart, ListFilter, History, RotateCcw, Users, UserCheck, UserX, UserMinus, Plus } from 'lucide-react';
 import { RelatorioProfissionais } from '../src/components/reports';
 import { ConfirmModal } from './ConfirmModal';
 import { CSVImporter } from './CSVImporter';
@@ -1420,9 +1420,10 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-4 pt-2 pb-0 mt-6">
+                {/* ══════════ SEGMENTED CONTROL ABAS ══════════ */}
+                <div className="flex items-center justify-between gap-3 flex-wrap mt-6">
                     <div
-                        className="flex border-b border-slate-200 overflow-x-auto"
+                        className="bg-slate-100 rounded-xl p-[5px] inline-flex gap-0.5 overflow-x-auto"
                         role="tablist"
                         aria-label="Lista, histórico de desvinculações ou relatórios"
                     >
@@ -1430,41 +1431,69 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                             type="button"
                             role="tab"
                             aria-selected={mainListTab === 'lista'}
-                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'lista'
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            className={`flex items-center gap-2 px-4 text-sm whitespace-nowrap min-h-[44px] rounded-[9px] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-blue-500 ${mainListTab === 'lista'
+                                ? 'bg-white shadow-md text-[#2563EB] font-medium'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
                             onClick={() => setMainListTab('lista')}
                         >
-                            <LayoutList size={18} />
+                            <LayoutList size={16} />
                             Lista
+                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ml-0.5 ${mainListTab === 'lista' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'}`}>
+                                {filteredProfessionals.length}
+                            </span>
                         </button>
                         {seesSupportProfInactive ? (
                             <button
                                 type="button"
                                 role="tab"
                                 aria-selected={mainListTab === 'historico'}
-                                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'historico'
-                                    ? 'border-blue-600 text-blue-600'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                                className={`flex items-center gap-2 px-4 text-sm whitespace-nowrap min-h-[44px] rounded-[9px] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-blue-500 ${mainListTab === 'historico'
+                                    ? 'bg-white shadow-md text-[#D97706] font-medium'
+                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
                                 onClick={() => setMainListTab('historico')}
                             >
-                                <History size={18} />
-                                Histórico de Desvinculações
+                                <History size={16} />
+                                Histórico
+                                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ml-0.5 ${mainListTab === 'historico' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'}`}>
+                                    {historyFilteredRows.length}
+                                </span>
                             </button>
                         ) : null}
                         <button
                             type="button"
                             role="tab"
                             aria-selected={mainListTab === 'relatorios'}
-                            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'relatorios'
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            className={`flex items-center gap-2 px-4 text-sm whitespace-nowrap min-h-[44px] rounded-[9px] transition-all duration-150 focus-visible:ring-2 focus-visible:ring-blue-500 ${mainListTab === 'relatorios'
+                                ? 'bg-white shadow-md text-[#059669] font-medium'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
                             onClick={() => setMainListTab('relatorios')}
                         >
-                            <FileBarChart size={18} />
+                            <FileBarChart size={16} />
                             Relatórios
                         </button>
                     </div>
+                    {mainListTab === 'lista' && (
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition-all min-h-[44px]"
+                        >
+                            <Download size={15} /> Exportar lista
+                        </button>
+                    )}
+                    {mainListTab === 'historico' && (
+                        <button
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition-all min-h-[44px]"
+                        >
+                            <Calendar size={15} /> Filtrar período
+                        </button>
+                    )}
+                    {mainListTab === 'relatorios' && (
+                        <button
+                            className="flex items-center gap-2 px-3 py-2 bg-[#F97316] text-white text-sm font-medium rounded-lg shadow-[0_4px_12px_rgba(249,115,22,0.30)] hover:shadow-[0_6px_16px_rgba(249,115,22,0.40)] hover:-translate-y-0.5 transition-all min-h-[44px]"
+                        >
+                            <FileBarChart size={15} /> Gerar relatório
+                        </button>
+                    )}
                 </div>
 
             {mainListTab === 'relatorios' ? (
