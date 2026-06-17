@@ -16,7 +16,7 @@ import {
 } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { formatarNomeBR } from '../utils/formatters';
-import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Link2Off, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart, ListFilter, History, RotateCcw } from 'lucide-react';
+import { Save, UserCog, X, User, School as SchoolIcon, BookOpen, Link2Off, Edit, Briefcase, GraduationCap, Upload, Search, ChevronDown, CheckCircle, AlertCircle, Download, FileSpreadsheet, Loader2, Fingerprint, Paperclip, ArrowLeft, LayoutList, FileBarChart, ListFilter, History, RotateCcw, Users, UserCheck, UserX, UserMinus, Plus } from 'lucide-react';
 import { RelatorioProfissionais } from '../src/components/reports';
 import { ConfirmModal } from './ConfirmModal';
 import { CSVImporter } from './CSVImporter';
@@ -851,6 +851,15 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         );
     }
 
+    const metrics = useMemo(() => {
+        return {
+            total: professionals.length,
+            ativosVinculados: professionals.filter(p => isSupportProfessionalActive(p) && p.studentId).length,
+            ativosSemVinculo: professionals.filter(p => isSupportProfessionalActive(p) && !p.studentId).length,
+            desvinculados: professionals.filter(p => !isSupportProfessionalActive(p)).length,
+        };
+    }, [professionals]);
+
     return (
         <div
             className={`mx-auto ${!isFormPage ? 'space-y-6' : ''} ${isFormPage ? 'max-w-5xl -mt-2 md:-mt-4 pb-2 md:pb-4' : 'max-w-6xl'}`}
@@ -1336,7 +1345,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                         <div className="flex items-center gap-2.5 flex-wrap">
                             <button
                                 onClick={handleExportCSV}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm text-sm font-medium min-h-[44px]"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium min-h-[44px]"
                                 title="Exportar registros ativos para Excel/CSV"
                             >
                                 <Download size={16} /> Exportar
@@ -1344,19 +1353,71 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
 
                             <button
                                 onClick={handleImportCSV}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm text-sm font-medium min-h-[44px]"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium min-h-[44px]"
                             >
-                                <FileSpreadsheet size={16} /> Importar CSV
+                                <Upload size={16} /> Importar CSV
                             </button>
 
                             <button
                                 onClick={() => navigate(`${SUPPORT_PROF_LIST_PATH}/new`)}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F97316] text-white rounded-lg font-semibold text-sm shadow-[0_4px_14px_rgba(249,115,22,0.35)] hover:shadow-[0_6px_20px_rgba(249,115,22,0.45)] hover:-translate-y-[1px] active:translate-y-0 transition-all min-h-[44px]"
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F97316] text-white rounded-lg font-semibold text-sm shadow-[0_4px_14px_rgba(249,115,22,0.35)] hover:shadow-[0_6px_20px_rgba(249,115,22,0.45)] hover:-translate-y-0.5 transition-all duration-200 min-h-[44px]"
                             >
-                                <UserCog size={17} /> Novo Profissional
+                                <Plus size={17} /> Novo Profissional
                             </button>
                         </div>
                     )}
+                </div>
+
+                {/* ══════════ CARDS DE MÉTRICAS ══════════ */}
+                <div className="grid gap-3 mt-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-none flex flex-col justify-between min-h-[100px]">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
+                                <Users size={16} className="text-green-700" />
+                            </div>
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider leading-tight">Total cadastrados</span>
+                        </div>
+                        <div>
+                            <div className="text-3xl font-semibold text-slate-800">{metrics.total}</div>
+                            <div className="text-xs text-slate-400 mt-1">profissionais no sistema</div>
+                        </div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-none flex flex-col justify-between min-h-[100px]">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                                <UserCheck size={16} className="text-blue-700" />
+                            </div>
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider leading-tight">Ativos com vínculo</span>
+                        </div>
+                        <div>
+                            <div className="text-3xl font-semibold text-slate-800">{metrics.ativosVinculados}</div>
+                            <div className="text-xs text-slate-400 mt-1">vinculados a um aluno</div>
+                        </div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-none flex flex-col justify-between min-h-[100px]">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                <UserX size={16} className="text-amber-700" />
+                            </div>
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider leading-tight">Sem vínculo de aluno</span>
+                        </div>
+                        <div>
+                            <div className="text-3xl font-semibold text-slate-800">{metrics.ativosSemVinculo}</div>
+                            <div className="text-xs text-slate-400 mt-1">só vinculados à escola</div>
+                        </div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-none flex flex-col justify-between min-h-[100px]">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                                <UserMinus size={16} className="text-red-700" />
+                            </div>
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider leading-tight">Desvinculados</span>
+                        </div>
+                        <div>
+                            <div className="text-3xl font-semibold text-slate-800">{metrics.desvinculados}</div>
+                            <div className="text-xs text-slate-400 mt-1">inativos no sistema</div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* ══════════ TABS ══════════ */}
@@ -1592,11 +1653,8 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 <X size={14} /> Limpar
                             </button>
                         )}
-                        <div className="bg-[#EFF6FF] px-3.5 py-1.5 rounded-full border border-[#BFDBFE] flex items-center gap-2">
-                             <span className="flex h-1.5 w-1.5 rounded-full bg-[#3B82F6] animate-pulse"></span>
-                             <span className="text-[11px] font-bold text-[#3B82F6] uppercase tracking-tighter">
-                                {filteredProfessionals.length} resultados
-                             </span>
+                        <div className="bg-blue-600 px-3 py-1 rounded-full text-white font-semibold text-xs">
+                             {filteredProfessionals.length} resultados
                         </div>
                     </div>
                 </div>
