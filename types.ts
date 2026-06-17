@@ -155,7 +155,7 @@ export interface SupportProfessional {
 
   schoolId: string; // Vínculo com a escola
   regentTeacher: string; // Professor Regente
-  studentId: string; // Vínculo com o aluno
+  studentId?: string; // Vínculo com o aluno (opcional — pode ser vinculado depois)
   createdAt: string;
   status?: SupportProfessionalStatus;
   /** ISO: momento do desvinculamento (soft delete). */

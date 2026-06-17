@@ -377,10 +377,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
             showNotification('Por favor, selecione uma Escola de Lotação.', 'error');
             return;
         }
-        if (!formData.studentId) {
-            showNotification('Por favor, selecione um Aluno Assistido.', 'error');
-            return;
-        }
+        // studentId é opcional — profissional pode ser vinculado apenas à escola
 
         // Validação de Duplicidade por CPF (Apenas se CPF estiver preenchido)
         if (formData.cpf) {
@@ -1137,12 +1134,12 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                                 />
                                             </div>
                                             <div className="md:col-span-8">
-                                                <label className="block text-sm font-medium text-slate-700 mb-1">Aluno assistido *</label>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Aluno assistido <span className="text-slate-400 font-normal">(opcional)</span></label>
                                                 <SearchableSelect
                                                     options={studentOptions}
                                                     value={formData.studentId}
                                                     disabled={!formData.schoolId}
-                                                    placeholder={!formData.schoolId ? 'Selecione a escola primeiro...' : 'Selecione o aluno...'}
+                                                    placeholder={!formData.schoolId ? 'Selecione a escola primeiro...' : 'Opcional — pode ser vinculado depois'}
                                                     onChange={(val) => {
                                                         setFormData(prev => ({ ...prev, studentId: val }));
                                                     }}
@@ -1323,88 +1320,90 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                         className="flex items-center gap-2 px-8 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 shadow-md"
                     >
                         {savingProfessional ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                        {savingProfessional ? 'Salvando...' : (formData.id ? 'Atualizar profissional' : 'Salvar profissional')}
+                        {savingProfessional ? 'Salvando...' : (formData.id ? 'Atualizar profissional' : 'Cadastrar profissional')}
                     </button>
                 </div>
-                </div>
+            </div>
             ) : (
                 <>
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Profissionais de Apoio Escolar</h2>
-                    <p className="text-slate-500">Gestão de acompanhantes terapêuticos e monitores</p>
-                </div>
-                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA' || currentUser?.role === 'SECRETARIA_SEDE') && (
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={handleExportCSV}
-                            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-                            title="Exportar registros ativos para Excel/CSV"
-                        >
-                            <Download size={18} /> Exportar
-                        </button>
-
-                        <button
-                            onClick={handleImportCSV}
-                            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors shadow-sm"
-                        >
-                            <FileSpreadsheet size={18} /> Importar CSV
-                        </button>
-
-                        <button
-                            onClick={() => navigate(`${SUPPORT_PROF_LIST_PATH}/new`)}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-                        >
-                            <UserCog size={18} /> Novo Profissional
-                        </button>
+                {/* ══════════ CABEÇALHO PREMIUM ══════════ */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-2xl font-bold text-[#1E293B] tracking-tight">Profissionais de Apoio Escolar</h2>
+                        <p className="text-slate-500 text-sm mt-0.5">Gestão de acompanhantes terapêuticos e monitores</p>
                     </div>
-                )}
-            </div>
+                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA' || currentUser?.role === 'SECRETARIA_SEDE') && (
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <button
+                                onClick={handleExportCSV}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm text-sm font-medium min-h-[44px]"
+                                title="Exportar registros ativos para Excel/CSV"
+                            >
+                                <Download size={16} /> Exportar
+                            </button>
 
-            <div
-                className="flex border-b border-slate-200 bg-white rounded-t-xl overflow-x-auto"
-                role="tablist"
-                aria-label="Lista, histórico de desvinculações ou relatórios"
-            >
-                <button
-                    type="button"
-                    role="tab"
-                    aria-selected={mainListTab === 'lista'}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${mainListTab === 'lista'
-                        ? 'border-primary-500 text-primary-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                    onClick={() => setMainListTab('lista')}
+                            <button
+                                onClick={handleImportCSV}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm text-sm font-medium min-h-[44px]"
+                            >
+                                <FileSpreadsheet size={16} /> Importar CSV
+                            </button>
+
+                            <button
+                                onClick={() => navigate(`${SUPPORT_PROF_LIST_PATH}/new`)}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F97316] text-white rounded-lg font-semibold text-sm shadow-[0_4px_14px_rgba(249,115,22,0.35)] hover:shadow-[0_6px_20px_rgba(249,115,22,0.45)] hover:-translate-y-[1px] active:translate-y-0 transition-all min-h-[44px]"
+                            >
+                                <UserCog size={17} /> Novo Profissional
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* ══════════ TABS ══════════ */}
+                <div
+                    className="flex border-b border-slate-200 bg-white rounded-t-[14px] overflow-x-auto mt-6"
+                    role="tablist"
+                    aria-label="Lista, histórico de desvinculações ou relatórios"
                 >
-                    <LayoutList size={18} />
-                    Lista
-                </button>
-                {seesSupportProfInactive ? (
                     <button
                         type="button"
                         role="tab"
-                        aria-selected={mainListTab === 'historico'}
-                        className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${mainListTab === 'historico'
-                            ? 'border-primary-500 text-primary-600'
+                        aria-selected={mainListTab === 'lista'}
+                        className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'lista'
+                            ? 'border-[#3B82F6] text-[#3B82F6]'
                             : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                        onClick={() => setMainListTab('historico')}
+                        onClick={() => setMainListTab('lista')}
                     >
-                        <History size={18} />
-                        Histórico de Desvinculações
+                        <LayoutList size={18} />
+                        Lista
                     </button>
-                ) : null}
-                <button
-                    type="button"
-                    role="tab"
-                    aria-selected={mainListTab === 'relatorios'}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${mainListTab === 'relatorios'
-                        ? 'border-primary-500 text-primary-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                    onClick={() => setMainListTab('relatorios')}
-                >
-                    <FileBarChart size={18} />
-                    Relatórios
-                </button>
-            </div>
+                    {seesSupportProfInactive ? (
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={mainListTab === 'historico'}
+                            className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'historico'
+                                ? 'border-[#3B82F6] text-[#3B82F6]'
+                                : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            onClick={() => setMainListTab('historico')}
+                        >
+                            <History size={18} />
+                            Histórico de Desvinculações
+                        </button>
+                    ) : null}
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={mainListTab === 'relatorios'}
+                        className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${mainListTab === 'relatorios'
+                            ? 'border-[#3B82F6] text-[#3B82F6]'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                        onClick={() => setMainListTab('relatorios')}
+                    >
+                        <FileBarChart size={18} />
+                        Relatórios
+                    </button>
+                </div>
 
             {mainListTab === 'relatorios' ? (
                 <RelatorioProfissionais
@@ -1415,10 +1414,10 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                 />
             ) : mainListTab === 'historico' && seesSupportProfInactive ? (
                 <div className="space-y-4 pb-10 animate-fadeIn">
-                    <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                    <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-[14px] shadow-sm border border-slate-200">
                         <div className="w-full md:w-72 min-w-[200px]">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
-                                <SchoolIcon size={12} className="text-primary-500" />
+                                <SchoolIcon size={12} className="text-[#3B82F6]" />
                                 Escola
                             </label>
                             <SearchableSelect
@@ -1437,7 +1436,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 type="date"
                                 value={historyDateFrom}
                                 onChange={e => setHistoryDateFrom(e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-[rgba(59,130,246,0.15)] focus:border-[#3B82F6] transition-all min-h-[44px]"
                             />
                         </div>
                         <div className="w-full sm:w-auto min-w-[160px]">
@@ -1448,7 +1447,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 type="date"
                                 value={historyDateTo}
                                 onChange={e => setHistoryDateTo(e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-[rgba(59,130,246,0.15)] focus:border-[#3B82F6] transition-all min-h-[44px]"
                             />
                         </div>
                         <div className="flex items-center gap-2 mb-1 ml-auto">
@@ -1456,18 +1455,18 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                 <button
                                     type="button"
                                     onClick={clearHistoryFilters}
-                                    className="flex items-center gap-2 px-3 py-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all font-bold text-[10px] uppercase tracking-wider"
+                                    className="flex items-center gap-2 px-3 py-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all font-bold text-[10px] uppercase tracking-wider min-h-[44px]"
                                 >
                                     <X size={14} /> Limpar filtros
                                 </button>
                             ) : null}
-                            <div className="bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
+                            <div className="bg-[#EFF6FF] px-3 py-1.5 rounded-full border border-[#BFDBFE] text-[11px] font-bold text-[#3B82F6] uppercase tracking-tighter">
                                 {historyFilteredRows.length} registro(s)
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="bg-white rounded-[14px] border border-slate-200 shadow-sm overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="min-w-full text-sm">
                                 <thead>
@@ -1502,101 +1501,156 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                 </div>
             ) : (
                 <>
-            {/* BARRA DE BUSCA INTELIGENTE */}
-            <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 animate-fadeIn relative z-20">
-                {/* Nome */}
-                <div className="flex-1 min-w-[200px]">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
-                        <Search size={12} className="text-primary-500" />
-                        Busca por Nome
-                    </label>
-                    <input 
-                        type="text"
-                        value={nameSearchTerm}
-                        onChange={(e) => setNameSearchTerm(e.target.value)}
-                        placeholder="Ex: João Silva..."
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-100 focus:border-primary-500 transition-all font-medium"
-                    />
-                </div>
-
-                {/* CPF */}
-                <div className="w-full md:w-48">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
-                        <Fingerprint size={12} className="text-primary-500" />
-                        Busca por CPF
-                    </label>
-                    <input 
-                        type="text"
-                        value={cpfSearchTerm}
-                        onChange={(e) => setCpfSearchTerm(maskCPF(e.target.value))}
-                        placeholder="000.000.000-00"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary-100 focus:border-primary-500 transition-all"
-                    />
-                </div>
-
-                {/* Escola */}
-                <div className="w-full md:w-72">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
-                        <SchoolIcon size={12} className="text-primary-500" />
-                        Unidade Escolar
-                    </label>
-                    <SearchableSelect
-                        options={schoolFilterOptions}
-                        value={selectedSchoolFilter}
-                        onChange={setSelectedSchoolFilter}
-                        disabled={isEscola}
-                        placeholder="Todas as escolas..."
-                    />
-                </div>
-
-                {/* Status (perfis internos / administração — não exibido para ESCOLA) */}
-                {!isEscola && (
-                    <div className="w-full md:w-56">
-                        <label
-                            htmlFor="support-prof-status-filter"
-                            className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5"
-                        >
-                            <ListFilter size={12} className="text-primary-500" />
-                            Status
+            {/* ══════════ BARRA DE FILTROS ══════════ */}
+            <div className="bg-white p-4 sm:p-5 rounded-[14px] shadow-sm border border-slate-200 mb-6 animate-fadeIn relative z-20">
+                <div className="flex flex-wrap items-end gap-3">
+                    {/* Nome */}
+                    <div className="flex-1 min-w-[200px]">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
+                            <Search size={12} className="text-[#3B82F6]" />
+                            Busca por Nome
                         </label>
-                        <select
-                            id="support-prof-status-filter"
-                            value={statusListFilter}
-                            onChange={e => setStatusListFilter(e.target.value as SupportProfessionalListStatusFilter)}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-primary-100 focus:border-primary-500 transition-all cursor-pointer"
-                        >
-                            <option value="all">Todos os status</option>
-                            <option value="ativo">Apenas Ativos</option>
-                            <option value="desvinculado">Apenas Desvinculados</option>
-                        </select>
+                        <div className="relative">
+                            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <input 
+                                type="text"
+                                value={nameSearchTerm}
+                                onChange={(e) => setNameSearchTerm(e.target.value)}
+                                placeholder="Ex: João Silva..."
+                                className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[rgba(59,130,246,0.15)] focus:border-[#3B82F6] transition-all font-medium min-h-[44px]"
+                            />
+                        </div>
                     </div>
-                )}
-                
-                {/* Limpeza e Contador */}
-                <div className="flex items-center gap-2 mb-1 ml-auto">
-                    {hasActiveFilters && (
-                        <button 
-                            onClick={clearAllFilters}
-                            className="flex items-center gap-2 px-3 py-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all font-bold text-[10px] uppercase tracking-wider"
-                        >
-                            <X size={14} /> Limpar
-                        </button>
+
+                    {/* CPF */}
+                    <div className="w-full md:w-48">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
+                            <Fingerprint size={12} className="text-[#3B82F6]" />
+                            Busca por CPF
+                        </label>
+                        <div className="relative">
+                            <Fingerprint size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <input 
+                                type="text"
+                                value={cpfSearchTerm}
+                                onChange={(e) => setCpfSearchTerm(maskCPF(e.target.value))}
+                                placeholder="000.000.000-00"
+                                className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-[rgba(59,130,246,0.15)] focus:border-[#3B82F6] transition-all min-h-[44px]"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Escola */}
+                    <div className="w-full md:w-72">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5">
+                            <SchoolIcon size={12} className="text-[#3B82F6]" />
+                            Unidade Escolar
+                        </label>
+                        <SearchableSelect
+                            options={schoolFilterOptions}
+                            value={selectedSchoolFilter}
+                            onChange={setSelectedSchoolFilter}
+                            disabled={isEscola}
+                            placeholder="Todas as escolas..."
+                        />
+                    </div>
+
+                    {/* Status */}
+                    {!isEscola && (
+                        <div className="w-full md:w-56">
+                            <label
+                                htmlFor="support-prof-status-filter"
+                                className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-1.5"
+                            >
+                                <ListFilter size={12} className="text-[#3B82F6]" />
+                                Status
+                            </label>
+                            <div className="relative">
+                                <ListFilter size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <select
+                                    id="support-prof-status-filter"
+                                    value={statusListFilter}
+                                    onChange={e => setStatusListFilter(e.target.value as SupportProfessionalListStatusFilter)}
+                                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:ring-2 focus:ring-[rgba(59,130,246,0.15)] focus:border-[#3B82F6] transition-all cursor-pointer appearance-none min-h-[44px]"
+                                >
+                                    <option value="all">Todos os status</option>
+                                    <option value="ativo">Apenas Ativos</option>
+                                    <option value="desvinculado">Apenas Desvinculados</option>
+                                </select>
+                                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
                     )}
-                    <div className="bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 flex items-center gap-2 shadow-sm">
-                         <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
-                            {filteredProfessionals.length} resultados
-                         </span>
+                    
+                    {/* Limpeza e Contador */}
+                    <div className="flex items-center gap-2 mb-1 ml-auto">
+                        {hasActiveFilters && (
+                            <button 
+                                onClick={clearAllFilters}
+                                className="flex items-center gap-2 px-3 py-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all font-bold text-[10px] uppercase tracking-wider min-h-[44px]"
+                            >
+                                <X size={14} /> Limpar
+                            </button>
+                        )}
+                        <div className="bg-[#EFF6FF] px-3.5 py-1.5 rounded-full border border-[#BFDBFE] flex items-center gap-2">
+                             <span className="flex h-1.5 w-1.5 rounded-full bg-[#3B82F6] animate-pulse"></span>
+                             <span className="text-[11px] font-bold text-[#3B82F6] uppercase tracking-tighter">
+                                {filteredProfessionals.length} resultados
+                             </span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-10">
+            {/* ══════════ SKELETON LOADING ══════════ */}
+            {!professionalsReady ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[18px] pb-10">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="bg-white rounded-[14px] border border-slate-200 p-5 animate-pulse">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-11 h-11 rounded-full bg-slate-200"></div>
+                                <div className="flex-1">
+                                    <div className="h-4 bg-slate-200 rounded-md w-3/4 mb-2"></div>
+                                    <div className="h-3 bg-slate-100 rounded-md w-1/2"></div>
+                                </div>
+                            </div>
+                            <div className="border-t border-slate-100 pt-3 space-y-2.5">
+                                <div className="h-8 bg-slate-100 rounded-lg"></div>
+                                <div className="h-3.5 bg-slate-100 rounded-md w-4/5"></div>
+                                <div className="h-3.5 bg-slate-100 rounded-md w-3/5"></div>
+                            </div>
+                            <div className="border-t border-slate-100 mt-3 pt-3 flex justify-between">
+                                <div className="h-6 bg-slate-200 rounded-full w-20"></div>
+                                <div className="flex gap-2">
+                                    <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
+                                    <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+
+            /* ══════════ GRADE DE CARDS ══════════ */
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[18px] pb-10">
                 {filteredProfessionals.length === 0 ? (
-                    <div className="col-span-full py-16 bg-white rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-500">
-                        <UserCog size={48} className="text-slate-200 mb-3" />
-                        <p className="text-lg font-medium">Nenhum profissional de apoio encontrado.</p>
-                        <p className="text-sm">Tente ajustar seus filtros ou cadastre um novo profissional.</p>
+                    /* ══════════ EMPTY STATE ══════════ */
+                    <div className="col-span-full py-20 bg-white rounded-[14px] border border-dashed border-slate-300 flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                            <Search size={28} className="text-slate-300" />
+                        </div>
+                        <p className="text-lg font-semibold text-[#1E293B]">Nenhum profissional encontrado</p>
+                        <p className="text-sm text-slate-500 mt-1 max-w-sm text-center">
+                            Tente ajustar seus filtros de busca ou cadastre um novo profissional de apoio.
+                        </p>
+                        {hasActiveFilters && (
+                            <button
+                                onClick={clearAllFilters}
+                                className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#3B82F6] bg-[#EFF6FF] rounded-lg hover:bg-[#DBEAFE] transition-colors"
+                            >
+                                <X size={15} /> Limpar todos os filtros
+                            </button>
+                        )}
                     </div>
                 ) : filteredProfessionals.map(prof => {
                     const { studentStr, regentStr, isUnregistered } = renderStudentAndRegent(prof);
@@ -1604,64 +1658,92 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                     const gestorSeesInactive =
                         inactive && currentUser && canViewInactiveSupportProfessionals(currentUser);
 
+                    // Avatar de iniciais
+                    const initials = (prof.name || '?')
+                        .split(' ')
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map(w => w[0])
+                        .join('')
+                        .toUpperCase();
+                    const avatarGradients = [
+                        'from-[#3B82F6] to-[#6366F1]',
+                        'from-[#F97316] to-[#EF4444]',
+                        'from-[#10B981] to-[#14B8A6]',
+                        'from-[#8B5CF6] to-[#EC4899]',
+                        'from-[#06B6D4] to-[#3B82F6]',
+                        'from-[#F59E0B] to-[#F97316]',
+                    ];
+                    const gradientIndex = (prof.name || '').charCodeAt(0) % avatarGradients.length;
+                    const avatarGradient = avatarGradients[gradientIndex];
+
                     return (
                         <div 
                             key={prof.id} 
                             onClick={() => handleEdit(prof)}
-                            className={`rounded-xl border p-4 shadow-sm hover:shadow-md transition-all group relative border-l-4 cursor-pointer active:scale-[0.98] ${
+                            className={`rounded-[14px] border p-0 shadow-sm hover:shadow-lg hover:-translate-y-[3px] hover:border-slate-300 transition-all duration-200 group relative cursor-pointer active:scale-[0.98] overflow-hidden ${
                                 gestorSeesInactive
-                                    ? 'bg-slate-100 border-slate-300 border-l-slate-400 opacity-[0.78]'
-                                    : 'bg-white border-slate-200 border-l-primary-500'
+                                    ? 'bg-slate-50 border-slate-300 opacity-[0.78]'
+                                    : 'bg-white border-slate-200'
                             }`}
                         >
+                            {/* ── Inactive Banner ── */}
                             {gestorSeesInactive ? (
-                                <div className="mb-2 rounded-md border border-amber-300/80 bg-amber-100/90 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-950">
-                                    Desativado em: {formatUnlinkedDatePt(prof.unlinkedAt)}
+                                <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wide text-slate-600 flex items-center gap-2">
+                                    <span className="flex h-2 w-2 rounded-full bg-slate-400"></span>
+                                    Desativado em {formatUnlinkedDatePt(prof.unlinkedAt)}
                                 </div>
                             ) : null}
-                            {/* Header do Card */}
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
+
+                            {/* ── Card Header: Avatar + Nome + Actions ── */}
+                            <div className="flex items-start justify-between px-4 pt-4 pb-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${
+                                        prof.photoUrl ? '' : `bg-gradient-to-br ${avatarGradient}`
+                                    }`}>
                                         {prof.photoUrl ? (
-                                            <img src={prof.photoUrl} alt={prof.name} className="w-full h-full object-cover" />
+                                            <img src={prof.photoUrl} alt={prof.name} className="w-11 h-11 rounded-full object-cover" />
                                         ) : (
-                                            <UserCog size={22} className="text-slate-400" />
+                                            <span className="text-white font-bold text-sm tracking-tight">{initials}</span>
                                         )}
                                     </div>
-                                    <div>
-                                        <h3 className={`font-bold leading-tight group-hover:text-primary-600 transition-colors uppercase text-sm tracking-tight ${gestorSeesInactive ? 'text-slate-600' : 'text-slate-900'}`}>{prof.name}</h3>
+                                    <div className="min-w-0">
+                                        <h3 className={`font-semibold text-sm leading-tight truncate group-hover:text-[#3B82F6] transition-colors ${gestorSeesInactive ? 'text-slate-600' : 'text-[#1E293B]'}`}>
+                                            {prof.name}
+                                        </h3>
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                             {prof.workload && (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-50 text-primary-700 uppercase tracking-wider">
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
                                                     {prof.workload}
                                                 </span>
                                             )}
-                                            <span className="text-[11px] text-slate-400 font-mono italic">CPF: {prof.cpf || '---'}</span>
+                                            <span className="text-[11px] text-slate-400 font-mono truncate">
+                                                {prof.cpf ? `CPF: ${maskCPF(prof.cpf)}` : ''}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                {/* Ações: sempre visíveis (antes md:opacity-0 escondia no desktop até hover). */}
-                                <div className="flex items-center gap-1 opacity-100 transition-opacity">
+                                {/* ── Kebab / Actions ── */}
+                                <div className="flex items-center gap-0.5 flex-shrink-0 ml-2">
                                     {(currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ESCOLA' || currentUser?.role === 'SECRETARIA_SEDE') && (
                                         <button 
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); handleEdit(prof); }}
-                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                            title="Editar"
+                                            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-[#3B82F6] hover:bg-[#EFF6FF] border border-transparent hover:border-slate-200 rounded-lg transition-all"
+                                            title="Editar profissional"
                                         >
-                                            <Edit size={16} />
+                                            <Edit size={15} />
                                         </button>
                                     )}
                                     {currentUser && canUnlinkSupportProfessional(currentUser) && isSupportProfessionalActive(prof) ? (
                                         <button 
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); handleUnlinkClick(prof.id); }}
-                                            className="p-1.5 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-all"
-                                            title="Desvincular"
+                                            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg transition-all"
+                                            title="Desvincular profissional"
                                         >
-                                            <Link2Off size={16} />
+                                            <Link2Off size={15} />
                                         </button>
                                     ) : null}
                                     {currentUser && canUnlinkSupportProfessional(currentUser) && !isSupportProfessionalActive(prof) ? (
@@ -1669,43 +1751,71 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                             type="button"
                                             disabled={isReactivating}
                                             onClick={(e) => { e.stopPropagation(); handleReactivate(prof); }}
-                                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all disabled:opacity-50"
+                                            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 rounded-lg transition-all disabled:opacity-50"
                                             title="Reativar profissional"
                                         >
-                                            {isReactivating ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                                            {isReactivating ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
                                         </button>
                                     ) : null}
                                 </div>
                             </div>
 
-                            {/* Detalhes do Card */}
-                            <div className="space-y-2 text-sm">
-                                <div className="flex items-center gap-2 text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                    <SchoolIcon size={14} className="text-primary-500" />
-                                    <span className="truncate flex-1 font-medium">{prof.schoolId ? getSchoolName(prof.schoolId) : 'Sem vínculo com escola'}</span>
+                            {/* ── Divider ── */}
+                            <div className="border-t border-slate-100 mx-4"></div>
+
+                            {/* ── Vínculo Info ── */}
+                            <div className="px-4 py-3 space-y-2">
+                                {/* Escola */}
+                                <div className="flex items-center gap-2.5 bg-slate-50 px-3 py-2 rounded-lg">
+                                    <SchoolIcon size={15} className="text-slate-400 flex-shrink-0" />
+                                    <span className="text-sm font-semibold text-[#2563EB] truncate">
+                                        {prof.schoolId ? getSchoolName(prof.schoolId) : <span className="text-slate-400 font-normal italic">Sem vínculo com escola</span>}
+                                    </span>
                                 </div>
                                 
-                                <div className="grid grid-cols-1 gap-1.5 px-1 py-0.5">
-                                    <div className="flex items-center gap-2 text-slate-600">
-                                        <User size={14} className={isUnregistered ? "text-amber-500" : (prof.studentId ? "text-emerald-500" : "text-slate-300")} />
+                                {/* Aluno + Regente */}
+                                <div className="space-y-1.5 px-1">
+                                    <div className="flex items-center gap-2 text-slate-700">
+                                        <User size={14} className={isUnregistered ? 'text-amber-500' : (prof.studentId ? 'text-emerald-500' : 'text-slate-300')} />
                                         <span className="text-[12px] truncate">
-                                            <span className="text-slate-400 mr-1">Aluno:</span>
-                                            <span className="font-semibold">{prof.studentId ? studentStr : 'Sem vínculo'}</span>
+                                            <span className="text-slate-500 mr-1">Aluno:</span>
+                                            <span className="font-semibold text-slate-700">{prof.studentId ? studentStr : <span className="text-slate-400 font-normal italic">Sem vínculo</span>}</span>
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-slate-600">
-                                        <BookOpen size={14} className={prof.regentTeacher ? "text-blue-500" : "text-slate-300"} />
+                                    <div className="flex items-center gap-2 text-slate-700">
+                                        <BookOpen size={14} className={prof.regentTeacher ? 'text-[#3B82F6]' : 'text-slate-300'} />
                                         <span className="text-[12px] truncate">
-                                            <span className="text-slate-400 mr-1">Regente:</span>
-                                            {prof.regentTeacher ? regentStr : '—'}
+                                            <span className="text-slate-500 mr-1">Regente:</span>
+                                            <span className="text-slate-700">{prof.regentTeacher ? regentStr : '—'}</span>
                                         </span>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* ── Card Footer: Status Badge ── */}
+                            <div className="border-t border-slate-100 px-4 py-2.5 flex items-center justify-between">
+                                {isSupportProfessionalActive(prof) ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                        Ativo
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200">
+                                        <span className="flex h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+                                        Desvinculado
+                                    </span>
+                                )}
+                                {prof.contractStartDate && (
+                                    <span className="text-[10px] text-slate-400 font-medium">
+                                        Desde {new Date(prof.contractStartDate + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     );
                 })}
             </div>
+            )}
                 </>
             )}
                 </>
@@ -1713,3 +1823,5 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
         </div>
     );
 };
+
+export default SupportProfessionalManagement;
