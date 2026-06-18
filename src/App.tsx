@@ -268,7 +268,7 @@ function AppContent() {
       };
       const expected = routeForSpec[user.specialty];
       if (expected && page === expected) {
-        const openTab = user.specialty === Specialty.PSYCHOPEDAGOGY ? 'anamnesis' : 'anamnese';
+        const openTab = user.specialty === Specialty.PSYCHOPEDAGOGY ? 'anamnesis' : 'sessions';
         navigate(`/app/${page}`, { state: { openStudentId: selectedStudent.id, openTab } });
         return;
       }
