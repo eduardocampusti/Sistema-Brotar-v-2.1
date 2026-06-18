@@ -16,6 +16,10 @@ import {
     CartesianGrid, AreaChart, Area
 } from 'recharts';
 
+interface DashboardSession extends Session {
+    studentId?: string;
+}
+
 const COLORS = ['#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe', '#ede9fe'];
 
 export const PsychologyDashboard: React.FC<{
@@ -28,12 +32,28 @@ export const PsychologyDashboard: React.FC<{
     const [loading, setLoading] = useState(true);
     const [showCadastroRapido, setShowCadastroRapido] = useState(false);
 
+    // Novos Estados para a aba Prontuários (Alunos)
+    const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+    const [patientTab, setPatientTab] = useState<'resumo' | 'sessoes' | 'anamnese' | 'percepcoes' | 'evolucao' | 'documentos'>('resumo');
+    const [sessions, setSessions] = useState<DashboardSession[]>([]);
+    const [loadingSessions, setLoadingSessions] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
             try {
                 const allStudents = await SupabaseService.getStudentsForUser(currentUser);
                 setStudents(allStudents);
+
+                // Inicializa as sessões clínicas a partir do histórico dos estudantes
+                const initialSessions: DashboardSession[] = allStudents.flatMap(student => 
+                    (student.history || []).map(session => ({
+                        ...session,
+                        studentId: student.id
+                    }))
+                );
+                setSessions(initialSessions);
             } catch (error) {
                 console.error('Erro ao carregar dados do dashboard:', error);
             } finally {
@@ -131,57 +151,542 @@ export const PsychologyDashboard: React.FC<{
         </div>
     );
 
-    const renderProntuarios = () => (
-        <div className="space-y-4 animate-fadeIn">
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                <Search className="text-slate-400" size={20} />
-                <input
-                    type="text"
-                    placeholder="Buscar aluno por nome ou CPF..."
-                    className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-medium"
-                />
-            </div>
-            <div className="grid grid-cols-1 gap-3">
-                {students.slice(0, 5).map(student => (
-                    <div key={student.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between hover:border-purple-200 transition-all">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center font-black">
-                                {student.fullName.charAt(0)}
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-slate-800">{student.fullName}</h4>
-                                <div className="flex items-center gap-3 mt-1">
-                                    <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
-                                        <Clock size={12} /> {student.school.grade}
-                                    </span>
-                                    <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
-                                        <Shield size={12} /> Prontuário: {student.id.substring(0, 8)}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => onOpenPatient?.(student.id)}
-                                className="p-2 text-slate-400 hover:text-purple-600 transition-colors"
-                            >
-                                <Eye size={20} />
-                            </button>
-                            <button
-                                onClick={() => {
-                                    onOpenPatient?.(student.id);
-                                    setActiveTab('pasta-clinica');
-                                }}
-                                className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-slate-200"
-                            >
-                                <Lock size={14} /> PASTA CLÍNICA
-                            </button>
+    const renderProntuarios = () => {
+        // Filtragem dos estudantes por fullName (case insensitive)
+        const filteredStudents = students.filter(student =>
+            student.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
+        // Lógica de classes de cores para avatares
+        const avatarBgClasses = [
+            'bg-purple-100 text-purple-700',
+            'bg-teal-100 text-teal-700',
+            'bg-amber-100 text-amber-700',
+            'bg-rose-100 text-rose-700'
+        ];
+
+        // Lógica para formatar datas (dd/mm/yyyy)
+        const formatDate = (dateStr?: string): string => {
+            if (!dateStr) return '—';
+            try {
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return dateStr;
+                return d.toLocaleDateString('pt-BR');
+            } catch {
+                return dateStr;
+            }
+        };
+
+        // Lógica para calcular idade
+        const calculateAge = (birthDateStr?: string): string => {
+            if (!birthDateStr) return '—';
+            const birthDate = new Date(birthDateStr);
+            if (isNaN(birthDate.getTime())) return '—';
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            return `${age} anos`;
+        };
+
+        // Lógica para calcular a diferença de tempo desde a última sessão
+        const getDaysSinceLastSession = (studentId: string): string => {
+            const studentSessions = sessions.filter(s => s.studentId === studentId);
+            if (studentSessions.length === 0) return 'Sem sessão';
+
+            const dates = studentSessions
+                .map(s => new Date(s.date).getTime())
+                .filter(t => !isNaN(t));
+            if (dates.length === 0) return 'Sem sessão';
+
+            const lastSessionTime = Math.max(...dates);
+            const lastSessionDate = new Date(lastSessionTime);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            lastSessionDate.setHours(0, 0, 0, 0);
+
+            const diffTime = today.getTime() - lastSessionDate.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) return 'Hoje';
+            if (diffDays === 0) return 'Hoje';
+            if (diffDays === 1) return 'Ontem';
+            return `Há ${diffDays} dias`;
+        };
+
+        return (
+            <div className="flex h-[600px] border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 shadow-sm animate-fadeIn">
+                {/* PAINEL ESQUERDO (sidebar de pacientes) */}
+                <div className="w-64 bg-white border-r border-slate-200 flex flex-col h-full shrink-0">
+                    {/* Header */}
+                    <div className="p-4 border-b border-slate-100 space-y-3 shrink-0 bg-white">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Meus pacientes</h3>
+                        <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-500 focus-within:border-purple-300 focus-within:ring-1 focus-within:ring-purple-300 transition-all">
+                            <Search className="text-slate-400 mr-2 shrink-0" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Buscar..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="bg-transparent border-none p-0 focus:ring-0 text-sm font-medium w-full outline-none"
+                            />
                         </div>
                     </div>
-                ))}
+                    {/* Lista de pacientes */}
+                    <div className="flex-1 overflow-y-auto divide-y divide-slate-100 bg-white">
+                        {filteredStudents.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-slate-400 font-medium">Nenhum paciente encontrado.</div>
+                        ) : (
+                            filteredStudents.map((student, idx) => {
+                                const isActive = student.id === selectedPatientId;
+                                const avatarClass = avatarBgClasses[idx % avatarBgClasses.length];
+                                const complexity = getComplexity(student);
+                                const getBarColor = (barIndex: number) => {
+                                    const isFilled = barIndex < complexity.filled;
+                                    if (complexity.level === 'baixa') {
+                                        return isFilled ? '#1D9E75' : '#9FE1CB';
+                                    } else if (complexity.level === 'media') {
+                                        return isFilled ? '#EF9F27' : '#FAC775';
+                                    } else {
+                                        return isFilled ? '#7F77DD' : '#AFA9EC';
+                                    }
+                                };
+                                const studentSessionsCount = sessions.filter(s => s.studentId === student.id).length;
+
+                                return (
+                                    <div
+                                        key={student.id}
+                                        onClick={() => handleSelectPatient(student.id)}
+                                        className={`p-3.5 flex items-center justify-between cursor-pointer transition-all border-l-4 ${
+                                            isActive
+                                                ? 'bg-purple-50/70 border-purple-600'
+                                                : 'border-transparent hover:bg-slate-50/80'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <div className={`w-9 h-9 rounded-full ${avatarClass} flex items-center justify-center font-bold text-sm shrink-0 shadow-sm`}>
+                                                {student.fullName.charAt(0)}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <h4 className="text-sm font-bold text-slate-800 truncate leading-snug">{student.fullName}</h4>
+                                                <p className="text-[10px] text-slate-400 font-semibold mt-0.5 truncate">
+                                                    Sessão {studentSessionsCount} · {getDaysSinceLastSession(student.id)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {/* Barrinhas de complexidade */}
+                                        <div className="flex gap-0.5 ml-2 shrink-0">
+                                            {[0, 1, 2, 3, 4].map(i => (
+                                                <div
+                                                    key={i}
+                                                    className="w-0.5 h-3 rounded-sm"
+                                                    style={{ backgroundColor: getBarColor(i) }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+
+                {/* PAINEL DIREITO (perfil do paciente) */}
+                <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-hidden">
+                    {selectedPatientId === null ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-3">
+                            <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-slate-300 shadow-sm border border-slate-100">
+                                <Users size={32} />
+                            </div>
+                            <p className="text-sm font-bold uppercase tracking-wider">Selecione um paciente</p>
+                        </div>
+                    ) : (() => {
+                        const patient = students.find(s => s.id === selectedPatientId);
+                        if (!patient) {
+                            return (
+                                <div className="flex-1 flex items-center justify-center text-slate-500 font-medium">
+                                    Paciente não encontrado
+                                </div>
+                            );
+                        }
+
+                        const studentSessions = sessions.filter(s => s.studentId === patient.id);
+                        const totalSessions = studentSessions.length;
+                        const finalizedSessions = studentSessions.filter(s => s.content?.status === 'FINALIZADA' || s.content?.status === 'Finalizado').length;
+                        const draftSessions = studentSessions.filter(s => s.content?.status === 'RASCUNHO' || s.content?.status === 'Rascunho').length;
+                        const absenceSessions = 0; // default 0 conforme plano
+
+                        const complexity = getComplexity(patient);
+
+                        // Abas do Perfil
+                        const tabs = [
+                            { id: 'resumo', label: 'Resumo', icon: LayoutDashboard },
+                            { id: 'sessoes', label: 'Sessões', icon: Calendar },
+                            { id: 'anamnese', label: 'Anamnese', icon: ClipboardList },
+                            { id: 'percepcoes', label: 'Percepções', icon: Eye },
+                            { id: 'evolucao', label: 'Evolução', icon: TrendingUp },
+                            { id: 'documentos', label: 'Documentos', icon: FileText }
+                        ];
+
+                        return (
+                            <div className="flex flex-col h-full overflow-hidden">
+                                {/* Cabeçalho */}
+                                <div className="bg-white p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 shadow-sm">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
+                                            {patient.fullName.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h3 className="text-base font-bold text-slate-800 leading-snug">{patient.fullName}</h3>
+                                            <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                                                {patient.school?.name || patient.school?.schoolName || 'Sem Escola'} · {patient.school?.grade || 'Sem Série'}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-green-200 uppercase tracking-wider">
+                                                    Ativo
+                                                </span>
+                                                <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-purple-200 uppercase tracking-wider">
+                                                    {totalSessions} sessões
+                                                </span>
+                                                <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-amber-200 uppercase tracking-wider">
+                                                    Complexidade {complexity.level.toUpperCase()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                        <button
+                                            onClick={() => onNavigate('documents')}
+                                            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                        >
+                                            <FileText size={14} /> Documento
+                                        </button>
+                                        <button
+                                            onClick={() => onNavigate('psychology/new-session')}
+                                            className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-100"
+                                        >
+                                            <Plus size={14} /> Nova sessão
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Abas */}
+                                <div className="bg-white px-4 border-b border-slate-200 shrink-0 flex gap-1 overflow-x-auto no-scrollbar shadow-sm">
+                                    {tabs.map(tab => {
+                                        const isTabActive = patientTab === tab.id;
+                                        return (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => setPatientTab(tab.id as any)}
+                                                className={`flex items-center gap-2 px-4 py-3.5 font-bold text-xs whitespace-nowrap transition-all border-b-2 border-transparent ${
+                                                    isTabActive
+                                                        ? 'text-purple-700 border-purple-600'
+                                                        : 'text-slate-500 hover:text-purple-600'
+                                                }`}
+                                            >
+                                                <tab.icon size={14} />
+                                                {tab.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Corpo da Aba */}
+                                <div className="flex-1 p-5 overflow-y-auto">
+                                    {loadingSessions ? (
+                                        <div className="h-full flex items-center justify-center text-sm text-slate-500 font-medium">
+                                            Carregando informações do paciente…
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            {patientTab === 'resumo' && (
+                                                <>
+                                                    {/* Card Informações Pessoais */}
+                                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                                        <h4 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
+                                                            Informações pessoais
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                            <div>
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Nome completo</span>
+                                                                <span className="text-xs font-semibold text-slate-700">{patient.fullName}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Data de nascimento</span>
+                                                                <span className="text-xs font-semibold text-slate-700">{formatDate(patient.birthDate)}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Idade</span>
+                                                                <span className="text-xs font-semibold text-slate-700">{calculateAge(patient.birthDate)}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Escola</span>
+                                                                <span className="text-xs font-semibold text-slate-700">
+                                                                    {patient.school?.name || patient.school?.schoolName || '—'}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Série</span>
+                                                                <span className="text-xs font-semibold text-slate-700">{patient.school?.grade || '—'}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Responsável</span>
+                                                                <span className="text-xs font-semibold text-slate-700">{patient.guardians?.[0]?.name || '—'}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Início atendimento</span>
+                                                                <span className="text-xs font-semibold text-slate-700">{formatDate(patient.createdAt)}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Unidade</span>
+                                                                <span className="text-xs font-semibold text-slate-700">{patient.unit || 'Sede'}</span>
+                                                            </div>
+                                                            <div className="md:col-span-3">
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Queixa principal</span>
+                                                                <span className="text-xs font-semibold text-slate-700 block bg-slate-50 p-3 rounded-xl border border-slate-100 mt-1 leading-relaxed">
+                                                                    {(patient as any).notes || '—'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Card Resumo das sessões */}
+                                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                                        <h4 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
+                                                            Resumo das sessões
+                                                        </h4>
+                                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center shadow-sm">
+                                                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Total realizadas</span>
+                                                                <span className="text-xl font-bold text-slate-800 block mt-1">{totalSessions}</span>
+                                                            </div>
+                                                            <div className="bg-green-50/50 p-4 rounded-xl border border-green-100 text-center shadow-sm">
+                                                                <span className="text-[10px] uppercase font-bold text-green-600 block">Finalizadas</span>
+                                                                <span className="text-xl font-bold text-green-700 block mt-1">{finalizedSessions}</span>
+                                                            </div>
+                                                            <div className="bg-yellow-50/50 p-4 rounded-xl border border-yellow-100 text-center shadow-sm">
+                                                                <span className="text-[10px] uppercase font-bold text-yellow-600 block">Rascunhos</span>
+                                                                <span className="text-xl font-bold text-yellow-700 block mt-1">{draftSessions}</span>
+                                                            </div>
+                                                            <div className="bg-red-50/50 p-4 rounded-xl border border-red-100 text-center shadow-sm">
+                                                                <span className="text-[10px] uppercase font-bold text-red-600 block">Faltas</span>
+                                                                <span className="text-xl font-bold text-red-700 block mt-1">{absenceSessions}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Card Últimas sessões */}
+                                                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                                        <h4 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
+                                                            Últimas sessões
+                                                        </h4>
+                                                        {studentSessions.length === 0 ? (
+                                                            <p className="text-xs text-slate-400 font-medium py-2">Nenhuma sessão registrada para este aluno.</p>
+                                                        ) : (
+                                                            <div className="space-y-3">
+                                                                {studentSessions.slice(0, 3).map((session) => {
+                                                                    const isFinalized = session.content?.status === 'FINALIZADA' || session.content?.status === 'Finalizado';
+                                                                    return (
+                                                                        <div key={session.id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                                                                            <div>
+                                                                                <span className="text-xs font-bold text-slate-700 block">{formatDate(session.date)}</span>
+                                                                                <span className="text-[10px] text-slate-500 font-semibold mt-0.5 block truncate max-w-md">
+                                                                                    {session.notes}
+                                                                                </span>
+                                                                            </div>
+                                                                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
+                                                                                isFinalized
+                                                                                    ? 'bg-green-100 text-green-700 border-green-200'
+                                                                                    : 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                                                            }`}>
+                                                                                {isFinalized ? 'Finalizada' : 'Rascunho'}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {patientTab === 'sessoes' && (
+                                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                        <h4 className="text-sm font-bold text-slate-800">
+                                                            Sessões registradas
+                                                        </h4>
+                                                        <button
+                                                            onClick={() => onNavigate('psychology/new-session')}
+                                                            className="bg-purple-50 hover:bg-purple-100 text-purple-600 px-3 py-1.5 border border-purple-100 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                                        >
+                                                            + Nova sessão
+                                                        </button>
+                                                    </div>
+                                                    {studentSessions.length === 0 ? (
+                                                        <p className="text-xs text-slate-400 font-medium py-4 text-center">Nenhuma sessão clínica registrada para este aluno.</p>
+                                                    ) : (
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-left text-xs font-medium text-slate-600">
+                                                                <thead>
+                                                                    <tr className="border-b border-slate-100 text-[10px] uppercase text-slate-400 font-bold">
+                                                                        <th className="pb-3">Data</th>
+                                                                        <th className="pb-3">Tipo de sessão</th>
+                                                                        <th className="pb-3">Status</th>
+                                                                        <th className="pb-3 text-right">Ações</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-50">
+                                                                    {studentSessions.map((session) => {
+                                                                        const isFinalized = session.content?.status === 'FINALIZADA' || session.content?.status === 'Finalizado';
+                                                                        return (
+                                                                            <tr key={session.id} className="hover:bg-slate-50/50 transition-colors">
+                                                                                <td className="py-3 font-bold text-slate-700">{formatDate(session.date)}</td>
+                                                                                <td className="py-3 text-slate-500 font-semibold">
+                                                                                    {(session as any).sessionType || session.specialty || 'Sessão clínica'}
+                                                                                </td>
+                                                                                <td className="py-3">
+                                                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
+                                                                                        isFinalized
+                                                                                            ? 'bg-green-100 text-green-700 border-green-200'
+                                                                                            : 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                                                                    }`}>
+                                                                                        {isFinalized ? 'Finalizada' : 'Rascunho'}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td className="py-3 text-right">
+                                                                                    <button
+                                                                                        onClick={() => onNavigate('psychology')}
+                                                                                        className="text-purple-600 hover:text-purple-800 font-bold hover:underline"
+                                                                                    >
+                                                                                        Ver
+                                                                                    </button>
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {patientTab === 'anamnese' && (
+                                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center space-y-4 max-w-md mx-auto my-4">
+                                                    <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                                                        <ClipboardList size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-slate-800">Ficha de Anamnese</h4>
+                                                        <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                                                            A anamnese completa está disponível na ficha clínica do aluno.
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => onNavigate('psychology')}
+                                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-100"
+                                                    >
+                                                        Abrir ficha de anamnese
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {patientTab === 'percepcoes' && (
+                                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                                    <h4 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
+                                                        Percepções Clínicas
+                                                    </h4>
+                                                    <div className="space-y-1">
+                                                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Notas privadas e percepções</span>
+                                                        <textarea
+                                                            readOnly
+                                                            placeholder="Percepções clínicas registradas nas sessões aparecerão aqui."
+                                                            value={studentSessions[0]?.privateNotes || ''}
+                                                            className="w-full h-40 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-semibold text-slate-600 focus:ring-0 focus:border-slate-200 cursor-not-allowed leading-relaxed mt-1"
+                                                        />
+                                                        {(!studentSessions[0]?.privateNotes) && (
+                                                            <p className="text-[10px] text-slate-400 font-medium italic mt-1.5">
+                                                                Nenhuma percepção registrada. As notas privadas da sessão mais recente aparecerão nesta área.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {patientTab === 'evolucao' && (
+                                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                                                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                        <h4 className="text-sm font-bold text-slate-800">
+                                                            Linha do Tempo de Evolução
+                                                        </h4>
+                                                        <button
+                                                            onClick={() => onNavigate('psychology')}
+                                                            className="text-purple-600 hover:text-purple-800 text-xs font-bold hover:underline"
+                                                        >
+                                                            Ver histórico completo
+                                                        </button>
+                                                    </div>
+
+                                                    {studentSessions.length === 0 ? (
+                                                        <p className="text-xs text-slate-400 font-medium py-4 text-center">Nenhum registro de evolução encontrado para este aluno.</p>
+                                                    ) : (
+                                                        <div className="relative border-l border-purple-100 ml-3 space-y-6 py-2">
+                                                            {studentSessions.slice(0, 5).map((session) => {
+                                                                const isFinalized = session.content?.status === 'FINALIZADA' || session.content?.status === 'Finalizado';
+                                                                const dotColor = isFinalized ? 'bg-purple-500' : 'bg-amber-400';
+                                                                return (
+                                                                    <div key={session.id} className="relative pl-6">
+                                                                        <div className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${dotColor} border border-white ring-4 ring-white shadow-sm`} />
+                                                                        <div>
+                                                                            <span className="text-[10px] font-bold text-slate-400 block">{formatDate(session.date)}</span>
+                                                                            <h5 className="text-xs font-bold text-slate-700 leading-snug mt-0.5">
+                                                                                {(session as any).sessionType || session.specialty || 'Sessão clínica'}
+                                                                            </h5>
+                                                                            <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
+                                                                                {session.notes}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {patientTab === 'documentos' && (
+                                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center space-y-4 max-w-md mx-auto my-4">
+                                                    <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                                                        <FileText size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-slate-800">Documentos do Aluno</h4>
+                                                        <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                                                            Documentos gerados para este paciente aparecerão aqui.
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => onNavigate('documents')}
+                                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-100"
+                                                    >
+                                                        Gerar documento
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const renderEvolucoes = () => (
         <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm animate-fadeIn">
@@ -512,6 +1017,34 @@ export const PsychologyDashboard: React.FC<{
             </div>
         </div>
     );
+
+    const getComplexity = (student: Student): { level: 'baixa' | 'media' | 'alta', filled: number } => {
+        const studentSessions = sessions.filter(s => s.studentId === student.id);
+        const count = studentSessions.length;
+        if (count >= 10) return { level: 'alta', filled: 5 };
+        if (count >= 5) return { level: 'alta', filled: 4 };
+        if (count >= 3) return { level: 'media', filled: 3 };
+        if (count >= 1) return { level: 'media', filled: 2 };
+        return { level: 'baixa', filled: 1 };
+    };
+
+    const handleSelectPatient = async (studentId: string) => {
+        setSelectedPatientId(studentId);
+        setPatientTab('resumo');
+        setLoadingSessions(true);
+        try {
+            const data = await SupabaseService.getStudentSessions(studentId);
+            const studentSessions = data.map(s => ({ ...s, studentId }));
+            setSessions(prev => [
+                ...prev.filter(s => s.studentId !== studentId),
+                ...studentSessions
+            ]);
+        } catch (err) {
+            console.error('Erro ao carregar sessões:', err);
+        } finally {
+            setLoadingSessions(false);
+        }
+    };
 
     const renderContent = () => {
         switch (activeTab) {
