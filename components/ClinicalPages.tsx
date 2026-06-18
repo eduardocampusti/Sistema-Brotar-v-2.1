@@ -1,7 +1,7 @@
 import { useToast } from '../contexts/ToastContext';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { agendaClinicalDeepLinkPreserveTabRef, useAgendaClinicalDeepLink } from '@/src/hooks/useAgendaClinicalDeepLink';
-import { ClipboardList, RefreshCw, Map, School } from 'lucide-react';
+import { ClipboardList, RefreshCw, Map } from 'lucide-react';
 
 import type { Student, Session, User, PapelTimbradoConfig, School, Appointment } from '../types';
 import { Specialty } from '../types';
@@ -5699,7 +5699,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             {/* Seção 6 - Funcionamento Escolar */}
                             <div id="psych-sec-6" data-psych-section="psych-sec-6" className="bg-white border border-slate-100 rounded-2xl p-5 scroll-mt-28">
                               <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
-                                <School size={14} /> 6. Funcionamento escolar
+                                <SchoolIcon size={14} /> 6. Funcionamento escolar
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 {[
