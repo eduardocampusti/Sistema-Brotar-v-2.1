@@ -256,7 +256,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                             {/* Ações */}
                             <div className="flex gap-3 shrink-0 self-stretch md:self-center">
                                 <button
-                                    onClick={() => onNavigate('psychology', true)}
+                                    onClick={() => onNavigate('psychology/new-session')}
                                     className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-sm font-semibold bg-white text-[#6D28D9] px-5 py-2.5 rounded-[10px] shadow-lg shadow-black/10 hover:shadow-black/15 hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white min-h-[44px]"
                                 >
                                     <Plus size={16} /> Nova sessão
@@ -460,7 +460,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                         </h2>
                                     </div>
                                     <button
-                                        onClick={() => onNavigate('psychology', true)}
+                                        onClick={() => onNavigate('psychology/new-session')}
                                         className="flex items-center gap-1.5 text-xs font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-3.5 py-2 rounded-[10px] hover:-translate-y-0.5 transition-all duration-200 shadow-md shadow-purple-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
                                     >
                                         <Plus size={14} /> Nova sessão
@@ -507,7 +507,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                     A ficha de anamnese psicológica está disponível no módulo clínico.
                                 </p>
                                 <button
-                                    onClick={() => onNavigate('psychology', true)}
+                                    onClick={() => onNavigate('psychology')}
                                     className="flex items-center gap-2 text-sm font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-5 py-2.5 rounded-[10px] hover:-translate-y-0.5 transition-all duration-200 shadow-md shadow-purple-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
                                 >
                                     <Activity size={16} /> Abrir módulo de psicologia
