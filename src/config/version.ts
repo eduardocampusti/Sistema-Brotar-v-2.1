@@ -1,11 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.111',
+  version: 'v2.4.112',
   date: 'Jun 2026',
-  display: 'v2.4.111 • Jun 2026',
+  display: 'v2.4.112 • Jun 2026',
   changelog: [
+    'Módulos clínicos',
     'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.112',
+      date: '18 Jun 2026',
+      title: 'Release v2.4.112 — 18 Jun 2026',
+      type: 'improvement',
+      changes: [
+        "Módulos clínicos",
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.4.111',
       date: '18 Jun 2026',

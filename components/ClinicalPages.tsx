@@ -1,6 +1,7 @@
 import { useToast } from '../contexts/ToastContext';
 import React, { useState, useEffect, useMemo } from 'react';
 import { agendaClinicalDeepLinkPreserveTabRef, useAgendaClinicalDeepLink } from '@/src/hooks/useAgendaClinicalDeepLink';
+import { ClipboardList, RefreshCw, Map, School } from 'lucide-react';
 
 import type { Student, Session, User, PapelTimbradoConfig, School, Appointment } from '../types';
 import { Specialty } from '../types';
@@ -4829,6 +4830,73 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
     const [isEditingSession, setIsEditingSession] = useState(false);
     const [currentSession, setCurrentSession] = useState<Partial<PsychSession>>({});
 
+    const [anamneseData, setAnamneseData] = useState({
+        dataEntrevista: new Date().toISOString().split('T')[0],
+        quemEncaminhou: 'escola' as 'escola' | 'professor' | 'coordenacao' | 'familia',
+        nomeEncaminhador: '',
+        dataEncaminhamento: '',
+        motivoEncaminhamento: '',
+        queixaPrincipal: '',
+        gestacao: 'sem_intercorrencias' as 'sem_intercorrencias' | 'com_intercorrencias',
+        gestacaoDetalhe: '',
+        desenvolvimento: 'dentro_esperado' as 'dentro_esperado' | 'com_atraso',
+        desenvolvimentoDetalhe: '',
+        saude: 'sem_problemas' as 'sem_problemas' | 'com_diagnostico',
+        saudeDetalhe: '',
+        medicacao: 'nao' as 'nao' | 'sim',
+        medicacaoDetalhe: '',
+        comQuemMora: '',
+        rotinafamiliar: '',
+        mudancasRecentes: 'nao' as 'nao' | 'sim',
+        mudancasDetalhe: '',
+        relacaoProfessores: 'adequada' as 'adequada' | 'dificuldades',
+        relacaoProfessoresDetalhe: '',
+        relacaoColegas: 'adequada' as 'adequada' | 'dificuldades',
+        relacaColegasDetalhe: '',
+        comportamentos: [] as string[],
+        comportamentoOutro: '',
+        aprendizagem: 'adequada' as 'adequada' | 'dificuldades',
+        aprendizagemDetalhe: '',
+        intervencoes: [] as string[],
+        intervencoesDetalhe: '',
+        observacoesPsicologa: '',
+        encaminhamentoPlano: '',
+        status: 'rascunho' as 'rascunho' | 'finalizada',
+    });
+    const [savingAnamnese, setSavingAnamnese] = useState(false);
+
+    const handleSaveAnamnese = async () => {
+        if (!selectedStudent) return;
+        setSavingAnamnese(true);
+        try {
+            const anamneseRecord: Session = {
+                id: `anamnese-${selectedStudent.id}`,
+                date: anamneseData.dataEntrevista || new Date().toISOString().split('T')[0],
+                specialty: Specialty.PSYCHOLOGY,
+                professionalName: currentUser.name,
+                notes: JSON.stringify(anamneseData),
+                serviceType: 'PsychAnamnese',
+            };
+
+            await SupabaseService.saveSession(anamneseRecord, selectedStudent.id, currentUser.id);
+
+            const cleanHistory = selectedStudent.history?.filter(h => !(h.specialty === Specialty.PSYCHOLOGY && h.serviceType === 'PsychAnamnese')) || [];
+            const updatedStudent: Student = {
+                ...selectedStudent,
+                history: [anamneseRecord, ...cleanHistory]
+            };
+
+            setSelectedStudent(updatedStudent);
+            setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+
+            showToast('Anamnese salva com sucesso!');
+            setSavingAnamnese(false);
+        } catch (e) {
+            toastError('Erro ao salvar anamnese.');
+            setSavingAnamnese(false);
+        }
+    };
+
     const canAccessPrivate = currentUser.role === 'ADMIN' || currentUser.specialty === Specialty.PSYCHOLOGY;
 
     useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab) => {
@@ -4893,6 +4961,86 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                 try { setPublicData(JSON.parse(publicRecord.notes)); } catch { setPublicData(initialPublicForm); }
             } else {
                 setPublicData(initialPublicForm);
+            }
+
+            // Buscar registro de anamnese no histórico do aluno
+            const anamneseRecord = selectedStudent.history?.find(h => h.specialty === Specialty.PSYCHOLOGY && h.serviceType === 'PsychAnamnese');
+            if (anamneseRecord) {
+                try {
+                    setAnamneseData(JSON.parse(anamneseRecord.notes));
+                } catch {
+                    setAnamneseData({
+                        dataEntrevista: new Date().toISOString().split('T')[0],
+                        quemEncaminhou: 'escola',
+                        nomeEncaminhador: '',
+                        dataEncaminhamento: '',
+                        motivoEncaminhamento: '',
+                        queixaPrincipal: '',
+                        gestacao: 'sem_intercorrencias',
+                        gestacaoDetalhe: '',
+                        desenvolvimento: 'dentro_esperado',
+                        desenvolvimentoDetalhe: '',
+                        saude: selectedStudent.clinical?.diagnosis ? 'com_diagnostico' : 'sem_problemas',
+                        saudeDetalhe: selectedStudent.clinical?.diagnosis
+                            ? `${selectedStudent.clinical.diagnosis}${selectedStudent.clinical.cid ? ` - ${selectedStudent.clinical.cid}` : ''}`
+                            : '',
+                        medicacao: selectedStudent.clinical?.medications && selectedStudent.clinical.medications !== 'Nenhum medicamento em uso.' ? 'sim' : 'nao',
+                        medicacaoDetalhe: selectedStudent.clinical?.medications || '',
+                        comQuemMora: '',
+                        rotinafamiliar: '',
+                        mudancasRecentes: 'nao',
+                        mudancasDetalhe: '',
+                        relacaoProfessores: 'adequada',
+                        relacaoProfessoresDetalhe: '',
+                        relacaoColegas: 'adequada',
+                        relacaColegasDetalhe: '',
+                        comportamentos: [],
+                        comportamentoOutro: '',
+                        aprendizagem: 'adequada',
+                        aprendizagemDetalhe: '',
+                        intervencoes: [],
+                        intervencoesDetalhe: '',
+                        observacoesPsicologa: '',
+                        encaminhamentoPlano: '',
+                        status: 'rascunho',
+                    });
+                }
+            } else {
+                setAnamneseData({
+                    dataEntrevista: new Date().toISOString().split('T')[0],
+                    quemEncaminhou: 'escola',
+                    nomeEncaminhador: '',
+                    dataEncaminhamento: '',
+                    motivoEncaminhamento: '',
+                    queixaPrincipal: '',
+                    gestacao: 'sem_intercorrencias',
+                    gestacaoDetalhe: '',
+                    desenvolvimento: 'dentro_esperado',
+                    desenvolvimentoDetalhe: '',
+                    saude: selectedStudent.clinical?.diagnosis ? 'com_diagnostico' : 'sem_problemas',
+                    saudeDetalhe: selectedStudent.clinical?.diagnosis
+                        ? `${selectedStudent.clinical.diagnosis}${selectedStudent.clinical.cid ? ` - ${selectedStudent.clinical.cid}` : ''}`
+                        : '',
+                    medicacao: selectedStudent.clinical?.medications && selectedStudent.clinical.medications !== 'Nenhum medicamento em uso.' ? 'sim' : 'nao',
+                    medicacaoDetalhe: selectedStudent.clinical?.medications || '',
+                    comQuemMora: '',
+                    rotinafamiliar: '',
+                    mudancasRecentes: 'nao',
+                    mudancasDetalhe: '',
+                    relacaoProfessores: 'adequada',
+                    relacaoProfessoresDetalhe: '',
+                    relacaoColegas: 'adequada',
+                    relacaColegasDetalhe: '',
+                    comportamentos: [],
+                    comportamentoOutro: '',
+                    aprendizagem: 'adequada',
+                    aprendizagemDetalhe: '',
+                    intervencoes: [],
+                    intervencoesDetalhe: '',
+                    observacoesPsicologa: '',
+                    encaminhamentoPlano: '',
+                    status: 'rascunho',
+                });
             }
 
             if (canAccessPrivate) {
@@ -5180,7 +5328,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                         </div>
                         <div className="flex-1 py-4">
                             {[
-                                { id: 'anamnese', label: 'Identificação', icon: Users },
+                                { id: 'anamnese', label: 'Anamnese', icon: ClipboardList },
                                 { id: 'prontuario', label: 'Prontuário', icon: ClipboardCheck },
                                 { id: 'sessions', label: 'Evoluções', icon: History },
                                 { id: 'reports', label: 'Relatórios', icon: Printer },
@@ -5199,22 +5347,335 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     {/* Tab Content */}
                     <div className="flex-1 p-8 bg-white overflow-y-auto max-h-[700px]">
                         {activeTab === 'anamnese' && (
-                            <div className="space-y-6 animate-fadeIn">
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-                                    <h3 className="text-2xl font-black text-slate-800">Identificação e Queixa</h3>
-                                    <button onClick={handleSaveGeneral} className="w-full sm:w-auto bg-purple-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-700 shadow-md"><Save size={18} /> Salvar Alterações</button>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <FormSection title="Origem" icon={AlignLeft} color="text-purple-700">
-                                        <StyledInput label="Encaminhado por" value={publicData.identificacao.encaminhadoPor} onChange={e => handlePublicChange('identificacao', 'encaminhadoPor', e.target.value)} />
-                                        <StyledInput label="Queixa Principal / Motivo" rows={3} value={publicData.motivoEncaminhamento.queixa} onChange={e => handlePublicChange('motivoEncaminhamento', 'queixa', e.target.value)} />
-                                    </FormSection>
-                                    <FormSection title="Ambiente Familiar" icon={Home} color="text-purple-700">
-                                        <StyledInput label="Com quem mora?" value={publicData.historicoFamiliar.comQuemMora} onChange={(e: any) => handlePublicChange('historicoFamiliar', 'comQuemMora', e.target.value)} />
-                                        <StyledInput label="Dinâmica Relacional" rows={3} value={publicData.historicoFamiliar.relacaoFamiliar} onChange={(e: any) => handlePublicChange('historicoFamiliar', 'relacaoFamiliar', e.target.value)} />
-                                    </FormSection>
-                                </div>
+                          <div className="space-y-5 animate-fadeIn pb-8 print-anamnese-container">
+                            {/* CSS customizado para impressão da ficha */}
+                            <style dangerouslySetInnerHTML={{ __html: `
+                              @media print {
+                                body * {
+                                  visibility: hidden;
+                                }
+                                .print-anamnese-container, .print-anamnese-container * {
+                                  visibility: visible;
+                                }
+                                .print-anamnese-container {
+                                  position: absolute;
+                                  left: 0;
+                                  top: 0;
+                                  width: 100%;
+                                  background: white !important;
+                                  color: black !important;
+                                  padding: 0 !important;
+                                  margin: 0 !important;
+                                  border: none !important;
+                                  box-shadow: none !important;
+                                }
+                                .no-print {
+                                  display: none !important;
+                                }
+                                input, textarea, select {
+                                  border: 1px solid #cbd5e1 !important;
+                                  background: #f8fafc !important;
+                                  color: #0f172a !important;
+                                  opacity: 1 !important;
+                                  -webkit-print-color-adjust: exact;
+                                  print-color-adjust: exact;
+                                }
+                                button {
+                                  -webkit-print-color-adjust: exact;
+                                  print-color-adjust: exact;
+                                }
+                                .bg-white.border {
+                                  page-break-inside: avoid;
+                                  break-inside: avoid;
+                                  margin-bottom: 15px !important;
+                                }
+                              }
+                            ` }} />
+
+                            {/* Header */}
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 no-print">
+                              <div>
+                                <h3 className="text-xl font-bold text-slate-800">Anamnese infantil educacional</h3>
+                                <p className="text-sm text-slate-500 mt-0.5">
+                                  {selectedStudent?.fullName} · Psicologia · {new Date(anamneseData.dataEntrevista).toLocaleDateString('pt-BR')}
+                                </p>
+                              </div>
+                              <div className="flex gap-2 flex-wrap">
+                                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
+                                  {anamneseData.status === 'finalizada' ? 'Finalizada' : 'Rascunho'}
+                                </span>
+                                <button
+                                  onClick={() => window.print()}
+                                  className="flex items-center gap-1.5 text-sm font-semibold bg-slate-600 text-white px-4 py-2 rounded-xl hover:bg-slate-700 transition-colors no-print"
+                                >
+                                  <Printer size={15} /> Exportar PDF
+                                </button>
+                                <button
+                                  onClick={handleSaveAnamnese}
+                                  disabled={savingAnamnese}
+                                  className="flex items-center gap-1.5 text-sm font-semibold bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 no-print"
+                                >
+                                  <Save size={15} /> {savingAnamnese ? 'Salvando...' : 'Salvar'}
+                                </button>
+                              </div>
                             </div>
+
+                            {/* Cabeçalho exclusivo para Impressão */}
+                            <div className="hidden print:block mb-6 border-b pb-4">
+                              <h2 className="text-2xl font-black text-slate-900">Anamnese Infantil Educacional</h2>
+                              <p className="text-sm text-slate-600 mt-1">
+                                <strong>Aluno:</strong> {selectedStudent?.fullName} | <strong>Especialidade:</strong> Psicologia | <strong>Data da Entrevista:</strong> {new Date(anamneseData.dataEntrevista).toLocaleDateString('pt-BR')}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-1">
+                                <strong>Status do Documento:</strong> {anamneseData.status === 'finalizada' ? 'Finalizado' : 'Rascunho'}
+                              </p>
+                            </div>
+
+                            {/* Seção 1 - Identificação */}
+                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
+                                <Users size={14} /> 1. Identificação
+                                <span className="ml-auto text-[10px] font-semibold bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full border border-teal-100 no-print">Automático</span>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                                {[
+                                  { label: 'Nome da criança', value: selectedStudent?.fullName ?? '—' },
+                                  { label: 'Data de nascimento', value: selectedStudent?.birthDate ? new Date(selectedStudent.birthDate + 'T12:00:00').toLocaleDateString('pt-BR') : '—' },
+                                  { label: 'Idade', value: selectedStudent?.birthDate ? `${Math.floor((Date.now() - new Date(selectedStudent.birthDate).getTime()) / (365.25 * 86400000))} anos` : '—' },
+                                ].map(({ label, value }) => (
+                                  <div key={label}>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                                    <div className="text-sm font-medium text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">{value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                                {[
+                                  { label: 'Escola', value: selectedStudent?.school?.name ?? selectedStudent?.school?.schoolName ?? '—' },
+                                  { label: 'Série / Ano', value: selectedStudent?.school?.grade ?? '—' },
+                                  { label: 'Turno', value: selectedStudent?.school?.shift ?? '—' },
+                                ].map(({ label, value }) => (
+                                  <div key={label}>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                                    <div className="text-sm font-medium text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">{value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {[
+                                  { label: 'Responsável', value: selectedStudent?.guardians?.[0]?.name ?? '—' },
+                                  { label: 'Contato', value: selectedStudent?.guardians?.[0]?.phone ?? '—' },
+                                ].map(({ label, value }) => (
+                                  <div key={label}>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                                    <div className="text-sm font-medium text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">{value}</div>
+                                  </div>
+                                ))}
+                                <div>
+                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Data da entrevista</p>
+                                  <input type="date" value={anamneseData.dataEntrevista} onChange={e => setAnamneseData(p => ({ ...p, dataEntrevista: e.target.value }))} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Seção 2 - Encaminhamento */}
+                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
+                                <Send size={14} /> 2. Encaminhamento
+                              </div>
+                              <div className="mb-4">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Quem encaminhou</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {(['escola', 'professor', 'coordenacao', 'familia'] as const).map(opt => (
+                                    <button key={opt} onClick={() => setAnamneseData(p => ({ ...p, quemEncaminhou: opt }))}
+                                      className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${anamneseData.quemEncaminhou === opt ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                      {opt === 'escola' ? 'Escola' : opt === 'professor' ? 'Professor(a)' : opt === 'coordenacao' ? 'Coordenação' : 'Família'}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Nome de quem encaminhou</p>
+                                  <input type="text" value={anamneseData.nomeEncaminhador} onChange={e => setAnamneseData(p => ({ ...p, nomeEncaminhador: e.target.value }))} placeholder="Nome completo..." className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Data do encaminhamento</p>
+                                  <input type="date" value={anamneseData.dataEncaminhamento} onChange={e => setAnamneseData(p => ({ ...p, dataEncaminhamento: e.target.value }))} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Motivo do encaminhamento</p>
+                                <textarea value={anamneseData.motivoEncaminhamento} onChange={e => setAnamneseData(p => ({ ...p, motivoEncaminhamento: e.target.value }))} placeholder="Descreva o motivo..." rows={3} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 resize-y" />
+                              </div>
+                            </div>
+
+                            {/* Seção 3 - Queixa Principal */}
+                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
+                                <MessageCircle size={14} /> 3. Queixa principal
+                              </div>
+                              <textarea value={anamneseData.queixaPrincipal} onChange={e => setAnamneseData(p => ({ ...p, queixaPrincipal: e.target.value }))} placeholder="Descreva a queixa principal..." rows={4} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 resize-y" />
+                            </div>
+
+                            {/* Seção 4 - Histórico Desenvolvimento */}
+                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
+                                <Activity size={14} /> 4. Histórico breve do desenvolvimento
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                {[
+                                  { key: 'gestacao', label: 'Gestação', opts: [{ v: 'sem_intercorrencias', l: 'Sem intercorrências' }, { v: 'com_intercorrencias', l: 'Com intercorrências' }], detailKey: 'gestacaoDetalhe' },
+                                  { key: 'desenvolvimento', label: 'Desenvolvimento', opts: [{ v: 'dentro_esperado', l: 'Dentro do esperado' }, { v: 'com_atraso', l: 'Com atraso' }], detailKey: 'desenvolvimentoDetalhe' },
+                                  { key: 'saude', label: 'Saúde', opts: [{ v: 'sem_problemas', l: 'Sem problemas' }, { v: 'com_diagnostico', l: 'Com diagnóstico' }], detailKey: 'saudeDetalhe' },
+                                  { key: 'medicacao', label: 'Uso de medicação', opts: [{ v: 'nao', l: 'Não' }, { v: 'sim', l: 'Sim' }], detailKey: 'medicacaoDetalhe' },
+                                ].map(({ key, label, opts, detailKey }) => (
+                                  <div key={key}>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">{label}</p>
+                                    <div className="flex gap-2 mb-2">
+                                      {opts.map(({ v, l }) => (
+                                        <button key={v} onClick={() => setAnamneseData(p => ({ ...p, [key]: v }))}
+                                          className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${(anamneseData as any)[key] === v ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                          {l}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    {((anamneseData as any)[key] === 'com_intercorrencias' || (anamneseData as any)[key] === 'com_atraso' || (anamneseData as any)[key] === 'com_diagnostico' || (anamneseData as any)[key] === 'sim') && (
+                                      <input type="text" value={(anamneseData as any)[detailKey]} onChange={e => setAnamneseData(p => ({ ...p, [detailKey]: e.target.value }))} placeholder="Descreva..." className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Seção 5 - Contexto Familiar */}
+                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
+                                <Home size={14} /> 5. Contexto familiar
+                              </div>
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Com quem mora</p>
+                                  <textarea value={anamneseData.comQuemMora} onChange={e => setAnamneseData(p => ({ ...p, comQuemMora: e.target.value }))} placeholder="Descreva a composição familiar..." rows={3} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 resize-y" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Rotina familiar</p>
+                                  <textarea value={anamneseData.rotinafamiliar} onChange={e => setAnamneseData(p => ({ ...p, rotinafamiliar: e.target.value }))} placeholder="Descreva a rotina..." rows={3} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 resize-y" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Mudanças recentes</p>
+                                  <div className="flex gap-2 mb-2">
+                                    {[{ v: 'nao', l: 'Não' }, { v: 'sim', l: 'Sim' }].map(({ v, l }) => (
+                                      <button key={v} onClick={() => setAnamneseData(p => ({ ...p, mudancasRecentes: v as any }))}
+                                        className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${anamneseData.mudancasRecentes === v ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                        {l}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {anamneseData.mudancasRecentes === 'sim' && (
+                                    <input type="text" value={anamneseData.mudancasDetalhe} onChange={e => setAnamneseData(p => ({ ...p, mudancasDetalhe: e.target.value }))} placeholder="Descreva as mudanças..." className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Seção 6 - Funcionamento Escolar */}
+                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
+                                <School size={14} /> 6. Funcionamento escolar
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                {[
+                                  { key: 'relacaoProfessores', label: 'Relação com professores', detailKey: 'relacaoProfessoresDetalhe' },
+                                  { key: 'relacaoColegas', label: 'Relação com colegas', detailKey: 'relacaColegasDetalhe' },
+                                  { key: 'aprendizagem', label: 'Aprendizagem', detailKey: 'aprendizagemDetalhe' },
+                                ].map(({ key, label, detailKey }) => (
+                                  <div key={key}>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">{label}</p>
+                                    <div className="flex gap-2 mb-2">
+                                      {[{ v: 'adequada', l: 'Adequada' }, { v: 'dificuldades', l: 'Com dificuldades' }].map(({ v, l }) => (
+                                        <button key={v} onClick={() => setAnamneseData(p => ({ ...p, [key]: v }))}
+                                          className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${(anamneseData as any)[key] === v ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                          {l}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    {(anamneseData as any)[key] === 'dificuldades' && (
+                                      <input type="text" value={(anamneseData as any)[detailKey]} onChange={e => setAnamneseData(p => ({ ...p, [detailKey]: e.target.value }))} placeholder="Descreva as dificuldades..." className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                                    )}
+                                  </div>
+                                ))}
+                                <div>
+                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Comportamento</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {['Participativo', 'Agitado', 'Inibido', 'Disperso', 'Outro'].map(opt => (
+                                      <button key={opt} onClick={() => setAnamneseData(p => ({ ...p, comportamentos: p.comportamentos.includes(opt) ? p.comportamentos.filter(c => c !== opt) : [...p.comportamentos, opt] }))}
+                                        className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${anamneseData.comportamentos.includes(opt) ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                        {opt}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Seção 7 - Comportamentos Observados */}
+                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
+                                <Eye size={14} /> 7. Comportamentos observados / relatados
+                              </div>
+                              <div className="flex flex-wrap gap-2 mb-4">
+                                {['Irritabilidade', 'Agressividade', 'Ansiedade', 'Choro frequente', 'Dificuldade de atenção', 'Isolamento', 'Medos excessivos'].map(opt => (
+                                  <button key={opt} onClick={() => setAnamneseData(p => ({ ...p, intervencoes: p.intervencoes.includes(opt) ? p.intervencoes.filter(c => c !== opt) : [...p.intervencoes, opt] }))}
+                                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${anamneseData.intervencoes.includes(opt) ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                    {opt}
+                                  </button>
+                                ))}
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Outros comportamentos</p>
+                                <input type="text" value={anamneseData.comportamentoOutro} onChange={e => setAnamneseData(p => ({ ...p, comportamentoOutro: e.target.value }))} placeholder="Descreva outros comportamentos..." className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                              </div>
+                            </div>
+
+                            {/* Seção 8 - Intervenções */}
+                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
+                                <RefreshCw size={14} /> 8. Intervenções já realizadas
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {['Nenhuma', 'Psicoterapia', 'Acompanhamento médico', 'Fonoaudiologia', 'Psicopedagogia', 'Terapia Ocupacional', 'Outros'].map(opt => (
+                                  <button key={opt} onClick={() => setAnamneseData(p => ({ ...p, intervencoes: p.intervencoes.includes(opt) ? p.intervencoes.filter(c => c !== opt) : [...p.intervencoes, opt] }))}
+                                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${anamneseData.intervencoes.includes(opt) ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                    {opt}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Seções 9 e 10 */}
+                            {[
+                              { key: 'observacoesPsicologa', icon: FileText, num: '9', title: 'Observações da psicóloga', placeholder: 'Registre suas observações clínicas...' },
+                              { key: 'encaminhamentoPlano', icon: Map, num: '10', title: 'Encaminhamento / plano inicial', placeholder: 'Descreva o plano de intervenção...' },
+                            ].map(({ key, icon: Icon, num, title, placeholder }) => (
+                              <div key={key} className="bg-white border border-slate-100 rounded-2xl p-5">
+                                <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
+                                  <Icon size={14} /> {num}. {title}
+                                </div>
+                                <textarea value={(anamneseData as any)[key]} onChange={e => setAnamneseData(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} rows={4} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 resize-y" />
+                              </div>
+                            ))}
+
+                            {/* Footer */}
+                            <div className="flex justify-end gap-3 pt-2 no-print">
+                              <button onClick={() => setAnamneseData(p => ({ ...p, status: 'finalizada' }))} className="text-sm font-semibold bg-teal-600 text-white px-4 py-2 rounded-xl hover:bg-teal-700 transition-colors flex items-center gap-2 no-print">
+                                <CheckCircle2 size={15} /> Finalizar anamnese
+                              </button>
+                              <button onClick={handleSaveAnamnese} disabled={savingAnamnese} className="text-sm font-semibold bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50 no-print">
+                                <Save size={15} /> {savingAnamnese ? 'Salvando...' : 'Salvar rascunho'}
+                              </button>
+                            </div>
+                          </div>
                         )}
 
                         {activeTab === 'prontuario' && (
