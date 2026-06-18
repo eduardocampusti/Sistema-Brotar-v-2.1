@@ -2,6 +2,21 @@ import path from 'path';
 import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import type { Plugin } from 'vite';
+
+// Plugin que injeta build timestamp no index.html — força CDN/hosting a invalidar cache
+function buildTimestampPlugin(): Plugin {
+  return {
+    name: 'build-timestamp',
+    transformIndexHtml(html) {
+      const ts = Date.now();
+      return html.replace(
+        '<head>',
+        `<head>\n    <meta name="build-ts" content="${ts}" />`
+      );
+    }
+  };
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
@@ -9,13 +24,12 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5500,
       host: '0.0.0.0',
-      // OneDrive/Windows: o watcher às vezes não detecta alterações; polling evita “não mudou nada” no dev.
       watch: {
         usePolling: true,
         interval: 1000,
       },
     },
-    plugins: [react()],
+    plugins: [react(), buildTimestampPlugin()],
     define: {
       'process.env': {},
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
@@ -36,7 +50,6 @@ export default defineConfig(({ mode }) => {
             'vendor-ui': ['lucide-react', 'recharts'],
             'vendor-supabase': ['@supabase/supabase-js'],
             'vendor-utils': ['react-markdown'],
-            // Heavy libs loaded only when needed (PDF, CSV, AI)
             'vendor-pdf': ['jspdf', 'jspdf-autotable'],
             'vendor-csv': ['papaparse'],
             'vendor-ai': ['@google/genai'],
