@@ -4864,6 +4864,8 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
         status: 'rascunho' as 'rascunho' | 'finalizada',
     });
     const [savingAnamnese, setSavingAnamnese] = useState(false);
+    const anamneseScrollRef = useRef<HTMLDivElement>(null);
+    const [activeAnamneseSection, setActiveAnamneseSection] = useState<string>('psych-sec-1');
 
     const handleSaveAnamnese = async () => {
         if (!selectedStudent) return;
@@ -5053,6 +5055,23 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
             }
         }
     }, [selectedStudent, canAccessPrivate]);
+
+    // ── SCROLLSPY IntersectionObserver ────────────────────────────────────
+    useEffect(() => {
+        if (activeTab !== 'anamnese') return;
+        const sections = Array.from(document.querySelectorAll('[data-psych-section]')) as HTMLElement[];
+        if (sections.length === 0) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+                if (visible.length > 0) setActiveAnamneseSection((visible[0].target as HTMLElement).dataset.psychSection!);
+            },
+            { threshold: 0.2, rootMargin: '-80px 0px -40% 0px' }
+        );
+        sections.forEach(s => observer.observe(s));
+        return () => observer.disconnect();
+    }, [activeTab, selectedStudent]);
+    // ─────────────────────────────────────────────────────────────────────
 
     const handlePublicChange = (section: keyof PsychFormPublic, field: string, value: string) => {
         setPublicData({
@@ -5369,6 +5388,49 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                                 );
                             })}
                         </div>
+
+                        {/* Scrollspy — aparece só na aba Anamnese */}
+                        {activeTab === 'anamnese' && (
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <p className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Seções</p>
+                                {[
+                                    { id: 'psych-sec-1', label: 'Identificação'         },
+                                    { id: 'psych-sec-2', label: 'Encaminhamento'        },
+                                    { id: 'psych-sec-3', label: 'Queixa principal'      },
+                                    { id: 'psych-sec-4', label: 'Desenvolvimento'       },
+                                    { id: 'psych-sec-5', label: 'Contexto familiar'     },
+                                    { id: 'psych-sec-6', label: 'Funcionamento escolar' },
+                                    { id: 'psych-sec-7', label: 'Comportamentos'        },
+                                    { id: 'psych-sec-8', label: 'Intervenções'          },
+                                    { id: 'psych-sec-9', label: 'Observações'           },
+                                    { id: 'psych-sec-10', label: 'Plano inicial'        },
+                                ].map((sec, idx) => {
+                                    const isSecActive = activeAnamneseSection === sec.id;
+                                    return (
+                                        <a
+                                            key={sec.id}
+                                            href={`#${sec.id}`}
+                                            onClick={e => {
+                                                e.preventDefault();
+                                                document.getElementById(sec.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                            }}
+                                            className={`flex items-center gap-2.5 px-4 py-2.5 text-xs transition-all
+                                                ${idx > 0 ? 'border-t border-slate-50' : ''}
+                                                ${isSecActive
+                                                    ? 'text-purple-700 font-semibold bg-purple-50 border-l-2 border-l-purple-600'
+                                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 border-l-2 border-l-transparent'
+                                                }`}
+                                        >
+                                            <div className={`w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold shrink-0 ${isSecActive ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                {idx + 1}
+                                            </div>
+                                            <span className="truncate">{sec.label}</span>
+                                            {isSecActive && <div className="w-1 h-1 rounded-full bg-purple-500 ml-auto shrink-0" />}
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Tab Content */}
@@ -5476,7 +5538,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             </div>
 
                             {/* Seção 1 - Identificação */}
-                            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                            <div id="psych-sec-1" data-psych-section="psych-sec-1" className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm scroll-mt-28">
                               <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
                                 <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-700 shrink-0">1</div>
                                 <span className="text-sm font-semibold text-slate-700">Identificação</span>
@@ -5528,7 +5590,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             </div>
 
                             {/* Seção 2 - Encaminhamento */}
-                            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                            <div id="psych-sec-2" data-psych-section="psych-sec-2" className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm scroll-mt-28">
                               <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
                                 <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-700 shrink-0">2</div>
                                 <span className="text-sm font-semibold text-slate-700">Encaminhamento</span>
@@ -5566,7 +5628,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             </div>
 
                             {/* Seção 3 - Queixa Principal */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                            <div id="psych-sec-3" data-psych-section="psych-sec-3" className="bg-white border border-slate-100 rounded-2xl p-5 scroll-mt-28">
                               <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
                                 <MessageCircle size={14} /> 3. Queixa principal
                               </div>
@@ -5574,7 +5636,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             </div>
 
                             {/* Seção 4 - Histórico Desenvolvimento */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                            <div id="psych-sec-4" data-psych-section="psych-sec-4" className="bg-white border border-slate-100 rounded-2xl p-5 scroll-mt-28">
                               <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
                                 <Activity size={14} /> 4. Histórico breve do desenvolvimento
                               </div>
@@ -5604,7 +5666,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             </div>
 
                             {/* Seção 5 - Contexto Familiar */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                            <div id="psych-sec-5" data-psych-section="psych-sec-5" className="bg-white border border-slate-100 rounded-2xl p-5 scroll-mt-28">
                               <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
                                 <Home size={14} /> 5. Contexto familiar
                               </div>
@@ -5635,7 +5697,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             </div>
 
                             {/* Seção 6 - Funcionamento Escolar */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                            <div id="psych-sec-6" data-psych-section="psych-sec-6" className="bg-white border border-slate-100 rounded-2xl p-5 scroll-mt-28">
                               <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
                                 <School size={14} /> 6. Funcionamento escolar
                               </div>
@@ -5675,7 +5737,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             </div>
 
                             {/* Seção 7 - Comportamentos Observados */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                            <div id="psych-sec-7" data-psych-section="psych-sec-7" className="bg-white border border-slate-100 rounded-2xl p-5 scroll-mt-28">
                               <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
                                 <Eye size={14} /> 7. Comportamentos observados / relatados
                               </div>
@@ -5694,7 +5756,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             </div>
 
                             {/* Seção 8 - Intervenções */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                            <div id="psych-sec-8" data-psych-section="psych-sec-8" className="bg-white border border-slate-100 rounded-2xl p-5 scroll-mt-28">
                               <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
                                 <RefreshCw size={14} /> 8. Intervenções já realizadas
                               </div>
@@ -5710,10 +5772,10 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 
                             {/* Seções 9 e 10 */}
                             {[
-                              { key: 'observacoesPsicologa', icon: FileText, num: '9', title: 'Observações da psicóloga', placeholder: 'Registre suas observações clínicas...' },
-                              { key: 'encaminhamentoPlano', icon: Map, num: '10', title: 'Encaminhamento / plano inicial', placeholder: 'Descreva o plano de intervenção...' },
-                            ].map(({ key, icon: Icon, num, title, placeholder }) => (
-                              <div key={key} className="bg-white border border-slate-100 rounded-2xl p-5">
+                              { key: 'observacoesPsicologa', icon: FileText, num: '9', secId: 'psych-sec-9', title: 'Observações da psicóloga', placeholder: 'Registre suas observações clínicas...' },
+                              { key: 'encaminhamentoPlano', icon: Map, num: '10', secId: 'psych-sec-10', title: 'Encaminhamento / plano inicial', placeholder: 'Descreva o plano de intervenção...' },
+                            ].map(({ key, icon: Icon, num, secId, title, placeholder }) => (
+                              <div key={key} id={secId} data-psych-section={secId} className="bg-white border border-slate-100 rounded-2xl p-5 scroll-mt-28">
                                 <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
                                   <Icon size={14} /> {num}. {title}
                                 </div>
