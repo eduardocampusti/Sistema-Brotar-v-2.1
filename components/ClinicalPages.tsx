@@ -5318,36 +5318,63 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col sm:flex-row min-h-screen -mx-4 lg:-mx-8 -mt-6 bg-white border-t border-slate-100">
-                    {/* Sidebar Tabs */}
-                    <div className="w-full sm:w-64 bg-slate-50 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col shrink-0">
-                        <div className="p-6 border-b border-slate-200 bg-white">
-                            <button onClick={() => setSelectedStudent(null)} className="flex items-center gap-2 text-xs font-bold text-purple-600 mb-4 hover:underline"><TrendingUp size={14} /> Voltar ao Painel</button>
-                            <h3 className="font-black text-slate-900 leading-tight">{selectedStudent.fullName}</h3>
-                            <p className="text-[10px] text-slate-400 uppercase font-bold mt-1">Status: {privateData.statusAtendimento}</p>
+                <div className="flex flex-col sm:flex-row min-h-screen -mx-4 lg:-mx-8 -mt-6 bg-[#EEF1F6] border-t border-slate-200">
+                    {/* Sidebar Premium */}
+                    <div className="w-full sm:w-64 shrink-0 p-4 flex flex-col gap-3">
+                        {/* Mini-card do paciente */}
+                        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                            <button onClick={() => setSelectedStudent(null)} className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 mb-3 hover:text-purple-800 transition-colors">
+                                <TrendingUp size={13} /> Voltar ao painel
+                            </button>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md shadow-purple-200">
+                                    {selectedStudent.fullName?.charAt(0).toUpperCase() ?? '?'}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-slate-800 leading-tight truncate">{selectedStudent.fullName}</p>
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full mt-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                        {privateData.statusAtendimento}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex-1 py-4">
+
+                        {/* Menu de navegação */}
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" role="tablist" aria-label="Seções do prontuário">
                             {[
-                                { id: 'anamnese', label: 'Anamnese', icon: ClipboardList },
-                                { id: 'prontuario', label: 'Prontuário', icon: ClipboardCheck },
-                                { id: 'sessions', label: 'Evoluções', icon: History },
-                                { id: 'reports', label: 'Relatórios', icon: Printer },
-                            ].map(tab => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id as any)}
-                                    className={`w-full p-4 flex items-center gap-3 text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 ml-2 rounded-l-xl' : 'text-slate-500 hover:bg-white hover:text-purple-600'}`}
-                                >
-                                    <tab.icon size={18} /> {tab.label}
-                                </button>
-                            ))}
+                                { id: 'anamnese',  label: 'Anamnese',   icon: ClipboardList  },
+                                { id: 'prontuario',label: 'Prontuário', icon: ClipboardCheck },
+                                { id: 'sessions',  label: 'Evoluções',  icon: History        },
+                                { id: 'reports',   label: 'Relatórios', icon: Printer        },
+                            ].map((tab, idx) => {
+                                const isActive = activeTab === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        role="tab"
+                                        aria-selected={isActive}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-inset
+                                            ${idx > 0 ? 'border-t border-slate-100' : ''}
+                                            ${isActive
+                                                ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-inner'
+                                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                            }`}
+                                    >
+                                        <tab.icon size={17} className={isActive ? 'opacity-90' : ''} />
+                                        <span className="flex-1 text-left">{tab.label}</span>
+                                        {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white opacity-70" />}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
                     {/* Tab Content */}
-                    <div className="flex-1 p-8 bg-white overflow-y-auto">
+                    <div className="flex-1 p-4 lg:p-6 overflow-y-auto">
                         {activeTab === 'anamnese' && (
-                          <div className="space-y-5 animate-fadeIn pb-8 print-anamnese-container">
+                          <div className="space-y-4 animate-fadeIn pb-10 print-anamnese-container max-w-4xl mx-auto">
                             {/* CSS customizado para impressão da ficha */}
                             <style dangerouslySetInnerHTML={{ __html: `
                               @media print {
@@ -5392,32 +5419,49 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                               }
                             ` }} />
 
-                            {/* Header */}
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 no-print">
-                              <div>
-                                <h3 className="text-xl font-bold text-slate-800">Anamnese infantil educacional</h3>
-                                <p className="text-sm text-slate-500 mt-0.5">
-                                  {selectedStudent?.fullName} · Psicologia · {new Date(anamneseData.dataEntrevista).toLocaleDateString('pt-BR')}
-                                </p>
+                            {/* Header sticky premium */}
+                            <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-4 no-print shadow-sm">
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                <div>
+                                  <h3 className="text-base font-bold text-slate-800">Anamnese infantil educacional</h3>
+                                  <p className="text-xs text-slate-500 mt-0.5">
+                                    {selectedStudent?.fullName} · Psicologia · {new Date(anamneseData.dataEntrevista).toLocaleDateString('pt-BR')}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${anamneseData.status === 'finalizada' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                    {anamneseData.status === 'finalizada' ? '✓ Finalizada' : '⏳ Rascunho'}
+                                  </span>
+                                  <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-200 transition-colors min-h-[36px]">
+                                    <Printer size={13} /> PDF
+                                  </button>
+                                  <button onClick={handleSaveAnamnese} disabled={savingAnamnese} className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-purple-600 to-purple-700 text-white px-3 py-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 min-h-[36px] shadow-sm shadow-purple-200">
+                                    <Save size={13} /> {savingAnamnese ? 'Salvando...' : 'Salvar'}
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex gap-2 flex-wrap">
-                                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
-                                  {anamneseData.status === 'finalizada' ? 'Finalizada' : 'Rascunho'}
-                                </span>
-                                <button
-                                  onClick={() => window.print()}
-                                  className="flex items-center gap-1.5 text-sm font-semibold bg-slate-600 text-white px-4 py-2 rounded-xl hover:bg-slate-700 transition-colors no-print"
-                                >
-                                  <Printer size={15} /> Exportar PDF
-                                </button>
-                                <button
-                                  onClick={handleSaveAnamnese}
-                                  disabled={savingAnamnese}
-                                  className="flex items-center gap-1.5 text-sm font-semibold bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 no-print"
-                                >
-                                  <Save size={15} /> {savingAnamnese ? 'Salvando...' : 'Salvar'}
-                                </button>
-                              </div>
+                              {/* Barra de progresso */}
+                              {(() => {
+                                const preenchidas = [
+                                  anamneseData.motivoEncaminhamento, anamneseData.queixaPrincipal,
+                                  anamneseData.comQuemMora, anamneseData.rotinafamiliar,
+                                  anamneseData.observacoesPsicologa, anamneseData.encaminhamentoPlano,
+                                  anamneseData.comportamentoOutro || (anamneseData.comportamentos.length > 0 ? '1' : ''),
+                                ].filter(Boolean).length;
+                                const total = 7;
+                                const pct = Math.round((preenchidas / total) * 100);
+                                return (
+                                  <div className="mt-3">
+                                    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                                      <span>{preenchidas} de {total} seções preenchidas</span>
+                                      <span>{pct}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                      <div className="h-full bg-gradient-to-r from-purple-500 to-purple-700 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
 
                             {/* Cabeçalho exclusivo para Impressão */}
@@ -5432,11 +5476,15 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                             </div>
 
                             {/* Seção 1 - Identificação */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
-                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
-                                <Users size={14} /> 1. Identificação
-                                <span className="ml-auto text-[10px] font-semibold bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full border border-teal-100 no-print">Automático</span>
+                            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                              <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+                                <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-700 shrink-0">1</div>
+                                <span className="text-sm font-semibold text-slate-700">Identificação</span>
+                                <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full no-print">
+                                    <Lock size={9} /> Preenchido automaticamente
+                                </span>
                               </div>
+                              <div className="p-5">
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                                 {[
                                   { label: 'Nome da criança', value: selectedStudent?.fullName ?? '—' },
@@ -5444,8 +5492,8 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                                   { label: 'Idade', value: selectedStudent?.birthDate ? `${Math.floor((Date.now() - new Date(selectedStudent.birthDate).getTime()) / (365.25 * 86400000))} anos` : '—' },
                                 ].map(({ label, value }) => (
                                   <div key={label}>
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-                                    <div className="text-sm font-medium text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">{value}</div>
+                                    <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1"><Lock size={9} className="text-slate-400" /> {label}</p>
+                                    <div className="text-sm font-medium text-slate-700 bg-slate-50 border border-dashed border-slate-300 rounded-lg px-3 py-2.5 min-h-[44px] flex items-center">{value}</div>
                                   </div>
                                 ))}
                               </div>
@@ -5456,8 +5504,8 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                                   { label: 'Turno', value: selectedStudent?.school?.shift ?? '—' },
                                 ].map(({ label, value }) => (
                                   <div key={label}>
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-                                    <div className="text-sm font-medium text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">{value}</div>
+                                    <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1"><Lock size={9} className="text-slate-400" /> {label}</p>
+                                    <div className="text-sm font-medium text-slate-700 bg-slate-50 border border-dashed border-slate-300 rounded-lg px-3 py-2.5 min-h-[44px] flex items-center">{value}</div>
                                   </div>
                                 ))}
                               </div>
@@ -5467,28 +5515,31 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                                   { label: 'Contato', value: selectedStudent?.guardians?.[0]?.phone ?? '—' },
                                 ].map(({ label, value }) => (
                                   <div key={label}>
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-                                    <div className="text-sm font-medium text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">{value}</div>
+                                    <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1"><Lock size={9} className="text-slate-400" /> {label}</p>
+                                    <div className="text-sm font-medium text-slate-700 bg-slate-50 border border-dashed border-slate-300 rounded-lg px-3 py-2.5 min-h-[44px] flex items-center">{value}</div>
                                   </div>
                                 ))}
                                 <div>
-                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Data da entrevista</p>
-                                  <input type="date" value={anamneseData.dataEntrevista} onChange={e => setAnamneseData(p => ({ ...p, dataEntrevista: e.target.value }))} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                                  <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Data da entrevista</p>
+                                  <input type="date" value={anamneseData.dataEntrevista} onChange={e => setAnamneseData(p => ({ ...p, dataEntrevista: e.target.value }))} className="w-full text-sm text-slate-700 bg-white border-[1.5px] border-slate-200 rounded-lg px-3 py-2.5 min-h-[44px] outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-all" />
                                 </div>
+                              </div>
                               </div>
                             </div>
 
                             {/* Seção 2 - Encaminhamento */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-5">
-                              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-widest mb-4 pb-3 border-b border-slate-100">
-                                <Send size={14} /> 2. Encaminhamento
+                            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                              <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+                                <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-700 shrink-0">2</div>
+                                <span className="text-sm font-semibold text-slate-700">Encaminhamento</span>
                               </div>
+                              <div className="p-5">
                               <div className="mb-4">
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Quem encaminhou</p>
+                                <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Quem encaminhou</p>
                                 <div className="flex flex-wrap gap-2">
                                   {(['escola', 'professor', 'coordenacao', 'familia'] as const).map(opt => (
                                     <button key={opt} onClick={() => setAnamneseData(p => ({ ...p, quemEncaminhou: opt }))}
-                                      className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${anamneseData.quemEncaminhou === opt ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                                      className={`text-xs font-semibold px-4 py-2 rounded-xl border-[1.5px] min-h-[44px] transition-all ${anamneseData.quemEncaminhou === opt ? 'bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-200' : 'bg-white text-slate-500 border-slate-200 hover:border-purple-300 hover:text-purple-600'}`}>
                                       {opt === 'escola' ? 'Escola' : opt === 'professor' ? 'Professor(a)' : opt === 'coordenacao' ? 'Coordenação' : 'Família'}
                                     </button>
                                   ))}
@@ -5496,17 +5547,21 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                 <div>
-                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Nome de quem encaminhou</p>
-                                  <input type="text" value={anamneseData.nomeEncaminhador} onChange={e => setAnamneseData(p => ({ ...p, nomeEncaminhador: e.target.value }))} placeholder="Nome completo..." className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                                  <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nome de quem encaminhou</p>
+                                  <input type="text" value={anamneseData.nomeEncaminhador} onChange={e => setAnamneseData(p => ({ ...p, nomeEncaminhador: e.target.value }))} placeholder="Nome completo..." className="w-full text-sm text-slate-700 bg-white border-[1.5px] border-slate-200 rounded-lg px-3 py-2.5 min-h-[44px] outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-all" />
                                 </div>
                                 <div>
-                                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Data do encaminhamento</p>
-                                  <input type="date" value={anamneseData.dataEncaminhamento} onChange={e => setAnamneseData(p => ({ ...p, dataEncaminhamento: e.target.value }))} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400" />
+                                  <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Data do encaminhamento</p>
+                                  <input type="date" value={anamneseData.dataEncaminhamento} onChange={e => setAnamneseData(p => ({ ...p, dataEncaminhamento: e.target.value }))} className="w-full text-sm text-slate-700 bg-white border-[1.5px] border-slate-200 rounded-lg px-3 py-2.5 min-h-[44px] outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-all" />
                                 </div>
                               </div>
                               <div>
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Motivo do encaminhamento</p>
-                                <textarea value={anamneseData.motivoEncaminhamento} onChange={e => setAnamneseData(p => ({ ...p, motivoEncaminhamento: e.target.value }))} placeholder="Descreva o motivo..." rows={3} className="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 resize-y" />
+                                <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Motivo do encaminhamento</p>
+                                <div className="relative">
+                                  <textarea value={anamneseData.motivoEncaminhamento} onChange={e => setAnamneseData(p => ({ ...p, motivoEncaminhamento: e.target.value }))} placeholder="Descreva o motivo do encaminhamento..." rows={4} className="w-full text-sm text-slate-700 bg-white border-[1.5px] border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-all resize-y min-h-[96px]" />
+                                  <span className="absolute bottom-2 right-3 text-[10px] text-slate-400">{anamneseData.motivoEncaminhamento.length} car.</span>
+                                </div>
+                              </div>
                               </div>
                             </div>
 
