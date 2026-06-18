@@ -5198,7 +5198,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
     );
 
     return (
-        <div className="max-w-6xl mx-auto animate-fadeIn pb-12">
+        <div className={selectedStudent ? 'animate-fadeIn' : 'max-w-6xl mx-auto animate-fadeIn pb-12'}>
             {!selectedStudent ? (
                 <div className="space-y-8 animate-slideUp">
                     <WelcomeHeader name={currentUser.name.split(' ')[0]} />
@@ -5318,9 +5318,9 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     </div>
                 </div>
             ) : (
-                <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col sm:flex-row min-h-[700px]">
+                <div className="flex flex-col sm:flex-row min-h-screen -mx-4 lg:-mx-8 -mt-6 bg-white border-t border-slate-100">
                     {/* Sidebar Tabs */}
-                    <div className="w-full sm:w-64 bg-slate-50 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col">
+                    <div className="w-full sm:w-64 bg-slate-50 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col shrink-0">
                         <div className="p-6 border-b border-slate-200 bg-white">
                             <button onClick={() => setSelectedStudent(null)} className="flex items-center gap-2 text-xs font-bold text-purple-600 mb-4 hover:underline"><TrendingUp size={14} /> Voltar ao Painel</button>
                             <h3 className="font-black text-slate-900 leading-tight">{selectedStudent.fullName}</h3>
@@ -5345,7 +5345,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     </div>
 
                     {/* Tab Content */}
-                    <div className="flex-1 p-8 bg-white overflow-y-auto max-h-[700px]">
+                    <div className="flex-1 p-8 bg-white overflow-y-auto">
                         {activeTab === 'anamnese' && (
                           <div className="space-y-5 animate-fadeIn pb-8 print-anamnese-container">
                             {/* CSS customizado para impressão da ficha */}
