@@ -54,65 +54,6 @@ const getStudentStatus = (student: Student) => {
 
 export const PatientList: React.FC<StudentListProps> = ({ students, schools, onSelectStudent, onDelete, onRegister, onEdit, currentUser, onRefresh }) => {
   const { user: authUser } = useAuth();
-
-  // Estados exclusivos da visão de psicóloga
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  const [patientTab, setPatientTab] = useState<'resumo' | 'sessoes' | 'anamnese' | 'percepcoes' | 'evolucao' | 'documentos'>('resumo');
-  const [psychSessions, setPsychSessions] = useState<(Session & { studentId?: string })[]>([]);
-  const [loadingPsychSessions, setLoadingPsychSessions] = useState(false);
-  const [psychSessionsError, setPsychSessionsError] = useState(false);
-  const [psychSearchQuery, setPsychSearchQuery] = useState('');
-
-  const handleSelectPsychPatient = async (studentId: string) => {
-    setSelectedPatientId(studentId);
-    setPatientTab('resumo');
-    setLoadingPsychSessions(true);
-    setPsychSessionsError(false);
-    try {
-      const data = await SupabaseService.getStudentSessions(studentId);
-      const sessionsWithId = data.map(s => ({ ...s, studentId }));
-      setPsychSessions(sessionsWithId);
-    } catch (err) {
-      console.error('Erro ao carregar sessões:', err);
-      setPsychSessions([]);
-      setPsychSessionsError(true);
-    } finally {
-      setLoadingPsychSessions(false);
-    }
-  };
-
-  const getPsychComplexity = (student: Student): { level: 'baixa' | 'media' | 'alta'; filled: number } => {
-    const count = sessionsInfo[student.id]?.total ?? 0;
-    if (count >= 10) return { level: 'alta', filled: 5 };
-    if (count >= 5)  return { level: 'alta', filled: 4 };
-    if (count >= 3)  return { level: 'media', filled: 3 };
-    if (count >= 1)  return { level: 'media', filled: 2 };
-    return { level: 'baixa', filled: 1 };
-  };
-
-  const getPsychComplexityColors = (level: 'baixa' | 'media' | 'alta') => {
-    if (level === 'alta')  return { filled: '#7F77DD', empty: '#AFA9EC' };
-    if (level === 'media') return { filled: '#EF9F27', empty: '#FAC775' };
-    return { filled: '#1D9E75', empty: '#9FE1CB' };
-  };
-
-  const formatDaysSince = (dateStr: string | null | undefined): string => {
-    if (!dateStr) return 'Sem sessão';
-    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-    if (diff === 0) return 'Hoje';
-    if (diff === 1) return 'Ontem';
-    return `Há ${diff} dias`;
-  };
-
-  const getAvatarColors = (index: number) => {
-    const palettes = [
-      { bg: 'bg-purple-100', text: 'text-purple-700' },
-      { bg: 'bg-teal-100',   text: 'text-teal-700'   },
-      { bg: 'bg-amber-100',  text: 'text-amber-700'  },
-      { bg: 'bg-rose-100',   text: 'text-rose-700'   },
-    ];
-    return palettes[index % palettes.length];
-  };
   const [searchTerm, setSearchTerm] = useState(() => sessionStorage.getItem('PatientList_searchTerm') || '');
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>(() => sessionStorage.getItem('PatientList_selectedSchoolId') || 'ALL');
 
@@ -241,6 +182,66 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       if (students.length > 0) fetchSessionsInfo();
       return () => { isMounted = false; };
   }, [students]);
+
+  // ── ESTADOS EXCLUSIVOS DA VISÃO DE PSICÓLOGA ──────────────────────────
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [patientTab, setPatientTab] = useState<'resumo' | 'sessoes' | 'anamnese' | 'percepcoes' | 'evolucao' | 'documentos'>('resumo');
+  const [psychSessions, setPsychSessions] = useState<(Session & { studentId?: string })[]>([]);
+  const [loadingPsychSessions, setLoadingPsychSessions] = useState(false);
+  const [psychSessionsError, setPsychSessionsError] = useState(false);
+  const [psychSearchQuery, setPsychSearchQuery] = useState('');
+
+  const handleSelectPsychPatient = async (studentId: string) => {
+    setSelectedPatientId(studentId);
+    setPatientTab('resumo');
+    setLoadingPsychSessions(true);
+    setPsychSessionsError(false);
+    try {
+      const data = await SupabaseService.getStudentSessions(studentId);
+      const sessionsWithId = data.map((s: any) => ({ ...s, studentId }));
+      setPsychSessions(sessionsWithId);
+    } catch (err) {
+      console.error('Erro ao carregar sessões:', err);
+      setPsychSessions([]);
+      setPsychSessionsError(true);
+    } finally {
+      setLoadingPsychSessions(false);
+    }
+  };
+
+  const getPsychComplexity = (student: Student): { level: 'baixa' | 'media' | 'alta'; filled: number } => {
+    const count = sessionsInfo[student.id]?.total ?? 0;
+    if (count >= 10) return { level: 'alta', filled: 5 };
+    if (count >= 5)  return { level: 'alta', filled: 4 };
+    if (count >= 3)  return { level: 'media', filled: 3 };
+    if (count >= 1)  return { level: 'media', filled: 2 };
+    return { level: 'baixa', filled: 1 };
+  };
+
+  const getPsychComplexityColors = (level: 'baixa' | 'media' | 'alta') => {
+    if (level === 'alta')  return { filled: '#7F77DD', empty: '#AFA9EC' };
+    if (level === 'media') return { filled: '#EF9F27', empty: '#FAC775' };
+    return { filled: '#1D9E75', empty: '#9FE1CB' };
+  };
+
+  const formatDaysSince = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return 'Sem sessão';
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+    if (diff === 0) return 'Hoje';
+    if (diff === 1) return 'Ontem';
+    return `Há ${diff} dias`;
+  };
+
+  const getAvatarColors = (index: number) => {
+    const palettes = [
+      { bg: 'bg-purple-100', text: 'text-purple-700' },
+      { bg: 'bg-teal-100',   text: 'text-teal-700'   },
+      { bg: 'bg-amber-100',  text: 'text-amber-700'  },
+      { bg: 'bg-rose-100',   text: 'text-rose-700'   },
+    ];
+    return palettes[index % palettes.length];
+  };
+  // ── FIM ESTADOS PSICÓLOGA ──────────────────────────────────────────────
 
   const baseStudentList = useMemo(() => {
     if (podeAlternarListaRede && listaEscopo === 'meus') {
