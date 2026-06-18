@@ -422,7 +422,7 @@ function AppContent() {
           <Route path="profile" element={<React.Suspense fallback={<PageLoading />}><PatientProfile student={selectedStudent!} onBack={() => handleNavigate('list')} currentUser={user!} onEdit={(s) => { setSelectedStudent(s); handleNavigate('edit-student'); }} onNavigate={handleNavigate} /></React.Suspense>} />
           <Route path="edit-student" element={<React.Suspense fallback={<PageLoading />}><RegistrationForm initialData={selectedStudent!} onSuccess={refreshData} onCancel={() => handleNavigate('profile')} currentUser={user!} /></React.Suspense>} />
 
-          <Route path="psychology" element={<React.Suspense fallback={<PageLoading />}><PsychologyDashboard onNavigate={handleNavigate} currentUser={user!} onOpenPatient={(id) => { const st = students.find(s => s.id === id); if (st) handleSelectStudent(st); }} /></React.Suspense>} />
+          <Route path="psychology" element={<React.Suspense fallback={<PageLoading />}><PsychologyDashboardPage onNavigateNew={() => handleNavigate('psychology/new-session')} currentUser={user!} preSelectedStudent={selectedStudent ?? undefined} /></React.Suspense>} />
           <Route path="psychology/new-session" element={<React.Suspense fallback={<PageLoading />}><PsychologySessionFormPage onCancel={() => handleNavigate('psychology')} currentUser={user!} /></React.Suspense>} />
 
           {/* Serviço Social */}
