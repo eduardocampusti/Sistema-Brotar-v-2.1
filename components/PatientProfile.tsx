@@ -126,7 +126,9 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
     };
 
     // Mock age calculation
-    const age = new Date().getFullYear() - new Date(student.birthDate).getFullYear();
+    const age = student?.birthDate
+        ? new Date().getFullYear() - new Date(student.birthDate).getFullYear()
+        : null;
 
     return (
         <div className="max-w-5xl mx-auto space-y-6 pb-12">
@@ -169,7 +171,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                 </div>
                             )}
                             <div className="flex flex-wrap gap-3 text-sm text-slate-500 mt-1">
-                                <span>{age} anos</span>
+                                <span>{age !== null ? `${age} anos` : '—'}</span>
                                 <span>•</span>
                                 <span>CPF: {student.cpf}</span>
                                 {student.rg && <span>• RG: {student.rg}</span>}
