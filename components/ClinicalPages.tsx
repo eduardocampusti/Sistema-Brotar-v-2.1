@@ -5425,8 +5425,10 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                                                 const container = anamneseScrollRef.current;
                                                 const target = container?.querySelector(`[data-psych-section="${sec.id}"]`) as HTMLElement | null;
                                                 if (container && target) {
-                                                    const offsetTop = target.offsetTop - 100;
-                                                    container.scrollTo({ top: offsetTop, behavior: 'smooth' });
+                                                    const containerRect = container.getBoundingClientRect();
+                                                    const targetRect = target.getBoundingClientRect();
+                                                    const scrollOffset = targetRect.top - containerRect.top + container.scrollTop - 90;
+                                                    container.scrollTo({ top: scrollOffset, behavior: 'smooth' });
                                                 }
                                             }}
                                             className={`flex items-center gap-2.5 px-4 py-2.5 text-xs transition-all
