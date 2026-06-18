@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Student, Specialty, Session, User, SupportProfessional } from '../types';
-import { ArrowLeft, Phone, MapPin, Activity, School, Clock, Calendar, FileText, Plus, Save, User as UserIcon, Lock, Paperclip, CreditCard, Download, Edit, Heart, UserCheck, TrendingUp, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Phone, MapPin, Activity, School, Clock, Calendar, FileText, Plus, Save, User as UserIcon, Lock, Paperclip, CreditCard, Download, Edit, Heart, UserCheck, TrendingUp, ClipboardList, CheckCircle, UserX } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import { useToast } from '../contexts/ToastContext';
 
@@ -156,280 +156,411 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
             : null;
 
         return (
-            <div className="min-h-screen bg-slate-50 -mx-4 lg:-mx-8 -mt-8 lg:-mt-8">
+            <div className="min-h-screen bg-[#EEF1F6] -mx-4 lg:-mx-8 -mt-8 lg:-mt-8 px-4 lg:px-8 py-6">
+                <div className="max-w-6xl mx-auto space-y-6">
+                    {/* Link de Voltar */}
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-2 text-slate-400 hover:text-slate-600 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED] rounded-md p-1"
+                    >
+                        <ArrowLeft size={16} /> Voltar para a lista
+                    </button>
 
-                {/* Cabeçalho do paciente */}
-                <div className="bg-white border-b border-slate-100 px-6 lg:px-10 py-5">
-                    <div className="max-w-6xl mx-auto">
-                        <button
-                            onClick={onBack}
-                            className="flex items-center gap-2 text-slate-400 hover:text-slate-600 text-sm mb-4 transition-colors"
-                        >
-                            <ArrowLeft size={16} /> Voltar para a lista
-                        </button>
-
-                        <div className="flex items-start gap-5">
-                            {/* Avatar */}
-                            <div className="w-16 h-16 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-2xl font-bold shrink-0">
-                                {student.fullName?.charAt(0).toUpperCase() ?? '?'}
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <h1 className="text-xl font-bold text-slate-800">{student.fullName}</h1>
-                                <p className="text-sm text-slate-400 mt-0.5">
-                                    {student.school?.name ?? student.school?.schoolName ?? '—'}
-                                    {student.school?.grade ? ` · ${student.school.grade}` : ''}
-                                </p>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    <span className="text-xs font-semibold bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full">Ativo</span>
-                                    {psychAge && <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">{psychAge} anos</span>}
-                                    {student.clinical?.diagnosis && (
-                                        <span className="text-xs font-semibold bg-red-50 text-red-600 px-2.5 py-0.5 rounded-full">
-                                            {student.clinical.diagnosis}{student.clinical?.cid ? ` · ${student.clinical.cid}` : ''}
-                                        </span>
+                    {/* Cabeçalho Hero do Aluno */}
+                    <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 overflow-hidden">
+                        {/* Faixa Superior em Gradiente Roxo */}
+                        <div 
+                            className="h-[74px] w-full" 
+                            style={{ background: 'linear-gradient(110deg, #6D28D9 0%, #7C3AED 50%, #8B5CF6 100%)' }}
+                        />
+                        
+                        <div className="px-6 lg:px-8 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-5 -mt-11 md:-mt-[22px]">
+                            <div className="flex flex-col md:flex-row items-start md:items-center gap-5">
+                                {/* Avatar Quadrado-Arredondado */}
+                                <div className="w-[88px] h-[88px] rounded-[22px] border-4 border-white shadow-sm flex-shrink-0 z-10 overflow-hidden bg-gradient-to-br from-[#7C3AED] to-[#6D28D9] flex items-center justify-center text-white font-bold text-3xl">
+                                    {student.photoUrl ? (
+                                        <img src={student.photoUrl} alt={student.fullName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        student.fullName?.charAt(0).toUpperCase() ?? '?'
                                     )}
+                                </div>
+
+                                {/* Informações principais */}
+                                <div className="flex-1 min-w-0 md:pt-4">
+                                    <h1 className="text-xl lg:text-2xl font-bold text-slate-900 leading-tight truncate">
+                                        {student.fullName}
+                                    </h1>
+                                    <p className="flex items-center gap-1.5 text-sm text-slate-500 mt-1 font-medium">
+                                        <School size={16} className="text-slate-400" />
+                                        <span>
+                                            {student.school?.schoolName ?? '—'}
+                                            {student.school?.grade ? ` · ${student.school.grade}` : ''}
+                                        </span>
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#E6F4EA] text-[#059669] px-3 py-1 rounded-full">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-[#059669] animate-pulse"></span>
+                                            Ativo
+                                        </span>
+                                        {psychAge && (
+                                            <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
+                                                {psychAge} anos
+                                            </span>
+                                        )}
+                                        {student.school?.grade && (
+                                            <span className="text-xs font-semibold bg-[#E8F0FE] text-[#3B82F6] px-3 py-1 rounded-full">
+                                                {student.school.grade}
+                                            </span>
+                                        )}
+                                        {student.clinical?.diagnosis && (
+                                            <span className="text-xs font-semibold bg-[#FCE8E6] text-[#DC2626] px-3 py-1 rounded-full">
+                                                {student.clinical.diagnosis}{student.clinical?.cid ? ` · ${student.clinical.cid}` : ''}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Ações */}
-                            <div className="flex gap-2 shrink-0">
+                            <div className="flex gap-3 shrink-0 self-stretch md:self-center md:pt-4">
                                 <button
                                     onClick={() => onNavigate('psychology')}
-                                    className="flex items-center gap-2 text-sm font-semibold bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors shadow-sm shadow-purple-100"
+                                    className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-sm font-semibold bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-5 py-2.5 rounded-[10px] shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED] min-h-[44px]"
                                 >
-                                    <Plus size={15} /> Nova sessão
+                                    <Plus size={16} /> Nova sessão
                                 </button>
                                 <button
                                     onClick={() => onNavigate('documents')}
-                                    className="flex items-center gap-2 text-sm font-semibold bg-white text-slate-600 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors border border-slate-200"
+                                    className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-sm font-semibold bg-white text-slate-700 px-5 py-2.5 rounded-[10px] hover:bg-slate-50 border border-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-h-[44px]"
                                 >
-                                    <FileText size={15} /> Documento
+                                    <FileText size={16} /> Documento
                                 </button>
                             </div>
                         </div>
-
-                        {/* Abas */}
-                        <div className="flex gap-0 mt-5 -mb-5 overflow-x-auto">
-                            {psychTabItems.map(tab => {
-                                const Icon = tab.icon;
-                                const isActive = (psychActiveTab ?? 'resumo') === tab.id;
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setPsychActiveTab(tab.id as any)}
-                                        className={`flex items-center gap-1.5 text-sm font-semibold px-4 py-3 border-b-2 whitespace-nowrap transition-all
-                                            ${isActive
-                                                ? 'text-purple-700 border-purple-600'
-                                                : 'text-slate-400 border-transparent hover:text-slate-600'
-                                            }`}
-                                    >
-                                        <Icon size={15} /> {tab.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
                     </div>
-                </div>
 
-                {/* Corpo */}
-                <div className="max-w-6xl mx-auto px-6 lg:px-10 py-8 space-y-6">
+                    {/* Abas */}
+                    <div 
+                        className="bg-white rounded-[14px] shadow-sm p-1.5 border border-slate-100 flex gap-1.5 overflow-x-auto scrollbar-none" 
+                        role="tablist"
+                    >
+                        {psychTabItems.map(tab => {
+                            const Icon = tab.icon;
+                            const isActive = (psychActiveTab ?? 'resumo') === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setPsychActiveTab(tab.id as any)}
+                                    role="tab"
+                                    aria-selected={isActive}
+                                    tabIndex={isActive ? 0 : -1}
+                                    className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-[10px] whitespace-nowrap transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED] min-h-[44px]
+                                        ${isActive
+                                            ? 'bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] text-white shadow-md shadow-purple-500/10'
+                                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                        }`}
+                                >
+                                    <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
 
-                    {/* ABA RESUMO */}
-                    {(psychActiveTab ?? 'resumo') === 'resumo' && (
-                        <>
-                            {/* Informações pessoais */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-6">
-                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <UserIcon size={14} className="text-purple-500" /> Informações pessoais
-                                </h2>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                                    {[
-                                        { label: 'Nome completo',      value: student.fullName },
-                                        { label: 'Data de nascimento', value: student.birthDate ? new Date(student.birthDate + 'T12:00:00').toLocaleDateString('pt-BR') : '—' },
-                                        { label: 'Idade',              value: psychAge ? `${psychAge} anos` : '—' },
-                                        { label: 'Sexo',               value: (student as any).gender ?? '—' },
-                                        { label: 'CPF',                value: student.cpf ?? '—' },
-                                        { label: 'Email',              value: (student as any).email ?? '—' },
-                                        { label: 'WhatsApp',           value: student.guardians?.[0]?.phone ?? '—' },
-                                        { label: 'Início atendimento', value: student.createdAt ? new Date(student.createdAt).toLocaleDateString('pt-BR') : '—' },
-                                        { label: 'Responsável',        value: student.guardians?.[0]?.name ?? '—' },
-                                        { label: 'Escola',             value: student.school?.name ?? student.school?.schoolName ?? '—' },
-                                    ].map(({ label, value }) => (
-                                        <div key={label}>
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-                                            <p className="text-sm font-medium text-slate-700">{value}</p>
+                    {/* Corpo */}
+                    <div className="space-y-6">
+                        {/* ABA RESUMO */}
+                        {(psychActiveTab ?? 'resumo') === 'resumo' && (
+                            <>
+                                {/* Informações Pessoais */}
+                                <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 p-6">
+                                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                        <div className="bg-[#F3E8FF] text-[#7C3AED] rounded-[10px] p-2.5">
+                                            <UserIcon size={18} />
                                         </div>
-                                    ))}
+                                        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                                            Informações pessoais
+                                        </h2>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                                        {[
+                                            { label: 'Nome completo',      value: student.fullName, isLong: true },
+                                            { label: 'Data de nascimento', value: student.birthDate ? new Date(student.birthDate + 'T12:00:00').toLocaleDateString('pt-BR') : '—' },
+                                            { label: 'Idade',              value: psychAge ? `${psychAge} anos` : '—' },
+                                            { label: 'Sexo',               value: (student as any).gender ?? '—' },
+                                            { label: 'CPF',                value: student.cpf ?? '—' },
+                                            { label: 'Email',              value: (student as any).email ?? '—', isLong: true },
+                                            { label: 'WhatsApp',           value: student.guardians?.[0]?.phone ?? '—' },
+                                            { label: 'Início atendimento', value: student.createdAt ? new Date(student.createdAt).toLocaleDateString('pt-BR') : '—' },
+                                            { label: 'Responsável',        value: student.guardians?.[0]?.name ?? '—', isLong: true },
+                                            { label: 'Escola',             value: student.school?.schoolName ?? '—', isLong: true },
+                                        ].map(({ label, value, isLong }) => {
+                                            const isValueEmpty = !value || value === '—';
+                                            return (
+                                                <div key={label} className={isLong ? 'sm:col-span-2' : ''}>
+                                                    <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                                        {label}
+                                                    </p>
+                                                    <p className={`text-sm font-semibold ${isValueEmpty ? 'text-slate-400' : 'text-slate-800'}`}>
+                                                        {value || '—'}
+                                                    </p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Resumo sessões */}
-                            <div className="bg-white border border-slate-100 rounded-2xl p-6">
-                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <Activity size={14} className="text-purple-500" /> Resumo das sessões
-                                </h2>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {[
-                                        { label: 'Sessões realizadas', value: student.history?.length ?? 0,   color: 'text-purple-600', bg: 'bg-purple-50' },
-                                        { label: 'Sessões pagas',      value: 0,   color: 'text-green-600',  bg: 'bg-green-50'  },
-                                        { label: 'Sessões pendentes',  value: 0,   color: 'text-amber-600',  bg: 'bg-amber-50'  },
-                                        { label: 'Sessões ausentes',   value: 0,   color: 'text-slate-500',  bg: 'bg-slate-50'  },
-                                    ].map(({ label, value, color, bg }) => (
-                                        <div key={label} className={`${bg} rounded-xl p-4 text-center`}>
-                                            <Calendar size={18} className={`${color} mx-auto mb-2`} />
-                                            <p className={`text-2xl font-bold ${color}`}>{value}</p>
-                                            <p className="text-xs text-slate-500 mt-1">{label}</p>
+                                {/* Resumo das Sessões */}
+                                <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 p-6">
+                                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                        <div className="bg-[#F3E8FF] text-[#7C3AED] rounded-[10px] p-2.5">
+                                            <Activity size={18} />
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
+                                        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                                            Resumo das sessões
+                                        </h2>
+                                    </div>
 
-                            {/* Histórico recente */}
-                            {student.history && student.history.length > 0 && (
-                                <div className="bg-white border border-slate-100 rounded-2xl p-6">
-                                    <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        <Clock size={14} className="text-purple-500" /> Últimas sessões
-                                    </h2>
-                                    <div className="space-y-3">
-                                        {student.history.slice(0, 5).map((session: any, i: number) => (
-                                            <div key={i} className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl">
-                                                <span className="text-xs font-medium text-slate-500 min-w-[90px]">
-                                                    {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : '—'}
-                                                </span>
-                                                <span className="flex-1 text-sm text-slate-700 truncate">
-                                                    {session.notes ?? 'Sessão registrada'}
-                                                </span>
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                                        {[
+                                            {
+                                                label: 'Realizadas',
+                                                value: student.history?.length ?? 0,
+                                                colorClass: 'text-[#7C3AED]',
+                                                bgClass: 'bg-[#F3E8FF]',
+                                                borderClass: 'border-l-[#7C3AED]',
+                                                icon: Calendar
+                                            },
+                                            {
+                                                label: 'Pagas',
+                                                value: 0,
+                                                colorClass: 'text-[#059669]',
+                                                bgClass: 'bg-[#E6F4EA]',
+                                                borderClass: 'border-l-[#059669]',
+                                                icon: CheckCircle
+                                            },
+                                            {
+                                                label: 'Pendentes',
+                                                value: 0,
+                                                colorClass: 'text-[#D97706]',
+                                                bgClass: 'bg-[#FEF3C7]',
+                                                borderClass: 'border-l-[#D97706]',
+                                                icon: Clock
+                                            },
+                                            {
+                                                label: 'Ausentes',
+                                                value: 0,
+                                                colorClass: 'text-[#64748B]',
+                                                bgClass: 'bg-slate-100',
+                                                borderClass: 'border-l-slate-400',
+                                                icon: UserX
+                                            }
+                                        ].map(({ label, value, colorClass, bgClass, borderClass, icon: Icon }) => (
+                                            <div
+                                                key={label}
+                                                className={`bg-white rounded-[14px] shadow-sm border border-slate-100 border-l-[4px] ${borderClass} p-5 flex items-center justify-between hover:-translate-y-[3px] hover:shadow-md transition-all duration-300 group`}
+                                            >
+                                                <div>
+                                                    <span className="text-xs font-medium text-slate-500 block mb-1">
+                                                        Sessões {label}
+                                                    </span>
+                                                    <span className={`text-3xl font-bold ${colorClass}`}>
+                                                        {value}
+                                                    </span>
+                                                </div>
+                                                <div className={`${bgClass} ${colorClass} rounded-[10px] p-2.5 transition-transform duration-300 group-hover:scale-110`}>
+                                                    <Icon size={20} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Histórico recente */}
+                                {student.history && student.history.length > 0 && (
+                                    <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 p-6">
+                                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                            <div className="bg-[#F3E8FF] text-[#7C3AED] rounded-[10px] p-2.5">
+                                                <Clock size={18} />
+                                            </div>
+                                            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                                                Últimas sessões
+                                            </h2>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {student.history.slice(0, 5).map((session: any, i: number) => (
+                                                <div key={i} className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100/70 rounded-xl transition-all duration-200">
+                                                    <div className="flex items-center gap-4 min-w-0">
+                                                        <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shrink-0">
+                                                            {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : '—'}
+                                                        </span>
+                                                        <span className="text-sm text-slate-700 font-medium truncate">
+                                                            {session.notes ?? 'Sessão registrada'}
+                                                        </span>
+                                                    </div>
+                                                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                                                        session.status === 'FINALIZADA' || session.status === 'finalizada'
+                                                            ? 'bg-[#E6F4EA] text-[#059669]'
+                                                            : 'bg-[#FEF3C7] text-[#D97706]'
+                                                    }`}>
+                                                        {session.status === 'FINALIZADA' || session.status === 'finalizada' ? 'Finalizada' : 'Rascunho'}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* ABA SESSÕES */}
+                        {(psychActiveTab ?? 'resumo') === 'sessoes' && (
+                            <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 p-6">
+                                <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-[#F3E8FF] text-[#7C3AED] rounded-[10px] p-2.5">
+                                            <Calendar size={18} />
+                                        </div>
+                                        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                                            Todas as sessões
+                                        </h2>
+                                    </div>
+                                    <button
+                                        onClick={() => onNavigate('psychology')}
+                                        className="flex items-center gap-1.5 text-xs font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-3.5 py-2 rounded-[10px] hover:-translate-y-0.5 transition-all duration-200 shadow-md shadow-purple-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
+                                    >
+                                        <Plus size={14} /> Nova sessão
+                                    </button>
+                                </div>
+                                {!student.history?.length ? (
+                                    <div className="text-center py-12 text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                                        <Calendar size={36} className="mx-auto mb-2 opacity-20" />
+                                        <p className="text-sm">Nenhuma sessão registrada ainda.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {student.history.map((session: any, i: number) => (
+                                            <div key={i} className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100/70 rounded-xl transition-all duration-200">
+                                                <div className="flex items-center gap-4 min-w-0">
+                                                    <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shrink-0">
+                                                        {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : '—'}
+                                                    </span>
+                                                    <span className="text-sm text-slate-700 font-medium truncate">
+                                                        {session.specialty ?? 'Psicologia'}
+                                                    </span>
+                                                </div>
+                                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
                                                     session.status === 'FINALIZADA' || session.status === 'finalizada'
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : 'bg-amber-100 text-amber-700'
+                                                        ? 'bg-[#E6F4EA] text-[#059669]'
+                                                        : 'bg-[#FEF3C7] text-[#D97706]'
                                                 }`}>
                                                     {session.status === 'FINALIZADA' || session.status === 'finalizada' ? 'Finalizada' : 'Rascunho'}
                                                 </span>
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-                            )}
-                        </>
-                    )}
+                                )}
+                            </div>
+                        )}
 
-                    {/* ABA SESSÕES */}
-                    {(psychActiveTab ?? 'resumo') === 'sessoes' && (
-                        <div className="bg-white border border-slate-100 rounded-2xl p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                    <Calendar size={14} className="text-purple-500" /> Todas as sessões
-                                </h2>
+                        {/* ABA ANAMNESE */}
+                        {(psychActiveTab ?? 'resumo') === 'anamnese' && (
+                            <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 p-6 flex flex-col items-center justify-center min-h-[350px] gap-4">
+                                <div className="bg-slate-50 p-6 rounded-full border border-slate-100">
+                                    <ClipboardList size={40} className="text-slate-300" />
+                                </div>
+                                <p className="text-slate-500 text-sm max-w-sm text-center">
+                                    A ficha de anamnese psicológica está disponível no módulo clínico.
+                                </p>
                                 <button
                                     onClick={() => onNavigate('psychology')}
-                                    className="flex items-center gap-1.5 text-xs font-semibold bg-purple-600 text-white px-3 py-1.5 rounded-xl hover:bg-purple-700 transition-colors"
+                                    className="flex items-center gap-2 text-sm font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-5 py-2.5 rounded-[10px] hover:-translate-y-0.5 transition-all duration-200 shadow-md shadow-purple-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
                                 >
-                                    <Plus size={12} /> Nova sessão
+                                    <Activity size={16} /> Abrir módulo de psicologia
                                 </button>
                             </div>
-                            {!student.history?.length ? (
-                                <div className="text-center py-10 text-slate-400">
-                                    <Calendar size={36} className="mx-auto mb-2 opacity-20" />
-                                    <p className="text-sm">Nenhuma sessão registrada ainda.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {student.history.map((session: any, i: number) => (
-                                        <div key={i} className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl">
-                                            <span className="text-xs font-medium text-slate-500 min-w-[90px]">
-                                                {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : '—'}
-                                            </span>
-                                            <span className="flex-1 text-sm text-slate-700 truncate">
-                                                {session.specialty ?? 'Psicologia'}
-                                            </span>
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                session.status === 'FINALIZADA' || session.status === 'finalizada'
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-amber-100 text-amber-700'
-                                            }`}>
-                                                {session.status === 'FINALIZADA' || session.status === 'finalizada' ? 'Finalizada' : 'Rascunho'}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        )}
 
-                    {/* ABA ANAMNESE */}
-                    {(psychActiveTab ?? 'resumo') === 'anamnese' && (
-                        <div className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[300px] gap-4">
-                            <ClipboardList size={40} className="text-slate-200" />
-                            <p className="text-slate-500 text-center">A ficha de anamnese psicológica está disponível no módulo clínico.</p>
-                            <button
-                                onClick={() => onNavigate('psychology')}
-                                className="flex items-center gap-2 text-sm font-semibold bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors"
-                            >
-                                <Activity size={15} /> Abrir módulo de psicologia
-                            </button>
-                        </div>
-                    )}
-
-                    {/* ABA PERCEPÇÕES */}
-                    {(psychActiveTab ?? 'resumo') === 'percepcoes' && (
-                        <div className="bg-white border border-slate-100 rounded-2xl p-6">
-                            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <Lock size={14} className="text-purple-500" /> Percepções clínicas
-                            </h2>
-                            <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-500 min-h-[120px]">
-                                {student.history?.[0]?.notes ?? 'Nenhuma percepção clínica registrada ainda.'}
+                        {/* ABA PERCEPÇÕES */}
+                        {(psychActiveTab ?? 'resumo') === 'percepcoes' && (
+                            <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 p-6">
+                                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                    <div className="bg-[#F3E8FF] text-[#7C3AED] rounded-[10px] p-2.5">
+                                        <Lock size={18} />
+                                    </div>
+                                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                                        Percepções clínicas
+                                    </h2>
+                                </div>
+                                <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 text-sm text-slate-600 min-h-[140px] italic leading-relaxed whitespace-pre-wrap">
+                                    {student.history?.[0]?.notes ?? 'Nenhuma percepção clínica registrada ainda.'}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* ABA EVOLUÇÃO */}
-                    {(psychActiveTab ?? 'resumo') === 'evolucao' && (
-                        <div className="bg-white border border-slate-100 rounded-2xl p-6">
-                            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <TrendingUp size={14} className="text-purple-500" /> Linha do tempo clínica
-                            </h2>
-                            {!student.history?.length ? (
-                                <div className="text-center py-10 text-slate-400">
-                                    <TrendingUp size={36} className="mx-auto mb-2 opacity-20" />
-                                    <p className="text-sm">Nenhuma evolução registrada ainda.</p>
+                        {/* ABA EVOLUÇÃO */}
+                        {(psychActiveTab ?? 'resumo') === 'evolucao' && (
+                            <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 p-6">
+                                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                    <div className="bg-[#F3E8FF] text-[#7C3AED] rounded-[10px] p-2.5">
+                                        <TrendingUp size={18} />
+                                    </div>
+                                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                                        Linha do tempo clínica
+                                    </h2>
                                 </div>
-                            ) : (
-                                <div className="relative border-l-2 border-purple-100 ml-3 pl-6 space-y-4">
-                                    {student.history.slice(0, 8).map((session: any, i: number) => (
-                                        <div key={i} className="relative">
-                                            <div className="absolute -left-[29px] top-1 w-4 h-4 rounded-full bg-purple-200 border-2 border-white" />
-                                            <div className="bg-slate-50 rounded-xl p-4">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">{session.specialty ?? 'Psicologia'}</span>
-                                                    <span className="text-[10px] text-slate-400">
-                                                        {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : '—'}
-                                                    </span>
+                                {!student.history?.length ? (
+                                    <div className="text-center py-12 text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                                        <TrendingUp size={36} className="mx-auto mb-2 opacity-20" />
+                                        <p className="text-sm">Nenhuma evolução registrada ainda.</p>
+                                    </div>
+                                ) : (
+                                    <div className="relative border-l-2 border-purple-100 ml-4 pl-6 space-y-6">
+                                        {student.history.slice(0, 8).map((session: any, i: number) => (
+                                            <div key={i} className="relative">
+                                                {/* Marcador na Timeline */}
+                                                <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-white border-[3px] border-[#7C3AED] shadow-sm" />
+                                                
+                                                <div className="bg-slate-50 hover:bg-slate-100/50 border border-slate-100 rounded-xl p-5 transition-colors duration-200">
+                                                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-200/50">
+                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                            {session.specialty ?? 'Psicologia'}
+                                                        </span>
+                                                        <span className="text-xs font-semibold text-slate-400">
+                                                            {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : '—'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                                        {session.notes ?? 'Sem descrição.'}
+                                                    </p>
                                                 </div>
-                                                <p className="text-sm text-slate-600">{session.notes ?? 'Sem descrição.'}</p>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ABA DOCUMENTOS */}
+                        {(psychActiveTab ?? 'resumo') === 'documentos' && (
+                            <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 p-6 flex flex-col items-center justify-center min-h-[350px] gap-4">
+                                <div className="bg-slate-50 p-6 rounded-full border border-slate-100">
+                                    <FileText size={40} className="text-slate-300" />
                                 </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* ABA DOCUMENTOS */}
-                    {(psychActiveTab ?? 'resumo') === 'documentos' && (
-                        <div className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[300px] gap-4">
-                            <FileText size={40} className="text-slate-200" />
-                            <p className="text-slate-500 text-center">Documentos gerados para este paciente aparecerão aqui.</p>
-                            <button
-                                onClick={() => onNavigate('documents')}
-                                className="flex items-center gap-2 text-sm font-semibold bg-slate-100 text-slate-600 px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors"
-                            >
-                                <FileText size={15} /> Ir para Documentos
-                            </button>
-                        </div>
-                    )}
-
+                                <p className="text-slate-500 text-sm max-w-sm text-center">
+                                    Documentos gerados para este paciente aparecerão aqui.
+                                </p>
+                                <button
+                                    onClick={() => onNavigate('documents')}
+                                    className="flex items-center gap-2 text-sm font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-5 py-2.5 rounded-[10px] hover:-translate-y-0.5 transition-all duration-200 shadow-md shadow-purple-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
+                                >
+                                    <FileText size={16} /> Ir para Documentos
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -723,7 +854,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                         <div className="space-y-4">
                             <div>
                                 <p className="text-sm text-slate-500">Instituição</p>
-                                <p className="font-medium text-slate-800">{student.school?.schoolName ?? student.school?.name ?? '—'}</p>
+                                <p className="font-medium text-slate-800">{student.school?.schoolName ?? '—'}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-slate-500">Ano/Série - Turno</p>
