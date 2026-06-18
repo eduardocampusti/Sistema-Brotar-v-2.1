@@ -167,17 +167,24 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                     </button>
 
                     {/* Cabeçalho Hero do Aluno */}
-                    <div className="bg-white rounded-[18px] shadow-sm border border-slate-100 overflow-hidden">
-                        {/* Faixa Superior em Gradiente Roxo */}
+                    <div 
+                        className="relative rounded-[18px] shadow-md overflow-hidden"
+                        style={{ background: 'linear-gradient(110deg, #5B21B6 0%, #6D28D9 50%, #7C3AED 100%)' }}
+                    >
+                        {/* Overlays decorativos */}
                         <div 
-                            className="h-[74px] w-full" 
-                            style={{ background: 'linear-gradient(110deg, #6D28D9 0%, #7C3AED 50%, #8B5CF6 100%)' }}
+                            className="absolute inset-0 z-0 pointer-events-none" 
+                            style={{ backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.18), transparent 55%)' }} 
                         />
-                        
-                        <div className="px-6 lg:px-8 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-5 -mt-11 md:-mt-[22px]">
-                            <div className="flex flex-col md:flex-row items-start md:items-center gap-5">
+                        <div 
+                            className="absolute inset-0 z-0 pointer-events-none" 
+                            style={{ backgroundImage: 'radial-gradient(circle at 88% -30%, rgba(255,255,255,0.22), transparent 55%)' }} 
+                        />
+
+                        <div className="relative z-10 p-6 lg:p-[26px] flex flex-col md:flex-row md:items-center justify-between gap-5">
+                            <div className="flex flex-col md:flex-row items-center gap-5 text-center md:text-left">
                                 {/* Avatar Quadrado-Arredondado */}
-                                <div className="w-[88px] h-[88px] rounded-[22px] border-4 border-white shadow-sm flex-shrink-0 z-10 overflow-hidden bg-gradient-to-br from-[#7C3AED] to-[#6D28D9] flex items-center justify-center text-white font-bold text-3xl">
+                                <div className="w-[84px] h-[84px] rounded-[20px] border-[3px] border-white/85 shadow-md flex-shrink-0 overflow-hidden bg-white/10 flex items-center justify-center text-white font-bold text-3xl">
                                     {student.photoUrl ? (
                                         <img src={student.photoUrl} alt={student.fullName} className="w-full h-full object-cover" />
                                     ) : (
@@ -186,34 +193,37 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                 </div>
 
                                 {/* Informações principais */}
-                                <div className="flex-1 min-w-0 md:pt-4">
-                                    <h1 className="text-xl lg:text-2xl font-bold text-slate-900 leading-tight truncate">
+                                <div className="flex-1 min-w-0">
+                                    <h1 
+                                        className="text-xl lg:text-2xl font-bold text-white leading-tight truncate"
+                                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.18)' }}
+                                    >
                                         {student.fullName}
                                     </h1>
-                                    <p className="flex items-center gap-1.5 text-sm text-slate-500 mt-1 font-medium">
-                                        <School size={16} className="text-slate-400" />
+                                    <p className="flex items-center justify-center md:justify-start gap-1.5 text-sm text-white/88 mt-1 font-medium">
+                                        <School size={16} className="text-white/80 shrink-0" />
                                         <span>
                                             {student.school?.schoolName ?? '—'}
                                             {student.school?.grade ? ` · ${student.school.grade}` : ''}
                                         </span>
                                     </p>
-                                    <div className="flex flex-wrap gap-2 mt-3">
-                                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#E6F4EA] text-[#059669] px-3 py-1 rounded-full">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-[#059669] animate-pulse"></span>
+                                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
+                                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/16 border border-white/22 text-white px-3 py-1 rounded-full backdrop-blur-[2px]">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" style={{ boxShadow: '0 0 0 3px rgba(34,197,94,0.25)' }}></span>
                                             Ativo
                                         </span>
                                         {psychAge && (
-                                            <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
+                                            <span className="inline-flex items-center text-xs font-semibold bg-white/16 border border-white/22 text-white px-3 py-1 rounded-full backdrop-blur-[2px]">
                                                 {psychAge} anos
                                             </span>
                                         )}
                                         {student.school?.grade && (
-                                            <span className="text-xs font-semibold bg-[#E8F0FE] text-[#3B82F6] px-3 py-1 rounded-full">
+                                            <span className="inline-flex items-center text-xs font-semibold bg-white/16 border border-white/22 text-white px-3 py-1 rounded-full backdrop-blur-[2px]">
                                                 {student.school.grade}
                                             </span>
                                         )}
                                         {student.clinical?.diagnosis && (
-                                            <span className="text-xs font-semibold bg-[#FCE8E6] text-[#DC2626] px-3 py-1 rounded-full">
+                                            <span className="inline-flex items-center text-xs font-semibold bg-white/16 border border-white/22 text-white px-3 py-1 rounded-full backdrop-blur-[2px]">
                                                 {student.clinical.diagnosis}{student.clinical?.cid ? ` · ${student.clinical.cid}` : ''}
                                             </span>
                                         )}
@@ -222,16 +232,16 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                             </div>
 
                             {/* Ações */}
-                            <div className="flex gap-3 shrink-0 self-stretch md:self-center md:pt-4">
+                            <div className="flex gap-3 shrink-0 self-stretch md:self-center">
                                 <button
                                     onClick={() => onNavigate('psychology')}
-                                    className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-sm font-semibold bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-5 py-2.5 rounded-[10px] shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED] min-h-[44px]"
+                                    className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-sm font-semibold bg-white text-[#6D28D9] px-5 py-2.5 rounded-[10px] shadow-lg shadow-black/10 hover:shadow-black/15 hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white min-h-[44px]"
                                 >
                                     <Plus size={16} /> Nova sessão
                                 </button>
                                 <button
                                     onClick={() => onNavigate('documents')}
-                                    className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-sm font-semibold bg-white text-slate-700 px-5 py-2.5 rounded-[10px] hover:bg-slate-50 border border-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 min-h-[44px]"
+                                    className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-sm font-semibold bg-white/12 border border-white/35 text-white px-5 py-2.5 rounded-[10px] hover:bg-white/20 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 min-h-[44px]"
                                 >
                                     <FileText size={16} /> Documento
                                 </button>
