@@ -167,7 +167,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                             {/* Diagnóstico em Vermelho logo abaixo do nome */}
                             {canViewClinicalContent && (
                                 <div className="text-sm font-bold text-red-600 mt-1 mb-1">
-                                    {student.clinical.diagnosis} {student.clinical.cid ? `(CID: ${student.clinical.cid})` : ''}
+                                    {student.clinical?.diagnosis} {student.clinical?.cid ? `(CID: ${student.clinical.cid})` : ''}
                                 </div>
                             )}
                             <div className="flex flex-wrap gap-3 text-sm text-slate-500 mt-1">
@@ -226,16 +226,16 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                         <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
                             <Phone size={18} className="text-slate-400 mt-0.5" />
                             <div className="text-sm">
-                                <p className="font-medium text-slate-700">{student.guardians[0]?.name} ({student.guardians[0]?.relationship})</p>
-                                <p className="text-slate-500">{student.guardians[0]?.phone}</p>
-                                {student.guardians[0]?.ethnicity && <p className="text-slate-500 text-xs mt-1">Etnia: {student.guardians[0].ethnicity}</p>}
+                                <p className="font-medium text-slate-700">{student.guardians?.[0]?.name} {student.guardians?.[0]?.relationship ? `(${student.guardians[0].relationship})` : ''}</p>
+                                <p className="text-slate-500">{student.guardians?.[0]?.phone}</p>
+                                {student.guardians?.[0]?.ethnicity && <p className="text-slate-500 text-xs mt-1">Etnia: {student.guardians[0].ethnicity}</p>}
                             </div>
                         </div>
                         <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
                             <MapPin size={18} className="text-slate-400 mt-0.5" />
                             <div className="text-sm">
-                                <p className="text-slate-700">{student.address.city} - {student.address.state}</p>
-                                <p className="text-slate-500">{student.address.street}, {student.address.number}</p>
+                                <p className="text-slate-700">{student.address?.city ?? '—'} {student.address?.state ? `- ${student.address.state}` : ''}</p>
+                                <p className="text-slate-500">{student.address?.street ?? ''}{student.address?.number ? `, ${student.address.number}` : ''}</p>
                             </div>
                         </div>
                     </div>
@@ -361,21 +361,21 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                             <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
                                 <div>
                                     <dt className="text-xs font-medium text-slate-500 uppercase">Diagnóstico</dt>
-                                    <dd className="mt-1 text-sm text-red-600 font-bold">{student.clinical.diagnosis}</dd>
+                                    <dd className="mt-1 text-sm text-red-600 font-bold">{student.clinical?.diagnosis}</dd>
                                 </div>
                                 <div>
                                     <dt className="text-xs font-medium text-slate-500 uppercase">CID</dt>
-                                    <dd className="mt-1 text-sm text-red-600 font-bold">{student.clinical.cid || 'Não informado'}</dd>
+                                    <dd className="mt-1 text-sm text-red-600 font-bold">{student.clinical?.cid || 'Não informado'}</dd>
                                 </div>
                                 <div>
                                     <dt className="text-xs font-medium text-slate-500 uppercase">Peso</dt>
-                                    <dd className="mt-1 text-sm text-slate-900">{student.clinical.weight || 'Não inf.'}</dd>
+                                    <dd className="mt-1 text-sm text-slate-900">{student.clinical?.weight || 'Não inf.'}</dd>
                                 </div>
                                 <div>
                                     <dt className="text-xs font-medium text-slate-500 uppercase">Altura</dt>
-                                    <dd className="mt-1 text-sm text-slate-900">{student.clinical.height || 'Não inf.'}</dd>
+                                    <dd className="mt-1 text-sm text-slate-900">{student.clinical?.height || 'Não inf.'}</dd>
                                 </div>
-                                {student.clinical.specialNeeds && student.clinical.specialNeeds.length > 0 && (
+                                {student.clinical?.specialNeeds && student.clinical.specialNeeds.length > 0 && (
                                     <div className="md:col-span-2">
                                         <dt className="text-xs font-medium text-slate-500 uppercase">Necessidades Especiais</dt>
                                         <dd className="mt-1 flex gap-2 flex-wrap">
@@ -388,13 +388,13 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                 <div className="md:col-span-2">
                                     <dt className="text-xs font-medium text-slate-500 uppercase">Medicamentos</dt>
                                     <dd className="mt-1 text-sm text-slate-900 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                        {student.clinical.medications || 'Nenhum medicamento em uso.'}
+                                        {student.clinical?.medications || 'Nenhum medicamento em uso.'}
                                     </dd>
                                 </div>
                                 <div className="md:col-span-2">
                                     <dt className="text-xs font-medium text-slate-500 uppercase">Histórico Terapêutico</dt>
                                     <dd className="mt-1 text-sm text-slate-900">
-                                        {student.clinical.therapiesHistory || 'Sem histórico registrado.'}
+                                        {student.clinical?.therapiesHistory || 'Sem histórico registrado.'}
                                     </dd>
                                 </div>
                             </dl>
@@ -412,13 +412,13 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                         <div className="space-y-4">
                             <div>
                                 <p className="text-sm text-slate-500">Instituição</p>
-                                <p className="font-medium text-slate-800">{student.school.schoolName}</p>
+                                <p className="font-medium text-slate-800">{student.school?.schoolName ?? student.school?.name ?? '—'}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-slate-500">Ano/Série - Turno</p>
-                                <p className="font-medium text-slate-800">{student.school.grade} - {student.school.shift || 'Não inf.'}</p>
+                                <p className="font-medium text-slate-800">{student.school?.grade ?? '—'} - {student.school?.shift || 'Não inf.'}</p>
                             </div>
-                            {student.school.schedule && (
+                            {student.school?.schedule && (
                                 <div>
                                     <p className="text-sm text-slate-500">Horário</p>
                                     <p className="font-medium text-slate-800">{student.school.schedule}</p>
@@ -441,7 +441,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                             ))}
                                         </div>
                                     </div>
-                                ) : student.school.hasSpecialAide ? (
+                                ) : student.school?.hasSpecialAide ? (
                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                         Possui Acompanhante Particular/Outros
                                     </span>
@@ -451,7 +451,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                             </div>
                             <div>
                                 <p className="text-sm text-slate-500 mb-1">Dificuldades</p>
-                                <p className="text-sm text-slate-700 italic">"{student.school.difficulties}"</p>
+                                <p className="text-sm text-slate-700 italic">"{student.school?.difficulties}"</p>
                             </div>
                         </div>
                     </div>
