@@ -5337,7 +5337,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col sm:flex-row min-h-screen -mx-4 lg:-mx-8 -mt-6 bg-[#EEF1F6] border-t border-slate-200">
+                <div className="flex flex-col sm:flex-row min-h-screen -mx-4 lg:-mx-8 -mt-6 bg-slate-50 border-t border-slate-100">
                     {/* Sidebar Premium */}
                     <div className="w-full sm:w-64 shrink-0 p-4 flex flex-col gap-3">
                         {/* Mini-card do paciente */}
