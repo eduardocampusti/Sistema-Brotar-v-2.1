@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Student, School, User, Specialty, AuditAction } from '../types';
+import { Student, School, User, Specialty, AuditAction, Session } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { generateStudentPDF } from '../utils/pdfExport';
 import {
   Search, ChevronRight, ChevronDown, User as UserIcon, Trash2, AlertTriangle, X,
   UserPlus, Edit, Filter, Globe, FileText, MoreVertical, Activity, Clock,
   CheckCircle2, AlertCircle, FileEdit, Loader2, GitMerge, CopyCheck,
-  Building2, Dna, Calendar, SortAsc, SortDesc
+  Building2, Dna, Calendar, SortAsc, SortDesc,
+  Brain, TrendingUp, LayoutDashboard, Eye, ClipboardList, Users
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import { CSVImporter } from './CSVImporter';
@@ -53,6 +54,65 @@ const getStudentStatus = (student: Student) => {
 
 export const PatientList: React.FC<StudentListProps> = ({ students, schools, onSelectStudent, onDelete, onRegister, onEdit, currentUser, onRefresh }) => {
   const { user: authUser } = useAuth();
+
+  // Estados exclusivos da visão de psicóloga
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [patientTab, setPatientTab] = useState<'resumo' | 'sessoes' | 'anamnese' | 'percepcoes' | 'evolucao' | 'documentos'>('resumo');
+  const [psychSessions, setPsychSessions] = useState<(Session & { studentId?: string })[]>([]);
+  const [loadingPsychSessions, setLoadingPsychSessions] = useState(false);
+  const [psychSessionsError, setPsychSessionsError] = useState(false);
+  const [psychSearchQuery, setPsychSearchQuery] = useState('');
+
+  const handleSelectPsychPatient = async (studentId: string) => {
+    setSelectedPatientId(studentId);
+    setPatientTab('resumo');
+    setLoadingPsychSessions(true);
+    setPsychSessionsError(false);
+    try {
+      const data = await SupabaseService.getStudentSessions(studentId);
+      const sessionsWithId = data.map(s => ({ ...s, studentId }));
+      setPsychSessions(sessionsWithId);
+    } catch (err) {
+      console.error('Erro ao carregar sessões:', err);
+      setPsychSessions([]);
+      setPsychSessionsError(true);
+    } finally {
+      setLoadingPsychSessions(false);
+    }
+  };
+
+  const getPsychComplexity = (student: Student): { level: 'baixa' | 'media' | 'alta'; filled: number } => {
+    const count = sessionsInfo[student.id]?.total ?? 0;
+    if (count >= 10) return { level: 'alta', filled: 5 };
+    if (count >= 5)  return { level: 'alta', filled: 4 };
+    if (count >= 3)  return { level: 'media', filled: 3 };
+    if (count >= 1)  return { level: 'media', filled: 2 };
+    return { level: 'baixa', filled: 1 };
+  };
+
+  const getPsychComplexityColors = (level: 'baixa' | 'media' | 'alta') => {
+    if (level === 'alta')  return { filled: '#7F77DD', empty: '#AFA9EC' };
+    if (level === 'media') return { filled: '#EF9F27', empty: '#FAC775' };
+    return { filled: '#1D9E75', empty: '#9FE1CB' };
+  };
+
+  const formatDaysSince = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return 'Sem sessão';
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+    if (diff === 0) return 'Hoje';
+    if (diff === 1) return 'Ontem';
+    return `Há ${diff} dias`;
+  };
+
+  const getAvatarColors = (index: number) => {
+    const palettes = [
+      { bg: 'bg-purple-100', text: 'text-purple-700' },
+      { bg: 'bg-teal-100',   text: 'text-teal-700'   },
+      { bg: 'bg-amber-100',  text: 'text-amber-700'  },
+      { bg: 'bg-rose-100',   text: 'text-rose-700'   },
+    ];
+    return palettes[index % palettes.length];
+  };
   const [searchTerm, setSearchTerm] = useState(() => sessionStorage.getItem('PatientList_searchTerm') || '');
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>(() => sessionStorage.getItem('PatientList_selectedSchoolId') || 'ALL');
 
@@ -350,6 +410,394 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       setIsMerging(false);
     }
   };
+
+  // ── VISÃO EXCLUSIVA PSICÓLOGA ──────────────────────────────────────────
+  if (currentUser?.specialty === Specialty.PSYCHOLOGY) {
+    const filteredStudents = students.filter(s =>
+      s.fullName?.toLowerCase().includes(psychSearchQuery.toLowerCase())
+    );
+    const selectedPatient = students.find(s => s.id === selectedPatientId);
+    const patientSessions = psychSessions.filter(s => s.studentId === selectedPatientId);
+
+    const tabItems = [
+      { id: 'resumo',     label: 'Resumo',      icon: LayoutDashboard },
+      { id: 'sessoes',    label: 'Sessões',      icon: Calendar        },
+      { id: 'anamnese',   label: 'Anamnese',     icon: ClipboardList   },
+      { id: 'percepcoes', label: 'Percepções',   icon: Eye             },
+      { id: 'evolucao',   label: 'Evolução',     icon: TrendingUp      },
+      { id: 'documentos', label: 'Documentos',   icon: FileText        },
+    ];
+
+    return (
+      <div className="flex h-[600px] border border-slate-200 rounded-2xl overflow-hidden bg-slate-50">
+
+        {/* ── PAINEL ESQUERDO: lista de pacientes ── */}
+        <div className="w-64 min-w-[256px] bg-white border-r border-slate-100 flex flex-col">
+
+          {/* Header busca */}
+          <div className="p-3 border-b border-slate-100">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">
+              Meus pacientes
+            </p>
+            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
+              <Search size={13} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Buscar por nome..."
+                value={psychSearchQuery}
+                onChange={e => setPsychSearchQuery(e.target.value)}
+                className="flex-1 bg-transparent border-none outline-none text-xs text-slate-700 placeholder-slate-400"
+              />
+            </div>
+          </div>
+
+          {/* Lista */}
+          <div className="flex-1 overflow-y-auto p-2">
+            {filteredStudents.length === 0 && (
+              <p className="text-xs text-slate-400 text-center mt-6">Nenhum paciente encontrado.</p>
+            )}
+            {filteredStudents.map((student, idx) => {
+              const isActive = student.id === selectedPatientId;
+              const complexity = getPsychComplexity(student);
+              const colors = getPsychComplexityColors(complexity.level);
+              const avatar = getAvatarColors(idx);
+              const sessionCount = sessionsInfo[student.id]?.total ?? 0;
+              const lastSessionDate = sessionsInfo[student.id]?.lastDate;
+
+              return (
+                <div
+                  key={student.id}
+                  onClick={() => handleSelectPsychPatient(student.id)}
+                  className={`flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer mb-1 border transition-all
+                    ${isActive
+                      ? 'bg-purple-50 border-purple-200'
+                      : 'border-transparent hover:bg-slate-50'
+                    }`}
+                >
+                  {/* Avatar */}
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${avatar.bg} ${avatar.text}`}>
+                    {student.fullName?.charAt(0).toUpperCase() ?? '?'}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{student.fullName}</p>
+                    <p className="text-[11px] text-slate-400 truncate">
+                      Sessão {sessionCount} · {formatDaysSince(lastSessionDate)}
+                    </p>
+                  </div>
+
+                  {/* Barrinhas complexidade */}
+                  <div className="flex items-center gap-[2px] shrink-0">
+                    {[1,2,3,4,5].map(i => (
+                      <div
+                        key={i}
+                        className="w-[3px] h-3 rounded-sm"
+                        style={{ background: i <= complexity.filled ? colors.filled : colors.empty }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── PAINEL DIREITO: perfil do paciente ── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* Estado vazio */}
+          {!selectedPatientId && (
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-300 gap-3">
+              <Users size={48} strokeWidth={1.5} />
+              <p className="text-sm font-medium">Selecione um paciente</p>
+            </div>
+          )}
+
+          {/* Perfil carregado */}
+          {selectedPatientId && selectedPatient && (
+            <>
+              {/* Cabeçalho do paciente */}
+              <div className="bg-white border-b border-slate-100 px-5 py-4 flex items-center gap-4 shrink-0">
+                <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-lg font-semibold shrink-0">
+                  {selectedPatient.fullName?.charAt(0).toUpperCase() ?? '?'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-semibold text-slate-800 truncate">{selectedPatient.fullName}</p>
+                  <p className="text-xs text-slate-400 truncate">
+                    {(selectedPatient.school as any)?.name ?? selectedPatient.school?.schoolName ?? '—'}
+                    {selectedPatient.school?.grade ? ` · ${selectedPatient.school.grade}` : ''}
+                  </p>
+                  <div className="flex gap-2 mt-1.5 flex-wrap">
+                    <span className="text-[10px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Ativo</span>
+                    <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                      {patientSessions.length} sessões
+                    </span>
+                    <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full capitalize">
+                      Complexidade {getPsychComplexity(selectedPatient).level}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => onSelectStudent(selectedPatient)}
+                    className="flex items-center gap-1.5 text-xs font-semibold bg-slate-100 text-slate-600 px-3 py-2 rounded-xl hover:bg-slate-200 transition-colors"
+                  >
+                    <FileText size={13} /> Prontuário
+                  </button>
+                  <button
+                    onClick={() => onRegister()}
+                    className="flex items-center gap-1.5 text-xs font-semibold bg-purple-600 text-white px-3 py-2 rounded-xl hover:bg-purple-700 transition-colors"
+                  >
+                    <UserPlus size={13} /> Nova sessão
+                  </button>
+                </div>
+              </div>
+
+              {/* Abas */}
+              <div className="bg-white border-b border-slate-100 flex gap-0 px-5 overflow-x-auto shrink-0">
+                {tabItems.map(tab => {
+                  const Icon = tab.icon;
+                  const isTabActive = patientTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setPatientTab(tab.id as any)}
+                      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-3 border-b-2 whitespace-nowrap transition-all
+                        ${isTabActive
+                          ? 'text-purple-700 border-purple-600'
+                          : 'text-slate-400 border-transparent hover:text-slate-600'
+                        }`}
+                    >
+                      <Icon size={13} /> {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Corpo das abas */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+                {/* ── ABA RESUMO ── */}
+                {patientTab === 'resumo' && (
+                  <>
+                    {/* Informações pessoais */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-4">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                        <UserIcon size={13} className="text-purple-500" /> Informações pessoais
+                      </p>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { label: 'Nome completo',      value: selectedPatient.fullName },
+                          { label: 'Data de nascimento', value: selectedPatient.birthDate ? new Date(selectedPatient.birthDate).toLocaleDateString('pt-BR') : '—' },
+                          { label: 'Idade',              value: selectedPatient.birthDate ? `${Math.floor((Date.now() - new Date(selectedPatient.birthDate).getTime()) / (365.25 * 86400000))} anos` : '—' },
+                          { label: 'Escola',             value: (selectedPatient.school as any)?.name ?? selectedPatient.school?.schoolName ?? '—' },
+                          { label: 'Série',              value: selectedPatient.school?.grade ?? '—' },
+                          { label: 'Responsável',        value: selectedPatient.guardians?.[0]?.name ?? '—' },
+                          { label: 'Início atendimento', value: selectedPatient.createdAt ? new Date(selectedPatient.createdAt).toLocaleDateString('pt-BR') : '—' },
+                          { label: 'Unidade',            value: (selectedPatient as any).unit ?? 'Sede' },
+                          { label: 'Queixa principal',   value: (selectedPatient as any).notes ?? '—' },
+                        ].map(({ label, value }) => (
+                          <div key={label}>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
+                            <p className="text-xs font-semibold text-slate-700">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Resumo sessões */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-4">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                        <Activity size={13} className="text-purple-500" /> Resumo das sessões
+                      </p>
+                      {loadingPsychSessions ? (
+                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                          <Loader2 size={14} className="animate-spin" /> Carregando sessões...
+                        </div>
+                      ) : psychSessionsError ? (
+                        <p className="text-xs text-slate-400 text-center py-4">Erro ao carregar sessões. Tente novamente.</p>
+                      ) : (
+                        <div className="grid grid-cols-4 gap-3">
+                          {[
+                            { label: 'Realizadas', value: patientSessions.length, color: 'text-purple-600' },
+                            { label: 'Finalizadas', value: patientSessions.filter(s => (s as any).status === 'FINALIZADA' || (s as any).status === 'finalizada').length, color: 'text-green-600' },
+                            { label: 'Rascunhos',  value: patientSessions.filter(s => (s as any).status === 'RASCUNHO'   || (s as any).status === 'rascunho').length,   color: 'text-amber-600' },
+                            { label: 'Faltas',     value: 0, color: 'text-slate-400' },
+                          ].map(({ label, value, color }) => (
+                            <div key={label} className="bg-slate-50 rounded-xl p-3 text-center">
+                              <p className={`text-2xl font-semibold ${color}`}>{value}</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">{label}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Últimas sessões */}
+                    {!psychSessionsError && patientSessions.length > 0 && (
+                      <div className="bg-white border border-slate-100 rounded-2xl p-4">
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                          <Clock size={13} className="text-purple-500" /> Últimas sessões
+                        </p>
+                        <div className="space-y-2">
+                          {patientSessions.slice(0, 3).map((session, i) => (
+                            <div key={i} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                              <span className="text-xs font-medium text-slate-500 min-w-[80px]">
+                                {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : '—'}
+                              </span>
+                              <span className="flex-1 text-xs text-slate-700 truncate">
+                                {(session as any).sessionType ?? session.notes ?? 'Sessão individual'}
+                              </span>
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                (session as any).status === 'FINALIZADA' || (session as any).status === 'finalizada'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {(session as any).status === 'FINALIZADA' || (session as any).status === 'finalizada' ? 'Finalizada' : 'Rascunho'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* ── ABA SESSÕES ── */}
+                {patientTab === 'sessoes' && (
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+                        Todas as sessões
+                      </p>
+                      <button
+                        onClick={() => onRegister()}
+                        className="flex items-center gap-1.5 text-xs font-semibold bg-purple-600 text-white px-3 py-1.5 rounded-xl hover:bg-purple-700 transition-colors"
+                      >
+                        <UserPlus size={12} /> Nova sessão
+                      </button>
+                    </div>
+                    {loadingPsychSessions ? (
+                      <div className="flex items-center gap-2 text-xs text-slate-400 py-4">
+                        <Loader2 size={14} className="animate-spin" /> Carregando...
+                      </div>
+                    ) : psychSessionsError ? (
+                      <p className="text-xs text-slate-400 text-center py-4">Erro ao carregar sessões. Tente novamente.</p>
+                    ) : patientSessions.length === 0 ? (
+                      <p className="text-xs text-slate-400 text-center py-6">Nenhuma sessão registrada ainda.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {patientSessions.map((session, i) => (
+                          <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                            <span className="text-xs font-medium text-slate-500 min-w-[80px]">
+                              {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : '—'}
+                            </span>
+                            <span className="flex-1 text-xs text-slate-700">
+                              {(session as any).sessionType ?? 'Sessão individual'}
+                            </span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                              (session as any).status === 'FINALIZADA' || (session as any).status === 'finalizada'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {(session as any).status === 'FINALIZADA' || (session as any).status === 'finalizada' ? 'Finalizada' : 'Rascunho'}
+                            </span>
+                            <button
+                              onClick={() => onSelectStudent(selectedPatient)}
+                              className="text-[10px] font-semibold text-purple-600 hover:underline"
+                            >
+                              Ver
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── ABA ANAMNESE ── */}
+                {patientTab === 'anamnese' && (
+                  <div className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 min-h-[200px]">
+                    <ClipboardList size={36} className="text-slate-200" />
+                    <p className="text-sm text-slate-500 text-center">
+                      A anamnese completa está disponível na ficha clínica do aluno.
+                    </p>
+                    <button
+                      onClick={() => onSelectStudent(selectedPatient)}
+                      className="flex items-center gap-2 text-xs font-semibold bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors"
+                    >
+                      <FileText size={13} /> Abrir ficha clínica
+                    </button>
+                  </div>
+                )}
+
+                {/* ── ABA PERCEPÇÕES ── */}
+                {patientTab === 'percepcoes' && (
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">
+                      Percepções clínicas
+                    </p>
+                    <div className="bg-slate-50 rounded-xl p-4 text-xs text-slate-500 min-h-[120px]">
+                      {patientSessions[0]?.notes ?? 'Nenhuma percepção registrada.'}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── ABA EVOLUÇÃO ── */}
+                {patientTab === 'evolucao' && (
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-4">
+                      Linha do tempo clínica
+                    </p>
+                    {patientSessions.length === 0 ? (
+                      <p className="text-xs text-slate-400 text-center py-4">Nenhuma evolução registrada.</p>
+                    ) : (
+                      <div className="relative border-l-2 border-purple-100 ml-3 pl-6 space-y-4">
+                        {patientSessions.slice(0, 5).map((session, i) => (
+                          <div key={i} className="relative">
+                            <div className="absolute -left-[29px] top-0 w-4 h-4 rounded-full bg-purple-200 border-2 border-white" />
+                            <div className="bg-slate-50 rounded-xl p-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase">
+                                  {(session as any).sessionType ?? 'Sessão'}
+                                </span>
+                                <span className="text-[10px] text-slate-400">
+                                  {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : '—'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-600">{session.notes ?? 'Sem descrição.'}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── ABA DOCUMENTOS ── */}
+                {patientTab === 'documentos' && (
+                  <div className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 min-h-[200px]">
+                    <FileText size={36} className="text-slate-200" />
+                    <p className="text-sm text-slate-500 text-center">
+                      Documentos gerados para este paciente aparecerão aqui.
+                    </p>
+                    <button
+                      onClick={() => onSelectStudent(selectedPatient)}
+                      className="flex items-center gap-2 text-xs font-semibold bg-slate-100 text-slate-600 px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors"
+                    >
+                      <FileText size={13} /> Gerar documento
+                    </button>
+                  </div>
+                )}
+
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn pb-20">
