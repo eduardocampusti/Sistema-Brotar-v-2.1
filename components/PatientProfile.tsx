@@ -125,6 +125,18 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
         }
     };
 
+    // Guard: se o aluno ainda não chegou, não renderiza nada
+    if (!student) {
+        return (
+            <div className="flex items-center justify-center h-64 text-slate-400">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-slate-300 border-t-purple-500 rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-sm">Carregando prontuário...</p>
+                </div>
+            </div>
+        );
+    }
+
     // Mock age calculation
     const age = student?.birthDate
         ? new Date().getFullYear() - new Date(student.birthDate).getFullYear()
