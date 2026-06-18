@@ -430,10 +430,10 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
     ];
 
     return (
-      <div className="flex h-[600px] border border-slate-200 rounded-2xl overflow-hidden bg-slate-50">
+      <div className="flex min-h-[calc(100vh-180px)] border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 -mx-4 lg:-mx-8 -mt-2">
 
         {/* ── PAINEL ESQUERDO: lista de pacientes ── */}
-        <div className="w-64 min-w-[256px] bg-white border-r border-slate-100 flex flex-col">
+        <div className="w-72 min-w-[288px] bg-white border-r border-slate-100 flex flex-col shrink-0">
 
           {/* Header busca */}
           <div className="p-3 border-b border-slate-100">
