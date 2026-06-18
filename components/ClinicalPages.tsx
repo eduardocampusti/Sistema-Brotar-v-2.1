@@ -5422,7 +5422,12 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                                             href={`#${sec.id}`}
                                             onClick={e => {
                                                 e.preventDefault();
-                                                document.getElementById(sec.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                const container = anamneseScrollRef.current;
+                                                const target = container?.querySelector(`[data-psych-section="${sec.id}"]`) as HTMLElement | null;
+                                                if (container && target) {
+                                                    const offsetTop = target.offsetTop - 100;
+                                                    container.scrollTo({ top: offsetTop, behavior: 'smooth' });
+                                                }
                                             }}
                                             className={`flex items-center gap-2.5 px-4 py-2.5 text-xs transition-all
                                                 ${idx > 0 ? 'border-t border-slate-50' : ''}
