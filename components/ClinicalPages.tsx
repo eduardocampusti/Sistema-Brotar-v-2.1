@@ -5347,9 +5347,9 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col sm:flex-row min-h-screen -mx-4 lg:-mx-8 -mt-6 bg-slate-50 border-t border-slate-100">
+                <div className="flex flex-col sm:flex-row h-[calc(100vh-80px)] -mx-4 lg:-mx-8 -mt-6 bg-slate-50 border-t border-slate-100 overflow-hidden">
                     {/* Sidebar Premium */}
-                    <div className="w-full sm:w-64 shrink-0 p-4 flex flex-col gap-3">
+                    <div className="w-full sm:w-64 shrink-0 p-4 flex flex-col gap-3 overflow-y-auto">
                         {/* Mini-card do paciente */}
                         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
                             <button onClick={() => setSelectedStudent(null)} className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 mb-3 hover:text-purple-800 transition-colors">
