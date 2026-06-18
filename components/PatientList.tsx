@@ -481,9 +481,32 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                 >
                   {/* Avatar + complexidade */}
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${avatar.bg} ${avatar.text}`}>
-                      {student.fullName?.charAt(0).toUpperCase() ?? '?'}
-                    </div>
+                    {student.photoUrl ? (
+                      <div className="relative w-12 h-12 shrink-0">
+                        <img 
+                          src={student.photoUrl} 
+                          alt={student.fullName} 
+                          className="w-12 h-12 rounded-full object-cover border-2 border-purple-100 absolute inset-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (fallback) {
+                              fallback.style.display = 'flex';
+                            }
+                          }}
+                        />
+                        <div 
+                          className={`w-12 h-12 rounded-full items-center justify-center text-lg font-bold ${avatar.bg} ${avatar.text} absolute inset-0`}
+                          style={{ display: 'none' }}
+                        >
+                          {student.fullName?.charAt(0).toUpperCase() ?? '?'}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${avatar.bg} ${avatar.text} shrink-0`}>
+                        {student.fullName?.charAt(0).toUpperCase() ?? '?'}
+                      </div>
+                    )}
                     <div className="flex items-center gap-[3px]" title={`Complexidade ${complexity.level}`}>
                       {[1,2,3,4,5].map(i => (
                         <div

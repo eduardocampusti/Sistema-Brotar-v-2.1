@@ -183,14 +183,33 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
 
                         <div className="relative z-10 p-6 lg:p-[26px] flex flex-col md:flex-row md:items-center justify-between gap-5">
                             <div className="flex flex-col md:flex-row items-center gap-5 text-center md:text-left">
-                                {/* Avatar Quadrado-Arredondado */}
-                                <div className="w-[84px] h-[84px] rounded-[20px] border-[3px] border-white/85 shadow-md flex-shrink-0 overflow-hidden bg-white/10 flex items-center justify-center text-white font-bold text-3xl">
-                                    {student.photoUrl ? (
-                                        <img src={student.photoUrl} alt={student.fullName} className="w-full h-full object-cover" />
-                                    ) : (
-                                        student.fullName?.charAt(0).toUpperCase() ?? '?'
-                                    )}
-                                </div>
+                                {/* Avatar do Aluno */}
+                                {student.photoUrl ? (
+                                    <div className="flex-shrink-0">
+                                        <img 
+                                            src={student.photoUrl} 
+                                            alt={student.fullName} 
+                                            className="w-16 h-16 rounded-full object-cover border-2 border-purple-200" 
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = 'none';
+                                                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                                if (fallback) {
+                                                    fallback.style.display = 'flex';
+                                                }
+                                            }}
+                                        />
+                                        <div 
+                                            className="w-[84px] h-[84px] rounded-[20px] border-[3px] border-white/85 shadow-md flex items-center justify-center text-white font-bold text-3xl bg-white/10"
+                                            style={{ display: 'none' }}
+                                        >
+                                            {student.fullName?.charAt(0).toUpperCase() ?? '?'}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="w-[84px] h-[84px] rounded-[20px] border-[3px] border-white/85 shadow-md flex-shrink-0 overflow-hidden bg-white/10 flex items-center justify-center text-white font-bold text-3xl">
+                                        {student.fullName?.charAt(0).toUpperCase() ?? '?'}
+                                    </div>
+                                )}
 
                                 {/* Informações principais */}
                                 <div className="flex-1 min-w-0">
@@ -237,7 +256,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                             {/* Ações */}
                             <div className="flex gap-3 shrink-0 self-stretch md:self-center">
                                 <button
-                                    onClick={() => onNavigate('psychology')}
+                                    onClick={() => onNavigate('psychology', true)}
                                     className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-sm font-semibold bg-white text-[#6D28D9] px-5 py-2.5 rounded-[10px] shadow-lg shadow-black/10 hover:shadow-black/15 hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white min-h-[44px]"
                                 >
                                     <Plus size={16} /> Nova sessão
@@ -441,7 +460,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                         </h2>
                                     </div>
                                     <button
-                                        onClick={() => onNavigate('psychology')}
+                                        onClick={() => onNavigate('psychology', true)}
                                         className="flex items-center gap-1.5 text-xs font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-3.5 py-2 rounded-[10px] hover:-translate-y-0.5 transition-all duration-200 shadow-md shadow-purple-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
                                     >
                                         <Plus size={14} /> Nova sessão
@@ -488,7 +507,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                     A ficha de anamnese psicológica está disponível no módulo clínico.
                                 </p>
                                 <button
-                                    onClick={() => onNavigate('psychology')}
+                                    onClick={() => onNavigate('psychology', true)}
                                     className="flex items-center gap-2 text-sm font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-5 py-2.5 rounded-[10px] hover:-translate-y-0.5 transition-all duration-200 shadow-md shadow-purple-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]"
                                 >
                                     <Activity size={16} /> Abrir módulo de psicologia
