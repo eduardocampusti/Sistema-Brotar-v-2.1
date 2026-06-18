@@ -1578,7 +1578,7 @@ export const SupportProfessionalManagement: React.FC<SupportProfessionalManageme
                                         </tr>
                                     ) : (
                                         historyFilteredRows.map(prof => (
-                                            <tr key={prof.id} onClick={() => navigate(`${SUPPORT_PROF_LIST_PATH}/${prof.id}`)} title="Clique para ver a ficha" className="border-b border-slate-100 last:border-0 hover:bg-slate-100 cursor-pointer">
+                                            <tr key={prof.id} onClick={() => navigate(`${SUPPORT_PROF_LIST_PATH}/edit/${prof.id}`)} title="Clique para ver a ficha" className="border-b border-slate-100 last:border-0 hover:bg-slate-100 cursor-pointer">
                                                 <td className="px-4 py-3 font-semibold text-slate-900">{prof.name}</td>
                                                 <td className="px-4 py-3 text-slate-700">{getSchoolName(prof.schoolIdUnlinked || prof.schoolId)}</td>
                                                 <td className="px-4 py-3 text-slate-700 whitespace-nowrap font-mono text-[13px]">
