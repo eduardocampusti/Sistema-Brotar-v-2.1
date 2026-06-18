@@ -1,13 +1,17 @@
 export const APP_VERSION = {
-  version: 'v2.4.109',
+  version: 'v2.4.110',
   date: 'Jun 2026',
-  display: 'v2.4.109 • Jun 2026',
+  display: 'v2.4.110 • Jun 2026',
   changelog: [
-    'Melhorias e correções gerais'  
+    'Perfil exclusivo da psicóloga com cards premium e foto do aluno',
+    'Tela dedicada do paciente com 6 abas clínicas',
+    'Botão Nova Sessão abre módulo clínico com aluno pré-selecionado',
+    'Barrinhas de complexidade e busca por nome na lista de pacientes',
+    'Correção de crashes por dados null no PatientProfile'  
   ],
   releases: [
     {
-      version: 'v2.4.109',
+      version: 'v2.4.110',
       date: '18 Jun 2026',
       title: 'Release v2.4.109 — 18 Jun 2026',
       type: 'improvement',
