@@ -5059,14 +5059,24 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
     // ── SCROLLSPY IntersectionObserver ────────────────────────────────────
     useEffect(() => {
         if (activeTab !== 'anamnese') return;
-        const sections = Array.from(document.querySelectorAll('[data-psych-section]')) as HTMLElement[];
+        const scrollContainer = anamneseScrollRef.current;
+        if (!scrollContainer) return;
+        const sections = Array.from(scrollContainer.querySelectorAll('[data-psych-section]')) as HTMLElement[];
         if (sections.length === 0) return;
         const observer = new IntersectionObserver(
             (entries) => {
-                const visible = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-                if (visible.length > 0) setActiveAnamneseSection((visible[0].target as HTMLElement).dataset.psychSection!);
+                const visible = entries
+                    .filter(e => e.isIntersecting)
+                    .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+                if (visible.length > 0) {
+                    setActiveAnamneseSection((visible[0].target as HTMLElement).dataset.psychSection!);
+                }
             },
-            { threshold: 0.2, rootMargin: '-80px 0px -40% 0px' }
+            {
+                root: scrollContainer,
+                threshold: 0.15,
+                rootMargin: '-80px 0px -50% 0px'
+            }
         );
         sections.forEach(s => observer.observe(s));
         return () => observer.disconnect();
@@ -5434,7 +5444,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     </div>
 
                     {/* Tab Content */}
-                    <div className="flex-1 p-4 lg:p-6 overflow-y-auto">
+                    <div ref={anamneseScrollRef} className="flex-1 p-4 lg:p-6 overflow-y-auto">
                         {activeTab === 'anamnese' && (
                           <div className="space-y-4 animate-fadeIn pb-10 print-anamnese-container max-w-4xl mx-auto">
                             {/* CSS customizado para impressão da ficha */}
