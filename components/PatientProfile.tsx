@@ -200,8 +200,11 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                                     >
                                         {student.fullName}
                                     </h1>
-                                    <p className="flex items-center justify-center md:justify-start gap-1.5 text-sm text-white/88 mt-1 font-medium">
-                                        <School size={16} className="text-white/80 shrink-0" />
+                                    <p 
+                                        className="flex items-center justify-center md:justify-start gap-1.5 text-sm text-white/85 mt-1 font-medium"
+                                        style={{ color: 'rgba(255, 255, 255, 0.85)' }}
+                                    >
+                                        <School size={16} className="text-white/85 shrink-0" style={{ color: 'rgba(255, 255, 255, 0.85)' }} />
                                         <span>
                                             {student.school?.schoolName ?? '—'}
                                             {student.school?.grade ? ` · ${student.school.grade}` : ''}
