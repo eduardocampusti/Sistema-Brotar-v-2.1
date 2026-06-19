@@ -43,7 +43,8 @@ export function useAgendaClinicalDeepLink(
             } finally {
                 if (!cancelled) {
                     setLoading(false);
-                    navigate('.', { replace: true, state: {} });
+                    // Preserva o pathname e a query string atualizada síncronamente no navegador
+                    navigate(window.location.pathname + window.location.search, { replace: true, state: {} });
                 }
             }
         })();
