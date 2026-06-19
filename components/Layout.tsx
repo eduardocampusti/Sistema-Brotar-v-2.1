@@ -59,12 +59,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
   const activePage = location.pathname.split('/').pop() || 'dashboard';
 
-  const onNavigate = (page: string) => {
+  const onNavigate = (page: string, state?: any) => {
     if (page.startsWith('http')) {
       window.open(page, '_blank');
       return;
     }
-    navigate(`/app/${page}`);
+    navigate(`/app/${page}`, { state });
     setIsMobileMenuOpen(false);
   };
 
@@ -109,6 +109,33 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   };
 
   const theme = getThemeClasses();
+
+  const isPsychology = currentUser.role === 'SPECIALIST' && currentUser.specialty === Specialty.PSYCHOLOGY;
+
+  const getPsychologyMenuGroups = () => {
+    const principal = [
+      { id: 'dashboard', label: 'Início', icon: <LayoutDashboard size={20} />, state: { tab: 'resumo' } },
+    ];
+    const atendimentoClinico = [
+      { id: 'scheduling', label: 'Agenda', icon: <Calendar size={20} /> },
+      { id: 'list', label: 'Meus Pacientes', icon: <Users size={20} /> },
+      { id: 'dashboard', label: 'Atendimentos (Evoluções)', icon: <Activity size={20} />, state: { tab: 'evolucoes' } },
+      { id: 'psychology', label: 'Prontuários', icon: <Brain size={20} /> },
+    ];
+    const documentos = [
+      { id: 'documents', label: 'Documentos & Laudos', icon: <FileText size={20} /> },
+      { id: 'dashboard', label: 'Documentos IA', icon: <Sparkles size={20} />, state: { tab: 'documentos' } },
+    ];
+    const gestaoDados = [
+      { id: 'relatorio-tea', label: 'Painel ANEE', icon: <Puzzle size={20} /> },
+      { id: 'dashboard', label: 'Analytics', icon: <BarChart2 size={20} />, state: { tab: 'relatorios' } },
+    ];
+    const rodape = [
+      { id: 'vault', label: 'Cofre', icon: <Shield size={20} /> },
+      { id: 'my-access', label: 'Acessos', icon: <Key size={20} /> },
+    ];
+    return { principal, atendimentoClinico, documentos, gestaoDados, rodape };
+  };
 
   // --- MENU BUILDERS ---
 
@@ -285,7 +312,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     ];
   };
 
-  const isItemActive = (itemId: string) => {
+  const isItemActive = (itemId: string, itemState?: any) => {
+    if (itemId === 'dashboard') {
+      const activeTabFromState = location.state?.tab || 'resumo';
+      const itemTab = itemState?.tab || 'resumo';
+      return activePage === 'dashboard' && activeTabFromState === itemTab;
+    }
     if (activePage === itemId) return true;
     // Highlight list menu when editing/registering
     if (itemId === 'list' && (activePage === 'register' || activePage === 'profile' || activePage === 'edit-student')) return true;
@@ -312,11 +344,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   };
 
   const MenuButton: React.FC<{ item: any }> = ({ item }) => {
-    const active = isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id));
+    const active = isItemActive(item.id, item.state) || (item.specialty && activePage.startsWith(item.id));
     return (
       <button
-        onClick={() => onNavigate(item.id)}
-        className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden ${isCollapsed ? "justify-center py-1.5" : "px-4 py-3.5"} ${active ? theme.active : theme.hover}`}
+        onClick={() => onNavigate(item.id, item.state)}
+        aria-current={active ? 'page' : undefined}
+        className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${isCollapsed ? "justify-center py-1.5" : "px-4 py-3.5"} ${active ? theme.active : theme.hover}`}
       >
         {active && !isCollapsed && <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>}
         {isCollapsed ? (
@@ -339,11 +372,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   };
 
   const MenuCardButton: React.FC<{ item: any }> = ({ item }) => {
-    const isActive = isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id));
+    const isActive = isItemActive(item.id, item.state) || (item.specialty && activePage.startsWith(item.id));
     return (
       <button
-        onClick={() => onNavigate(item.id)}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 border ${
+        onClick={() => onNavigate(item.id, item.state)}
+        aria-current={isActive ? 'page' : undefined}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
           isActive
             ? 'bg-white/20 border-white/30 shadow-sm'
             : 'bg-white/8 border-white/10 hover:bg-white/15 hover:border-white/20'
@@ -371,22 +405,27 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     );
   };
 
-  const MenuButtonMobile: React.FC<{ item: any }> = ({ item }) => (
-    <button
-      onClick={() => {
-        onNavigate(item.id);
-        setIsMobileMenuOpen(false);
-      }}
-      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden ${isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id)) ? theme.active : theme.hover
+  const MenuButtonMobile: React.FC<{ item: any }> = ({ item }) => {
+    const active = isItemActive(item.id, item.state) || (item.specialty && activePage.startsWith(item.id));
+    return (
+      <button
+        onClick={() => {
+          onNavigate(item.id, item.state);
+          setIsMobileMenuOpen(false);
+        }}
+        aria-current={active ? 'page' : undefined}
+        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
+          active ? theme.active : theme.hover
         }`}
-    >
-      {(isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id))) && <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>}
-      <span className={`relative z-10 ${(isItemActive(item.id) || (item.specialty && activePage.startsWith(item.id))) ? 'scale-110' : 'group-hover:scale-110'} transition-transform duration-200`}>
-        {item.icon}
-      </span>
-      <span className="relative z-10">{item.label}</span>
-    </button>
-  );
+      >
+        {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full"></div>}
+        <span className={`relative z-10 ${active ? 'scale-110' : 'group-hover:scale-110'} transition-transform duration-200`}>
+          {item.icon}
+        </span>
+        <span className="relative z-10">{item.label}</span>
+      </button>
+    );
+  };
 
   const SectionHeader = ({ title, icon: Icon }: { title: string, icon?: any }) => (
     isCollapsed ? (
@@ -472,6 +511,30 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
               </div>
               <SectionHeader title="Gestão da Unidade" />
               {escolaMenuItems.map(item => <MenuButton key={item.id} item={item} />)}
+            </>
+          ) : isPsychology ? (
+            <>
+              {(() => {
+                const groups = getPsychologyMenuGroups();
+                return (
+                  <>
+                    <SectionHeader title="Principal" />
+                    {groups.principal.map(item => <MenuCardButton key={item.label} item={item} />)}
+
+                    <SectionHeader title="Atendimento Clínico" />
+                    {groups.atendimentoClinico.map(item => <MenuCardButton key={item.label} item={item} />)}
+
+                    <SectionHeader title="Documentos" />
+                    {groups.documentos.map(item => <MenuCardButton key={item.label} item={item} />)}
+
+                    <SectionHeader title="Gestão & Dados" />
+                    {groups.gestaoDados.map(item => <MenuCardButton key={item.label} item={item} />)}
+
+                    <SectionHeader title="Segurança" />
+                    {groups.rodape.map(item => <MenuCardButton key={item.label} item={item} />)}
+                  </>
+                );
+              })()}
             </>
           ) : (
             <>
@@ -648,6 +711,30 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
               </div>
               <SectionHeader title="Gestão da Unidade" />
               {escolaMenuItems.map(item => <MenuButtonMobile key={item.id} item={item} />)}
+            </>
+          ) : isPsychology ? (
+            <>
+              {(() => {
+                const groups = getPsychologyMenuGroups();
+                return (
+                  <>
+                    <SectionHeader title="Principal" />
+                    {groups.principal.map(item => <MenuButtonMobile key={item.label} item={item} />)}
+
+                    <SectionHeader title="Atendimento Clínico" />
+                    {groups.atendimentoClinico.map(item => <MenuButtonMobile key={item.label} item={item} />)}
+
+                    <SectionHeader title="Documentos" />
+                    {groups.documentos.map(item => <MenuButtonMobile key={item.label} item={item} />)}
+
+                    <SectionHeader title="Gestão & Dados" />
+                    {groups.gestaoDados.map(item => <MenuButtonMobile key={item.label} item={item} />)}
+
+                    <SectionHeader title="Segurança" />
+                    {groups.rodape.map(item => <MenuButtonMobile key={item.label} item={item} />)}
+                  </>
+                );
+              })()}
             </>
           ) : (
             <>

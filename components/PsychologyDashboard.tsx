@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Student, Specialty, Session, User, hasPermission } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { SpecialistClinicalHomeDashboard } from './RoleDashboards';
@@ -28,6 +29,14 @@ export const PsychologyDashboard: React.FC<{
     onOpenPatient?: (studentId: string) => void,
 }> = ({ currentUser, onNavigate, onOpenPatient }) => {
     const [activeTab, setActiveTab] = useState('resumo');
+    const [subTab, setSubTab] = useState<'evolucoes' | 'pasta-clinica'>('evolucoes');
+    const location = useLocation();
+
+    useEffect(() => {
+        if (location.state && (location.state as any).tab) {
+            setActiveTab((location.state as any).tab);
+        }
+    }, [location]);
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCadastroRapido, setShowCadastroRapido] = useState(false);
@@ -342,7 +351,7 @@ export const PsychologyDashboard: React.FC<{
                                         <div>
                                             <h3 className="text-base font-bold text-slate-800 leading-snug">{patient.fullName}</h3>
                                             <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                                                {patient.school?.name || patient.school?.schoolName || 'Sem Escola'} · {patient.school?.grade || 'Sem Série'}
+                                                {patient.school?.schoolName || 'Sem Escola'} · {patient.school?.grade || 'Sem Série'}
                                             </p>
                                             <div className="flex flex-wrap gap-2 mt-2">
                                                 <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-green-200 uppercase tracking-wider">
@@ -425,7 +434,7 @@ export const PsychologyDashboard: React.FC<{
                                                             <div>
                                                                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Escola</span>
                                                                 <span className="text-xs font-semibold text-slate-700">
-                                                                    {patient.school?.name || patient.school?.schoolName || '—'}
+                                                                    {patient.school?.schoolName || '—'}
                                                                 </span>
                                                             </div>
                                                             <div>
@@ -689,76 +698,115 @@ export const PsychologyDashboard: React.FC<{
     };
 
     const renderEvolucoes = () => (
-        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm animate-fadeIn">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                <div>
-                    <h2 className="text-2xl font-black text-slate-800">Minhas Evoluções</h2>
-                    <p className="text-slate-500 text-sm font-medium mt-1">Repositório histórico de atuação profissional</p>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        type="button"
-                        onClick={goToDocuments}
-                        className="px-4 py-2 bg-purple-50 text-purple-700 rounded-xl text-xs font-bold border border-purple-100"
-                    >
-                        Rascunhos
-                    </button>
-                    <button
-                        type="button"
-                        onClick={goToDocuments}
-                        className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold border border-slate-200"
-                    >
-                        Finalizados
-                    </button>
-                </div>
+        <div className="space-y-6 animate-fadeIn">
+            {/* Alternador de Sub-abas */}
+            <div className="flex gap-2 border-b border-slate-100 pb-4">
+                <button
+                    type="button"
+                    onClick={() => setSubTab('evolucoes')}
+                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all border ${
+                        subTab === 'evolucoes'
+                            ? 'bg-[#8b5cf6] text-white border-[#8b5cf6] shadow-md shadow-purple-100'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-purple-200'
+                    }`}
+                >
+                    Minhas Evoluções
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setSubTab('pasta-clinica')}
+                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all border ${
+                        subTab === 'pasta-clinica'
+                            ? 'bg-[#8b5cf6] text-white border-[#8b5cf6] shadow-md shadow-purple-100'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-purple-200'
+                    }`}
+                >
+                    Pasta Clínica Digital
+                </button>
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="text-left text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                            <th className="pb-4 px-2">Data</th>
-                            <th className="pb-4">Aluno</th>
-                            <th className="pb-4">Sessão</th>
-                            <th className="pb-4">Status</th>
-                            <th className="pb-4 text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                                <td className="py-4 px-2 text-sm font-bold text-slate-600">12/02/2026</td>
-                                <td className="py-4 font-bold text-slate-800 text-sm">Miguel Oliveira Santos</td>
-                                <td className="py-4 text-xs font-medium text-slate-500">Sessão Individual #5</td>
-                                <td className="py-4">
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${i % 2 === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                        {i % 2 === 0 ? 'Finalizado' : 'Rascunho'}
-                                    </span>
-                                </td>
-                                <td className="py-4 text-center">
-                                    <button
-                                        type="button"
-                                        onClick={goToDocuments}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-purple-600 hover:text-white text-slate-600 rounded-lg text-[10px] font-black transition-all"
-                                    >
-                                        <Printer size={14} /> PDF AUDITADO
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            {subTab === 'evolucoes' ? (
+                <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                        <div>
+                            <h2 className="text-2xl font-black text-slate-800">Minhas Evoluções</h2>
+                            <p className="text-slate-500 text-sm font-medium mt-1">Repositório histórico de atuação profissional</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => onNavigate('retroativo')}
+                                className="px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-xl text-xs font-bold border border-orange-100 flex items-center gap-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+                            >
+                                <Clock size={14} /> Lançamentos Históricos
+                            </button>
+                            <button
+                                type="button"
+                                onClick={goToDocuments}
+                                className="px-4 py-2 bg-purple-50 text-purple-700 rounded-xl text-xs font-bold border border-purple-100"
+                            >
+                                Rascunhos
+                            </button>
+                            <button
+                                type="button"
+                                onClick={goToDocuments}
+                                className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold border border-slate-200"
+                            >
+                                Finalizados
+                            </button>
+                        </div>
+                    </div>
 
-            <div className="mt-8 p-4 bg-slate-900 rounded-2xl flex items-center justify-between text-white">
-                <div className="flex items-center gap-3">
-                    <Shield size={20} className="text-purple-400" />
-                    <div>
-                        <p className="text-xs font-bold opacity-80 uppercase tracking-widest">Segurança de Dados H.23</p>
-                        <p className="text-xs opacity-60">Todos os PDFs gerados contêm carimbo de auditoria e hash criptográfico.</p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="text-left text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                                    <th className="pb-4 px-2">Data</th>
+                                    <th className="pb-4">Aluno</th>
+                                    <th className="pb-4">Sessão</th>
+                                    <th className="pb-4">Status</th>
+                                    <th className="pb-4 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                    <tr key={i} className="hover:bg-slate-50 transition-colors group">
+                                        <td className="py-4 px-2 text-sm font-bold text-slate-600">12/02/2026</td>
+                                        <td className="py-4 font-bold text-slate-800 text-sm">Miguel Oliveira Santos</td>
+                                        <td className="py-4 text-xs font-medium text-slate-500">Sessão Individual #5</td>
+                                        <td className="py-4">
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${i % 2 === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                {i % 2 === 0 ? 'Finalizado' : 'Rascunho'}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 text-center">
+                                            <button
+                                                type="button"
+                                                onClick={goToDocuments}
+                                                className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-purple-600 hover:text-white text-slate-600 rounded-lg text-[10px] font-black transition-all"
+                                            >
+                                                <Printer size={14} /> PDF AUDITADO
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="mt-8 p-4 bg-slate-900 rounded-2xl flex items-center justify-between text-white">
+                        <div className="flex items-center gap-3">
+                            <Shield size={20} className="text-purple-400" />
+                            <div>
+                                <p className="text-xs font-bold opacity-80 uppercase tracking-widest">Segurança de Dados H.23</p>
+                                <p className="text-xs opacity-60">Todos os PDFs gerados contêm carimbo de auditoria e hash criptográfico.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            ) : (
+                renderPastaClinica()
+            )}
         </div>
     );
 
@@ -1070,22 +1118,6 @@ export const PsychologyDashboard: React.FC<{
     return (
         <div className="min-h-screen bg-slate-50/50 p-4 md:p-8">
             {renderHeader()}
-
-            <div className="flex overflow-x-auto pb-4 gap-2 no-scrollbar mb-8">
-                {menuItems.map(item => (
-                    <button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all border ${activeTab === item.id
-                            ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-100'
-                            : 'bg-white text-slate-500 border-slate-100 hover:border-purple-200'
-                            }`}
-                    >
-                        <item.icon size={18} />
-                        {item.label}
-                    </button>
-                ))}
-            </div>
 
             <div className="max-w-7xl mx-auto">
                 {renderContent()}
