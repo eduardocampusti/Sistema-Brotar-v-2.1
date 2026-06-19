@@ -4843,7 +4843,9 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
     useEffect(() => {
         const patientIdFromUrl = searchParams.get('patient');
         if (!patientIdFromUrl) {
-            if (selectedStudent !== null) {
+            // Só limpa a seleção se a lista de alunos já estiver carregada,
+            // evitando limpezas precoces durante transições e carregamentos.
+            if (selectedStudent !== null && students.length > 0) {
                 setSelectedStudent(null);
             }
         } else if (students.length > 0 && selectedStudent?.id !== patientIdFromUrl) {
