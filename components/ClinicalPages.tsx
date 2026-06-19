@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { agendaClinicalDeepLinkPreserveTabRef, useAgendaClinicalDeepLink } from '@/src/hooks/useAgendaClinicalDeepLink';
@@ -1814,7 +1815,7 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
             setAbsencesCount(0);
         }
 
-        const diagnosisMap = new Map<string, number>();
+        const diagnosisMap = new globalThis.Map<string, number>();
 
         allStudents.forEach(student => {
             const data = extractPPData(student);
@@ -3573,17 +3574,18 @@ const SpeechTherapySpecificDashboard: React.FC<BaseDashboardProps & { preSelecte
                                     <h3 className="font-bold text-cyan-900 text-xl">Sessões Realizadas</h3>
                                     {!isEditingSession && (
                                         <button onClick={() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    setIsEditingSession(true);
-    setCurrentSession({
-        date: now.toISOString().split('T')[0],
-        startTime: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
-        endTime: `${pad(now.getHours() + 1)}:${pad(now.getMinutes())}`,
-        status: 'Realizado',
-        humor: 'Neutro'
-    });
-}} className="w-full sm:w-auto bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Plus size={18} /> Nova Sessão</button>
+                                            const now = new Date();
+                                            setIsEditingSession(true);
+                                            setCurrentSession({
+                                                date: now.toISOString().split('T')[0],
+                                                objetivo: '',
+                                                fonemasTrabalhados: '',
+                                                atividades: '',
+                                                evolucao: 'Estável',
+                                                participacao: 'Ativo',
+                                                observacoes: ''
+                                            });
+                                        }} className="w-full sm:w-auto bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-cyan-700 transition-all shadow-md"><Plus size={18} /> Nova Sessão</button>
                                     )}
                                 </div>
 
@@ -4634,17 +4636,18 @@ const PhysiotherapySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, o
                                     <h3 className="text-xl font-bold text-slate-800">Histórico de Atendimentos</h3>
                                     {!isEditingSession && (
                                         <button onClick={() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    setIsEditingSession(true);
-    setCurrentSession({
-        date: now.toISOString().split('T')[0],
-        startTime: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
-        endTime: `${pad(now.getHours() + 1)}:${pad(now.getMinutes())}`,
-        status: 'Realizado',
-        humor: 'Neutro'
-    });
-}} className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700"><Plus size={18} /> Novo Atendimento</button>
+                                            const now = new Date();
+                                            setIsEditingSession(true);
+                                            setCurrentSession({
+                                                date: now.toISOString().split('T')[0],
+                                                objetivoAtendimento: '',
+                                                atividadesRealizadas: '',
+                                                respostaMotora: '',
+                                                niveisDorPos: '',
+                                                observacoesClinicas: '',
+                                                evolucao: 'Estável'
+                                            });
+                                        }} className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700"><Plus size={18} /> Novo Atendimento</button>
                                     )}
                                 </div>
 
@@ -4805,9 +4808,65 @@ const MOOD_LABELS: Record<string, string> = {
 // --- DASHBOARD ESPECÍFICO DE PSICOLOGIA ---
 // (MANTIDO INTACTO)
 const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNavigateNew, currentUser, preSelectedStudent }) => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [students, setStudents] = useState<Student[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(preSelectedStudent || null);
-    const [activeTab, setActiveTab] = useState<'anamnese' | 'prontuario' | 'sessions' | 'reports'>('anamnese');
+
+    const validTabs = ['anamnese', 'prontuario', 'sessions', 'reports'] as const;
+    type SpecificTab = typeof validTabs[number];
+
+    const [activeTab, setActiveTabState] = useState<SpecificTab>(() => {
+        const fichaFromUrl = searchParams.get('ficha') as SpecificTab;
+        return validTabs.includes(fichaFromUrl) ? fichaFromUrl : 'anamnese';
+    });
+
+    // Sincronizar URL -> Estado Local de aba
+    useEffect(() => {
+        const fichaFromUrl = searchParams.get('ficha') as SpecificTab;
+        const targetTab = validTabs.includes(fichaFromUrl) ? fichaFromUrl : 'anamnese';
+        if (targetTab !== activeTab) {
+            setActiveTabState(targetTab);
+        }
+    }, [searchParams]);
+
+    // Wrapper para atualizar a URL ao trocar de aba
+    const setActiveTab = (newTab: SpecificTab) => {
+        setActiveTabState(newTab);
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.set('ficha', newTab);
+            return next;
+        });
+    };
+
+    // Sincronizar URL -> Estado Local de estudante (Voltar/Avançar do navegador)
+    useEffect(() => {
+        const patientIdFromUrl = searchParams.get('patient');
+        if (!patientIdFromUrl) {
+            if (selectedStudent !== null) {
+                setSelectedStudent(null);
+            }
+        } else if (students.length > 0 && selectedStudent?.id !== patientIdFromUrl) {
+            const found = students.find(st => st.id === patientIdFromUrl);
+            if (found) {
+                setSelectedStudent(found);
+            } else {
+                toastError('Estudante não encontrado.');
+                setSearchParams({});
+            }
+        }
+    }, [searchParams, students]);
+
+    const handleSelectStudent = (s: Student) => {
+        setSelectedStudent(s);
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.set('patient', s.id);
+            next.set('ficha', activeTab);
+            return next;
+        });
+    };
+
     const [recentActivity, setRecentActivity] = useState<{ session: PsychSession, studentName: string, studentId: string }[]>([]);
     const [stats, setStats] = useState({ totalPatients: 0, totalSessions: 0, activeCases: 0, diagnosisData: [] as any[] });
     const [searchTerm, setSearchTerm] = useState('');
@@ -4819,7 +4878,9 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
     const [showConfirmDischarge, setShowConfirmDischarge] = useState(false);
 
     useEffect(() => {
-        if (preSelectedStudent) setSelectedStudent(preSelectedStudent);
+        if (preSelectedStudent) {
+            handleSelectStudent(preSelectedStudent);
+        }
     }, [preSelectedStudent]);
 
     // Psychology Specific State
@@ -4903,7 +4964,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 
     useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab) => {
         agendaClinicalDeepLinkPreserveTabRef.current = true;
-        setSelectedStudent(full);
+        handleSelectStudent(full);
         const tabs = ['anamnese', 'prontuario', 'sessions', 'reports'] as const;
         const ok = tabs.find((x) => x === openTab);
         setActiveTab(ok ?? 'anamnese');
@@ -4918,40 +4979,58 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
 
     const loadData = async () => {
         setLoading(true);
-        const allStudents = await SupabaseService.getStudentsForUser(currentUser);
-        setStudents(allStudents);
+        try {
+            const allStudents = await SupabaseService.getStudentsForUser(currentUser);
+            setStudents(allStudents);
 
-        const activity: { session: PsychSession, studentName: string, studentId: string }[] = [];
-        let sessionCount = 0;
-        let patientCount = 0;
-        let activeCount = 0;
-
-        allStudents.forEach(student => {
-            const pData = extractPsychData(student);
-            if (pData && pData.sessions && pData.sessions.length > 0) {
-                patientCount++;
-                if (pData.statusAtendimento === 'Em acompanhamento') activeCount++;
-                sessionCount += pData.sessions.length;
-                pData.sessions.forEach(session => {
-                    activity.push({ session, studentName: student.fullName, studentId: student.id });
-                });
+            // Carregamento inicial por query param (?patient)
+            const patientIdFromUrl = searchParams.get('patient');
+            if (patientIdFromUrl) {
+                const targetStudent = allStudents.find(st => st.id === patientIdFromUrl);
+                if (targetStudent) {
+                    handleSelectStudent(targetStudent);
+                } else {
+                    toastError('Paciente não encontrado na sua lista de acompanhamentos.');
+                    setSearchParams({});
+                }
             }
-        });
 
-        activity.sort((a, b) => new Date(b.session.dataHoraISO).getTime() - new Date(a.session.dataHoraISO).getTime());
-        setRecentActivity(activity);
+            const activity: { session: PsychSession, studentName: string, studentId: string }[] = [];
+            let sessionCount = 0;
+            let patientCount = 0;
+            let activeCount = 0;
 
-        // Calculate Diagnosis Data (Mocked or Real)
-        const diagnosisData = allStudents.reduce((acc: any[], s) => {
-            const diag = (s.clinical as any).diagnosis?.split(' ')[0] || 'Outros';
-            const existing = acc.find((i: any) => i.name === diag);
-            if (existing) existing.value++;
-            else acc.push({ name: diag, value: 1 });
-            return acc;
-        }, []);
+            allStudents.forEach(student => {
+                const pData = extractPsychData(student);
+                if (pData && pData.sessions && pData.sessions.length > 0) {
+                    patientCount++;
+                    if (pData.statusAtendimento === 'Em acompanhamento') activeCount++;
+                    sessionCount += pData.sessions.length;
+                    pData.sessions.forEach(session => {
+                        activity.push({ session, studentName: student.fullName, studentId: student.id });
+                    });
+                }
+            });
 
-        setStats({ totalPatients: patientCount, totalSessions: sessionCount, activeCases: activeCount, diagnosisData });
-        setLoading(false);
+            activity.sort((a, b) => new Date(b.session.dataHoraISO).getTime() - new Date(a.session.dataHoraISO).getTime());
+            setRecentActivity(activity);
+
+            // Calculate Diagnosis Data (Mocked or Real)
+            const diagnosisData = allStudents.reduce((acc: any[], s) => {
+                const diag = (s.clinical as any).diagnosis?.split(' ')[0] || 'Outros';
+                const existing = acc.find((i: any) => i.name === diag);
+                if (existing) existing.value++;
+                else acc.push({ name: diag, value: 1 });
+                return acc;
+            }, []);
+
+            setStats({ totalPatients: patientCount, totalSessions: sessionCount, activeCases: activeCount, diagnosisData });
+        } catch (e) {
+            console.error('Erro ao carregar dados:', e);
+            toastError('Erro ao carregar os dados do prontuário.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => { loadData(); }, []);
@@ -5226,6 +5305,17 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
         item.session.titulo.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64 text-slate-400">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-slate-300 border-t-purple-500 rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-sm">Carregando dados do painel...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={selectedStudent ? 'animate-fadeIn' : 'max-w-6xl mx-auto animate-fadeIn pb-12'}>
             {!selectedStudent ? (
@@ -5293,7 +5383,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                                             className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-12 text-slate-700 outline-none focus:ring-2 focus:ring-purple-500 transition-all appearance-none cursor-pointer hover:bg-slate-100"
                                             onChange={(e) => {
                                                 const s = students.find(st => st.id === e.target.value);
-                                                if (s) setSelectedStudent(s);
+                                                if (s) handleSelectStudent(s);
                                             }}
                                             value=""
                                         >
@@ -5329,7 +5419,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                                     {filteredActivity.slice(0, 3).map((item, idx) => (
                                         <div key={idx} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => {
                                             const s = students.find(st => st.id === item.studentId);
-                                            if (s) setSelectedStudent(s);
+                                            if (s) handleSelectStudent(s);
                                         }}>
                                             <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-sm">
                                                 {MOOD_EMOJIS[item.session.humor] || '😊'}
@@ -5352,7 +5442,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                     <div className="w-full sm:w-64 shrink-0 p-4 flex flex-col gap-3 overflow-y-auto">
                         {/* Mini-card do paciente */}
                         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                            <button onClick={() => setSelectedStudent(null)} className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 mb-3 hover:text-purple-800 transition-colors">
+                            <button onClick={() => { setSelectedStudent(null); setSearchParams({}); }} className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 mb-3 hover:text-purple-800 transition-colors">
                                 <TrendingUp size={13} /> Voltar ao painel
                             </button>
                             <div className="flex items-center gap-3">
@@ -5578,7 +5668,7 @@ const PsychologySpecificDashboard: React.FC<BaseDashboardProps> = ({ title, onNa
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                                 {[
-                                  { label: 'Escola', value: selectedStudent?.school?.name ?? selectedStudent?.school?.schoolName ?? '—' },
+                                  { label: 'Escola', value: selectedStudent?.school?.schoolName ?? '—' },
                                   { label: 'Série / Ano', value: selectedStudent?.school?.grade ?? '—' },
                                   { label: 'Turno', value: selectedStudent?.school?.shift ?? '—' },
                                 ].map(({ label, value }) => (

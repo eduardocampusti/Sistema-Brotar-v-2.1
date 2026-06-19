@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Student, Specialty, Session, User, SupportProfessional } from '../types';
 import { ArrowLeft, Phone, MapPin, Activity, School, Clock, Calendar, FileText, Plus, Save, User as UserIcon, Lock, Paperclip, CreditCard, Download, Edit, Heart, UserCheck, TrendingUp, ClipboardList, CheckCircle, UserX } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
@@ -13,13 +14,46 @@ interface StudentProfileProps {
 }
 
 export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initialStudent, onBack, currentUser, onEdit, onNavigate }) => {
-    const [student, setStudent] = useState<Student>(initialStudent);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [student, setStudent] = useState<Student | null>(initialStudent || null);
+    const [isLoadingStudent, setIsLoadingStudent] = useState(false);
     const { success: showToast, error: toastError } = useToast();
+
+    const validPsychTabs = ['resumo', 'sessoes', 'anamnese', 'percepcoes', 'evolucao', 'documentos'] as const;
+    type PsychTab = typeof validPsychTabs[number];
+
+    const [psychActiveTab, setPsychActiveTabState] = useState<PsychTab>(() => {
+        const fichaFromUrl = searchParams.get('ficha') as PsychTab;
+        return validPsychTabs.includes(fichaFromUrl) ? fichaFromUrl : 'resumo';
+    });
+
+    // Sincronizar URL -> Estado Local de aba
+    useEffect(() => {
+        const fichaFromUrl = searchParams.get('ficha') as PsychTab;
+        const targetTab = validPsychTabs.includes(fichaFromUrl) ? fichaFromUrl : 'resumo';
+        if (targetTab !== psychActiveTab) {
+            setPsychActiveTabState(targetTab);
+        }
+    }, [searchParams]);
+
+    // Sincronizar Estado Local -> URL
+    const setPsychActiveTab = (newTab: PsychTab) => {
+        setPsychActiveTabState(newTab);
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.set('ficha', newTab);
+            return next;
+        });
+    };
+
+    const handleBack = () => {
+        setSearchParams({});
+        onBack();
+    };
 
     // History / Session State
     const [isAddingSession, setIsAddingSession] = useState(false);
-    // Estado de aba para visão psicóloga
-    const [psychActiveTab, setPsychActiveTab] = useState<'resumo' | 'sessoes' | 'anamnese' | 'percepcoes' | 'evolucao' | 'documentos'>('resumo');
+
     const [newSession, setNewSession] = useState<Partial<Session>>({
         date: new Date().toISOString().split('T')[0],
         specialty: currentUser.specialty || Specialty.PSYCHOLOGY,
@@ -36,55 +70,10 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
     // ATs Vinculados State
     const [linkedATs, setLinkedATs] = useState<SupportProfessional[]>([]);
 
-    // Prontuário completo (foto, documentos, JSON escolar etc.) + sessões e ATs — a lista costuma vir parcial (compactList).
-    useEffect(() => {
-        let cancelled = false;
-
-        if (!initialStudent?.id) {
-            setStudent(initialStudent);
-            setLinkedATs([]);
-            return () => { cancelled = true; };
-        }
-
-        const id = initialStudent.id;
-
-        (async () => {
-            try {
-                const [full, sessions, ats] = await Promise.all([
-                    SupabaseService.getStudentById(id),
-                    SupabaseService.getStudentSessions(id),
-                    SupabaseService.getSupportProfessionalsByStudent(id).catch(() => [] as SupportProfessional[]),
-                ]);
-                if (cancelled) return;
-                const base = full ?? initialStudent;
-                setStudent({ ...base, history: sessions });
-                setLinkedATs(ats);
-            } catch (err) {
-                console.error('[PatientProfile] Erro ao carregar dados completos do aluno:', err);
-                if (cancelled) return;
-                setStudent(initialStudent);
-                if (!initialStudent.history?.length) {
-                    try {
-                        const sessions = await SupabaseService.getStudentSessions(id);
-                        if (!cancelled) {
-                            setStudent((prev) => ({ ...prev, history: sessions }));
-                        }
-                    } catch (e) {
-                        console.error('[PatientProfile] Erro ao carregar sessões (fallback):', e);
-                    }
-                }
-                SupabaseService.getSupportProfessionalsByStudent(id)
-                    .then((a) => { if (!cancelled) setLinkedATs(a); })
-                    .catch(() => { if (!cancelled) setLinkedATs([]); });
-            }
-        })();
-
-        return () => { cancelled = true; };
-    }, [initialStudent]);
-
     const handleSaveSession = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (!student) return;
         if (!newSession.date || !newSession.notes) return;
 
         const session: Session = {
@@ -127,8 +116,88 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
         }
     };
 
-    // Guard: se o aluno ainda não chegou, não renderiza nada
-    if (!student) {
+    // Prontuário completo (foto, documentos, JSON escolar etc.) + sessões e ATs
+    useEffect(() => {
+        let cancelled = false;
+        const id = initialStudent?.id || searchParams.get('patient');
+
+        if (!id) {
+            setStudent(initialStudent || null);
+            setLinkedATs([]);
+            return;
+        }
+
+        (async () => {
+            setIsLoadingStudent(true);
+            try {
+                const [full, sessions, ats] = await Promise.all([
+                    SupabaseService.getStudentById(id),
+                    SupabaseService.getStudentSessions(id),
+                    SupabaseService.getSupportProfessionalsByStudent(id).catch(() => [] as SupportProfessional[]),
+                ]);
+                if (cancelled) return;
+
+                if (!full) {
+                    if (initialStudent) {
+                        setStudent(initialStudent);
+                    } else {
+                        toastError('Prontuário do aluno não encontrado ou sem permissão de acesso.');
+                        handleBack();
+                    }
+                    return;
+                }
+
+                setStudent({ ...full, history: sessions });
+                setLinkedATs(ats);
+            } catch (err) {
+                console.error('[PatientProfile] Erro ao carregar dados completos do aluno:', err);
+                if (cancelled) return;
+
+                if (initialStudent) {
+                    setStudent(initialStudent);
+                    if (!initialStudent.history?.length) {
+                        try {
+                            const fallbackSessions = await SupabaseService.getStudentSessions(id);
+                            if (!cancelled) {
+                                setStudent((prev) => prev ? { ...prev, history: fallbackSessions } : null);
+                            }
+                        } catch (e) {
+                            console.error('[PatientProfile] Erro ao carregar sessões (fallback):', e);
+                        }
+                    }
+                    SupabaseService.getSupportProfessionalsByStudent(id)
+                        .then((a) => { if (!cancelled) setLinkedATs(a); })
+                        .catch(() => { if (!cancelled) setLinkedATs([]); });
+                } else {
+                    toastError('Erro ao carregar os dados do prontuário.');
+                    handleBack();
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsLoadingStudent(false);
+                }
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [initialStudent, searchParams.get('patient')]);
+
+    // Garantir que a URL reflita o ID do paciente e sua aba padrão ao carregar
+    useEffect(() => {
+        if (student?.id && searchParams.get('patient') !== student.id) {
+            setSearchParams(prev => {
+                const next = new URLSearchParams(prev);
+                next.set('patient', student.id);
+                if (currentUser?.specialty === Specialty.PSYCHOLOGY && !next.has('ficha')) {
+                    next.set('ficha', psychActiveTab);
+                }
+                return next;
+            }, { replace: true });
+        }
+    }, [student?.id, currentUser?.specialty]);
+
+    // Guard: se o aluno ainda não chegou ou está carregando, exibe o spinner de carregamento
+    if (isLoadingStudent || !student) {
         return (
             <div className="flex items-center justify-center h-64 text-slate-400">
                 <div className="text-center">
@@ -160,7 +229,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
                 <div className="max-w-6xl mx-auto space-y-6">
                     {/* Link de Voltar */}
                     <button
-                        onClick={onBack}
+                        onClick={handleBack}
                         className="flex items-center gap-2 text-slate-400 hover:text-slate-600 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED] rounded-md p-1"
                     >
                         <ArrowLeft size={16} /> Voltar para a lista
@@ -607,7 +676,7 @@ export const PatientProfile: React.FC<StudentProfileProps> = ({ student: initial
     return (
         <div className="max-w-5xl mx-auto space-y-6 pb-12">
             <div className="flex justify-between items-center">
-                <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-primary-600 transition-colors">
+                <button onClick={handleBack} className="flex items-center gap-2 text-slate-500 hover:text-primary-600 transition-colors">
                     <ArrowLeft size={18} />
                     Voltar para a lista
                 </button>
