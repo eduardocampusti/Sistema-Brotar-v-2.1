@@ -795,6 +795,59 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
             </div>
 
             {/* ═══════════════════════════════════════
+                SEÇÃO 4.5 — ALUNOS RECENTES
+                ═══════════════════════════════════════ */}
+            <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] flex flex-col">
+                <div className="flex items-center justify-between px-5 py-4 bg-slate-50/50 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                        <Users size={16} className="text-slate-500" />
+                        <span className="text-sm font-bold text-slate-700">Alunos Recentes</span>
+                    </div>
+                    <button 
+                        onClick={() => onNavigate('list')} 
+                        className="text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors uppercase tracking-widest"
+                    >
+                        Ver Todos
+                    </button>
+                </div>
+                
+                <div className="overflow-y-auto max-h-[300px] custom-scrollbar bg-white">
+                    {recentStudentIds.length === 0 ? (
+                        <div className="p-10 text-center text-sm text-slate-400">Nenhum atendimento registrado anteriormente.</div>
+                    ) : (
+                        <div className="divide-y divide-slate-100">
+                            {recentStudentIds.map(({ studentId, date }) => {
+                                const st = students.find(s => s.id === studentId);
+                                if (!st) return null;
+                                const initials = st.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
+                                return (
+                                    <button 
+                                        key={studentId} 
+                                        onClick={() => onOpenPatient && onOpenPatient(studentId)}
+                                        className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-all duration-200 text-left group"
+                                    >
+                                        <div 
+                                            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 text-white shadow-inner group-hover:scale-105 transition-transform duration-200" 
+                                            style={{ background: specialtyGradient }}
+                                        >
+                                            {initials}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[13px] font-bold text-slate-800 truncate group-hover:text-slate-900 transition-colors">{st.fullName}</p>
+                                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                                Último atendimento: {new Date(date + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                            </p>
+                                        </div>
+                                        <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════
                 SEÇÃO 5 — AÇÕES RÁPIDAS (Manter estrutura)
                 ═══════════════════════════════════════ */}
             <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-[0_4px_25px_rgba(0,0,0,0.02)]">
@@ -1755,7 +1808,7 @@ function studentLooksTea(s: Student): boolean {
     return needs.some(x => (x || '').toLowerCase().includes('tea'));
 }
 
-export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate, onOpenPatient }) => {
+export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
     const [schools, setSchools] = useState<SchoolEntity[]>([]);
     const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
     const pendingStudents = useMemo(() => students.filter(s => s.cadastroStatus === 'PENDENTE'), [students]);
@@ -2041,7 +2094,7 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
                             <button
                                 key={s.id}
                                 type="button"
-                                onClick={() => onOpenPatient?.(s.id)}
+                                onClick={() => onNavigate('profile', s.id)}
                                 className="w-full flex items-center gap-3 rounded-xl bg-white/70 border border-amber-100 px-3 py-2 text-left hover:bg-white transition-colors"
                             >
                                 <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-[10px] font-bold text-amber-700 shrink-0 overflow-hidden">
@@ -2250,7 +2303,7 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
     );
 };
 
-export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate, onOpenPatient }) => {
+export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
     const [schools, setSchools] = useState<SchoolEntity[]>([]);
     const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
     const [cocalAppointments, setCocalAppointments] = useState<Appointment[]>([]);
@@ -2563,7 +2616,7 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                             <button
                                 key={s.id}
                                 type="button"
-                                onClick={() => onOpenPatient?.(s.id)}
+                                onClick={() => onNavigate('profile', s.id)}
                                 className="w-full flex items-center gap-3 rounded-xl bg-white/70 border border-amber-100 px-3 py-2 text-left hover:bg-white transition-colors"
                             >
                                 <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-[10px] font-bold text-amber-700 shrink-0 overflow-hidden">

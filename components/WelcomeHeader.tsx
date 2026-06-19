@@ -151,7 +151,7 @@ export const WelcomeHeader: React.FC<WelcomeHeaderProps> = ({ name, subtitle, ti
           }}
         />
       </h1>
-      <p className={`mt-1 font-medium ${isHero ? 'text-[13px] text-white/80' : 'text-xl text-slate-500 mt-2'}`}>
+      <p className={`font-medium ${isHero ? 'mt-1 text-[13px] text-white/80' : 'text-xl text-slate-500 mt-2'}`}>
         {subtitle || (isHero ? '' : 'O que você quer fazer hoje?')}
       </p>
     </div>
