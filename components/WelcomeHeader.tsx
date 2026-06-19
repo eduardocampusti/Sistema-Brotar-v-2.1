@@ -6,6 +6,7 @@ interface WelcomeHeaderProps {
   title?: string;
   role?: string;
   specialty?: string;
+  isHero?: boolean;
 }
 
 const PHRASES_BY_ROLE: Record<string, string[]> = {
@@ -76,7 +77,7 @@ function getPhrases(role?: string, specialty?: string): string[] {
   return PHRASES_BY_ROLE.default;
 }
 
-export const WelcomeHeader: React.FC<WelcomeHeaderProps> = ({ name, subtitle, title, role, specialty }) => {
+export const WelcomeHeader: React.FC<WelcomeHeaderProps> = ({ name, subtitle, title, role, specialty, isHero }) => {
   const phrases = getPhrases(role, specialty).map(p =>
     p.replace('{name}', name.split(' ')[0]).replace('{period}', getPeriod())
   );
@@ -126,22 +127,22 @@ export const WelcomeHeader: React.FC<WelcomeHeaderProps> = ({ name, subtitle, ti
 
   if (title) {
     return (
-      <div className="mb-8 animate-fadeIn">
-        <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">{title}</h1>
-        {subtitle && <p className="text-xl text-slate-500 mt-2 font-medium">{subtitle}</p>}
+      <div className={`${isHero ? 'text-white' : 'mb-8'} animate-fadeIn`}>
+        <h1 className={`text-3xl font-extrabold tracking-tight ${isHero ? 'text-white' : 'text-slate-800'}`}>{title}</h1>
+        {subtitle && <p className={`text-xl mt-2 font-medium ${isHero ? 'text-white/80' : 'text-slate-500'}`}>{subtitle}</p>}
       </div>
     );
   }
 
   return (
-    <div className="mb-8 animate-fadeIn">
-      <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight min-h-[44px] flex items-center">
+    <div className={`${isHero ? 'text-white' : 'mb-8'} animate-fadeIn`}>
+      <h1 className={`tracking-tight min-h-[44px] flex items-center ${isHero ? 'text-2xl md:text-3xl font-black text-white' : 'text-3xl font-extrabold text-slate-800'}`}>
         <span>{displayed}</span>
         <span
           style={{
             display: 'inline-block',
             width: '3px',
-            height: '1em',
+            height: '0.9em',
             background: 'currentColor',
             marginLeft: '2px',
             verticalAlign: 'middle',
@@ -150,8 +151,8 @@ export const WelcomeHeader: React.FC<WelcomeHeaderProps> = ({ name, subtitle, ti
           }}
         />
       </h1>
-      <p className="text-xl text-slate-500 mt-2 font-medium">
-        {subtitle || 'O que você quer fazer hoje?'}
+      <p className={`mt-1 font-medium ${isHero ? 'text-[13px] text-white/80' : 'text-xl text-slate-500 mt-2'}`}>
+        {subtitle || (isHero ? '' : 'O que você quer fazer hoje?')}
       </p>
     </div>
   );

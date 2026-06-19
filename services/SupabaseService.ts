@@ -1927,6 +1927,28 @@ export class SupabaseService {
         if (error) throw error;
     }
 
+    static async getDraftSessions(professionalId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('clinical_sessions')
+            .select('id, student_id, date, specialty, content, students(full_name)')
+            .eq('professional_id', professionalId)
+            .or('content->>status.eq.RASCUNHO,content->>status.eq.Rascunho');
+
+        if (error) {
+            console.error('[SupabaseService] Erro ao buscar rascunhos:', error);
+            return [];
+        }
+
+        return (data || []).map((s: any) => ({
+            id: s.id,
+            studentId: s.student_id,
+            studentName: s.students?.full_name || 'Sem nome',
+            date: s.date,
+            specialty: s.specialty ? (this.REVERSE_SPECIALTY_MAP[s.specialty] || s.specialty) : undefined,
+            content: s.content,
+        }));
+    }
+
     // --- Falta implementar tabelas secundárias (Escolas, etc) ---
     // Mantendo compatibilidade básica
     // --- Schools ---

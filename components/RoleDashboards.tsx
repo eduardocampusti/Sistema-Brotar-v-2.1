@@ -302,11 +302,19 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
     const [appointments, setAppointments] = useState<any[]>([]);
     const [loadingApts, setLoadingApts] = useState(true);
     const [showCadastroRapido, setShowCadastroRapido] = useState(false);
+    const [draftSessions, setDraftSessions] = useState<any[]>([]);
+    const [loadingDrafts, setLoadingDrafts] = useState(true);
 
     useEffect(() => {
         SupabaseService.getAppointments({ professionalId: currentUser.id })
             .then(data => { setAppointments(data || []); setLoadingApts(false); })
             .catch(() => setLoadingApts(false));
+    }, [currentUser.id]);
+
+    useEffect(() => {
+        SupabaseService.getDraftSessions(currentUser.id)
+            .then(data => { setDraftSessions(data || []); setLoadingDrafts(false); })
+            .catch(() => setLoadingDrafts(false));
     }, [currentUser.id]);
 
     // 3. Cálculos de Período e Métricas
@@ -436,18 +444,18 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
             <div className="rounded-3xl p-6 text-white relative overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/10" style={{ background: specialtyGradient }}>
                 <div className="absolute -right-8 -bottom-10 opacity-10 text-[180px] font-black leading-none pointer-events-none select-none">✦</div>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
-                    <div>
+                    <div className="flex-1">
                         <div className="flex items-center gap-2.5 mb-1.5">
                             <span className="bg-white/20 text-white font-semibold text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider border border-white/25 backdrop-blur-sm">
                                 {scopeLabel}
                             </span>
                         </div>
-                        <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-                            <TypingBannerWhite name={currentUser.name.split(' ')[0]} specialty={String(currentUser.specialty || '')} />
-                        </h1>
-                        <p className="text-[13px] text-white/80 mt-1 font-medium">
-                            {specialtyLabel} · {todayDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-                        </p>
+                        <WelcomeHeader
+                            name={currentUser.name}
+                            specialty={String(currentUser.specialty || '')}
+                            isHero={true}
+                            subtitle={`${specialtyLabel} · ${todayDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}`}
+                        />
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <button 
@@ -467,7 +475,131 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
             </div>
 
             {/* ═══════════════════════════════════════
-                SEÇÃO 2 — CARDS DE MÉTRICAS (6 Cards)
+                SEÇÃO 2 — O "HOJE" (Agenda + Rascunhos)
+                ═══════════════════════════════════════ */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* AGENDA DE HOJE */}
+                <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] flex flex-col">
+                    <div className="flex items-center justify-between px-5 py-4 bg-slate-50/50 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                            <Calendar size={16} className="text-slate-500" />
+                            <span className="text-sm font-bold text-slate-700">Agenda de Hoje</span>
+                        </div>
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
+                            {todayApts.length} atendimentos
+                        </span>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto max-h-[300px] min-h-[220px] custom-scrollbar">
+                        {loadingApts ? (
+                            <div className="p-10 text-center text-sm text-slate-400 animate-pulse">Carregando compromissos do dia...</div>
+                        ) : sortedTodayApts.length === 0 ? (
+                            <div className="p-8 text-center flex flex-col items-center justify-center h-full min-h-[220px]">
+                                <p className="text-sm text-slate-400 mb-4">Nenhum atendimento para hoje.</p>
+                                {nextApt && (
+                                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 text-left w-full max-w-sm mb-4">
+                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1.5">Próximo compromisso na rede</p>
+                                        <p className="text-[13px] font-bold text-slate-700 truncate">{nextApt.studentName}</p>
+                                        <p className="text-[11px] text-slate-500 mt-0.5">
+                                            {new Date(nextApt.date + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })} · {(nextApt.startTime || '—').slice(0, 5)}
+                                        </p>
+                                    </div>
+                                )}
+                                <button 
+                                    onClick={() => onNavigate('scheduling')}
+                                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md hover:shadow-lg active:scale-95 duration-200"
+                                    style={{ background: specialtyGradient }}
+                                >
+                                    Agendar Atendimento
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {sortedTodayApts.map((apt, i) => (
+                                    <div key={apt.id} className={`flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'}`}>
+                                        <span className="text-[11px] font-extrabold text-slate-500 w-12 shrink-0">
+                                            {(apt.startTime || '—').slice(0, 5)}
+                                        </span>
+                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLORS[apt.status] || '#cbd5e1' }}></span>
+                                        
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[13px] font-bold text-slate-800 truncate">{apt.studentName}</p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <p className="text-[10px] text-slate-400 font-medium">{apt.unit}</p>
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${appointmentStatusBadgeClass(apt.status)}`}>
+                                                    {apt.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <button 
+                                            onClick={() => onOpenPatient && onOpenPatient(apt.studentId)}
+                                            className="text-[10px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0 hover:border-slate-300 active:scale-95 transition-all duration-200"
+                                        >
+                                            Ver Prontuário
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* EVOLUÇÕES EM RASCUNHO (PENDÊNCIAS) */}
+                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] flex flex-col">
+                    <div className="flex items-center justify-between px-5 py-4 bg-slate-50/50 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                            <Clock size={16} className="text-slate-500" />
+                            <span className="text-sm font-bold text-slate-700">Rascunhos Pendentes</span>
+                        </div>
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
+                            {draftSessions.length} pendentes
+                        </span>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto max-h-[300px] min-h-[220px] custom-scrollbar bg-white">
+                        {loadingDrafts ? (
+                            <div className="p-10 text-center text-sm text-slate-400 animate-pulse">Carregando pendências...</div>
+                        ) : draftSessions.length === 0 ? (
+                            <div className="p-8 text-center flex flex-col items-center justify-center h-full min-h-[220px] text-slate-400">
+                                <CheckCircle size={24} className="text-emerald-500 mb-2" />
+                                <p className="text-xs font-bold text-slate-700">Tudo em dia!</p>
+                                <p className="text-[11px] text-slate-400 mt-1">Nenhum rascunho de evolução pendente.</p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {draftSessions.map((draft) => (
+                                    <div key={draft.id} className="p-4 hover:bg-slate-50/50 transition-colors flex flex-col justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <p className="text-[13px] font-bold text-slate-800 truncate">{draft.studentName}</p>
+                                            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                                                Sessão de {new Date(draft.date + 'T12:00').toLocaleDateString('pt-BR')}
+                                            </p>
+                                        </div>
+                                        <div className="flex justify-end">
+                                            <button 
+                                                onClick={() => {
+                                                    if (onOpenPatient) {
+                                                        onOpenPatient(draft.studentId);
+                                                    } else {
+                                                        onNavigate(clinicalRoute);
+                                                    }
+                                                }}
+                                                className="text-[10px] font-bold px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-100 hover:bg-purple-100 transition-colors"
+                                            >
+                                                Continuar Evolução
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════
+                SEÇÃO 3 — CARDS DE MÉTRICAS (6 Cards)
                 ═══════════════════════════════════════ */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
                 {[
@@ -552,7 +684,7 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
             </div>
 
             {/* ═══════════════════════════════════════
-                SEÇÃO 3 — TRÊS GRÁFICOS (Recharts)
+                SEÇÃO 4 — TRÊS GRÁFICOS (Recharts)
                 ═══════════════════════════════════════ */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
@@ -658,130 +790,6 @@ export const SpecialistClinicalHomeDashboard: React.FC<SpecialistClinicalHomePro
                                 />
                             </LineChart>
                         </ResponsiveContainer>
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══════════════════════════════════════
-                SEÇÃO 4 — AGENDA DO DIA + ALUNOS RECENTES
-                ═══════════════════════════════════════ */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* AGENDA DE HOJE */}
-                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] flex flex-col">
-                    <div className="flex items-center justify-between px-5 py-4 bg-slate-50/50 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                            <Calendar size={16} className="text-slate-500" />
-                            <span className="text-sm font-bold text-slate-700">Agenda de Hoje</span>
-                        </div>
-                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
-                            {todayApts.length} lançamentos
-                        </span>
-                    </div>
-                    
-                    <div className="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
-                        {loadingApts ? (
-                            <div className="p-10 text-center text-sm text-slate-400 animate-pulse">Carregando compromissos do dia...</div>
-                        ) : sortedTodayApts.length === 0 ? (
-                            <div className="p-8 text-center flex flex-col items-center justify-center">
-                                <p className="text-sm text-slate-400 mb-4">Nenhum atendimento para hoje.</p>
-                                {nextApt && (
-                                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 text-left w-full max-w-sm mb-4">
-                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1.5">Próximo compromisso na rede</p>
-                                        <p className="text-[13px] font-bold text-slate-700 truncate">{nextApt.studentName}</p>
-                                        <p className="text-[11px] text-slate-500 mt-0.5">
-                                            {new Date(nextApt.date + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })} · {(nextApt.startTime || '—').slice(0, 5)}
-                                        </p>
-                                    </div>
-                                )}
-                                <button 
-                                    onClick={() => onNavigate('scheduling')}
-                                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md hover:shadow-lg active:scale-95 duration-200"
-                                    style={{ background: specialtyGradient }}
-                                >
-                                    Agendar Atendimento
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="divide-y divide-slate-100">
-                                {sortedTodayApts.map((apt, i) => (
-                                    <div key={apt.id} className={`flex items-center gap-3 px-5 py-3 hover:bg-slate-50/50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'}`}>
-                                        <span className="text-[11px] font-extrabold text-slate-500 w-12 shrink-0">
-                                            {(apt.startTime || '—').slice(0, 5)}
-                                        </span>
-                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLORS[apt.status] || '#cbd5e1' }}></span>
-                                        
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-[13px] font-bold text-slate-800 truncate">{apt.studentName}</p>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <p className="text-[10px] text-slate-400 font-medium">{apt.unit}</p>
-                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${appointmentStatusBadgeClass(apt.status)}`}>
-                                                    {apt.status}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        <button 
-                                            onClick={() => onOpenPatient && onOpenPatient(apt.studentId)}
-                                            className="text-[10px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0 hover:border-slate-300 active:scale-95 transition-all duration-200"
-                                        >
-                                            Ver Prontuário
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* ALUNOS RECENTES */}
-                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.02)] flex flex-col">
-                    <div className="flex items-center justify-between px-5 py-4 bg-slate-50/50 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                            <Users size={16} className="text-slate-500" />
-                            <span className="text-sm font-bold text-slate-700">Alunos Recentes</span>
-                        </div>
-                        <button 
-                            onClick={() => onNavigate('list')} 
-                            className="text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors uppercase tracking-widest"
-                        >
-                            Ver Todos
-                        </button>
-                    </div>
-                    
-                    <div className="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
-                        {recentStudentIds.length === 0 ? (
-                            <div className="p-10 text-center text-sm text-slate-400">Nenhum atendimento registrado anteriormente.</div>
-                        ) : (
-                            <div className="divide-y divide-slate-100">
-                                {recentStudentIds.map(({ studentId, date }) => {
-                                    const st = students.find(s => s.id === studentId);
-                                    if (!st) return null;
-                                    const initials = st.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
-                                    return (
-                                        <button 
-                                            key={studentId} 
-                                            onClick={() => onOpenPatient && onOpenPatient(studentId)}
-                                            className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-all duration-200 text-left group"
-                                        >
-                                            <div 
-                                                className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 text-white shadow-inner group-hover:scale-105 transition-transform duration-200" 
-                                                style={{ background: specialtyGradient }}
-                                            >
-                                                {initials}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[13px] font-bold text-slate-800 truncate group-hover:text-slate-900 transition-colors">{st.fullName}</p>
-                                                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                                    Último atendimento: {new Date(date + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                                </p>
-                                            </div>
-                                            <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
@@ -1747,7 +1755,7 @@ function studentLooksTea(s: Student): boolean {
     return needs.some(x => (x || '').toLowerCase().includes('tea'));
 }
 
-export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate, onOpenPatient }) => {
     const [schools, setSchools] = useState<SchoolEntity[]>([]);
     const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
     const pendingStudents = useMemo(() => students.filter(s => s.cadastroStatus === 'PENDENTE'), [students]);
@@ -2033,7 +2041,7 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
                             <button
                                 key={s.id}
                                 type="button"
-                                onClick={() => onNavigate('profile', s.id)}
+                                onClick={() => onOpenPatient?.(s.id)}
                                 className="w-full flex items-center gap-3 rounded-xl bg-white/70 border border-amber-100 px-3 py-2 text-left hover:bg-white transition-colors"
                             >
                                 <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-[10px] font-bold text-amber-700 shrink-0 overflow-hidden">
@@ -2242,7 +2250,7 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
     );
 };
 
-export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate }) => {
+export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, currentUser, onNavigate, onOpenPatient }) => {
     const [schools, setSchools] = useState<SchoolEntity[]>([]);
     const [supportProfessionals, setSupportProfessionals] = useState<SupportProfessional[]>([]);
     const [cocalAppointments, setCocalAppointments] = useState<Appointment[]>([]);
@@ -2555,7 +2563,7 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                             <button
                                 key={s.id}
                                 type="button"
-                                onClick={() => onNavigate('profile', s.id)}
+                                onClick={() => onOpenPatient?.(s.id)}
                                 className="w-full flex items-center gap-3 rounded-xl bg-white/70 border border-amber-100 px-3 py-2 text-left hover:bg-white transition-colors"
                             >
                                 <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center text-[10px] font-bold text-amber-700 shrink-0 overflow-hidden">
