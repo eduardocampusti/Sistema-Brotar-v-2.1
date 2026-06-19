@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -56,6 +56,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [searchParams] = useSearchParams();
 
   const activePage = location.pathname.split('/').pop() || 'dashboard';
 
@@ -64,7 +65,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       window.open(page, '_blank');
       return;
     }
-    navigate(`/app/${page}`, { state });
+    if (page === 'dashboard' && state?.tab) {
+      navigate(`/app/dashboard?tab=${state.tab}`);
+    } else {
+      navigate(`/app/${page}`, { state });
+    }
     setIsMobileMenuOpen(false);
   };
 
@@ -314,9 +319,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
   const isItemActive = (itemId: string, itemState?: any) => {
     if (itemId === 'dashboard') {
-      const activeTabFromState = location.state?.tab || 'resumo';
+      const activeTabFromQuery = searchParams.get('tab') || 'resumo';
       const itemTab = itemState?.tab || 'resumo';
-      return activePage === 'dashboard' && activeTabFromState === itemTab;
+      return activePage === 'dashboard' && activeTabFromQuery === itemTab;
     }
     if (activePage === itemId) return true;
     // Highlight list menu when editing/registering

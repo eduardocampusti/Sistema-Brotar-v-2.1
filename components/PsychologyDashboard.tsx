@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Student, Specialty, Session, User, hasPermission } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { SpecialistClinicalHomeDashboard } from './RoleDashboards';
@@ -28,15 +28,29 @@ export const PsychologyDashboard: React.FC<{
     onNavigate: (page: string) => void,
     onOpenPatient?: (studentId: string) => void,
 }> = ({ currentUser, onNavigate, onOpenPatient }) => {
-    const [activeTab, setActiveTab] = useState('resumo');
+    type PsychologyTab = 'resumo' | 'evolucoes' | 'documentos' | 'relatorios' | 'agenda' | 'prontuarios' | 'pasta-clinica' | 'cofre' | 'auditoria';
+
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const [activeTab, setActiveTabState] = useState<PsychologyTab>(() => {
+        const tabFromUrl = (searchParams.get('tab') || 'resumo') as PsychologyTab;
+        const validTabs: PsychologyTab[] = ['resumo', 'evolucoes', 'documentos', 'relatorios', 'agenda', 'prontuarios', 'pasta-clinica', 'cofre', 'auditoria'];
+        return validTabs.includes(tabFromUrl) ? tabFromUrl : 'resumo';
+    });
     const [subTab, setSubTab] = useState<'evolucoes' | 'pasta-clinica'>('evolucoes');
-    const location = useLocation();
 
     useEffect(() => {
-        if (location.state && (location.state as any).tab) {
-            setActiveTab((location.state as any).tab);
+        const tabFromUrl = (searchParams.get('tab') || 'resumo') as PsychologyTab;
+        const validTabs: PsychologyTab[] = ['resumo', 'evolucoes', 'documentos', 'relatorios', 'agenda', 'prontuarios', 'pasta-clinica', 'cofre', 'auditoria'];
+        const targetTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'resumo';
+        if (targetTab !== activeTab) {
+            setActiveTabState(targetTab);
         }
-    }, [location]);
+    }, [searchParams, activeTab]);
+
+    const setActiveTab = (newTab: string) => {
+        setSearchParams({ tab: newTab });
+    };
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCadastroRapido, setShowCadastroRapido] = useState(false);
