@@ -1452,6 +1452,46 @@ export class SupabaseService {
         }));
     }
 
+    /**
+     * CORREÇÃO N+1: Busca contagem e última data de sessão para múltiplos alunos em UMA query.
+     * Substitui o loop de N queries individuais por uma única query com filtro .in()
+     */
+    static async getSessionsInfoBatch(
+        studentIds: string[]
+    ): Promise<Record<string, { total: number; lastDate: string | null }>> {
+        if (!studentIds.length) return {};
+
+        const { data, error } = await supabase
+            .from('clinical_sessions')
+            .select('student_id, date')
+            .in('student_id', studentIds)
+            .order('date', { ascending: false });
+
+        if (error) {
+            console.error('[SupabaseService] Erro em getSessionsInfoBatch:', error);
+            return {};
+        }
+
+        // Agrupa por student_id
+        const result: Record<string, { total: number; lastDate: string | null }> = {};
+
+        // Inicializa todos os alunos com zero (mesmo os sem sessão)
+        for (const id of studentIds) {
+            result[id] = { total: 0, lastDate: null };
+        }
+
+        // Preenche com dados reais
+        for (const row of (data || [])) {
+            const id = row.student_id;
+            if (!result[id]) result[id] = { total: 0, lastDate: null };
+            result[id].total += 1;
+            // Como a query está ordenada desc, o primeiro registro já é o mais recente
+            if (!result[id].lastDate) result[id].lastDate = row.date;
+        }
+
+        return result;
+    }
+
     static async saveStudent(student: Student, photoFile?: File, documentFiles?: { file: File, type: string }[]): Promise<string> {
         // [DEBUG] Log user context for RLS
         // Garante que o JWT está válido antes do upsert de forma resiliente

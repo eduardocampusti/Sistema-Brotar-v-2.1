@@ -160,27 +160,46 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
   }, [podeAlternarListaRede, listaEscopo, authUser?.id]);
 
   // Carrega as informações das sessões (última sessão)
+  // CORREÇÃO: Era N+1 queries (1 por aluno). Agora usa busca em lote via SupabaseService.getSessionsInfoBatch
   useEffect(() => {
-      let isMounted = true;
-      const fetchSessionsInfo = async () => {
+    let isMounted = true;
+    const fetchSessionsInfo = async () => {
+      if (students.length === 0) return;
+      try {
+        // Tenta usar método em lote (se disponível); fallback para Promise.all
+        if (typeof SupabaseService.getSessionsInfoBatch === 'function') {
+          const studentIds = students.map(s => s.id);
+          const batchInfo = await SupabaseService.getSessionsInfoBatch(studentIds);
+          if (isMounted) setSessionsInfo(batchInfo);
+        } else {
+          // Fallback: mantém comportamento anterior mas com limite de concorrência
+          const CHUNK_SIZE = 10;
           const info: Record<string, { total: number, lastDate: string | null }> = {};
-          await Promise.all(students.map(async (student) => {
+          for (let i = 0; i < students.length; i += CHUNK_SIZE) {
+            const chunk = students.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(async (student) => {
               try {
-                  const sessions = await SupabaseService.getStudentSessions(student.id);
-                  if (sessions && sessions.length > 0) {
-                      const sorted = sessions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                      info[student.id] = { total: sessions.length, lastDate: sorted[0].date };
-                  } else {
-                      info[student.id] = { total: 0, lastDate: null };
-                  }
-              } catch (e) {
+                const sessions = await SupabaseService.getStudentSessions(student.id);
+                if (sessions && sessions.length > 0) {
+                  const sorted = sessions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                  info[student.id] = { total: sessions.length, lastDate: sorted[0].date };
+                } else {
                   info[student.id] = { total: 0, lastDate: null };
+                }
+              } catch (e) {
+                info[student.id] = { total: 0, lastDate: null };
               }
-          }));
-          if (isMounted) setSessionsInfo(info);
-      };
-      if (students.length > 0) fetchSessionsInfo();
-      return () => { isMounted = false; };
+            }));
+            if (!isMounted) return;
+          }
+          setSessionsInfo(info);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar sessões em lote:', e);
+      }
+    };
+    fetchSessionsInfo();
+    return () => { isMounted = false; };
   }, [students]);
 
   // ── ESTADOS EXCLUSIVOS DA VISÃO DE PSICÓLOGA ──────────────────────────
@@ -260,6 +279,11 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
     }
   };
 
+  // CORREÇÃO #8: Reset de currentPage quando qualquer filtro muda
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedSchoolId, filterSchool, filterDiag, filterSemRegistro, listaEscopo]);
+
   const filteredStudents = useMemo(() => baseStudentList.filter(p => {
     // 1. User Scope Filter (Cocal Security) — distrito, nome da escola ou unidade do aluno
     if (isRestricted) {
@@ -325,6 +349,23 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
   }, [sortedStudents, currentPage]);
 
   const totalPages = Math.ceil(sortedStudents.length / PAGE_SIZE);
+
+  // CORREÇÃO #6: Memoizar age e diasSemRegistro — evita recalcular a cada render
+  const studentMetrics = useMemo(() => {
+    const now = Date.now();
+    const result: Record<string, { age: number; diasSemRegistro: number }> = {};
+    for (const s of students) {
+      const age = s.birthDate
+        ? Math.floor((now - new Date(s.birthDate).getTime()) / (365.25 * 86400000))
+        : 0;
+      const lastDate = sessionsInfo[s.id]?.lastDate;
+      const diasSemRegistro = lastDate
+        ? Math.floor((now - new Date(lastDate).getTime()) / 86400000)
+        : 9999;
+      result[s.id] = { age, diasSemRegistro };
+    }
+    return result;
+  }, [students, sessionsInfo]);
 
   // Memoize school options — recomputed only when students list changes
   const schoolOptions = useMemo(() => [
@@ -814,7 +855,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                 currentUser={currentUser || { name: 'Admin', email: '', role: 'ADMIN' }}
                 onComplete={() => {
                   setShowImporter(false);
-                  window.location.reload(); // Simplificado para atualizar lista
+                  onRefresh?.();
                 }}
               />
             </React.Suspense>
