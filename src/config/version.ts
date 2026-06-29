@@ -1,12 +1,25 @@
 export const APP_VERSION = {
-  version: 'v2.4.127',
+  version: 'v2.4.128',
   date: 'Jun 2026',
-  display: 'v2.4.127 • Jun 2026',
+  display: 'v2.4.128 • Jun 2026',
   changelog: [
-    'Atualização da camada de dados',
-    'Melhorias e correções gerais'  
+    'Seguranca: 13 vulnerabilidades NPM corrigidas (jsPDF, react-router, express, protobufjs, dompurify)'
   ],
   releases: [
+    {
+      version: 'v2.4.128',
+      date: '29 Jun 2026',
+      title: 'Seguranca: correcao de vulnerabilidades NPM',
+      type: 'fix',
+      changes: [
+        "Corrigidas 13 vulnerabilidades nas dependencias NPM (2 criticas, 5 altas, 6 moderadas)",
+        "jsPDF: corrigida injecao HTML e execucao arbitraria de JS em PDFs",
+        "react-router-dom: corrigido XSS e DoS em rotas",
+        "express: corrigido DoS via qs",
+        "protobufjs: corrigida execucao de codigo arbitrario",
+        "dompurify: corrigidas multiplas vulnerabilidades XSS"
+      ]
+    },
     {
       version: 'v2.4.127',
       date: '29 Jun 2026',
