@@ -1,11 +1,21 @@
 export const APP_VERSION = {
-  version: 'v2.4.128',
-  date: 'Jun 2026',
-  display: 'v2.4.128 • Jun 2026',
+  version: 'v2.4.129',
+  date: 'Jul 2026',
+  display: 'v2.4.129 • Jul 2026',
   changelog: [
-    'Seguranca: 13 vulnerabilidades NPM corrigidas (jsPDF, react-router, express, protobufjs, dompurify)'
+    'Agendamento: ativação da especialidade Nutrição por padrão e seletor interativo de duração da sessão (30m, 40m, 50m, 60m)'
   ],
   releases: [
+    {
+      version: 'v2.4.129',
+      date: '13 Jul 2026',
+      title: 'Release v2.4.129 — Ajustes de Agendamento e Nutrição',
+      type: 'improvement',
+      changes: [
+        "Exibição da especialidade Nutrição no agendamento por padrão (ajustado slice limite de 6 para 8)",
+        "Implementação do seletor dinâmico de duração de sessão (opções de 30, 40, 50 e 60 minutos)"
+      ]
+    },
     {
       version: 'v2.4.128',
       date: '29 Jun 2026',

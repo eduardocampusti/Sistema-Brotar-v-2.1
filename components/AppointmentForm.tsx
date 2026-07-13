@@ -864,13 +864,13 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
     const especialidadesVisiveis = useMemo(() => {
         if (showAllSpecialties) return especialidadesComContagem;
-        const preview = especialidadesComContagem.slice(0, 6);
+        const preview = especialidadesComContagem.slice(0, 8);
         const sel = newApt.specialty;
         if (!sel) return preview;
         if (preview.some((e) => e.specialty === sel)) return preview;
         const selEntry = especialidadesComContagem.find((e) => e.specialty === sel);
         if (!selEntry) return preview;
-        return [...preview.slice(0, 5), selEntry];
+        return [...preview.slice(0, 7), selEntry];
     }, [especialidadesComContagem, showAllSpecialties, newApt.specialty]);
 
     const pillsForProfessional = (p: User) => {
@@ -1198,7 +1198,19 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 <div className={`grid grid-cols-1 gap-3 transition-opacity duration-300 rounded-2xl bg-surface-container-lowest p-4 shadow-card ring-1 ring-black/[0.04] ${!newApt.professionalId ? 'opacity-40' : ''}`}>
                                     <div className="flex items-center justify-between gap-2">
                                         <h3 className="font-headline flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 sm:text-xl"><span className="flex h-5 w-1 rounded-full bg-[#2D6A4F]" aria-hidden></span>Horários Disponíveis</h3>
-                                        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">Duração: {duration}m</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs font-semibold text-slate-500">Duração:</span>
+                                            <select
+                                                value={duration}
+                                                onChange={(e) => setDuration(Number(e.target.value))}
+                                                className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] cursor-pointer"
+                                            >
+                                                <option value={30}>30 min</option>
+                                                <option value={40}>40 min</option>
+                                                <option value={50}>50 min</option>
+                                                <option value={60}>60 min</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     {!newApt.professionalId && <p className="text-center text-xs text-on-surface-variant">Selecione um profissional na lista</p>}
                                     {/* MATUTINO */}
