@@ -647,6 +647,47 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         return mNames[calViewDate.getMonth()] + ' ' + calViewDate.getFullYear();
     }, [calViewDate]);
 
+    const { suggestedTimesManha, suggestedTimesTarde } = useMemo(() => {
+        const manha: string[] = [];
+        const tarde: string[] = [];
+        
+        // Turno da Manhã: das 08:00 às 12:00
+        let startMin = 8 * 60; // 08:00
+        const endMinLimit = 12 * 60; // 12:00
+        while (startMin + duration <= endMinLimit) {
+            const h = Math.floor(startMin / 60);
+            const m = startMin % 60;
+            manha.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+            startMin += duration;
+        }
+        
+        // Turno da Tarde: das 13:00 às 17:00
+        let startMinTarde = 13 * 60; // 13:00
+        const endMinLimitTarde = 17 * 60; // 17:00
+        while (startMinTarde + duration <= endMinLimitTarde) {
+            const h = Math.floor(startMinTarde / 60);
+            const m = startMinTarde % 60;
+            tarde.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+            startMinTarde += duration;
+        }
+        
+        return { suggestedTimesManha: manha, suggestedTimesTarde: tarde };
+    }, [duration]);
+
+    const isFirstRenderDuration = useRef(true);
+    useEffect(() => {
+        if (isFirstRenderDuration.current) {
+            isFirstRenderDuration.current = false;
+            return;
+        }
+        setNewApt((prev) => ({
+            ...prev,
+            startTime: undefined,
+            endTime: undefined
+        }));
+    }, [duration]);
+
+
 
     const horarioPassadoBloqueante = useMemo(() => {
         if (!newApt.date || !newApt.startTime || !newApt.endTime) return false;
@@ -1220,7 +1261,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                             <span style={{fontSize:'10px',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.06em',color:'#6b7280'}}>Matutino</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-3" style={!newApt.professionalId ? { pointerEvents: 'none' } : {}}>
-                                            {SUGGESTED_START_TIMES_MANHA.map((time) => {
+                                            {suggestedTimesManha.map((time) => {
                                                 const nextEnd = addMinutesToClock(time, duration);
                                                 const past = !!newApt.date && isDateToday && combineLocalDateAndTime(newApt.date, time) <= now;
                                                 const ocupado = profApptsDay !== null && !!newApt.professionalId && SupabaseService.filtrarAgendamentosSobrepostosJanela(profApptsDay, time, nextEnd, initialData?.id).length > 0;
@@ -1241,7 +1282,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                             <span style={{fontSize:'10px',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.06em',color:'#6b7280'}}>Vespertino</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-3" style={!newApt.professionalId ? { pointerEvents: 'none' } : {}}>
-                                            {SUGGESTED_START_TIMES_TARDE.map((time) => {
+                                            {suggestedTimesTarde.map((time) => {
                                                 const nextEnd = addMinutesToClock(time, duration);
                                                 const past = !!newApt.date && isDateToday && combineLocalDateAndTime(newApt.date, time) <= now;
                                                 const ocupado = profApptsDay !== null && !!newApt.professionalId && SupabaseService.filtrarAgendamentosSobrepostosJanela(profApptsDay, time, nextEnd, initialData?.id).length > 0;

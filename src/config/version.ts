@@ -1,11 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.129',
+  version: 'v2.4.130',
   date: 'Jul 2026',
-  display: 'v2.4.129 • Jul 2026',
+  display: 'v2.4.130 • Jul 2026',
   changelog: [
-    'Agendamento: ativação da especialidade Nutrição por padrão e seletor interativo de duração da sessão (30m, 40m, 50m, 60m)'
+    'Grade de horários dinâmica na central de agendamentos'  
   ],
   releases: [
+    {
+      version: 'v2.4.130',
+      date: '13 Jul 2026',
+      title: 'Release v2.4.130 — Grade de Horários Dinâmica',
+      type: 'improvement',
+      changes: [
+        "Cálculo dinâmico dos horários sugeridos de início da central de agendamento de acordo com a duração da sessão (30, 40, 50 ou 60 minutos)",
+        "Limpeza de horários antigos ao trocar a duração para evitar agendamentos inválidos",
+        "Configuração dos limites dos turnos: das 08:00 às 12:00 (Manhã) e das 13:00 às 17:00 (Tarde)"
+      ]
+    },
     {
       version: 'v2.4.129',
       date: '13 Jul 2026',
