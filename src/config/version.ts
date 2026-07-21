@@ -1,11 +1,24 @@
 export const APP_VERSION = {
-  version: 'v2.4.133',
+  version: 'v2.4.134',
   date: 'Jul 2026',
-  display: 'v2.4.133 • Jul 2026',
+  display: 'v2.4.134 • Jul 2026',
   changelog: [
-    'Atualização de manutenção'  
+    'Migração de banco de dados',
+    'Atualização da camada de dados',
+    'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.134',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.134 — 21 Jul 2026',
+      type: 'feature',
+      changes: [
+        "Migração de banco de dados",
+        "Atualização da camada de dados",
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.4.133',
       date: '21 Jul 2026',

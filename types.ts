@@ -345,6 +345,15 @@ export interface Student {
   cadastroStatus?: 'PENDENTE' | 'COMPLETO';
   cadastradoPor?: string;
   dataCadastroRapido?: string;
+
+  // Campos de desvinculo lógico (V42)
+  statusVinculo?: 'ATIVO' | 'DESVINCULADO';
+  motivoDesvinculo?: string;
+  escolaDestino?: string;
+  desvinculadoEm?: string;
+  desvinculadoPor?: string;
+  schoolIdDesvinculado?: string;
+  schoolNameDesvinculado?: string;
 }
 
 export interface DashboardStats {

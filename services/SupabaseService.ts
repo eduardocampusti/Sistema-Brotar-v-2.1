@@ -110,6 +110,14 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => {
         cadastroStatus: dbStudent.cadastro_status ?? 'COMPLETO',
         cadastradoPor: dbStudent.cadastrado_por ?? undefined,
         dataCadastroRapido: dbStudent.data_cadastro_rapido ?? undefined,
+        // Campos de desvinculo lógico (V42)
+        statusVinculo: dbStudent.status_vinculo ?? 'ATIVO',
+        motivoDesvinculo: dbStudent.motivo_desvinculo ?? undefined,
+        escolaDestino: dbStudent.escola_destino ?? undefined,
+        desvinculadoEm: dbStudent.desvinculado_em ?? undefined,
+        desvinculadoPor: dbStudent.desvinculado_por ?? undefined,
+        schoolIdDesvinculado: dbStudent.school_id_desvinculado ?? undefined,
+        schoolNameDesvinculado: dbStudent.school_name_desvinculado ?? undefined,
     };
 };
 
@@ -1775,8 +1783,50 @@ export class SupabaseService {
     static async deleteStudent(id: string): Promise<void> {
         const { error } = await supabase.from('students').delete().eq('id', id);
         if (error) throw error;
-        
+
         // Invalida o cache
+        this.invalidateCache('students_');
+    }
+
+    /**
+     * Desvinculo lógico de aluno (nunca DELETE físico).
+     * Preserva school_id e schoolName originais em colunas de histórico antes de gravar o motivo.
+     * O logAction deve ser chamado pelo componente após este método (padrão unlinkSupportProfessional).
+     */
+    static async desvincularAluno(
+        alunoId: string,
+        motivo: string,
+        escolaDestino: string | null,
+        desvinculadoPorId: string | null
+    ): Promise<void> {
+        const desvinculado_em = new Date().toISOString();
+
+        // 1. Buscar dados atuais da escola para preservar no histórico
+        const { data: current, error: fetchError } = await supabase
+            .from('students')
+            .select('school_id, educational_info')
+            .eq('id', alunoId)
+            .single();
+
+        if (fetchError) throw fetchError;
+        if (!current) throw new Error('Aluno não encontrado.');
+
+        // 2. Preservar dados originais e registrar desvinculo
+        const { error } = await supabase
+            .from('students')
+            .update({
+                status_vinculo: 'DESVINCULADO',
+                motivo_desvinculo: motivo,
+                escola_destino: escolaDestino,
+                desvinculado_em,
+                desvinculado_por: desvinculadoPorId,
+                school_id_desvinculado: current.school_id,
+                school_name_desvinculado: current.educational_info?.schoolName ?? null,
+            })
+            .eq('id', alunoId);
+
+        if (error) throw error;
+
         this.invalidateCache('students_');
     }
 

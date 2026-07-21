@@ -8,7 +8,7 @@ import {
   UserPlus, Edit, Filter, Globe, FileText, MoreVertical, Activity, Clock,
   CheckCircle2, AlertCircle, FileEdit, Loader2, GitMerge, CopyCheck,
   Building2, Dna, Calendar, SortAsc, SortDesc,
-  Brain, TrendingUp, LayoutDashboard, Eye, ClipboardList, Users
+  Brain, TrendingUp, LayoutDashboard, Eye, ClipboardList, Users, LogOut
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import { CSVImporter } from './CSVImporter';
@@ -89,6 +89,18 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
+  const DESVINCULAR_MOTIVO_MIN_LEN = 15;
+
+  // ── Estados de desvinculo (padrão unlinkSupportProfessional) ──────────
+  const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
+  const [pendingUnlinkStudent, setPendingUnlinkStudent] = useState<Student | null>(null);
+  const [unlinkMotivo, setUnlinkMotivo] = useState('');
+  const [unlinkEscolaDestino, setUnlinkEscolaDestino] = useState('');
+  const [isUnlinking, setIsUnlinking] = useState(false);
+
+  // ── Filtros de vínculo e unidade ──────────────────────────────────────
+  const [filterVinculo, setFilterVinculo] = useState<'TODOS' | 'ATIVO' | 'DESVINCULADO'>('ATIVO');
+  const [filterUnidade, setFilterUnidade] = useState<string>('TODOS');
 
   const toggleExpand = (id: string) => {
     setExpandedRows(prev => {
@@ -123,6 +135,8 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
 
   const isRestricted = (currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'SECRETARIA_SEDE') && currentUser?.scope === 'COCAL';
   const canDelete = currentUser?.role === 'ADMIN' || currentUser?.role === 'SECRETARIA_SEDE';
+  const canDesvincular = ['ADMIN', 'EDUCATION_SECRETARY', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL']
+    .includes((currentUser?.role ?? '').toUpperCase());
 const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUCATION_SECRETARY' || currentUser?.role === 'ASSISTANT' || currentUser?.role === 'SECRETARIA_SEDE' || currentUser?.role === 'SECRETARIA_COCAL' || currentUser?.role === 'ESCOLA';
   const canViewClinical = currentUser?.role === 'ADMIN' || currentUser?.role === 'SPECIALIST' || currentUser?.role === 'ESCOLA';
 
@@ -282,7 +296,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
   // CORREÇÃO #8: Reset de currentPage quando qualquer filtro muda
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedSchoolId, filterSchool, filterDiag, filterSemRegistro, listaEscopo]);
+  }, [searchTerm, selectedSchoolId, filterSchool, filterDiag, filterSemRegistro, listaEscopo, filterVinculo, filterUnidade]);
 
   const filteredStudents = useMemo(() => baseStudentList.filter(p => {
     // 1. User Scope Filter (Cocal Security) — distrito, nome da escola ou unidade do aluno
@@ -303,6 +317,16 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       const mySchoolId = currentUser?.schoolId;
       if (!mySchoolId) return false; // Segurança: sem UUID, escola não vê nada
       if (p.school?.schoolId !== mySchoolId) return false;
+    }
+
+    // 1c. Filtro de status de vínculo (ATIVO por padrão — esconde desvinculados)
+    const statusVinculo = p.statusVinculo ?? 'ATIVO';
+    if (filterVinculo !== 'TODOS' && statusVinculo !== filterVinculo) return false;
+
+    // 1d. Filtro por unidade (oculto para perfis já restritos ao Cocal)
+    if (!isRestricted && filterUnidade !== 'TODOS') {
+      const unit = String(p.unit ?? '').toUpperCase();
+      if (unit !== filterUnidade) return false;
     }
 
     if (listaSomenteAgendaProfissional) {
@@ -327,7 +351,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       (selectedSchoolId !== 'ALL' && !p.school?.schoolId && p.school?.schoolName === selectedSchoolId);
 
     return matchesSearch && matchesSchool && (!filterSemRegistro || !sessionsInfo[p.id]?.lastDate) && (!filterDiag || normalizeText(p.clinical?.diagnosis||'').includes(normalizeText(filterDiag))) && (!filterSchool || normalizeText(p.school?.schoolName||'').includes(normalizeText(filterSchool)));
-  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional, filterSemRegistro, filterDiag, filterSchool, sessionsInfo, normalizeText]);
+  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional, filterSemRegistro, filterDiag, filterSchool, filterVinculo, filterUnidade, sessionsInfo, normalizeText]);
 
   // Sort + paginação sobre filteredStudents
   const sortedStudents = useMemo(() => {
@@ -405,6 +429,47 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       setStudentToDelete(null);
     }
   }, [studentToDelete, currentUser, onRefresh, addToast]);
+
+  const closeUnlinkModal = () => {
+    setShowUnlinkConfirm(false);
+    setPendingUnlinkStudent(null);
+    setUnlinkMotivo('');
+    setUnlinkEscolaDestino('');
+  };
+
+  const handleConfirmDesvincular = async () => {
+    if (!pendingUnlinkStudent) return;
+    const motivo = unlinkMotivo.trim();
+    if (motivo.length < DESVINCULAR_MOTIVO_MIN_LEN) {
+      addToast(`Descreva o motivo do desvinculamento (mínimo ${DESVINCULAR_MOTIVO_MIN_LEN} caracteres).`, 'error');
+      return;
+    }
+    setIsUnlinking(true);
+    try {
+      await SupabaseService.desvincularAluno(
+        pendingUnlinkStudent.id,
+        motivo,
+        unlinkEscolaDestino.trim() || null,
+        currentUser?.id ?? null
+      );
+      if (currentUser) {
+        await SupabaseService.logAction(
+          currentUser,
+          AuditAction.UPDATE,
+          'ALUNOS',
+          `Desvinculado: ${pendingUnlinkStudent.fullName}. Motivo: ${motivo}`
+        );
+      }
+      addToast('Aluno desvinculado. O histórico permanece no sistema.', 'success');
+      closeUnlinkModal();
+      if (onRefresh) await onRefresh();
+    } catch (err: any) {
+      console.error(err);
+      addToast('Erro ao desvincular aluno: ' + err.message, 'error');
+    } finally {
+      setIsUnlinking(false);
+    }
+  };
 
   const handleMergeRequest = () => {
     if (!mainStudentId || !duplicateStudentId || !hasConfirmedIrreversible) return;
@@ -930,9 +995,39 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
         </div>
 
+        {/* Filtro por Status de Vínculo */}
+        <div className="relative">
+          <select
+            value={filterVinculo}
+            onChange={e => { setFilterVinculo(e.target.value as 'TODOS' | 'ATIVO' | 'DESVINCULADO'); setCurrentPage(1); }}
+            className="pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
+            style={filterVinculo !== 'ATIVO' ? {borderColor:'#FDA74A',background:'#FFF3E6',color:'#C05621'} : {}}>
+            <option value="TODOS">🔗 Todos os vínculos</option>
+            <option value="ATIVO">✅ Ativos</option>
+            <option value="DESVINCULADO">📤 Desvinculados</option>
+          </select>
+          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
+        </div>
+
+        {/* Filtro por Unidade (oculto para perfis já restritos ao Cocal) */}
+        {!isRestricted && (
+          <div className="relative">
+            <select
+              value={filterUnidade}
+              onChange={e => { setFilterUnidade(e.target.value); setCurrentPage(1); }}
+              className="pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
+              style={filterUnidade !== 'TODOS' ? {borderColor:'#85B7EB',background:'#E6F1FB',color:'#185FA5'} : {}}>
+              <option value="TODOS">🏢 Todas as unidades</option>
+              <option value="SEDE">🏛️ Sede</option>
+              <option value="COCAL">📍 Cocal</option>
+            </select>
+            <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
+          </div>
+        )}
+
         {/* Limpar filtros */}
-        {(filterSchool || filterDiag || filterSemRegistro) && (
-          <button onClick={() => { setFilterSchool(''); setFilterDiag(''); setFilterSemRegistro(false); setCurrentPage(1); }}
+        {(filterSchool || filterDiag || filterSemRegistro || filterVinculo !== 'ATIVO' || filterUnidade !== 'TODOS') && (
+          <button onClick={() => { setFilterSchool(''); setFilterDiag(''); setFilterSemRegistro(false); setFilterVinculo('ATIVO'); setFilterUnidade('TODOS'); setCurrentPage(1); }}
             className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 text-slate-400 hover:bg-slate-50 transition-all">
             ✕ Limpar filtros
           </button>
@@ -989,10 +1084,11 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                       <MoreVertical size={16}/>
                     </button>
                     {activeMenuId === student.id && (
-                      <div ref={menuRef} className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
+                      <div ref={menuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
                         <div className="p-1">
                           {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
                           <button onClick={(e) => { e.stopPropagation(); onEdit(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
+                          {canDesvincular && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setPendingUnlinkStudent(student); setShowUnlinkConfirm(true); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-lg flex items-center gap-2"><LogOut size={13}/> Desvincular Aluno</button></>)}
                           {(currentUser?.role==='ADMIN'||currentUser?.role==='SECRETARIA_SEDE') && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setStudentToDelete(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"><Trash2 size={13}/> Excluir</button></>)}
                         </div>
                       </div>
@@ -1108,11 +1204,12 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                               <MoreVertical size={16}/>
                             </button>
                             {activeMenuId === student.id && (
-                              <div ref={menuRef} className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
+                              <div ref={menuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
                                 <div className="p-1">
                                   <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2 sm:hidden"><FileText size={13}/> Abrir Prontuário</button>
                                   {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
                                   <button onClick={(e) => { e.stopPropagation(); onEdit(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
+                                  {canDesvincular && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setPendingUnlinkStudent(student); setShowUnlinkConfirm(true); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-lg flex items-center gap-2"><LogOut size={13}/> Desvincular Aluno</button></>)}
                                   {(currentUser?.role==='ADMIN'||currentUser?.role==='SECRETARIA_SEDE') && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setStudentToDelete(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"><Trash2 size={13}/> Excluir</button></>)}
                                 </div>
                               </div>
@@ -1188,6 +1285,58 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           </div>
         </div>
       </div>
+      {/* Modal Desvincular Aluno — padrão ConfirmModal com footerExtra (igual SupportProfessionalManagement) */}
+      <ConfirmModal
+        isOpen={showUnlinkConfirm}
+        title={`Desvincular aluno${pendingUnlinkStudent ? `: ${pendingUnlinkStudent.fullName}` : ''}?`}
+        message={
+          'O cadastro será marcado como desvinculado (exclusão lógica): o histórico clínico, sessões e documentos permanecem no sistema.\n\n' +
+          'Confirme somente se deseja realmente encerrar o vínculo administrativo deste aluno com o programa.'
+        }
+        confirmLabel="Sim, desvincular"
+        cancelLabel="Cancelar"
+        onConfirm={handleConfirmDesvincular}
+        onCancel={closeUnlinkModal}
+        type="danger"
+        isLoading={isUnlinking}
+        confirmDisabled={unlinkMotivo.trim().length < DESVINCULAR_MOTIVO_MIN_LEN}
+        footerExtra={
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="desvincular-motivo" className="block text-sm font-medium text-slate-700 text-left">
+                Motivo do desvinculamento <span className="text-red-600">*</span>
+              </label>
+              <textarea
+                id="desvincular-motivo"
+                rows={4}
+                maxLength={800}
+                value={unlinkMotivo}
+                onChange={e => setUnlinkMotivo(e.target.value)}
+                placeholder="Descreva o motivo (mínimo de caracteres indicado abaixo). Ex.: mudança de município, transferência de escola, encerramento do acompanhamento…"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              />
+              <p className="mt-1 text-xs text-slate-500 text-left">
+                {unlinkMotivo.trim().length}/{DESVINCULAR_MOTIVO_MIN_LEN} caracteres (mínimo obrigatório para confirmar)
+              </p>
+            </div>
+            <div>
+              <label htmlFor="desvincular-escola" className="block text-sm font-medium text-slate-700 text-left">
+                Escola / cidade de destino <span className="text-slate-400 text-xs">(opcional)</span>
+              </label>
+              <input
+                id="desvincular-escola"
+                type="text"
+                maxLength={200}
+                value={unlinkEscolaDestino}
+                onChange={e => setUnlinkEscolaDestino(e.target.value)}
+                placeholder="Ex.: E.M. João Silva — São Paulo/SP"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              />
+            </div>
+          </div>
+        }
+      />
+
       {/* Delete Confirmation Modal */}
       {studentToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
