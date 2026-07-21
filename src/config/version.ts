@@ -1,13 +1,23 @@
 export const APP_VERSION = {
-  version: 'v2.4.134',
+  version: 'v2.4.135',
   date: 'Jul 2026',
-  display: 'v2.4.134 • Jul 2026',
+  display: 'v2.4.135 • Jul 2026',
   changelog: [
-    'Migração de banco de dados',
-    'Atualização da camada de dados',
-    'Melhorias e correções gerais'  
+    'Desvínculo lógico de aluno da escola (V42) — sem exclusão física'
   ],
   releases: [
+    {
+      version: 'v2.4.135',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.135 — Desvínculo de Aluno',
+      type: 'feature',
+      changes: [
+        "Novo fluxo 'Desvincular aluno' na Central de Prontuários — restrito a ADMIN, EDUCATION_SECRETARY, SECRETARIA_SEDE e SECRETARIA_COCAL",
+        "Motivo obrigatório (mínimo 15 caracteres) registrado na ficha do aluno e no log de auditoria",
+        "Novos filtros por status de vínculo (Ativos/Transferidos/Todos) e por unidade (Sede/Cocal) na lista de alunos",
+        "Migration V42 — histórico do vínculo escolar original preservado, aluno nunca é excluído fisicamente"
+      ]
+    },
     {
       version: 'v2.4.134',
       date: '21 Jul 2026',
