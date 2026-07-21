@@ -118,11 +118,14 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
   };
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Fechar menu ao clicar fora
+  // Fechar menu ao clicar fora (ignora cliques nos próprios botões "⋮" — eles já controlam o toggle sozinhos)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (target.closest && target.closest('[data-kebab-toggle]')) return;
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setActiveMenuId(null);
+        setMenuPos(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -1098,7 +1101,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                     Abrir <ChevronRight size={12}/>
                   </button>
                   <div className="relative">
-                    <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId===student.id?null:student.id); }}
+                    <button data-kebab-toggle onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId===student.id?null:student.id); }}
                       className={`p-1.5 rounded-lg transition-colors ${activeMenuId===student.id?'bg-slate-200 text-slate-800':'text-slate-400 hover:bg-slate-100'}`}>
                       <MoreVertical size={16}/>
                     </button>
@@ -1218,7 +1221,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                             Abrir <ChevronRight size={12}/>
                           </button>
                           <div className="relative">
-                            <button onClick={(e) => {
+                            <button data-kebab-toggle onClick={(e) => {
                                 e.stopPropagation();
                                 if (activeMenuId === student.id) { setActiveMenuId(null); setMenuPos(null); return; }
                                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();

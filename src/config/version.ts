@@ -1,11 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.138',
+  version: 'v2.4.139',
   date: 'Jul 2026',
-  display: 'v2.4.138 • Jul 2026',
+  display: 'v2.4.139 • Jul 2026',
   changelog: [
-    'Correção: botões do topo (Mesclar/Importar/Cadastro Rápido/Cadastrar) cortados fora da tela em telas menores'
+    'Correção: menu de ações (⋮) fechava sozinho no clique real — detector de "clique fora" agora ignora o próprio botão'
   ],
   releases: [
+    {
+      version: 'v2.4.139',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.139 — Fix menu fechando sozinho',
+      type: 'fix',
+      changes: [
+        "Menu de ações (Editar/Desvincular/Excluir) abria e fechava no mesmo clique real do mouse",
+        "Causa: o detector de 'clique fora' via mousedown reagia ao próprio clique no botão ⋮",
+        "Botões ⋮ agora marcados para serem ignorados pelo detector de clique-fora"
+      ]
+    },
     {
       version: 'v2.4.138',
       date: '21 Jul 2026',
