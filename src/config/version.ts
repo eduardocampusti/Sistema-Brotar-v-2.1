@@ -1,11 +1,31 @@
 export const APP_VERSION = {
-  version: 'v2.4.142',
+  version: 'v2.4.144',
   date: 'Jul 2026',
-  display: 'v2.4.142 • Jul 2026',
+  display: 'v2.4.144 • Jul 2026',
   changelog: [
-    'Correção definitiva: menu Desvincular Aluno, filtro escola duplicado e menu cortado no viewport'
+    'Menu Desvincular Aluno finalmente funcional — abordagem simplificada com absolute + click global'
   ],
   releases: [
+    {
+      version: 'v2.4.144',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.144 — Menu Desvincular Aluno funcional',
+      type: 'feature',
+      changes: [
+        "Menu de ações (⋮) da tabela de alunos agora abre corretamente — simplificado para absolute + click global",
+        "Opções: Editar Cadastro, Desvincular Aluno (com modal de motivo), Excluir",
+        "Removidas abordagens anteriores que não funcionavam (mousedown, overlay, fixed positioning)"
+      ]
+    },
+    {
+      version: 'v2.4.143',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.143 — 21 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.142',
       date: '21 Jul 2026',
