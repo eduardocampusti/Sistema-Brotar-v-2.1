@@ -1,11 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.135',
+  version: 'v2.4.136',
   date: 'Jul 2026',
-  display: 'v2.4.135 • Jul 2026',
+  display: 'v2.4.136 • Jul 2026',
   changelog: [
-    'Desvínculo lógico de aluno da escola (V42) — sem exclusão física'
+    'Redesenho da barra de filtros da Central de Prontuários — grupos separados, ícones consistentes'
   ],
   releases: [
+    {
+      version: 'v2.4.136',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.136 — Redesenho de Filtros',
+      type: 'improvement',
+      changes: [
+        "Barra de filtros da Central de Prontuários reorganizada em 2 grupos (status rápido / refinamento), com divisor visual",
+        "Removidos emojis dos filtros de vínculo e unidade; ícones consistentes com o resto do sistema",
+        "Cor de destaque unificada para azul do Design System (#3B82F6) em todos os filtros ativos"
+      ]
+    },
     {
       version: 'v2.4.135',
       date: '21 Jul 2026',

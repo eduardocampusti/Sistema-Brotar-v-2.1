@@ -8,7 +8,8 @@ import {
   UserPlus, Edit, Filter, Globe, FileText, MoreVertical, Activity, Clock,
   CheckCircle2, AlertCircle, FileEdit, Loader2, GitMerge, CopyCheck,
   Building2, Dna, Calendar, SortAsc, SortDesc,
-  Brain, TrendingUp, LayoutDashboard, Eye, ClipboardList, Users, LogOut
+  Brain, TrendingUp, LayoutDashboard, Eye, ClipboardList, Users, LogOut,
+  School as SchoolIcon, Link2
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import { CSVImporter } from './CSVImporter';
@@ -944,94 +945,111 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
         </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap items-center mb-2">
-        {/* Filtros de status */}
-        <button onClick={() => setFilterSemRegistro(false)}
-          className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
-          style={!filterSemRegistro ? {background:'#8B1A3A',color:'#fff',borderColor:'#8B1A3A'} : {background:'white',borderColor:'#e2e8f0',color:'#64748b'}}>
-          Todos ({pagedStudents.length > 0 ? filteredStudents.length : 0})
-        </button>
-        <button onClick={() => setFilterSemRegistro(true)}
-          className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
-          style={filterSemRegistro ? {background:'#FCEBEB',color:'#A32D2D',borderColor:'#F09595'} : {background:'white',borderColor:'#F09595',color:'#A32D2D'}}>
-          Sem registro
-        </button>
-        <button onClick={() => setFilterSemRegistro(false)}
-          className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
-          style={{background:'white',borderColor:'#97C459',color:'#3B6D11'}}>
-          Com registro
-        </button>
-
-        {/* Separador */}
-        <div className="w-px h-6 bg-slate-200 mx-1"/>
-
-        {/* Filtro por Escola */}
-        <div className="relative">
-          <select
-            value={filterSchool}
-            onChange={e => { setFilterSchool(e.target.value); setCurrentPage(1); }}
-            className="pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
-            style={filterSchool ? {borderColor:'#85B7EB',background:'#E6F1FB',color:'#185FA5'} : {}}>
-            <option value="">🏫 Todas as escolas</option>
-            {Array.from(new Set(baseStudentList.map(s => s.school?.schoolName).filter(Boolean))).sort().map(school => (
-              <option key={school} value={school!}>{school}</option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
-        </div>
-
-        {/* Filtro por CID/Diagnóstico */}
-        <div className="relative">
-          <select
-            value={filterDiag}
-            onChange={e => { setFilterDiag(e.target.value); setCurrentPage(1); }}
-            className="pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
-            style={filterDiag ? {borderColor:'#AFA9EC',background:'#EEEDFE',color:'#3C3489'} : {}}>
-            <option value="">🧬 Todos os diagnósticos</option>
-            {Array.from(new Set(baseStudentList.map(s => s.clinical?.diagnosis).filter(Boolean))).sort().map(diag => (
-              <option key={diag} value={diag!}>{diag}</option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
-        </div>
-
-        {/* Filtro por Status de Vínculo */}
-        <div className="relative">
-          <select
-            value={filterVinculo}
-            onChange={e => { setFilterVinculo(e.target.value as 'TODOS' | 'ATIVO' | 'DESVINCULADO'); setCurrentPage(1); }}
-            className="pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
-            style={filterVinculo !== 'ATIVO' ? {borderColor:'#FDA74A',background:'#FFF3E6',color:'#C05621'} : {}}>
-            <option value="TODOS">🔗 Todos os vínculos</option>
-            <option value="ATIVO">✅ Ativos</option>
-            <option value="DESVINCULADO">📤 Desvinculados</option>
-          </select>
-          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
-        </div>
-
-        {/* Filtro por Unidade (oculto para perfis já restritos ao Cocal) */}
-        {!isRestricted && (
-          <div className="relative">
-            <select
-              value={filterUnidade}
-              onChange={e => { setFilterUnidade(e.target.value); setCurrentPage(1); }}
-              className="pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
-              style={filterUnidade !== 'TODOS' ? {borderColor:'#85B7EB',background:'#E6F1FB',color:'#185FA5'} : {}}>
-              <option value="TODOS">🏢 Todas as unidades</option>
-              <option value="SEDE">🏛️ Sede</option>
-              <option value="COCAL">📍 Cocal</option>
-            </select>
-            <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
-          </div>
-        )}
-
-        {/* Limpar filtros */}
-        {(filterSchool || filterDiag || filterSemRegistro || filterVinculo !== 'ATIVO' || filterUnidade !== 'TODOS') && (
-          <button onClick={() => { setFilterSchool(''); setFilterDiag(''); setFilterSemRegistro(false); setFilterVinculo('ATIVO'); setFilterUnidade('TODOS'); setCurrentPage(1); }}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 text-slate-400 hover:bg-slate-50 transition-all">
-            ✕ Limpar filtros
+      {/* Barra de filtros — grupo 1: status rápido, grupo 2: refinamento */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3 mb-2">
+        <div className="flex gap-2 flex-wrap items-center">
+          <button onClick={() => setFilterSemRegistro(false)}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
+            style={!filterSemRegistro ? {background:'#3B82F6',color:'#fff',borderColor:'#3B82F6'} : {background:'white',borderColor:'#e2e8f0',color:'#64748b'}}>
+            Todos ({pagedStudents.length > 0 ? filteredStudents.length : 0})
           </button>
-        )}
+          <button onClick={() => setFilterSemRegistro(true)}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all inline-flex items-center gap-1"
+            style={filterSemRegistro ? {background:'#FCEBEB',color:'#A32D2D',borderColor:'#F09595'} : {background:'white',borderColor:'#F09595',color:'#A32D2D'}}>
+            <Clock size={12}/> Sem registro
+          </button>
+          <button onClick={() => setFilterSemRegistro(false)}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all inline-flex items-center gap-1"
+            style={{background:'white',borderColor:'#97C459',color:'#3B6D11'}}>
+            <CheckCircle2 size={12}/> Com registro
+          </button>
+        </div>
+
+        <div className="h-px bg-slate-100 my-3" />
+
+        <div className="grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-2 items-end">
+          {/* Filtro por Escola */}
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mb-1"><SchoolIcon size={12}/>Escola</label>
+            <div className="relative">
+              <select
+                value={filterSchool}
+                onChange={e => { setFilterSchool(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
+                style={filterSchool ? {borderColor:'#3B82F6',background:'#E6F1FB',color:'#185FA5'} : {}}>
+                <option value="">Todas as escolas</option>
+                {Array.from(new Set(baseStudentList.map(s => s.school?.schoolName).filter(Boolean))).sort().map(school => (
+                  <option key={school} value={school!}>{school}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
+            </div>
+          </div>
+
+          {/* Filtro por CID/Diagnóstico */}
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mb-1"><Dna size={12}/>Diagnóstico</label>
+            <div className="relative">
+              <select
+                value={filterDiag}
+                onChange={e => { setFilterDiag(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
+                style={filterDiag ? {borderColor:'#3B82F6',background:'#E6F1FB',color:'#185FA5'} : {}}>
+                <option value="">Todos os diagnósticos</option>
+                {Array.from(new Set(baseStudentList.map(s => s.clinical?.diagnosis).filter(Boolean))).sort().map(diag => (
+                  <option key={diag} value={diag!}>{diag}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
+            </div>
+          </div>
+
+          {/* Filtro por Status de Vínculo */}
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mb-1"><Link2 size={12}/>Vínculo</label>
+            <div className="relative">
+              <select
+                value={filterVinculo}
+                onChange={e => { setFilterVinculo(e.target.value as 'TODOS' | 'ATIVO' | 'DESVINCULADO'); setCurrentPage(1); }}
+                className="w-full pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
+                style={filterVinculo !== 'ATIVO' ? {borderColor:'#3B82F6',background:'#E6F1FB',color:'#185FA5'} : {}}>
+                <option value="TODOS">Todos os vínculos</option>
+                <option value="ATIVO">Ativos</option>
+                <option value="DESVINCULADO">Desvinculados</option>
+              </select>
+              <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
+            </div>
+          </div>
+
+          {/* Filtro por Unidade (oculto para perfis já restritos ao Cocal) */}
+          {!isRestricted ? (
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mb-1"><Building2 size={12}/>Unidade</label>
+              <div className="relative">
+                <select
+                  value={filterUnidade}
+                  onChange={e => { setFilterUnidade(e.target.value); setCurrentPage(1); }}
+                  className="w-full pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
+                  style={filterUnidade !== 'TODOS' ? {borderColor:'#3B82F6',background:'#E6F1FB',color:'#185FA5'} : {}}>
+                  <option value="TODOS">Todas as unidades</option>
+                  <option value="SEDE">Sede</option>
+                  <option value="COCAL">Cocal</option>
+                </select>
+                <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
+              </div>
+            </div>
+          ) : <div />}
+
+          {/* Limpar filtros */}
+          <div className="flex sm:justify-end">
+            {(filterSchool || filterDiag || filterSemRegistro || filterVinculo !== 'ATIVO' || filterUnidade !== 'TODOS') && (
+              <button onClick={() => { setFilterSchool(''); setFilterDiag(''); setFilterSemRegistro(false); setFilterVinculo('ATIVO'); setFilterUnidade('TODOS'); setCurrentPage(1); }}
+                className="w-full sm:w-auto px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 text-slate-400 hover:bg-slate-50 transition-all inline-flex items-center justify-center gap-1">
+                <X size={12}/> Limpar
+              </button>
+            )}
+          </div>
+        </div>
       </div>
       {/* CARDS MOBILE — visível apenas em telas < 640px */}
       <div className="sm:hidden space-y-2 mb-4">
