@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.144',
+  version: 'v2.4.145',
   date: 'Jul 2026',
-  display: 'v2.4.144 • Jul 2026',
+  display: 'v2.4.145 • Jul 2026',
   changelog: [
-    'Menu Desvincular Aluno finalmente funcional — abordagem simplificada com absolute + click global'
+    'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.145',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.145 — 21 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.4.144',
       date: '21 Jul 2026',

@@ -82,7 +82,6 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
 
   // Menu de Ações
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [filterSchool, setFilterSchool] = useState<string>('');
   const [filterDiag, setFilterDiag] = useState<string>('');
@@ -116,7 +115,13 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('asc'); }
   };
-  const menuRef = useRef<HTMLDivElement>(null);
+  // Fecha o menu kebab ao clicar em qualquer lugar fora dele
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const close = () => setActiveMenuId(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [activeMenuId]);
 
   // Normalização de texto — memoizada para evitar recriação
   const normalizeText = useCallback((text: string) => {
@@ -1069,12 +1074,12 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                     Abrir <ChevronRight size={12}/>
                   </button>
                   <div className="relative">
-                    <button data-kebab-toggle onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId===student.id?null:student.id); }}
+                    <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId===student.id?null:student.id); }}
                       className={`p-1.5 rounded-lg transition-colors ${activeMenuId===student.id?'bg-slate-200 text-slate-800':'text-slate-400 hover:bg-slate-100'}`}>
                       <MoreVertical size={16}/>
                     </button>
                     {activeMenuId === student.id && (
-                      <div ref={menuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-[9999] overflow-hidden animate-scaleIn origin-top-right">
                         <div className="p-1">
                           {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
                           <button onClick={(e) => { e.stopPropagation(); onEdit(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
@@ -1182,27 +1187,27 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                           </>
                         ) : <span className="text-slate-400 text-xs">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right overflow-visible">
                         <div className="flex items-center justify-end gap-2 relative">
                           <button onClick={() => void abrirProntuario(student)}
                             className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#8B1A3A] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#731530] transition-all">
                             Abrir <ChevronRight size={12}/>
                           </button>
                           <div className="relative">
-                            <button onClick={(e) => {
-                                e.stopPropagation();
-                                if (activeMenuId === student.id) { setActiveMenuId(null); setMenuPos(null); return; }
-                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                const MENU_W = 192;
-                                const MENU_H = 164;
-                                const left = Math.min(Math.max(8, rect.right - MENU_W), window.innerWidth - MENU_W - 8);
-                                const top = rect.bottom + MENU_H > window.innerHeight ? rect.top - MENU_H : rect.bottom + 4;
-                                setMenuPos({ top, left });
-                                setActiveMenuId(student.id);
-                              }}
+                            <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId===student.id?null:student.id); }}
                               className={`p-1.5 rounded-lg transition-colors ${activeMenuId===student.id?'bg-slate-200 text-slate-800':'text-slate-400 hover:bg-slate-100'}`}>
                               <MoreVertical size={16}/>
                             </button>
+                            {activeMenuId === student.id && (
+                              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-[9999] overflow-hidden animate-scaleIn origin-top-right">
+                                <div className="p-1">
+                                  {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
+                                  <button onClick={(e) => { e.stopPropagation(); onEdit(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
+                                  {canDesvincular && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setPendingUnlinkStudent(student); setShowUnlinkConfirm(true); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-lg flex items-center gap-2"><LogOut size={13}/> Desvincular Aluno</button></>)}
+                                  {(currentUser?.role==='ADMIN'||currentUser?.role==='SECRETARIA_SEDE') && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setStudentToDelete(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"><Trash2 size={13}/> Excluir</button></>)}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -1274,30 +1279,6 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           </div>
         </div>
       </div>
-      {/* Overlay — fecha o menu ao clicar fora; fica entre a tabela (z-0) e o menu (z-50) */}
-      {activeMenuId && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => { setActiveMenuId(null); setMenuPos(null); }}
-        />
-      )}
-
-      {/* Menu de ações da tabela desktop — fixed no viewport, fora do overflow-x-auto, para não ser cortado */}
-      {activeMenuId && menuPos && (() => {
-        const menuStudent = pagedStudents.find(s => s.id === activeMenuId);
-        if (!menuStudent) return null;
-        return (
-          <div ref={menuRef} style={{ position: 'fixed', top: menuPos.top, left: menuPos.left }}
-            className="w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
-            <div className="p-1">
-              {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(menuStudent); setActiveMenuId(null); setMenuPos(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
-              <button onClick={(e) => { e.stopPropagation(); onEdit(menuStudent); setActiveMenuId(null); setMenuPos(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
-              {canDesvincular && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setPendingUnlinkStudent(menuStudent); setShowUnlinkConfirm(true); setActiveMenuId(null); setMenuPos(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-lg flex items-center gap-2"><LogOut size={13}/> Desvincular Aluno</button></>)}
-              {(currentUser?.role==='ADMIN'||currentUser?.role==='SECRETARIA_SEDE') && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setStudentToDelete(menuStudent); setActiveMenuId(null); setMenuPos(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"><Trash2 size={13}/> Excluir</button></>)}
-            </div>
-          </div>
-        );
-      })()}
       {/* Modal Desvincular Aluno — padrão ConfirmModal com footerExtra (igual SupportProfessionalManagement) */}
       <ConfirmModal
         isOpen={showUnlinkConfirm}
