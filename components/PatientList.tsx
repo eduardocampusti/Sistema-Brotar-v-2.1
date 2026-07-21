@@ -82,6 +82,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
 
   // Menu de Ações
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [filterSchool, setFilterSchool] = useState<string>('');
   const [filterDiag, setFilterDiag] = useState<string>('');
@@ -1120,8 +1121,8 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       </div>
 
       {/* TABLE PREMIUM — visível apenas em telas >= 640px */}
-      <div className="hidden sm:block bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="hidden sm:block bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div className="overflow-x-auto rounded-2xl">
           <table className="min-w-full" style={{borderCollapse:'separate',borderSpacing:0}}>
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
@@ -1217,21 +1218,16 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                             Abrir <ChevronRight size={12}/>
                           </button>
                           <div className="relative">
-                            <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId===student.id?null:student.id); }}
+                            <button onClick={(e) => {
+                                e.stopPropagation();
+                                if (activeMenuId === student.id) { setActiveMenuId(null); setMenuPos(null); return; }
+                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                setMenuPos({ top: rect.bottom + 4, left: Math.max(8, rect.right - 192) });
+                                setActiveMenuId(student.id);
+                              }}
                               className={`p-1.5 rounded-lg transition-colors ${activeMenuId===student.id?'bg-slate-200 text-slate-800':'text-slate-400 hover:bg-slate-100'}`}>
                               <MoreVertical size={16}/>
                             </button>
-                            {activeMenuId === student.id && (
-                              <div ref={menuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
-                                <div className="p-1">
-                                  <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2 sm:hidden"><FileText size={13}/> Abrir Prontuário</button>
-                                  {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
-                                  <button onClick={(e) => { e.stopPropagation(); onEdit(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
-                                  {canDesvincular && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setPendingUnlinkStudent(student); setShowUnlinkConfirm(true); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-lg flex items-center gap-2"><LogOut size={13}/> Desvincular Aluno</button></>)}
-                                  {(currentUser?.role==='ADMIN'||currentUser?.role==='SECRETARIA_SEDE') && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setStudentToDelete(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"><Trash2 size={13}/> Excluir</button></>)}
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -1303,6 +1299,22 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           </div>
         </div>
       </div>
+      {/* Menu de ações da tabela desktop — fixed no viewport, fora do overflow-x-auto, para não ser cortado */}
+      {activeMenuId && menuPos && (() => {
+        const menuStudent = pagedStudents.find(s => s.id === activeMenuId);
+        if (!menuStudent) return null;
+        return (
+          <div ref={menuRef} style={{ position: 'fixed', top: menuPos.top, left: menuPos.left }}
+            className="w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-scaleIn origin-top-right">
+            <div className="p-1">
+              {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(menuStudent); setActiveMenuId(null); setMenuPos(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
+              <button onClick={(e) => { e.stopPropagation(); onEdit(menuStudent); setActiveMenuId(null); setMenuPos(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
+              {canDesvincular && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setPendingUnlinkStudent(menuStudent); setShowUnlinkConfirm(true); setActiveMenuId(null); setMenuPos(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-lg flex items-center gap-2"><LogOut size={13}/> Desvincular Aluno</button></>)}
+              {(currentUser?.role==='ADMIN'||currentUser?.role==='SECRETARIA_SEDE') && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setStudentToDelete(menuStudent); setActiveMenuId(null); setMenuPos(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"><Trash2 size={13}/> Excluir</button></>)}
+            </div>
+          </div>
+        );
+      })()}
       {/* Modal Desvincular Aluno — padrão ConfirmModal com footerExtra (igual SupportProfessionalManagement) */}
       <ConfirmModal
         isOpen={showUnlinkConfirm}

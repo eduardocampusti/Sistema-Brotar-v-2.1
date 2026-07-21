@@ -1,11 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.136',
+  version: 'v2.4.137',
   date: 'Jul 2026',
-  display: 'v2.4.136 • Jul 2026',
+  display: 'v2.4.137 • Jul 2026',
   changelog: [
-    'Redesenho da barra de filtros da Central de Prontuários — grupos separados, ícones consistentes'
+    'Correção: botão Desvincular Aluno ficava invisível (menu cortado pelo scroll da tabela)'
   ],
   releases: [
+    {
+      version: 'v2.4.137',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.137 — Fix menu de ações cortado',
+      type: 'fix',
+      changes: [
+        "Menu de ações da tabela de alunos (Editar/Desvincular/Excluir) não aparecia — estava sendo cortado pelo overflow da tabela",
+        "Menu agora renderiza fora da área de rolagem, com posição calculada dinamicamente (position: fixed)",
+        "Removido overflow-hidden desnecessário do container da tabela"
+      ]
+    },
     {
       version: 'v2.4.136',
       date: '21 Jul 2026',
