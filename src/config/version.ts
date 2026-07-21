@@ -1,11 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.141',
+  version: 'v2.4.142',
   date: 'Jul 2026',
-  display: 'v2.4.141 • Jul 2026',
+  display: 'v2.4.142 • Jul 2026',
   changelog: [
-    'Melhorias e correções gerais'  
+    'Correção definitiva: menu Desvincular Aluno, filtro escola duplicado e menu cortado no viewport'
   ],
   releases: [
+    {
+      version: 'v2.4.142',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.142 — Fix menu Desvincular + filtro duplicado + viewport',
+      type: 'fix',
+      changes: [
+        "Menu ⋮ (Editar/Desvincular/Excluir) agora abre corretamente no clique — substituído mousedown global por overlay transparente",
+        "Removido filtro de escola duplicado da barra de filtros (mantido apenas o do cabeçalho)",
+        "Menu de ações não é mais cortado pela borda da tela — abre para cima quando perto do rodapé"
+      ]
+    },
     {
       version: 'v2.4.141',
       date: '21 Jul 2026',
