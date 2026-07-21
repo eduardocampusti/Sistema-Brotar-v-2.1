@@ -680,7 +680,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 w-full md:w-auto">
           {podeAlternarListaRede && (
             <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 shadow-sm self-start sm:self-center">
               <button
@@ -740,7 +740,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           {/* Filtros rápidos já aparecem acima da tabela para todos os perfis */}
 
           {canRegister && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-end">
               <button
                 onClick={() => setShowMergeModal(true)}
                 className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-all font-bold text-xs uppercase tracking-widest shadow-sm"

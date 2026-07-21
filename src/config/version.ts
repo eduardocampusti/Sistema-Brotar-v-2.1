@@ -1,11 +1,21 @@
 export const APP_VERSION = {
-  version: 'v2.4.137',
+  version: 'v2.4.138',
   date: 'Jul 2026',
-  display: 'v2.4.137 • Jul 2026',
+  display: 'v2.4.138 • Jul 2026',
   changelog: [
-    'Correção: botão Desvincular Aluno ficava invisível (menu cortado pelo scroll da tabela)'
+    'Correção: botões do topo (Mesclar/Importar/Cadastro Rápido/Cadastrar) cortados fora da tela em telas menores'
   ],
   releases: [
+    {
+      version: 'v2.4.138',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.138 — Fix botões do topo cortados',
+      type: 'fix',
+      changes: [
+        "Botões Mesclar Alunos / Importar CSV / Cadastro Rápido / Cadastrar Aluno estouravam a tela em vez de quebrar linha",
+        "Adicionado flex-wrap no cabeçalho da Central de Prontuários"
+      ]
+    },
     {
       version: 'v2.4.137',
       date: '21 Jul 2026',
