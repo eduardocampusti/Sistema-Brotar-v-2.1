@@ -1,11 +1,25 @@
 export const APP_VERSION = {
-  version: 'v2.4.147',
+  version: 'v2.4.148',
   date: 'Jul 2026',
-  display: 'v2.4.147 • Jul 2026',
+  display: 'v2.4.148 • Jul 2026',
   changelog: [
-    'Melhorias e correções gerais'  
+    'Cabeçalho da Central de Prontuários reorganizado — cards fundidos aos filtros, escola sem truncar'
   ],
   releases: [
+    {
+      version: 'v2.4.148',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.148 — Cabeçalho reorganizado',
+      type: 'improvement',
+      changes: [
+        "Removidos os 3 cards de estatística — números migraram para dentro dos botões de filtro, que agora são clicáveis",
+        "Contagens dos filtros respeitam a escola selecionada (ex.: 'Sem registro 16' da escola escolhida, não da rede toda)",
+        "Cabeçalho dividido em 2 zonas: título + ações / busca + escola em grid com largura total",
+        "Nome da escola não trunca mais — SearchableSelect ocupa a largura total da coluna",
+        "Dropdown de escolas mostra quantos alunos cada unidade possui",
+        "Hierarquia de botões: Cadastrar Aluno em destaque, demais ações em estilo secundário"
+      ]
+    },
     {
       version: 'v2.4.147',
       date: '21 Jul 2026',
