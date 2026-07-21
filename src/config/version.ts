@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.130',
+  version: 'v2.4.131',
   date: 'Jul 2026',
-  display: 'v2.4.130 • Jul 2026',
+  display: 'v2.4.131 • Jul 2026',
   changelog: [
-    'Grade de horários dinâmica na central de agendamentos'  
+    'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.131',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.131 — 21 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.4.130',
       date: '13 Jul 2026',
