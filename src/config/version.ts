@@ -1,11 +1,29 @@
 export const APP_VERSION = {
-  version: 'v2.4.139',
+  version: 'v2.4.141',
   date: 'Jul 2026',
-  display: 'v2.4.139 • Jul 2026',
+  display: 'v2.4.141 • Jul 2026',
   changelog: [
-    'Correção: menu de ações (⋮) fechava sozinho no clique real — detector de "clique fora" agora ignora o próprio botão'
+    'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.141',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.141 — 21 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Melhorias e correções gerais"
+      ]
+    },
+    {
+      version: 'v2.4.140',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.140 — 21 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.139',
       date: '21 Jul 2026',

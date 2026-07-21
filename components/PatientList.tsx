@@ -118,20 +118,6 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
   };
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Fechar menu ao clicar fora (ignora cliques nos próprios botões "⋮" — eles já controlam o toggle sozinhos)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (target.closest && target.closest('[data-kebab-toggle]')) return;
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setActiveMenuId(null);
-        setMenuPos(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   // Normalização de texto — memoizada para evitar recriação
   const normalizeText = useCallback((text: string) => {
     return (text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -971,25 +957,7 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
 
         <div className="h-px bg-slate-100 my-3" />
 
-        <div className="grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-2 items-end">
-          {/* Filtro por Escola */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mb-1"><SchoolIcon size={12}/>Escola</label>
-            <div className="relative">
-              <select
-                value={filterSchool}
-                onChange={e => { setFilterSchool(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-600 outline-none appearance-none cursor-pointer hover:border-slate-300 transition-all"
-                style={filterSchool ? {borderColor:'#3B82F6',background:'#E6F1FB',color:'#185FA5'} : {}}>
-                <option value="">Todas as escolas</option>
-                {Array.from(new Set(baseStudentList.map(s => s.school?.schoolName).filter(Boolean))).sort().map(school => (
-                  <option key={school} value={school!}>{school}</option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</div>
-            </div>
-          </div>
-
+        <div className="grid grid-cols-2 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-2 items-end">
           {/* Filtro por CID/Diagnóstico */}
           <div>
             <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mb-1"><Dna size={12}/>Diagnóstico</label>
@@ -1046,8 +1014,8 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
 
           {/* Limpar filtros */}
           <div className="flex sm:justify-end">
-            {(filterSchool || filterDiag || filterSemRegistro || filterVinculo !== 'ATIVO' || filterUnidade !== 'TODOS') && (
-              <button onClick={() => { setFilterSchool(''); setFilterDiag(''); setFilterSemRegistro(false); setFilterVinculo('ATIVO'); setFilterUnidade('TODOS'); setCurrentPage(1); }}
+            {(filterDiag || filterSemRegistro || filterVinculo !== 'ATIVO' || filterUnidade !== 'TODOS') && (
+              <button onClick={() => { setFilterDiag(''); setFilterSemRegistro(false); setFilterVinculo('ATIVO'); setFilterUnidade('TODOS'); setCurrentPage(1); }}
                 className="w-full sm:w-auto px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 text-slate-400 hover:bg-slate-50 transition-all inline-flex items-center justify-center gap-1">
                 <X size={12}/> Limpar
               </button>
@@ -1221,11 +1189,15 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                             Abrir <ChevronRight size={12}/>
                           </button>
                           <div className="relative">
-                            <button data-kebab-toggle onClick={(e) => {
+                            <button onClick={(e) => {
                                 e.stopPropagation();
                                 if (activeMenuId === student.id) { setActiveMenuId(null); setMenuPos(null); return; }
                                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                setMenuPos({ top: rect.bottom + 4, left: Math.max(8, rect.right - 192) });
+                                const MENU_W = 192;
+                                const MENU_H = 164;
+                                const left = Math.min(Math.max(8, rect.right - MENU_W), window.innerWidth - MENU_W - 8);
+                                const top = rect.bottom + MENU_H > window.innerHeight ? rect.top - MENU_H : rect.bottom + 4;
+                                setMenuPos({ top, left });
                                 setActiveMenuId(student.id);
                               }}
                               className={`p-1.5 rounded-lg transition-colors ${activeMenuId===student.id?'bg-slate-200 text-slate-800':'text-slate-400 hover:bg-slate-100'}`}>
@@ -1302,6 +1274,14 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
           </div>
         </div>
       </div>
+      {/* Overlay — fecha o menu ao clicar fora; fica entre a tabela (z-0) e o menu (z-50) */}
+      {activeMenuId && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => { setActiveMenuId(null); setMenuPos(null); }}
+        />
+      )}
+
       {/* Menu de ações da tabela desktop — fixed no viewport, fora do overflow-x-auto, para não ser cortado */}
       {activeMenuId && menuPos && (() => {
         const menuStudent = pagedStudents.find(s => s.id === activeMenuId);
