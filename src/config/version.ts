@@ -1,11 +1,23 @@
 export const APP_VERSION = {
-  version: 'v2.4.145',
+  version: 'v2.4.146',
   date: 'Jul 2026',
-  display: 'v2.4.145 • Jul 2026',
+  display: 'v2.4.146 • Jul 2026',
   changelog: [
-    'Melhorias e correções gerais'  
+    'Botões Abrir/Editar/Desvincular visíveis direto na linha do aluno — sem menu ⋮ no desktop'
   ],
   releases: [
+    {
+      version: 'v2.4.146',
+      date: '21 Jul 2026',
+      title: 'Release v2.4.146 — Botões de ação visíveis na linha do aluno',
+      type: 'feature',
+      changes: [
+        "Substituído menu ⋮ por botões visíveis: Abrir, Editar, Desvincular direto na linha da tabela desktop",
+        "Botão Desvincular em laranja (ativo) ou cinza desabilitado (já desvinculado)",
+        "Botão Excluir como ícone discreto, visível apenas para ADMIN e SECRETARIA_SEDE",
+        "Menu ⋮ mantido na versão mobile"
+      ]
+    },
     {
       version: 'v2.4.145',
       date: '21 Jul 2026',
