@@ -1187,28 +1187,38 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                           </>
                         ) : <span className="text-slate-400 text-xs">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right overflow-visible">
-                        <div className="flex items-center justify-end gap-2 relative">
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end flex-wrap gap-1.5">
+                          {/* Abrir */}
                           <button onClick={() => void abrirProntuario(student)}
-                            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#8B1A3A] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#731530] transition-all">
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8B1A3A] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-[#731530] transition-all duration-200 hover:shadow-sm active:scale-95">
                             Abrir <ChevronRight size={12}/>
                           </button>
-                          <div className="relative">
-                            <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId===student.id?null:student.id); }}
-                              className={`p-1.5 rounded-lg transition-colors ${activeMenuId===student.id?'bg-slate-200 text-slate-800':'text-slate-400 hover:bg-slate-100'}`}>
-                              <MoreVertical size={16}/>
+                          {/* Editar */}
+                          <button onClick={() => onEdit(student)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-slate-200 border border-slate-200 transition-all duration-200 hover:shadow-sm active:scale-95">
+                            <Edit size={12}/> Editar
+                          </button>
+                          {/* Desvincular */}
+                          {canDesvincular && (
+                            student.statusVinculo !== 'DESVINCULADO'
+                              ? <button onClick={() => { setPendingUnlinkStudent(student); setShowUnlinkConfirm(true); }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-orange-100 border border-orange-300 transition-all duration-200 hover:shadow-sm active:scale-95">
+                                  <LogOut size={12}/> Desvincular
+                                </button>
+                              : <button disabled
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-300 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-200 cursor-not-allowed">
+                                  <LogOut size={12}/> Desvinculado
+                                </button>
+                          )}
+                          {/* Excluir — só ícone */}
+                          {canDelete && (
+                            <button onClick={() => setStudentToDelete(student)}
+                              title="Excluir aluno"
+                              className="p-1.5 text-slate-300 hover:text-red-500 transition-colors duration-200 active:scale-95 rounded-lg hover:bg-red-50">
+                              <Trash2 size={14}/>
                             </button>
-                            {activeMenuId === student.id && (
-                              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-[9999] overflow-hidden animate-scaleIn origin-top-right">
-                                <div className="p-1">
-                                  {(isClinician||isSocialWorker) && <button onClick={(e) => { e.stopPropagation(); void abrirProntuario(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Activity size={13}/> Novo Atendimento</button>}
-                                  <button onClick={(e) => { e.stopPropagation(); onEdit(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2"><Edit size={13}/> Editar Cadastro</button>
-                                  {canDesvincular && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setPendingUnlinkStudent(student); setShowUnlinkConfirm(true); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded-lg flex items-center gap-2"><LogOut size={13}/> Desvincular Aluno</button></>)}
-                                  {(currentUser?.role==='ADMIN'||currentUser?.role==='SECRETARIA_SEDE') && (<><div className="h-px bg-slate-100 my-1"/><button onClick={(e) => { e.stopPropagation(); setStudentToDelete(student); setActiveMenuId(null); }} className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2"><Trash2 size={13}/> Excluir</button></>)}
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </td>
                     </tr>
