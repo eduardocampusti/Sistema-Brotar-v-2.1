@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
-import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog, AgendamentoProfissionalView, statusAgendamentoOcupandoHorarioConflito, RelatorioTEAData, NutritionAssessment, NutritionAnthropometryHistory, NutritionNAE, NutritionEanActivity, NutritionEvolution, NutritionDashboardStats, NutritionAlerta } from '../types';
+import { Student, User, School, SupportProfessional, SupportProfessionalAttachment, SupportProfessionalAttachmentCategory, SystemSettings, PapelTimbradoConfig, SavedDocument, Session, Specialty, UserRole, PortageAssessment, Appointment, AppointmentStatus, Unit, AuditAction, AuditLog, AgendamentoProfissionalView, statusAgendamentoOcupandoHorarioConflito, statusAgendamentoRealizado, RelatorioTEAData, NutritionAssessment, NutritionAnthropometryHistory, NutritionNAE, NutritionEanActivity, NutritionEvolution, NutritionDashboardStats, NutritionAlerta } from '../types';
 import { categorizeSecretaryDiagnosis } from '../utils/teaAutismCount';
 import { isPerfilRestritoProntuario, STATUS_AGENDAMENTO_VINCULO_PRONTUARIO } from '@/src/config/perfilRestrito';
 
@@ -2662,6 +2662,133 @@ export class SupabaseService {
             createdAt: a.created_at,
             conflitoHorarioAluno: a.conflito_horario_aluno === true
         }));
+    }
+
+    /**
+     * Emite um Atestado de Comparecimento a partir de um agendamento REALIZADO.
+     *
+     * SEGURANÇA (documento com valor jurídico):
+     * - Data, horário, profissional e unidade NÃO são recebidos do cliente:
+     *   são lidos do registro real do agendamento no banco.
+     * - Valida no servidor que o atendimento foi realizado (ATENDIDO/ENCERRADO)
+     *   e que a data não é futura.
+     * - Registra a emissão em attendance_certificates e na auditoria.
+     */
+    static async gerarAtestadoComparecimento(params: {
+        appointmentId: string;
+        guardianName: string;
+        guardianCpf?: string | null;
+        currentUser: Pick<User, 'id' | 'name' | 'email' | 'role'>;
+    }): Promise<{
+        documentCode: string;
+        issuedAt: string;
+        verificationHash: string;
+        appointment: {
+            studentId: string;
+            studentName?: string;
+            date: string;
+            startTime: string;
+            endTime: string;
+            specialty?: string;
+            professionalName?: string;
+            unit?: Unit;
+        };
+    }> {
+        const { appointmentId, guardianName, guardianCpf, currentUser } = params;
+
+        if (!appointmentId) throw new Error('Agendamento não informado.');
+        if (!guardianName?.trim()) throw new Error('Nome do responsável é obrigatório.');
+        if (!currentUser?.id) throw new Error('Usuário emissor não identificado.');
+
+        // 1. Buscar o agendamento real (fonte da verdade — nada é digitado)
+        const { data: appt, error: fetchError } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('id', appointmentId)
+            .single();
+        if (fetchError || !appt) throw new Error('Agendamento não encontrado.');
+
+        // 2. Validar que o atendimento foi realizado
+        if (!statusAgendamentoRealizado(appt.status as AppointmentStatus)) {
+            throw new Error('Só é possível emitir atestado de atendimento realizado.');
+        }
+
+        // 3. Validar que a data não é futura
+        const hoje = new Date();
+        const hojeISO = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+        if ((appt.date as string) > hojeISO) {
+            throw new Error('Não é possível emitir atestado para atendimento com data futura.');
+        }
+
+        // 4. Gerar código institucional único (BRT-ANO-#####) + hash de verificação
+        const ano = new Date().getFullYear();
+        const gerarCodigo = () => `BRT-${ano}-${Math.floor(Math.random() * 90000) + 10000}`;
+
+        let documentCode = gerarCodigo();
+        let issuedAt = '';
+        let verificationHash = '';
+
+        // Retry em colisão de document_code (UNIQUE)
+        for (let tentativa = 0; tentativa < 5; tentativa++) {
+            documentCode = gerarCodigo();
+
+            const hashInput = new TextEncoder().encode(`${appointmentId}|${documentCode}|${appt.date}`);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', hashInput);
+            verificationHash = Array.from(new Uint8Array(hashBuffer))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+
+            const { data: inserted, error: insError } = await supabase
+                .from('attendance_certificates')
+                .insert({
+                    appointment_id: appointmentId,
+                    student_id: appt.student_id,
+                    guardian_name: guardianName.trim(),
+                    guardian_cpf: guardianCpf?.trim() || null,
+                    document_code: documentCode,
+                    issued_by: currentUser.id,
+                    verification_hash: verificationHash,
+                })
+                .select('issued_at')
+                .single();
+
+            if (!insError && inserted) {
+                issuedAt = inserted.issued_at;
+                break;
+            }
+
+            // 23505 = unique_violation → tenta outro código; outros erros abortam
+            if (insError && (insError as any).code !== '23505') {
+                throw insError;
+            }
+            if (tentativa === 4) {
+                throw new Error('Não foi possível gerar um código único para o atestado. Tente novamente.');
+            }
+        }
+
+        // 5. Auditoria
+        await this.logAction(
+            currentUser,
+            AuditAction.CREATE,
+            'DOCUMENTOS',
+            `Atestado de comparecimento emitido: ${documentCode} — aluno ${appt.student_name}, responsável ${guardianName.trim()}`
+        );
+
+        return {
+            documentCode,
+            issuedAt,
+            verificationHash,
+            appointment: {
+                studentId: appt.student_id,
+                studentName: appt.student_name,
+                date: appt.date,
+                startTime: appt.start_time,
+                endTime: appt.end_time,
+                specialty: appt.specialty ? (this.REVERSE_SPECIALTY_MAP[appt.specialty] || appt.specialty) : undefined,
+                professionalName: appt.professional_name,
+                unit: appt.unit,
+            },
+        };
     }
 
     /** Dois intervalos [início, fim) em HH:mm do mesmo dia se sobrepõem (comparação lexicográfica HH:mm). */

@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Student, School, PapelTimbradoConfig, RelatorioTEAData } from '../types';
+import { Student, School, PapelTimbradoConfig, RelatorioTEAData, Unit } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 
 type RGBColor = [number, number, number];
@@ -1297,4 +1297,119 @@ export const exportRelatorioGeralANEEPDF = async (data: any[], config: PapelTimb
     const hoje = new Date();
     const dataStr = `${hoje.getDate().toString().padStart(2,'0')}-${(hoje.getMonth()+1).toString().padStart(2,'0')}-${hoje.getFullYear()}`;
     doc.save(`relatorio_geral_anee_${dataStr}.pdf`);
+};
+
+/**
+ * ATESTADO DE COMPARECIMENTO (documento com valor jurídico).
+ *
+ * ⚠️ PRIVACIDADE: NUNCA inclui diagnóstico, CID ou qualquer informação de
+ * saúde. Apenas a ÁREA de atendimento (ex.: "Psicopedagogia").
+ *
+ * Todos os dados sensíveis (data, horário, profissional, unidade) vêm do
+ * registro real do agendamento, retornado pelo servidor após validação.
+ */
+export interface AtestadoComparecimentoPDFData {
+    studentName: string;
+    guardianName: string;
+    guardianCpf?: string | null;
+    dateISO: string;        // YYYY-MM-DD (data do atendimento)
+    startTime: string;      // HH:mm
+    endTime: string;        // HH:mm
+    specialty?: string;     // área de atendimento (NUNCA diagnóstico)
+    professionalName?: string;
+    unit?: Unit;
+    documentCode: string;
+    issuedAt: string;       // ISO timestamp da emissão
+    issuedByName: string;
+}
+
+const unitLabel = (unit?: Unit): string => {
+    switch (unit) {
+        case 'SEDE': return 'Sede';
+        case 'COCAL': return 'Cocal';
+        default: return 'unidade de atendimento';
+    }
+};
+
+export const gerarAtestadoComparecimentoPDF = async (
+    data: AtestadoComparecimentoPDFData,
+    config: PapelTimbradoConfig
+) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 15;
+    const maxWidth = pageWidth - marginX * 2;
+
+    let currentY = await drawLetterhead(doc, config);
+
+    // Título
+    doc.setFontSize(15);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(139, 26, 58); // Vinho Brotar
+    doc.text('ATESTADO DE COMPARECIMENTO', pageWidth / 2, currentY + 4, { align: 'center' });
+    currentY += 18;
+
+    // Data por extenso (evita shift de fuso usando meia-noite local)
+    const d = new Date(`${data.dateISO}T00:00:00`);
+    const dataExtenso = d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const especialidade = data.specialty?.trim() || 'atendimento especializado';
+    const profissional = data.professionalName?.trim() || 'profissional responsável';
+    const unidade = unitLabel(data.unit);
+
+    // Cláusula de CPF (opcional)
+    const cpfClause = data.guardianCpf?.trim()
+        ? `, portador(a) do CPF nº ${data.guardianCpf.trim()},`
+        : ',';
+
+    const paragrafo1 =
+        `Atestamos, para os devidos fins de comprovação junto ao empregador, que ` +
+        `${data.guardianName.trim()}${cpfClause} compareceu a esta unidade no dia ${dataExtenso}, ` +
+        `no período das ${data.startTime} às ${data.endTime}, acompanhando o(a) menor ` +
+        `${data.studentName.trim()}, sob sua responsabilidade, para atendimento especializado ` +
+        `na área de ${especialidade}.`;
+
+    const paragrafo2 =
+        `O atendimento foi realizado pelo(a) profissional ${profissional} na ${unidade}, ` +
+        `sendo o presente documento emitido a pedido do(a) interessado(a).`;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+
+    const linhas1 = doc.splitTextToSize(paragrafo1, maxWidth);
+    doc.text(linhas1, marginX, currentY, { align: 'justify', maxWidth });
+    currentY += linhas1.length * 6 + 6;
+
+    const linhas2 = doc.splitTextToSize(paragrafo2, maxWidth);
+    doc.text(linhas2, marginX, currentY, { align: 'justify', maxWidth });
+    currentY += linhas2.length * 6 + 18;
+
+    // Local e data de emissão
+    const emissao = new Date(data.issuedAt);
+    const emissaoData = emissao.toLocaleDateString('pt-BR');
+    const emissaoHora = emissao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    doc.setFontSize(11);
+    doc.text(`Emitido em ${emissaoData}, às ${emissaoHora}.`, marginX, currentY);
+    currentY += 20;
+
+    // Bloco de autenticidade / assinatura institucional
+    doc.setDrawColor(200);
+    doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
+    currentY += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text(`Emitido por: ${data.issuedByName}`, pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+
+    // Código institucional (autenticidade)
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(`Documento nº ${data.documentCode}`, marginX, currentY);
+    currentY += 4;
+    doc.text('A autenticidade deste documento pode ser verificada junto à instituição emissora.', marginX, currentY);
+
+    await drawFooter(doc, config);
+
+    doc.save(`atestado_comparecimento_${data.documentCode}.pdf`);
 };

@@ -6,6 +6,10 @@ import { GeminiService, TemplateService } from '../services/geminiService';
 import { useToast } from '../contexts/ToastContext';
 import { FileText, Printer, Copy, Sparkles, User as UserIcon, ChevronDown, Loader2, FileCheck, AlertCircle, Edit3, Hash, History, Eye, Trash2, Calendar, Layout, Building2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AtestadoComparecimento } from './AtestadoComparecimento';
+
+// Documento administrativo que NÃO passa pela IA — roteado para componente próprio
+const ATESTADO_COMPARECIMENTO = 'Atestado de Comparecimento';
 
 interface DocumentGeneratorProps {
   currentUser: User;
@@ -43,6 +47,8 @@ const DOCS_SECRETARIA = [
   // Termos
   "Termo de Ciência e Responsabilidade",
   "Termo de Compromisso Familiar",
+  // Documento com valor jurídico (NÃO usa IA — fluxo próprio)
+  ATESTADO_COMPARECIMENTO,
 ];
 
 export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUser }) => {
@@ -57,6 +63,11 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
   const [documentCode, setDocumentCode] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [history, setHistory] = useState<SavedDocument[]>([]);
+  const [showAtestado, setShowAtestado] = useState(false);
+
+  // Quem pode emitir o Atestado de Comparecimento (documento com valor jurídico)
+  const canEmitAtestado = ['ADMIN', 'EDUCATION_SECRETARY', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'SPECIALIST']
+    .includes((currentUser.role || '').toUpperCase());
 
   useEffect(() => {
     const loadStudents = async () => {
@@ -260,32 +271,44 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
     const role = currentUser.role || '';
     const sp = (currentUser.specialty || '').toLowerCase();
 
-    // Secretarias — apenas documentos administrativos + comuns
-    if (role === 'SECRETARIA_SEDE' || role === 'SECRETARIA_COCAL' || role === 'ASSISTANT') {
-      return [...DOCS_COMUM, ...DOCS_SECRETARIA].sort();
-    }
+    const build = (): string[] => {
+      // Secretarias — apenas documentos administrativos + comuns
+      if (role === 'SECRETARIA_SEDE' || role === 'SECRETARIA_COCAL' || role === 'ASSISTANT') {
+        return [...DOCS_COMUM, ...DOCS_SECRETARIA].sort();
+      }
 
-    // Especialistas clínicos — documentos comuns + específicos da especialidade
-    const common = [...DOCS_COMUM];
-    if (sp.includes('psicopedagogia') || sp.includes('psicopedago')) return [...common, ...DOCS_PSICOPEDAGOGIA];
-    if (sp.includes('psicologia')) return [...common, ...DOCS_PSICOLOGIA];
-    if (sp.includes('social')) return [...common, ...DOCS_SERVICO_SOCIAL];
-    if (sp.includes('fonoaudiologia')) return [...common, ...DOCS_FONOAUDIOLOGIA];
-    if (sp.includes('terapia ocupacional')) return [...common, ...DOCS_TERAPIA_OCUPACIONAL];
-    if (sp.includes('fisioterapia')) return [...common, ...DOCS_FISIOTERAPIA];
-    if (sp.includes('nutri')) return [...common, ...DOCS_NUTRICAO];
+      // Especialistas clínicos — documentos comuns + específicos da especialidade
+      const common = [...DOCS_COMUM];
+      if (sp.includes('psicopedagogia') || sp.includes('psicopedago')) return [...common, ...DOCS_PSICOPEDAGOGIA];
+      if (sp.includes('psicologia')) return [...common, ...DOCS_PSICOLOGIA];
+      if (sp.includes('social')) return [...common, ...DOCS_SERVICO_SOCIAL];
+      if (sp.includes('fonoaudiologia')) return [...common, ...DOCS_FONOAUDIOLOGIA];
+      if (sp.includes('terapia ocupacional')) return [...common, ...DOCS_TERAPIA_OCUPACIONAL];
+      if (sp.includes('fisioterapia')) return [...common, ...DOCS_FISIOTERAPIA];
+      if (sp.includes('nutri')) return [...common, ...DOCS_NUTRICAO];
 
-    // ADMIN/COORDENADOR — todos os documentos
-    return Array.from(new Set([
-      ...DOCS_COMUM, ...DOCS_SECRETARIA,
-      ...DOCS_PSICOLOGIA, ...DOCS_SERVICO_SOCIAL,
-      ...DOCS_PSICOPEDAGOGIA, ...DOCS_FONOAUDIOLOGIA,
-      ...DOCS_TERAPIA_OCUPACIONAL, ...DOCS_FISIOTERAPIA, ...DOCS_NUTRICAO
-    ])).sort();
-  }, [currentUser.specialty, currentUser.role]);
+      // ADMIN/COORDENADOR — todos os documentos
+      return Array.from(new Set([
+        ...DOCS_COMUM, ...DOCS_SECRETARIA,
+        ...DOCS_PSICOLOGIA, ...DOCS_SERVICO_SOCIAL,
+        ...DOCS_PSICOPEDAGOGIA, ...DOCS_FONOAUDIOLOGIA,
+        ...DOCS_TERAPIA_OCUPACIONAL, ...DOCS_FISIOTERAPIA, ...DOCS_NUTRICAO
+      ])).sort();
+    };
+
+    // Garante que o Atestado de Comparecimento apareça só para quem tem permissão
+    let list = build().filter(d => d !== ATESTADO_COMPARECIMENTO);
+    if (canEmitAtestado) list = [...list, ATESTADO_COMPARECIMENTO];
+    return list;
+  }, [currentUser.specialty, currentUser.role, canEmitAtestado]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn pb-12 relative">
+      {/* Atestado de Comparecimento — fluxo próprio, sem IA */}
+      {showAtestado && (
+        <AtestadoComparecimento currentUser={currentUser} onClose={() => setShowAtestado(false)} />
+      )}
+
       {/* Loading Overlay */}
       {isGenerating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md transition-all duration-300">
@@ -365,7 +388,14 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
                     <select
                       className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-slate-50/30 text-slate-700 font-medium appearance-none"
                       value={docType}
-                      onChange={e => setDocType(e.target.value)}
+                      onChange={e => {
+                        // Atestado de Comparecimento não usa IA — abre o fluxo próprio
+                        if (e.target.value === ATESTADO_COMPARECIMENTO) {
+                          setShowAtestado(true);
+                          return;
+                        }
+                        setDocType(e.target.value);
+                      }}
                     >
                       <option value="">Selecione o modelo...</option>
                       {availableDocs.map(d => <option key={d} value={d}>{d}</option>)}

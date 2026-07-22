@@ -1,11 +1,25 @@
 export const APP_VERSION = {
-  version: 'v2.4.149',
+  version: 'v2.4.150',
   date: 'Jul 2026',
-  display: 'v2.4.149 • Jul 2026',
+  display: 'v2.4.150 • Jul 2026',
   changelog: [
-    'Melhorias e correções gerais'  
+    'Novo documento: Atestado de Comparecimento para responsáveis apresentarem ao empregador'
   ],
   releases: [
+    {
+      version: 'v2.4.150',
+      date: '22 Jul 2026',
+      title: 'Release v2.4.150 — Atestado de Comparecimento',
+      type: 'feature',
+      changes: [
+        "Novo documento: Atestado de Comparecimento, para o responsável comprovar ao empregador a ida ao atendimento",
+        "Data, horário, profissional e unidade vêm do agendamento real — nenhum campo digitável, sem geração por IA",
+        "Só permite emissão para atendimentos efetivamente realizados (ATENDIDO ou ENCERRADO) e nunca com data futura",
+        "Não expõe diagnóstico, CID ou qualquer dado clínico — apenas a área de atendimento",
+        "Migration V43: tabela attendance_certificates com código BRT- único, hash de verificação e registro imutável",
+        "Disponível para ADMIN, Secretaria de Educação, Secretarias Sede/Cocal e especialistas"
+      ]
+    },
     {
       version: 'v2.4.149',
       date: '22 Jul 2026',
