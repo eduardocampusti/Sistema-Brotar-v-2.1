@@ -1,11 +1,23 @@
 export const APP_VERSION = {
-  version: 'v2.4.150',
+  version: 'v2.4.151',
   date: 'Jul 2026',
-  display: 'v2.4.150 • Jul 2026',
+  display: 'v2.4.151 • Jul 2026',
   changelog: [
-    'Novo documento: Atestado de Comparecimento para responsáveis apresentarem ao empregador'
+    'Atestado de Comparecimento agora tem pré-visualização antes de gerar o PDF'
   ],
   releases: [
+    {
+      version: 'v2.4.151',
+      date: '22 Jul 2026',
+      title: 'Release v2.4.151 — Pré-visualização do Atestado',
+      type: 'improvement',
+      changes: [
+        "Novo passo 4 no Atestado de Comparecimento: confira o texto completo antes de gerar o PDF",
+        "Dados vindos do atendimento (data, horário, aluno, profissional, unidade) destacados em azul com cadeado — não editáveis",
+        "Nome do responsável e CPF destacados em amarelo e ajustáveis na própria tela de conferência, com atualização em tempo real",
+        "Botão Voltar permite corrigir a seleção sem refazer todo o fluxo"
+      ]
+    },
     {
       version: 'v2.4.150',
       date: '22 Jul 2026',

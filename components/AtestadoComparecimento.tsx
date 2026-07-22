@@ -3,7 +3,7 @@ import { User, Student, Appointment, statusAgendamentoRealizado } from '../types
 import { SupabaseService } from '../services/SupabaseService';
 import { gerarAtestadoComparecimentoPDF } from '../utils/pdfExport';
 import { useToast } from '../contexts/ToastContext';
-import { X, User as UserIcon, CalendarCheck, ShieldCheck, Loader2, FileText, Clock, Building2, Stethoscope, AlertCircle, ChevronRight } from 'lucide-react';
+import { X, User as UserIcon, CalendarCheck, ShieldCheck, Loader2, FileText, Clock, Building2, Stethoscope, AlertCircle, ChevronRight, Lock, Pencil, ArrowLeft, Eye } from 'lucide-react';
 
 interface AtestadoComparecimentoProps {
   currentUser: User;
@@ -39,6 +39,9 @@ export const AtestadoComparecimento: React.FC<AtestadoComparecimentoProps> = ({ 
   const [guardianCpf, setGuardianCpf] = useState('');
 
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Etapa do fluxo: preenchimento dos dados ou conferência antes de gerar o PDF
+  const [step, setStep] = useState<'form' | 'preview'>('form');
 
   // Carregar alunos (respeitando o papel do usuário)
   useEffect(() => {
@@ -102,6 +105,12 @@ export const AtestadoComparecimento: React.FC<AtestadoComparecimentoProps> = ({ 
 
   const guardianNameFinal = guardianChoice === OUTRO ? guardianOutro.trim() : guardianChoice.trim();
   const podeGerar = !!selectedAppointmentId && !!guardianNameFinal && !isGenerating;
+
+  // Atendimento escolhido — fonte dos dados travados exibidos na conferência
+  const selectedAppointment = useMemo(
+    () => appointments.find(a => a.id === selectedAppointmentId),
+    [appointments, selectedAppointmentId]
+  );
 
   const handleGerar = async () => {
     if (!selectedAppointmentId) { addToast('Selecione o atendimento a atestar.', 'error'); return; }
@@ -172,6 +181,7 @@ export const AtestadoComparecimento: React.FC<AtestadoComparecimentoProps> = ({ 
         </div>
 
         <div className="p-8 space-y-6 overflow-y-auto">
+          {step === 'form' && (<>
           {/* PASSO 1 — Aluno */}
           <div>
             <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
@@ -287,29 +297,122 @@ export const AtestadoComparecimento: React.FC<AtestadoComparecimentoProps> = ({ 
               )}
             </div>
           )}
+          </>)}
+
+          {/* PASSO 4 — Conferência antes de gerar o PDF */}
+          {step === 'preview' && selectedAppointment && (
+            <div>
+              <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                <span className="w-5 h-5 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px]">4</span>
+                Confira o Documento
+              </label>
+
+              {/* Texto exatamente como sairá impresso */}
+              <div className="p-5 bg-white border border-slate-200 rounded-xl" style={{ fontFamily: 'Georgia, serif', fontSize: '13px', lineHeight: '1.9', textAlign: 'justify', color: '#1E293B' }}>
+                Atestamos, para os devidos fins de comprovação junto ao empregador, que{' '}
+                <span className="bg-amber-100 px-1 rounded font-bold">{(guardianNameFinal || '—').toUpperCase()}</span>
+                {guardianCpf.trim() && (<>
+                  , portador(a) do CPF nº{' '}
+                  <span className="bg-amber-100 px-1 rounded font-bold">{guardianCpf.trim()}</span>
+                </>)}
+                , compareceu a esta unidade no dia{' '}
+                <span className="bg-sky-100 px-1 rounded font-bold">{formatarDataExtenso(selectedAppointment.date)}</span>
+                , no período das{' '}
+                <span className="bg-sky-100 px-1 rounded font-bold">{selectedAppointment.startTime}</span>
+                {' '}às{' '}
+                <span className="bg-sky-100 px-1 rounded font-bold">{selectedAppointment.endTime}</span>
+                , acompanhando o(a) menor{' '}
+                <span className="bg-sky-100 px-1 rounded font-bold">{(selectedAppointment.studentName || selectedStudent?.fullName || '').toUpperCase()}</span>
+                , sob sua responsabilidade, para atendimento especializado na área de{' '}
+                <span className="bg-sky-100 px-1 rounded font-bold">{selectedAppointment.specialty}</span>.
+                <br /><br />
+                O atendimento foi realizado pelo(a) profissional{' '}
+                <span className="bg-sky-100 px-1 rounded font-bold">{selectedAppointment.professionalName}</span>
+                {' '}na{' '}
+                <span className="bg-sky-100 px-1 rounded font-bold">{UNIT_LABEL[selectedAppointment.unit as string] ?? selectedAppointment.unit}</span>
+                , sendo o presente documento emitido a pedido do(a) interessado(a).
+              </div>
+
+              {/* Legenda das cores */}
+              <div className="flex flex-wrap gap-4 mt-3 mb-4">
+                <span className="inline-flex items-center gap-1.5 text-[10px] text-slate-500">
+                  <span className="w-3 h-3 rounded-sm bg-sky-100 border border-sky-200" />
+                  <Lock size={11} /> Vem do atendimento — não editável
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[10px] text-slate-500">
+                  <span className="w-3 h-3 rounded-sm bg-amber-100 border border-amber-200" />
+                  <Pencil size={11} /> Você pode ajustar
+                </span>
+              </div>
+
+              {/* Campos ainda editáveis */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Responsável</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 font-medium text-sm"
+                    value={guardianChoice === OUTRO ? guardianOutro : guardianChoice}
+                    onChange={e => {
+                      // Ao editar aqui, o valor passa a ser tratado como digitado manualmente
+                      setGuardianChoice(OUTRO);
+                      setGuardianOutro(e.target.value);
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">CPF (opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="000.000.000-00"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 font-medium text-sm"
+                    value={guardianCpf}
+                    onChange={e => setGuardianCpf(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="px-8 py-5 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
           <button
-            onClick={onClose}
-            className="px-6 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-slate-700 transition-colors"
+            onClick={() => (step === 'preview' ? setStep('form') : onClose())}
+            className="flex items-center gap-1.5 px-6 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-slate-700 transition-colors"
           >
-            Cancelar
+            {step === 'preview' && <ArrowLeft size={14} />}
+            {step === 'preview' ? 'Voltar' : 'Cancelar'}
           </button>
-          <button
-            onClick={handleGerar}
-            disabled={!podeGerar}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all active:scale-95 ${
-              podeGerar
-                ? 'bg-[#8B1A3A] text-white hover:bg-[#731530] shadow-sm'
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-            }`}
-          >
-            {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-            Gerar Atestado em PDF
-            {!isGenerating && podeGerar && <ChevronRight size={14} />}
-          </button>
+          {step === 'form' ? (
+            <button
+              onClick={() => setStep('preview')}
+              disabled={!podeGerar}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all active:scale-95 ${
+                podeGerar
+                  ? 'bg-[#8B1A3A] text-white hover:bg-[#731530] shadow-sm'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+              }`}
+            >
+              <Eye size={16} />
+              Pré-visualizar
+              {podeGerar && <ChevronRight size={14} />}
+            </button>
+          ) : (
+            <button
+              onClick={handleGerar}
+              disabled={!podeGerar}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all active:scale-95 ${
+                podeGerar
+                  ? 'bg-[#8B1A3A] text-white hover:bg-[#731530] shadow-sm'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+              }`}
+            >
+              {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+              Gerar Atestado em PDF
+              {!isGenerating && podeGerar && <ChevronRight size={14} />}
+            </button>
+          )}
         </div>
       </div>
     </div>
