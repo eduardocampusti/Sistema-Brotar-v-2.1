@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.148',
+  version: 'v2.4.149',
   date: 'Jul 2026',
-  display: 'v2.4.148 • Jul 2026',
+  display: 'v2.4.149 • Jul 2026',
   changelog: [
-    'Cabeçalho da Central de Prontuários reorganizado — cards fundidos aos filtros, escola sem truncar'
+    'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.149',
+      date: '22 Jul 2026',
+      title: 'Release v2.4.149 — 22 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.4.148',
       date: '21 Jul 2026',

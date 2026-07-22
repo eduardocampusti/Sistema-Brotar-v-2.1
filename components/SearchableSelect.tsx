@@ -17,6 +17,8 @@ interface SearchableSelectProps {
     disabled?: boolean;
     /** Altura reduzida do gatilho (formulários densos / modais) */
     compact?: boolean;
+    /** Contagem opcional por value — exibida à direita de cada opção */
+    counts?: Record<string, number>;
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -27,7 +29,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     label,
     className = "",
     disabled = false,
-    compact = false
+    compact = false,
+    counts
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -90,7 +93,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg animate-fadeIn">
+                <div className="absolute z-50 w-full min-w-[380px] mt-1 bg-white border border-slate-200 rounded-lg shadow-lg animate-fadeIn">
                     {/* Campo de Busca */}
                     <div className="p-2 border-b border-slate-100">
                         <div className="relative">
@@ -123,7 +126,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   `}
                                 >
                                     <span className="truncate pr-2">{option.label}</span>
-                                    {option.value === value && <Check size={14} className="text-primary-600 flex-shrink-0" />}
+                                    <span className="flex items-center gap-2 flex-shrink-0">
+                                        {counts && counts[option.value] !== undefined && (
+                                            <span className="text-[10px] text-slate-400">{counts[option.value]}</span>
+                                        )}
+                                        {option.value === value && <Check size={14} className="text-primary-600" />}
+                                    </span>
                                 </div>
                             ))
                         ) : (

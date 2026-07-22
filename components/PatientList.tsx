@@ -85,7 +85,7 @@ export const PatientList: React.FC<StudentListProps> = ({ students, schools, onS
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [filterSchool, setFilterSchool] = useState<string>('');
   const [filterDiag, setFilterDiag] = useState<string>('');
-  const [filterSemRegistro, setFilterSemRegistro] = useState(false);
+  const [filterRegistro, setFilterRegistro] = useState<'TODOS' | 'SEM' | 'COM'>('TODOS');
   const [sortField, setSortField] = useState<'name'|'age'|'lastSession'>('name');
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -292,9 +292,11 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
   // CORREÇÃO #8: Reset de currentPage quando qualquer filtro muda
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedSchoolId, filterSchool, filterDiag, filterSemRegistro, listaEscopo, filterVinculo, filterUnidade]);
+  }, [searchTerm, selectedSchoolId, filterSchool, filterDiag, filterRegistro, listaEscopo, filterVinculo, filterUnidade]);
 
-  const filteredStudents = useMemo(() => baseStudentList.filter(p => {
+  // Base: aplica TODOS os filtros EXCETO o toggle Sem/Com registro.
+  // As contagens dos filtros e a lista final derivam desta base.
+  const filteredStudentsBase = useMemo(() => baseStudentList.filter(p => {
     // 1. User Scope Filter (Cocal Security) — distrito, nome da escola ou unidade do aluno
     if (isRestricted) {
       const unit = String(p.unit || '').toUpperCase();
@@ -327,10 +329,9 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
 
     if (listaSomenteAgendaProfissional) {
       // Para perfis restritos, aplica os filtros visuais mas mantém a lista do agendamento
-      const matchesSem = !filterSemRegistro || !sessionsInfo[p.id]?.lastDate;
       const matchesDiagFilter = !filterDiag || normalizeText(p.clinical?.diagnosis||'').includes(normalizeText(filterDiag));
       const matchesSchoolFilter = !filterSchool || normalizeText(p.school?.schoolName||'').includes(normalizeText(filterSchool));
-      return matchesSem && matchesDiagFilter && matchesSchoolFilter;
+      return matchesDiagFilter && matchesSchoolFilter;
     }
 
     // 2. Search Term Filter
@@ -346,8 +347,24 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       p.school?.schoolId === selectedSchoolId ||
       (selectedSchoolId !== 'ALL' && !p.school?.schoolId && p.school?.schoolName === selectedSchoolId);
 
-    return matchesSearch && matchesSchool && (!filterSemRegistro || !sessionsInfo[p.id]?.lastDate) && (!filterDiag || normalizeText(p.clinical?.diagnosis||'').includes(normalizeText(filterDiag))) && (!filterSchool || normalizeText(p.school?.schoolName||'').includes(normalizeText(filterSchool)));
-  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolInep, currentUser?.name, canViewClinical, listaSomenteAgendaProfissional, filterSemRegistro, filterDiag, filterSchool, filterVinculo, filterUnidade, sessionsInfo, normalizeText]);
+    return matchesSearch && matchesSchool && (!filterDiag || normalizeText(p.clinical?.diagnosis||'').includes(normalizeText(filterDiag))) && (!filterSchool || normalizeText(p.school?.schoolName||'').includes(normalizeText(filterSchool)));
+  }), [baseStudentList, searchTerm, selectedSchoolId, isRestricted, isSchool, currentUser?.schoolId, canViewClinical, listaSomenteAgendaProfissional, filterDiag, filterSchool, filterVinculo, filterUnidade, normalizeText]);
+
+  // Contagens dos filtros — respeitam escola/diagnóstico/vínculo/unidade,
+  // mas IGNORAM o toggle Sem/Com registro (senão zerariam-se mutuamente).
+  const countSemRegistro = useMemo(
+    () => filteredStudentsBase.filter(p => !sessionsInfo[p.id]?.lastDate).length,
+    [filteredStudentsBase, sessionsInfo]
+  );
+  const countTotal = filteredStudentsBase.length;
+  const countComRegistro = countTotal - countSemRegistro;
+
+  // Lista final: aplica o toggle Sem/Com registro sobre a base.
+  const filteredStudents = useMemo(() => {
+    if (filterRegistro === 'SEM') return filteredStudentsBase.filter(p => !sessionsInfo[p.id]?.lastDate);
+    if (filterRegistro === 'COM') return filteredStudentsBase.filter(p => !!sessionsInfo[p.id]?.lastDate);
+    return filteredStudentsBase;
+  }, [filteredStudentsBase, filterRegistro, sessionsInfo]);
 
   // Sort + paginação sobre filteredStudents
   const sortedStudents = useMemo(() => {
@@ -401,6 +418,17 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
       .map(([id, name]) => ({ value: id as string, label: name as string }))
       .sort((a, b) => a.label.localeCompare(b.label))
   ], [baseStudentList]);
+
+  // Contagem de alunos por escola (chaveada igual aos values de schoolOptions)
+  const schoolCounts = useMemo(() => {
+    const map: Record<string, number> = { ALL: baseStudentList.length };
+    for (const s of baseStudentList) {
+      const key = s.school?.schoolId || s.school?.schoolName;
+      if (!key) continue;
+      map[key] = (map[key] || 0) + 1;
+    }
+    return map;
+  }, [baseStudentList]);
 
   const confirmDelete = useCallback(async () => {
     if (studentToDelete) {
@@ -655,70 +683,101 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
   return (
     <div className="space-y-6 animate-fadeIn pb-20">
 
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tight">
-            <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
-              <FileText size={24} />
+      {/* HEADER — Zona 1: título + ações · Zona 2: busca + escola */}
+      <div className="space-y-4">
+        {/* ZONA 1 */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          {/* Esquerda: ícone + título + subtítulo dinâmico */}
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-50 rounded-lg text-blue-600 shrink-0">
+              <FileText size={22} />
             </div>
-            Central de Prontuários
-            {isRestricted && (
-              <span className="px-2 py-1 bg-orange-100 text-orange-700 text-[10px] rounded-full border border-orange-200 flex items-center gap-1 font-bold uppercase tracking-wide">
-                <Globe size={10} /> Cocal
-              </span>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2 tracking-tight">
+                Central de Prontuários
+                {isRestricted && (
+                  <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded-full border border-orange-200 inline-flex items-center gap-1 font-bold uppercase tracking-wide">
+                    <Globe size={10} /> Cocal
+                  </span>
+                )}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {countTotal} aluno{countTotal !== 1 ? 's' : ''} · {countComRegistro} com registro clínico
+              </p>
+            </div>
+          </div>
+
+          {/* Direita: toggle + botões de ação (todos visíveis, flex-wrap) */}
+          <div className="flex flex-wrap items-center gap-2 justify-start md:justify-end w-full md:w-auto">
+            {podeAlternarListaRede && (
+              <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setListaEscopo('todos')}
+                  className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                    listaEscopo === 'todos'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Visão geral
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setListaEscopo('meus')}
+                  className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                    listaEscopo === 'meus'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Por profissional
+                </button>
+              </div>
             )}
-          </h2>
-          <p className="text-slate-500 font-medium text-sm mt-1 ml-1">
-            Gestão unificada de alunos e histórico clínico
-          </p>
+
+            {canRegister && (
+              <>
+                {/* Primário */}
+                <button
+                  onClick={onRegister}
+                  data-testid="btn-cadastrar"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#8B1A3A] text-white rounded-xl hover:bg-[#731530] transition-all text-[11px] font-bold uppercase tracking-widest shadow-sm active:scale-95 whitespace-nowrap"
+                >
+                  <UserPlus size={15} /> Cadastrar Aluno
+                </button>
+                {/* Secundários */}
+                {(['SPECIALIST', 'SOCIAL_WORKER', 'ADMIN', 'EDUCATION_SECRETARY', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL'] as string[]).includes(currentUser?.role ?? '') && (
+                  <button
+                    onClick={() => setShowCadastroRapido(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all text-[11px] font-bold uppercase tracking-widest shadow-sm active:scale-95 whitespace-nowrap"
+                  >
+                    <UserPlus size={15} /> Cadastro Rápido
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowImporter(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all text-[11px] font-bold uppercase tracking-widest shadow-sm active:scale-95 whitespace-nowrap"
+                >
+                  <FileText size={15} /> Importar CSV
+                </button>
+                <button
+                  onClick={() => setShowMergeModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all text-[11px] font-bold uppercase tracking-widest shadow-sm active:scale-95 whitespace-nowrap"
+                >
+                  <GitMerge size={15} /> Mesclar Alunos
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 w-full md:w-auto">
-          {podeAlternarListaRede && (
-            <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 shadow-sm self-start sm:self-center">
-              <button
-                type="button"
-                onClick={() => setListaEscopo('todos')}
-                className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                  listaEscopo === 'todos'
-                    ? 'bg-white text-slate-800 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Visão geral
-              </button>
-              <button
-                type="button"
-                onClick={() => setListaEscopo('meus')}
-                className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-                  listaEscopo === 'meus'
-                    ? 'bg-white text-slate-800 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Por profissional
-              </button>
-            </div>
-          )}
-          {/* Filtros (secretaria/admin/coordenação — profissional restrita não tem busca global) */}
-          {!listaSomenteAgendaProfissional && (
-            <>
-              <div className="w-full sm:w-64 z-20">
-                <SearchableSelect
-                  options={[
-                    { value: 'ALL', label: 'Todas as Escolas' },
-                    ...schools.map(s => ({ value: s.id, label: s.name || '' }))
-                      .sort((a, b) => a.label.localeCompare(b.label))
-                  ]}
-                  value={selectedSchoolId}
-                  onChange={setSelectedSchoolId}
-                  placeholder="Filtrar por escola..."
-                  className="w-full"
-                />
-              </div>
-
-              <div className="relative w-full sm:w-64">
+        {/* ZONA 2 — busca + escola em grid */}
+        {!listaSomenteAgendaProfissional && (
+          <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1">Buscar aluno</label>
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
                   type="text"
@@ -728,47 +787,20 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-            </>
-          )}
-
-          {/* Filtros rápidos já aparecem acima da tabela para todos os perfis */}
-
-          {canRegister && (
-            <div className="flex gap-2 flex-wrap justify-end">
-              <button
-                onClick={() => setShowMergeModal(true)}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-all font-bold text-xs uppercase tracking-widest shadow-sm"
-              >
-                <GitMerge size={16} />
-                Mesclar Alunos
-              </button>
-              <button
-                onClick={() => setShowImporter(true)}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-xl hover:bg-teal-100 transition-all font-bold text-xs uppercase tracking-widest shadow-sm"
-              >
-                <FileText size={16} />
-                Importar CSV
-              </button>
-              {(['SPECIALIST', 'SOCIAL_WORKER', 'ADMIN', 'EDUCATION_SECRETARY', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL'] as string[]).includes(currentUser?.role ?? '') && (
-                <button
-                  onClick={() => setShowCadastroRapido(true)}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all font-bold text-xs uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-95 whitespace-nowrap"
-                >
-                  <UserPlus size={16} />
-                  Cadastro Rápido
-                </button>
-              )}
-              <button
-                onClick={onRegister}
-                data-testid="btn-cadastrar"
-                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest shadow-lg hover:shadow-xl active:scale-95 whitespace-nowrap"
-              >
-                <UserPlus size={16} />
-                Cadastrar Aluno
-              </button>
             </div>
-          )}
-        </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-1">Escola</label>
+              <SearchableSelect
+                options={schoolOptions}
+                value={selectedSchoolId}
+                onChange={setSelectedSchoolId}
+                counts={schoolCounts}
+                placeholder="Filtrar por escola..."
+                className="w-full"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Mesclagem */}
@@ -924,39 +956,32 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
         </div>
       )}
 
-      {/* STATS + FILTROS RÁPIDOS — visível para todos os perfis */}
-      <div className="grid grid-cols-3 gap-3 mb-2">
-        <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
-          <div className="text-xl font-bold" style={{color:'#A32D2D'}}>{filteredStudents.filter(s => !sessionsInfo[s.id]?.lastDate).length}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Sem registro</div>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
-          <div className="text-xl font-bold" style={{color:'#10B981'}}>{filteredStudents.filter(s => !!sessionsInfo[s.id]?.lastDate).length}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Com registro</div>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
-          <div className="text-xl font-bold text-slate-700">{filteredStudents.length}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Total</div>
-        </div>
-      </div>
-
-      {/* Barra de filtros — grupo 1: status rápido, grupo 2: refinamento */}
+      {/* FILTROS RÁPIDOS — contagem embutida como badge · visível para todos os perfis */}
       <div className="bg-white border border-slate-200 rounded-xl p-3 mb-2">
         <div className="flex gap-2 flex-wrap items-center">
-          <button onClick={() => setFilterSemRegistro(false)}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
-            style={!filterSemRegistro ? {background:'#3B82F6',color:'#fff',borderColor:'#3B82F6'} : {background:'white',borderColor:'#e2e8f0',color:'#64748b'}}>
-            Todos ({pagedStudents.length > 0 ? filteredStudents.length : 0})
+          {/* Todos */}
+          <button onClick={() => setFilterRegistro('TODOS')}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-all ${
+              filterRegistro === 'TODOS' ? 'bg-[#3B82F6] text-white border-[#3B82F6]' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}>
+            Todos
+            <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${filterRegistro === 'TODOS' ? 'bg-white/25' : 'bg-slate-100 text-slate-500'}`}>{countTotal}</span>
           </button>
-          <button onClick={() => setFilterSemRegistro(true)}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all inline-flex items-center gap-1"
-            style={filterSemRegistro ? {background:'#FCEBEB',color:'#A32D2D',borderColor:'#F09595'} : {background:'white',borderColor:'#F09595',color:'#A32D2D'}}>
-            <Clock size={12}/> Sem registro
+          {/* Sem registro */}
+          <button onClick={() => setFilterRegistro('SEM')}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-all ${
+              filterRegistro === 'SEM' ? 'bg-[#3B82F6] text-white border-[#3B82F6]' : 'bg-white border-[#F09595] text-[#A32D2D] hover:bg-[#FCEBEB]/50'
+            }`}>
+            <Clock size={13}/> Sem registro
+            <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${filterRegistro === 'SEM' ? 'bg-white/25' : 'bg-[#FCEBEB]'}`}>{countSemRegistro}</span>
           </button>
-          <button onClick={() => setFilterSemRegistro(false)}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all inline-flex items-center gap-1"
-            style={{background:'white',borderColor:'#97C459',color:'#3B6D11'}}>
-            <CheckCircle2 size={12}/> Com registro
+          {/* Com registro */}
+          <button onClick={() => setFilterRegistro('COM')}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition-all ${
+              filterRegistro === 'COM' ? 'bg-[#3B82F6] text-white border-[#3B82F6]' : 'bg-white border-[#97C459] text-[#3B6D11] hover:bg-[#EDF7E0]/50'
+            }`}>
+            <CheckCircle2 size={13}/> Com registro
+            <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${filterRegistro === 'COM' ? 'bg-white/25' : 'bg-[#EDF7E0]'}`}>{countComRegistro}</span>
           </button>
         </div>
 
@@ -1019,8 +1044,8 @@ const canRegister = currentUser?.role === 'ADMIN' || currentUser?.role === 'EDUC
 
           {/* Limpar filtros */}
           <div className="flex sm:justify-end">
-            {(filterDiag || filterSemRegistro || filterVinculo !== 'ATIVO' || filterUnidade !== 'TODOS') && (
-              <button onClick={() => { setFilterDiag(''); setFilterSemRegistro(false); setFilterVinculo('ATIVO'); setFilterUnidade('TODOS'); setCurrentPage(1); }}
+            {(filterDiag || filterRegistro !== 'TODOS' || filterVinculo !== 'ATIVO' || filterUnidade !== 'TODOS') && (
+              <button onClick={() => { setFilterDiag(''); setFilterRegistro('TODOS'); setFilterVinculo('ATIVO'); setFilterUnidade('TODOS'); setCurrentPage(1); }}
                 className="w-full sm:w-auto px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 text-slate-400 hover:bg-slate-50 transition-all inline-flex items-center justify-center gap-1">
                 <X size={12}/> Limpar
               </button>
