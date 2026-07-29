@@ -11,6 +11,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { SupabaseService } from '../services/SupabaseService';
 import { GeminiService } from '../services/geminiService';
 import type { NutritionAssessment as NAssessment, Student } from '../types';
+import {
+  calcularIdadeCompleta,
+  calcularIMC,
+  calcularPercentualGordura,
+  classificarGorduraLohman,
+  classificarIMCIdade,
+  classificarPesoIdade,
+  classificarAlturaIdade,
+  calcularAntropometriaCompleta,
+  type IdadeCompleta,
+  type ResultadoAntropometria,
+} from '../utils/omsCalculations';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -295,6 +307,8 @@ const NutritionAssessmentPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [student, setStudent] = useState<Student | null>(null);
   const [geminiLoading, setGeminiLoading] = useState(false);
+  const [idadeCompleta, setIdadeCompleta] = useState<IdadeCompleta | null>(null);
+  const [resultadoOms, setResultadoOms] = useState<ResultadoAntropometria | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstSave = useRef(true);
@@ -343,7 +357,43 @@ const NutritionAssessmentPage: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  // calcIMC -> imc_classificacao
+  // Calcular idade completa quando student carrega
+  useEffect(() => {
+    if (student?.birthDate) {
+      const idade = calcularIdadeCompleta(student.birthDate);
+      setIdadeCompleta(idade);
+    }
+  }, [student?.birthDate]);
+
+  // Calcular resultados OMS completos (idade + peso + altura + dobras + sexo)
+  useEffect(() => {
+    if (student?.birthDate && formData.peso_kg && formData.altura_m) {
+      const alturaCm = formData.altura_m < 3 ? formData.altura_m * 100 : formData.altura_m;
+      const sexo = (formData.sexo === 'M' || formData.sexo === 'F') ? formData.sexo : 'M';
+      const resultado = calcularAntropometriaCompleta({
+        dataNascimento: student.birthDate,
+        pesoKg: formData.peso_kg,
+        alturaCm,
+        sexo: sexo as 'M' | 'F',
+        dobraTriciptal: formData.dobra_triciptal_mm,
+        dobraSubescapular: formData.dobra_subescapular_mm,
+      });
+      setResultadoOms(resultado);
+      if (resultado) {
+        handleChange({
+          imc_classificacao: resultado.relacaoIMCIdade,
+          relacao_peso_idade: resultado.relacaoPesoIdade,
+          relacao_altura_idade: resultado.relacaoAlturaIdade,
+          relacao_imc_idade: resultado.relacaoIMCIdade,
+          percentual_gordura: resultado.percentualGordura ?? undefined,
+          classificacao_gordura: resultado.classificacaoGordura || undefined,
+        });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.peso_kg, formData.altura_m, formData.sexo, formData.dobra_triciptal_mm, formData.dobra_subescapular_mm, student?.birthDate]);
+
+  // calcIMC -> imc_classificacao (mantém compatibilidade)
   useEffect(() => {
     const imc = calcIMC(formData.peso_kg ?? 0, formData.altura_m ?? 0);
     if (imc !== null) {
@@ -437,6 +487,15 @@ const NutritionAssessmentPage: React.FC = () => {
           imc_classificacao: formData.imc_classificacao,
           circunferencia_cintura_cm: formData.circunferencia_cintura_cm,
           circunferencia_braco_cm: formData.circunferencia_braco_cm,
+          dobra_triciptal_mm: formData.dobra_triciptal_mm,
+          dobra_subescapular_mm: formData.dobra_subescapular_mm,
+          dobra_panturrilha_mm: formData.dobra_panturrilha_mm,
+          percentual_gordura: formData.percentual_gordura,
+          classificacao_gordura: formData.classificacao_gordura,
+          relacao_peso_idade: formData.relacao_peso_idade,
+          relacao_altura_idade: formData.relacao_altura_idade,
+          relacao_imc_idade: formData.relacao_imc_idade,
+          sexo: formData.sexo,
         });
       }
       navigate('/app/nutricion/dashboard');
@@ -751,6 +810,72 @@ const NutritionAssessmentPage: React.FC = () => {
                 </div>
               </SectionCard>
             </div>
+
+            {/* Sexo e Idade (necessários para curvas OMS) */}
+            <div className="mt-4">
+              <SectionCard title="Dados para curvas OMS" icon={<BarChart2 size={16} />} subtitle="Sexo e idade são necessários para classificação por curvas de crescimento">
+                <div className="grid grid-cols-2 gap-4">
+                  <FieldGroup label="Sexo">
+                    <SegBtn options={['M', 'F']} value={formData.sexo ?? ''} onChange={(v) => handleChange({ sexo: v })} />
+                  </FieldGroup>
+                  <FieldGroup label="Idade (calculada automaticamente)">
+                    <div className="h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 flex items-center gap-2 text-sm">
+                      <Calendar size={14} className="text-blue-500" />
+                      <span className="font-medium text-slate-700">{idadeCompleta?.formatado ?? 'Aguardando data de nascimento…'}</span>
+                      {idadeCompleta && <span className="text-xs text-slate-400 ml-auto">({idadeCompleta.totalMeses}m)</span>}
+                    </div>
+                  </FieldGroup>
+                </div>
+              </SectionCard>
+            </div>
+
+            {/* Dobras cutâneas */}
+            <div className="mt-4">
+              <SectionCard title="Dobras cutâneas" icon={<Activity size={16} />} subtitle="Para cálculo de % gordura (Slaughter, 1988)">
+                <div className="grid grid-cols-3 gap-4">
+                  <FieldGroup label="Triciptal (mm)">
+                    <Input type="number" step="0.1" min="0" value={formData.dobra_triciptal_mm ?? ''} onChange={(e) => handleChange({ dobra_triciptal_mm: parseFloat(e.target.value) || undefined })} placeholder="Ex: 27" />
+                  </FieldGroup>
+                  <FieldGroup label="Subescapular (mm)">
+                    <Input type="number" step="0.1" min="0" value={formData.dobra_subescapular_mm ?? ''} onChange={(e) => handleChange({ dobra_subescapular_mm: parseFloat(e.target.value) || undefined })} placeholder="Ex: 25" />
+                  </FieldGroup>
+                  <FieldGroup label="Panturrilha (mm)">
+                    <Input type="number" step="0.1" min="0" value={formData.dobra_panturrilha_mm ?? ''} onChange={(e) => handleChange({ dobra_panturrilha_mm: parseFloat(e.target.value) || undefined })} placeholder="Ex: 23" />
+                  </FieldGroup>
+                </div>
+              </SectionCard>
+            </div>
+
+            {/* Painel de Resultados OMS */}
+            {resultadoOms && (
+              <div className="mt-4 bg-white rounded-2xl border-2 border-emerald-200 p-5 space-y-4" style={{ boxShadow: '0 2px 12px rgba(16,185,129,0.08)' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart2 size={18} className="text-emerald-600" />
+                  <span className="text-sm font-bold text-slate-700">Resultados analíticos (curvas OMS 2007)</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { label: 'Peso/Idade', value: resultadoOms.relacaoPesoIdade },
+                    { label: 'Altura/Idade', value: resultadoOms.relacaoAlturaIdade },
+                    { label: 'IMC/Idade', value: resultadoOms.relacaoIMCIdade },
+                    ...(resultadoOms.percentualGordura !== null ? [
+                      { label: '% Gordura (Slaughter)', value: `${resultadoOms.percentualGordura}%` },
+                      { label: 'Classif. %GC (Lohman)', value: resultadoOms.classificacaoGordura },
+                    ] : []),
+                  ].map((item, idx) => {
+                    const isRisk = item.value?.includes('grave') || item.value?.includes('elevado') || item.value?.includes('Muito alto') || item.value?.includes('Muito baixo');
+                    const isOk = item.value?.includes('adequad') || item.value?.includes('Adequad') || item.value?.includes('Eutrofia');
+                    const cls = isRisk ? 'bg-red-50 border-red-200 text-red-800' : isOk ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800';
+                    return (
+                      <div key={idx} className={`rounded-xl border p-3 ${cls}`}>
+                        <p className="text-[10px] font-semibold opacity-70">{item.label}</p>
+                        <p className="text-sm font-bold mt-0.5">{item.value || '—'}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── 4. SAÚDE ── */}

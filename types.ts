@@ -521,6 +521,15 @@ export interface NutritionAssessment {
   imc_classificacao?: string;
   circunferencia_cintura_cm?: number;
   circunferencia_braco_cm?: number;
+  dobra_triciptal_mm?: number;
+  dobra_subescapular_mm?: number;
+  dobra_panturrilha_mm?: number;
+  percentual_gordura?: number;
+  classificacao_gordura?: string;
+  relacao_peso_idade?: string;
+  relacao_altura_idade?: string;
+  relacao_imc_idade?: string;
+  sexo?: string;
   condicoes_saude?: string[];
   medicamentos?: string;
   tem_tea?: boolean;
@@ -594,6 +603,15 @@ export interface NutritionAnthropometryHistory {
   imc_classificacao?: string;
   circunferencia_cintura_cm?: number;
   circunferencia_braco_cm?: number;
+  dobra_triciptal_mm?: number;
+  dobra_subescapular_mm?: number;
+  dobra_panturrilha_mm?: number;
+  percentual_gordura?: number;
+  classificacao_gordura?: string;
+  relacao_peso_idade?: string;
+  relacao_altura_idade?: string;
+  relacao_imc_idade?: string;
+  sexo?: string;
   created_at?: string;
 }
 

@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.151',
+  version: 'v2.4.152',
   date: 'Jul 2026',
-  display: 'v2.4.151 • Jul 2026',
+  display: 'v2.4.152 • Jul 2026',
   changelog: [
-    'Atestado de Comparecimento agora tem pré-visualização antes de gerar o PDF'
+    'Atualização de manutenção'  
   ],
   releases: [
+    {
+      version: 'v2.4.152',
+      date: '29 Jul 2026',
+      title: 'Release v2.4.152 — 29 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.151',
       date: '22 Jul 2026',
