@@ -1,16 +1,23 @@
 export const APP_VERSION = {
-  version: 'v2.4.155',
+  version: 'v2.4.156',
   date: 'Jul 2026',
-  display: 'v2.4.155 • Jul 2026',
+  display: 'v2.4.156 • Jul 2026',
   changelog: [
-    'feat: módulo de relatórios nutricionais reformulado — seleção de aluno primeiro',
-    'feat: novo Relatório de Antropometria com curvas OMS, dobras cutâneas e % gordura',
-    'feat: novo Relatório de Evolução Nutricional com histórico de medidas em tabela',
-    'feat: novo Relatório NAE por aluno com alertas de laudo vencido',
-    'feat: novo Plano Alimentar com condutas e orientações da IA Gemini',
-    'fix: Relatório Individual atualizado com campos de dobras e classificação OMS',
+    'fix: ícones dos cards de relatório corrigidos (Tabler → Lucide) — não aparecem mais como quadrados vazios',
+    'ui: design premium nos cards de relatórios — ícones coloridos com gradiente e sombra própria',
+    'ui: barra de destaque colorida no topo de cada card, sombra de profundidade em duas camadas',
+    'ui: seta de ação, badges em pílula, animação de elevação no hover',
   ],
   releases: [
+    {
+      version: 'v2.4.156',
+      date: '29 Jul 2026',
+      title: 'Release v2.4.156 — 29 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.155',
       date: '29 Jul 2026',

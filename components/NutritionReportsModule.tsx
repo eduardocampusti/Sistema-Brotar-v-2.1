@@ -4,7 +4,8 @@ import {
   ChevronLeft, FileText, User, Heart, School,
   Building2, ShieldCheck, Activity, Apple,
   Download, Printer, Eye, RefreshCw, Loader2,
-  CheckCircle, AlertTriangle, TrendingUp,
+  CheckCircle, AlertTriangle, TrendingUp, LineChart,
+  ArrowRight, Search,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { SupabaseService } from '../services/SupabaseService';
@@ -31,28 +32,29 @@ type ReportType =
 interface StudentOption { id: string; nome_completo: string; date_of_birth?: string; }
 
 // ─── config dos 6 relatórios por aluno + 3 consolidados ───────────────────────
-const REPORTS_POR_ALUNO: { id: ReportType; title: string; sub: string; icon: string; color: string; badge?: string }[] = [
-  { id: 'antropometria', title: 'Relatório de antropometria', sub: 'Curvas OMS, dobras cutâneas e % gordura', icon: 'ti-chart-line', color: 'accent', badge: 'novo' },
-  { id: 'individual',   title: 'Relatório individual',       sub: 'Avaliação completa com diagnóstico e conduta', icon: 'ti-user',       color: 'success', badge: 'melhorado' },
-  { id: 'evolucao',     title: 'Evolução nutricional',       sub: 'Histórico de peso, altura e IMC', icon: 'ti-trending-up', color: 'pro',     badge: 'novo' },
-  { id: 'familia',      title: 'Relatório para família',     sub: 'Linguagem acessível com orientações', icon: 'ti-heart',      color: 'warning' },
-  { id: 'nae',          title: 'Relatório NAE',              sub: 'Necessidades alimentares especiais', icon: 'ti-alert-triangle', color: 'danger' },
-  { id: 'plano',        title: 'Plano alimentar',            sub: 'Condutas e orientações nutricionais', icon: 'ti-apple',      color: 'neutral' },
+const REPORTS_POR_ALUNO: { id: ReportType; title: string; sub: string; icon: React.ReactNode; color: string; badge?: string }[] = [
+  { id: 'antropometria', title: 'Relatório de antropometria', sub: 'Curvas OMS, dobras cutâneas e % gordura', icon: <LineChart size={20} />, color: 'blue', badge: 'novo' },
+  { id: 'individual',   title: 'Relatório individual',       sub: 'Avaliação completa com diagnóstico e conduta', icon: <User size={20} />,       color: 'green', badge: 'melhorado' },
+  { id: 'evolucao',     title: 'Evolução nutricional',       sub: 'Histórico de peso, altura e IMC', icon: <TrendingUp size={20} />, color: 'purple',     badge: 'novo' },
+  { id: 'familia',      title: 'Relatório para família',     sub: 'Linguagem acessível com orientações', icon: <Heart size={20} />,      color: 'pink' },
+  { id: 'nae',          title: 'Relatório NAE',              sub: 'Necessidades alimentares especiais', icon: <AlertTriangle size={20} />, color: 'red' },
+  { id: 'plano',        title: 'Plano alimentar',            sub: 'Condutas e orientações nutricionais', icon: <Apple size={20} />,      color: 'teal' },
 ];
-const REPORTS_CONSOLIDADOS: { id: ReportType; title: string; sub: string; icon: string; color: string }[] = [
-  { id: 'escola',     title: 'Relatório para escola',     sub: 'Indicadores coletivos e alertas', icon: 'ti-school',   color: 'success' },
-  { id: 'secretaria', title: 'Relatório para secretaria', sub: 'Dados consolidados da rede',      icon: 'ti-building', color: 'pro' },
-  { id: 'pnae',       title: 'Relatório PNAE',            sub: 'Conforme exigências legais',      icon: 'ti-shield-check', color: 'warning' },
+const REPORTS_CONSOLIDADOS: { id: ReportType; title: string; sub: string; icon: React.ReactNode; color: string }[] = [
+  { id: 'escola',     title: 'Relatório para escola',     sub: 'Indicadores coletivos e alertas', icon: <School size={20} />,   color: 'green' },
+  { id: 'secretaria', title: 'Relatório para secretaria', sub: 'Dados consolidados da rede',      icon: <Building2 size={20} />, color: 'purple' },
+  { id: 'pnae',       title: 'Relatório PNAE',            sub: 'Conforme exigências legais',      icon: <ShieldCheck size={20} />, color: 'amber' },
 ];
 
-// ─── helper de cores ──────────────────────────────────────────────────────────
-const colorMap: Record<string, { bg: string; text: string; border: string }> = {
-  accent:  { bg: 'bg-blue-50',   text: 'text-blue-600',   border: 'border-blue-200' },
-  success: { bg: 'bg-emerald-50',text: 'text-emerald-600',border: 'border-emerald-200' },
-  pro:     { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
-  warning: { bg: 'bg-amber-50',  text: 'text-amber-600',  border: 'border-amber-200' },
-  danger:  { bg: 'bg-red-50',    text: 'text-red-600',    border: 'border-red-200' },
-  neutral: { bg: 'bg-slate-50',  text: 'text-slate-600',  border: 'border-slate-200' },
+// ─── design premium: cores por categoria (gradiente + sombra) ─────────────────
+const cardStyle: Record<string, { iconBg: string; iconColor: string; iconShadow: string; topBar: string; ring: string }> = {
+  blue:   { iconBg: 'linear-gradient(135deg, #dbeafe, #eff6ff)', iconColor: '#2563eb', iconShadow: 'rgba(37,99,235,0.18)',  topBar: 'linear-gradient(90deg, #3b82f6, #06b6d4)', ring: '#bfdbfe' },
+  green:  { iconBg: 'linear-gradient(135deg, #d1fae5, #ecfdf5)', iconColor: '#059669', iconShadow: 'rgba(5,150,105,0.18)',  topBar: 'linear-gradient(90deg, #10b981, #34d399)', ring: '#a7f3d0' },
+  purple: { iconBg: 'linear-gradient(135deg, #ede9fe, #f5f3ff)', iconColor: '#7c3aed', iconShadow: 'rgba(124,58,237,0.18)', topBar: 'linear-gradient(90deg, #8b5cf6, #a78bfa)', ring: '#ddd6fe' },
+  pink:   { iconBg: 'linear-gradient(135deg, #fce7f3, #fdf2f8)', iconColor: '#db2777', iconShadow: 'rgba(219,39,119,0.18)', topBar: 'linear-gradient(90deg, #ec4899, #f472b6)', ring: '#fbcfe8' },
+  red:    { iconBg: 'linear-gradient(135deg, #fee2e2, #fef2f2)', iconColor: '#dc2626', iconShadow: 'rgba(220,38,38,0.18)',  topBar: 'linear-gradient(90deg, #ef4444, #f87171)', ring: '#fecaca' },
+  teal:   { iconBg: 'linear-gradient(135deg, #ccfbf1, #f0fdfa)', iconColor: '#0d9488', iconShadow: 'rgba(13,148,136,0.18)', topBar: 'linear-gradient(90deg, #14b8a6, #2dd4bf)', ring: '#99f6e4' },
+  amber:  { iconBg: 'linear-gradient(135deg, #fef3c7, #fffbeb)', iconColor: '#d97706', iconShadow: 'rgba(217,119,6,0.18)',  topBar: 'linear-gradient(90deg, #f59e0b, #fbbf24)', ring: '#fde68a' },
 };
 
 // ─── classificação badge color ────────────────────────────────────────────────
@@ -617,24 +619,44 @@ const NutritionReportsModule: React.FC = () => {
 
         {/* ── PASSO 2: Relatórios por aluno ── */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5" style={{boxShadow:'0 2px 12px rgba(0,0,0,0.04)'}}>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Passo 2 — relatórios por aluno</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">Passo 2 — relatórios por aluno</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
             {REPORTS_POR_ALUNO.map(r => {
-              const c = colorMap[r.color] ?? colorMap.neutral;
+              const st = cardStyle[r.color] ?? cardStyle.blue;
               const isActive = selectedReport === r.id;
               return (
                 <button key={r.id} onClick={() => setSelectedReport(isActive ? null : r.id)}
-                  className={`relative text-left rounded-2xl border-2 p-4 transition-all ${isActive ? `${c.border} ${c.bg} ring-2 ring-offset-1 ring-blue-200` : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'}`}>
+                  className="group relative text-left bg-white rounded-2xl p-[18px] overflow-hidden transition-all duration-200"
+                  style={{
+                    border: '1px solid #eef1f5',
+                    boxShadow: isActive
+                      ? `0 0 0 2px ${st.ring}, 0 8px 24px ${st.iconShadow}`
+                      : '0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(16,24,40,0.06)',
+                    transform: isActive ? 'translateY(-2px)' : 'none',
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 2px 4px rgba(16,24,40,0.04), 0 12px 28px ${st.iconShadow}`; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(16,24,40,0.06)'; } }}
+                >
+                  <span className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: st.topBar }} />
                   {r.badge && (
-                    <span className={`absolute top-2 right-2 text-[9px] font-semibold px-1.5 py-0.5 rounded ${r.badge === 'novo' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    <span className="absolute top-3.5 right-3.5 flex items-center gap-1 text-[9px] font-semibold px-2 py-[3px] rounded-full"
+                      style={r.badge === 'novo'
+                        ? { background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }
+                        : { background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a' }}>
+                      <span className="w-[5px] h-[5px] rounded-full" style={{ background: r.badge === 'novo' ? '#059669' : '#d97706' }} />
                       {r.badge}
                     </span>
                   )}
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 ${isActive ? c.bg : 'bg-white'}`}>
-                    <i className={`ti ${r.icon} ${c.text}`} style={{fontSize:18}} aria-hidden="true" />
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-7"
+                    style={{ background: st.iconBg, color: st.iconColor, boxShadow: `0 2px 8px ${st.iconShadow}` }}>
+                    {r.icon}
                   </div>
-                  <p className={`text-[13px] font-semibold mb-0.5 ${isActive ? c.text : 'text-slate-700'}`}>{r.title}</p>
-                  <p className="text-[11px] text-slate-400 leading-snug">{r.sub}</p>
+                  <p className="text-[14px] font-semibold text-slate-900 mb-1" style={{ letterSpacing: '-0.01em' }}>{r.title}</p>
+                  <p className="text-[11.5px] text-slate-500 leading-[1.45] pr-6">{r.sub}</p>
+                  <div className="absolute bottom-4 right-4 w-[26px] h-[26px] rounded-lg flex items-center justify-center transition-colors"
+                    style={{ background: isActive ? st.iconBg : '#f1f5f9', color: isActive ? st.iconColor : '#94a3b8' }}>
+                    {isActive ? <CheckCircle size={14} /> : <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />}
+                  </div>
                 </button>
               );
             })}
@@ -643,19 +665,35 @@ const NutritionReportsModule: React.FC = () => {
 
         {/* ── Relatórios consolidados ── */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5" style={{boxShadow:'0 2px 12px rgba(0,0,0,0.04)'}}>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Relatórios consolidados (rede)</p>
-          <div className="grid grid-cols-3 gap-3">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">Relatórios consolidados (rede)</p>
+          <div className="grid grid-cols-3 gap-3.5">
             {REPORTS_CONSOLIDADOS.map(r => {
-              const c = colorMap[r.color] ?? colorMap.neutral;
+              const st = cardStyle[r.color] ?? cardStyle.blue;
               const isActive = selectedReport === r.id;
               return (
                 <button key={r.id} onClick={() => { setSelectedReport(isActive ? null : r.id); setSelectedStudent(null); }}
-                  className={`relative text-left rounded-2xl border-2 p-4 transition-all ${isActive ? `${c.border} ${c.bg}` : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'}`}>
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 ${isActive ? c.bg : 'bg-white'}`}>
-                    <i className={`ti ${r.icon} ${c.text}`} style={{fontSize:18}} aria-hidden="true" />
+                  className="group relative text-left bg-white rounded-2xl p-[18px] overflow-hidden transition-all duration-200"
+                  style={{
+                    border: '1px solid #eef1f5',
+                    boxShadow: isActive
+                      ? `0 0 0 2px ${st.ring}, 0 8px 24px ${st.iconShadow}`
+                      : '0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(16,24,40,0.06)',
+                    transform: isActive ? 'translateY(-2px)' : 'none',
+                  }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 2px 4px rgba(16,24,40,0.04), 0 12px 28px ${st.iconShadow}`; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(16,24,40,0.06)'; } }}
+                >
+                  <span className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: st.topBar }} />
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-7"
+                    style={{ background: st.iconBg, color: st.iconColor, boxShadow: `0 2px 8px ${st.iconShadow}` }}>
+                    {r.icon}
                   </div>
-                  <p className={`text-[13px] font-semibold mb-0.5 ${isActive ? c.text : 'text-slate-700'}`}>{r.title}</p>
-                  <p className="text-[11px] text-slate-400 leading-snug">{r.sub}</p>
+                  <p className="text-[14px] font-semibold text-slate-900 mb-1" style={{ letterSpacing: '-0.01em' }}>{r.title}</p>
+                  <p className="text-[11.5px] text-slate-500 leading-[1.45] pr-6">{r.sub}</p>
+                  <div className="absolute bottom-4 right-4 w-[26px] h-[26px] rounded-lg flex items-center justify-center transition-colors"
+                    style={{ background: isActive ? st.iconBg : '#f1f5f9', color: isActive ? st.iconColor : '#94a3b8' }}>
+                    {isActive ? <CheckCircle size={14} /> : <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />}
+                  </div>
                 </button>
               );
             })}
