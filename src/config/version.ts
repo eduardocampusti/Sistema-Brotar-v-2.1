@@ -1,16 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.153',
+  version: 'v2.4.154',
   date: 'Jul 2026',
-  display: 'v2.4.153 • Jul 2026',
+  display: 'v2.4.154 • Jul 2026',
   changelog: [
-    'fix: botão Nova Sessão da nutricionista corrigido — rota nutricion/avaliacao',
-    'feat: dobras cutâneas triciptal, subescapular e panturrilha na avaliação nutricional',
-    'feat: curvas de crescimento OMS 2007 (Peso/Idade, Altura/Idade, IMC/Idade)',
-    'feat: percentual de gordura pela fórmula de Slaughter (1988)',
-    'feat: classificação %GC pela tabela de Lohman (1987)',
-    'feat: idade calculada automaticamente em anos, meses e dias',
+    'fix crítico: nutricionista agora renderiza NutritionDashboard correto ao invés do Dashboard genérico',
+    'fix: Nova Sessão no dashboard redireciona corretamente para nutricion/avaliacao',
+    'fix: Specialty.NUTRITION adicionada na lista de exceções do dashboard SPECIALIST',
   ],
   releases: [
+    {
+      version: 'v2.4.154',
+      date: '29 Jul 2026',
+      title: 'Release v2.4.154 — 29 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.153',
       date: '29 Jul 2026',

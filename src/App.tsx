@@ -79,6 +79,7 @@ const PsychopedagogyDashboard = React.lazy(() => import('../components/RoleDashb
 const AssistantDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.AssistantDashboard })));
 const SecretariaSedeDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.SecretariaSedeDashboard })));
 const SecretariaCocalDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.SecretariaCocalDashboard })));
+const NutritionSpecialistDashboard = React.lazy(() => import('../components/RoleDashboards').then(m => ({ default: m.NutritionDashboard })));
 
 
 // Loading Component
@@ -403,7 +404,18 @@ function AppContent() {
                   }}
                 />
               )}
-              {(!user?.role || (user.role === 'SPECIALIST' && ![Specialty.PSYCHOLOGY, Specialty.SOCIAL_WORK, Specialty.PSYCHOPEDAGOGY].includes(user.specialty!))) && (
+              {user?.role === 'SPECIALIST' && user.specialty === Specialty.NUTRITION && (
+                <NutritionSpecialistDashboard
+                  students={students}
+                  currentUser={user}
+                  onNavigate={handleNavigate}
+                  onOpenPatient={(id) => {
+                    const st = students.find(s => s.id === id);
+                    if (st) handleSelectStudent(st);
+                  }}
+                />
+              )}
+              {(!user?.role || (user.role === 'SPECIALIST' && ![Specialty.PSYCHOLOGY, Specialty.SOCIAL_WORK, Specialty.PSYCHOPEDAGOGY, Specialty.NUTRITION].includes(user.specialty!))) && (
                 <Dashboard
                   students={students}
                   currentUser={user ?? undefined}
