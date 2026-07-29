@@ -1,11 +1,25 @@
 export const APP_VERSION = {
-  version: 'v2.4.152',
+  version: 'v2.4.153',
   date: 'Jul 2026',
-  display: 'v2.4.152 • Jul 2026',
+  display: 'v2.4.153 • Jul 2026',
   changelog: [
-    'Atualização de manutenção'  
+    'fix: botão Nova Sessão da nutricionista corrigido — rota nutricion/avaliacao',
+    'feat: dobras cutâneas triciptal, subescapular e panturrilha na avaliação nutricional',
+    'feat: curvas de crescimento OMS 2007 (Peso/Idade, Altura/Idade, IMC/Idade)',
+    'feat: percentual de gordura pela fórmula de Slaughter (1988)',
+    'feat: classificação %GC pela tabela de Lohman (1987)',
+    'feat: idade calculada automaticamente em anos, meses e dias',
   ],
   releases: [
+    {
+      version: 'v2.4.153',
+      date: '29 Jul 2026',
+      title: 'Release v2.4.153 — 29 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.152',
       date: '29 Jul 2026',
