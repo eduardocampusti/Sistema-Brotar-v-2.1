@@ -1,13 +1,25 @@
 export const APP_VERSION = {
-  version: 'v2.4.154',
+  version: 'v2.4.155',
   date: 'Jul 2026',
-  display: 'v2.4.154 • Jul 2026',
+  display: 'v2.4.155 • Jul 2026',
   changelog: [
-    'fix crítico: nutricionista agora renderiza NutritionDashboard correto ao invés do Dashboard genérico',
-    'fix: Nova Sessão no dashboard redireciona corretamente para nutricion/avaliacao',
-    'fix: Specialty.NUTRITION adicionada na lista de exceções do dashboard SPECIALIST',
+    'feat: módulo de relatórios nutricionais reformulado — seleção de aluno primeiro',
+    'feat: novo Relatório de Antropometria com curvas OMS, dobras cutâneas e % gordura',
+    'feat: novo Relatório de Evolução Nutricional com histórico de medidas em tabela',
+    'feat: novo Relatório NAE por aluno com alertas de laudo vencido',
+    'feat: novo Plano Alimentar com condutas e orientações da IA Gemini',
+    'fix: Relatório Individual atualizado com campos de dobras e classificação OMS',
   ],
   releases: [
+    {
+      version: 'v2.4.155',
+      date: '29 Jul 2026',
+      title: 'Release v2.4.155 — 29 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.154',
       date: '29 Jul 2026',
