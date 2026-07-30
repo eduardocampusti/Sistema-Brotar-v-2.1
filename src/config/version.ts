@@ -1,14 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.156',
+  version: 'v2.4.157',
   date: 'Jul 2026',
-  display: 'v2.4.156 • Jul 2026',
+  display: 'v2.4.157 • Jul 2026',
   changelog: [
-    'fix: ícones dos cards de relatório corrigidos (Tabler → Lucide) — não aparecem mais como quadrados vazios',
-    'ui: design premium nos cards de relatórios — ícones coloridos com gradiente e sombra própria',
-    'ui: barra de destaque colorida no topo de cada card, sombra de profundidade em duas camadas',
-    'ui: seta de ação, badges em pílula, animação de elevação no hover',
+    'feat: cards de estatística do Lançamento Retroativo agora são clicáveis e funcionam como filtros',
+    'feat: clicar em Sem registro / Com registro / Total de alunos filtra a lista automaticamente',
+    'ui: card ativo recebe destaque de cor e sombra, cards inativos esmaecem — sincronizado com a barra de filtros',
   ],
   releases: [
+    {
+      version: 'v2.4.157',
+      date: '30 Jul 2026',
+      title: 'Release v2.4.157 — 30 Jul 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.156',
       date: '29 Jul 2026',

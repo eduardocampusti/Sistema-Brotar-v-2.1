@@ -245,24 +245,42 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                 {!selectedStudent && (
                     <div className="space-y-4 animate-fadeIn">
 
-                        {/* Stats */}
+                        {/* Stats — clicáveis, funcionam como filtros */}
                         <div className="grid grid-cols-3 gap-3">
-                            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
+                            <button
+                                type="button"
+                                onClick={() => setFilterStatus(filterStatus === 'sem' ? 'todos' : 'sem')}
+                                className="rounded-xl p-3 text-center transition-all"
+                                style={filterStatus === 'sem'
+                                    ? { background: '#FCEBEB', border: '2px solid #F09595', boxShadow: '0 4px 12px rgba(163,45,45,0.12)' }
+                                    : { background: 'white', border: '2px solid #e2e8f0', opacity: filterStatus === 'com' ? 0.55 : 1 }}>
                                 <div className="text-xl font-bold text-[#A32D2D]">
                                     {studentsList.filter(s => !s.lastSessionDate).length}
                                 </div>
                                 <div className="text-[10px] text-slate-500 mt-0.5">Sem registro</div>
-                            </div>
-                            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFilterStatus(filterStatus === 'com' ? 'todos' : 'com')}
+                                className="rounded-xl p-3 text-center transition-all"
+                                style={filterStatus === 'com'
+                                    ? { background: '#EAF3DE', border: '2px solid #97C459', boxShadow: '0 4px 12px rgba(59,109,17,0.12)' }
+                                    : { background: 'white', border: '2px solid #e2e8f0', opacity: filterStatus === 'sem' ? 0.55 : 1 }}>
                                 <div className="text-xl font-bold text-[#10B981]">
                                     {studentsList.filter(s => s.lastSessionDate).length}
                                 </div>
                                 <div className="text-[10px] text-slate-500 mt-0.5">Com registro</div>
-                            </div>
-                            <div className="bg-white border border-slate-200 rounded-xl p-3 text-center">
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFilterStatus('todos')}
+                                className="rounded-xl p-3 text-center transition-all"
+                                style={filterStatus === 'todos'
+                                    ? { background: '#F8FAFC', border: '2px solid #8B1A3A', boxShadow: '0 4px 12px rgba(139,26,58,0.12)' }
+                                    : { background: 'white', border: '2px solid #e2e8f0', opacity: filterStatus === 'todos' ? 1 : 0.55 }}>
                                 <div className="text-xl font-bold text-slate-700">{studentsList.length}</div>
                                 <div className="text-[10px] text-slate-500 mt-0.5">Total de alunos</div>
-                            </div>
+                            </button>
                         </div>
 
                         {/* Busca */}
