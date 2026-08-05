@@ -20,6 +20,13 @@ function buildTimestampPlugin(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  const requiredPublicEnv = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
+  const missingPublicEnv = requiredPublicEnv.filter((name) => !env[name]?.trim());
+
+  if (missingPublicEnv.length > 0) {
+    throw new Error(`Missing required frontend environment variables: ${missingPublicEnv.join(', ')}`);
+  }
+
   return {
     server: {
       port: 5500,
@@ -30,11 +37,6 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [react(), buildTimestampPlugin()],
-    define: {
-      'process.env': {},
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -52,7 +54,6 @@ export default defineConfig(({ mode }) => {
             'vendor-utils': ['react-markdown'],
             'vendor-pdf': ['jspdf', 'jspdf-autotable'],
             'vendor-csv': ['papaparse'],
-            'vendor-ai': ['@google/genai'],
           }
         }
       }

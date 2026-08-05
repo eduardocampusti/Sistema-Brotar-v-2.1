@@ -3914,7 +3914,7 @@ export class SupabaseService {
     private static formatWhatsAppApiError(data: unknown, httpStatus: number): string {
         const hint401 =
             httpStatus === 401
-                ? ' Verifique no servidor se WHATSAPP_TOKEN está válido (token da Meta expira) ou se a rota exige Authorization (BROTAR_WHATSAPP_SEND_SECRET).'
+                ? ' Sua sessão não foi aceita pelo servidor. Entre novamente e repita a operação.'
                 : '';
         if (data == null || typeof data !== 'object') {
             return `Erro HTTP ${httpStatus} na API de envio.${hint401}`;
@@ -3941,8 +3941,8 @@ export class SupabaseService {
 
     /**
      * Envia notificação de WhatsApp via API Node (ex.: Hostinger).
-     * URL: VITE_BROTAR_API_BASE_URL ou padrão api-brotar.smebrotas.com.br.
-     * Opcional: VITE_BROTAR_WHATSAPP_SEND_SECRET como Bearer se o servidor exigir.
+     * URL: VITE_API_URL ou padrão api-brotar.smebrotas.com.br.
+     * A autenticação usa o access token da sessão Supabase; nenhum segredo compartilhado é enviado pelo bundle.
      */
     static async sendWhatsAppNotification(details: {
         student: string,
@@ -3953,19 +3953,20 @@ export class SupabaseService {
         appointmentId: string,
         unit: string
     }) {
-        console.log('[SupabaseService] Enviando WhatsApp via API local...', details);
-
         const API_URL =
             (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
             'https://api-brotar.smebrotas.com.br';
-        const sendSecret =
-            typeof import.meta !== 'undefined' ? import.meta.env?.VITE_BROTAR_WHATSAPP_SEND_SECRET : undefined;
         const url = `${String(API_URL).replace(/\/$/, '')}/api/whatsapp/send`;
 
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (sendSecret && String(sendSecret).trim()) {
-            headers.Authorization = `Bearer ${String(sendSecret).trim()}`;
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session?.access_token) {
+            throw new Error('Sessão inválida. Entre novamente antes de enviar a notificação.');
         }
+
+        const headers: Record<string, string> = {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+        };
 
         try {
             const response = await fetch(url, {
@@ -3985,22 +3986,18 @@ export class SupabaseService {
             // [DEFENSIVE] Verifica se o conteúdo é JSON antes de tentar o parse
             const contentType = response.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
-                const text = await response.text();
-                console.error('[SupabaseService] Resposta não-JSON recebida:', text.substring(0, 100));
+                await response.text();
                 throw new Error('O servidor de WhatsApp retornou uma resposta inválida (HTML em vez de JSON). Verifique se o backend está ativo.');
             }
 
             const data = await response.json();
 
             if (!response.ok) {
-                console.error('[SupabaseService] Erro no backend WhatsApp:', response.status, data);
                 throw new Error(this.formatWhatsAppApiError(data, response.status));
             }
 
-            console.log('[SupabaseService] Sucesso no envio:', data);
             return data;
         } catch (err: any) {
-            console.error('[SupabaseService] Falha técnica no envio de WhatsApp:', err);
             // Captura o erro "Failed to fetch" (CORS/Rede) e dá um nome amigável
             if (err.message === 'Failed to fetch') {
                 throw new Error(

@@ -1,18 +1,19 @@
+import { requireEnv } from '../scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 
 // Usando Service Role Key para garantir acesso total aos dados para backup
-const supabaseUrl = 'https://indshiztdvjgvgnzigqd.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImluZHNoaXp0ZHZqZ3ZnbnppZ3FkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODkxNDk0MiwiZXhwIjoyMDg0NDkwOTQyfQ.15-gfyCZ3eF5kmbnW47hRRqkHlPr5XOPgQkYMcQrup8';
+const supabaseUrl = requireEnv('SUPABASE_URL');
+const supabaseKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function run() {
     try {
         const date = new Date().toISOString().split('T')[0];
         const filename = `backup_students_unit_null_${date}.json`;
-        const absolutePath = path.resolve('d:/OneDrive/SISTEMA BROTAR/Sistema-Brotar-v-2.1', filename);
+        const absolutePath = path.resolve(process.cwd(), filename);
 
         console.log('--- BACKUP DE SEGURANÇA (DevOps): STUDENTS (UNIT IS NULL) ---');
         

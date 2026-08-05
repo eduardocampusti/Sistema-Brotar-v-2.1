@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
@@ -10,12 +11,12 @@ async function testAuthAndFetch() {
     console.log('--- DEBUGGING FINAL ---');
 
     // Use the email format found in SupabaseService.ts
-    const email = 'brotar@brotar.com';
+    const email = requireEnv('SCRIPT_USER_EMAIL');
     console.log(`Logging in as "${email}"...`);
 
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
-        password: '123456',
+        password: requireEnv('SCRIPT_USER_PASSWORD'),
     });
 
     if (authError) {

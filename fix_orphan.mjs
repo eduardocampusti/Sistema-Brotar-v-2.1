@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -7,8 +8,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function fix() {
     await supabase.auth.signInWithPassword({
-        email: 'admin@brotar.com',
-        password: '123456'
+        email: requireEnv('SCRIPT_USER_EMAIL'),
+        password: requireEnv('SCRIPT_USER_PASSWORD')
     });
 
     const schoolId = 'f1eea056-b076-43f1-bd6b-871d37446738'; // Escola Mun. Timoteo Lo

@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
@@ -9,8 +10,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 async function checkRelationships() {
     await supabase.auth.signInWithPassword({
-        email: 'admin@brotar.com',
-        password: '123456'
+        email: requireEnv('SCRIPT_USER_EMAIL'),
+        password: requireEnv('SCRIPT_USER_PASSWORD')
     });
 
     // Tenta uma consulta com join para ver se falha

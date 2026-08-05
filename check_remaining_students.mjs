@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
@@ -12,8 +13,8 @@ async function checkRemainingStudents() {
   
   // Login como Admin para garantir visão total
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: 'admin@brotar.com',
-    password: '123456'
+    email: requireEnv('SCRIPT_USER_EMAIL'),
+    password: requireEnv('SCRIPT_USER_PASSWORD')
   });
 
   if (authError) {

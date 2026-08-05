@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
@@ -8,8 +9,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function inspectToSafeFile() {
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: '29204410@escola.brotar',
-        password: '123456'
+        email: requireEnv('SCRIPT_USER_EMAIL'),
+        password: requireEnv('SCRIPT_USER_PASSWORD')
     });
 
     if (authError) {

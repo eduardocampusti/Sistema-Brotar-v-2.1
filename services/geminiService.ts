@@ -1,18 +1,69 @@
 
-import { GoogleGenAI } from "@google/genai";
-import { Student } from "../types";
+import { Student } from '../types';
+import type {
+  GeminiGenerateRequest,
+  GeminiGenerateResponse,
+} from '../types/geminiApi';
+import { supabase } from './supabaseClient';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+class GeminiApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'GeminiApiError';
+  }
+}
 
-const SYSTEM_PERSONA = `
-Você é o REDATOR OFICIAL do SISTEMA BROTAR.
-Sua tarefa é gerar documentos profissionais (Relatórios, Ofícios, Declarações).
-REGRAS:
-1. Use linguagem técnica, formal e institucional.
-2. NUNCA invente dados médicos ou diagnósticos não fornecidos.
-3. Se faltar informação, use [DADO NÃO INFORMADO].
-4. Formate como um texto de documento oficial, pronto para impressão em papel timbrado.
-`;
+function isGeminiApiResponse(value: unknown): value is GeminiGenerateResponse {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.text === 'string' || typeof record.error === 'string';
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido na geração via Gemini.';
+}
+
+export async function requestGeminiContent(prompt: string): Promise<string> {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.access_token) {
+    throw new Error('Sessão inválida. Entre novamente antes de gerar o documento.');
+  }
+
+  const requestBody: GeminiGenerateRequest = { prompt };
+  const apiBaseUrl = import.meta.env.VITE_API_URL?.trim() || '';
+  const response = await fetch(`${apiBaseUrl.replace(/\/$/, '')}/api/gemini/generate`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new GeminiApiError('O serviço de IA retornou uma resposta inválida.', response.status);
+  }
+
+  if (!isGeminiApiResponse(payload)) {
+    throw new GeminiApiError('O serviço de IA retornou uma resposta inválida.', response.status);
+  }
+
+  if (!response.ok) {
+    const message = 'error' in payload
+      ? payload.error
+      : 'Não foi possível gerar o documento. Tente novamente mais tarde.';
+    throw new GeminiApiError(message, response.status);
+  }
+
+  if (!('text' in payload) || !payload.text.trim()) {
+    throw new GeminiApiError('O provedor de IA retornou uma resposta vazia.', response.status);
+  }
+
+  return payload.text;
+}
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -70,23 +121,10 @@ export const GeminiService = {
 
     while (attempt < maxRetries) {
       try {
-        const response = await ai.models.generateContent({
-          model: "gemini-2.0-flash", // Nome correto para o SDK v2.0+
-          contents: prompt,
-          config: {
-            systemInstruction: SYSTEM_PERSONA,
-            temperature: 0.7 // Um pouco mais de criatividade para documentos menos robóticos
-          }
-        });
-
-        if (!response.text) {
-          throw new Error("Resposta da IA veio vazia.");
-        }
-
-        return response.text;
-      } catch (error: any) {
+        return await requestGeminiContent(prompt);
+      } catch (error: unknown) {
         attempt++;
-        const isQuotaError = error.message?.includes("Quota exceeded") || error.message?.includes("429") || error.toString().includes("Quota exceeded");
+        const isQuotaError = error instanceof GeminiApiError && error.status === 429;
 
         if (isQuotaError && attempt < maxRetries) {
           const waitTime = 2000 * Math.pow(2, attempt); // 4s, 8s, 16s...
@@ -95,8 +133,7 @@ export const GeminiService = {
           continue; // Tenta novamente
         }
 
-        console.error("Erro no GeminiService:", error);
-        throw new Error(error.message || "Erro desconhecido na geração via Gemini.");
+        throw new Error(getErrorMessage(error));
       }
     }
 

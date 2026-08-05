@@ -1,3 +1,4 @@
+import { requireEnv } from '../scripts/require-env.mjs';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
@@ -9,12 +10,12 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function run() {
     console.log('--- TESTANDO LOGIN E INSERT RLS COMO LOISEANE ---');
-    const email = 'amorim.loiseane@uni9.edu.br';
+    const email = requireEnv('SCRIPT_USER_EMAIL');
     
     // Tenta fazer login com a senha padrão '123456'
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
-        password: '123456'
+        password: requireEnv('SCRIPT_USER_PASSWORD')
     });
 
     if (authError) {

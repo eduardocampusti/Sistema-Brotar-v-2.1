@@ -147,39 +147,26 @@ O front espelha a intenção em `getAlunosPorPerfil` + `src/config/perfilRestrit
 | Item | Valor |
 |------|--------|
 | Pacote | `@google/genai` `^1.30.0` (Google Gen AI SDK para JS). |
-| Classe | `GoogleGenAI` instanciada em `services/geminiService.ts`. |
-| Modelo textual | `gemini-2.0-flash` (chamada `ai.models.generateContent`). |
-| Parâmetros | `systemInstruction` (persona institucional), `temperature: 0.7`, prompt montado com dados do `Student` e contexto livre. |
+| Classe | `GoogleGenAI` instanciada somente em `server.mjs` e `api/gemini/generate.ts`. |
+| Modelo textual | `GEMINI_MODEL` no servidor ou fallback `gemini-2.0-flash`. |
+| Parâmetros | `systemInstruction` e `temperature: 0.7` definidos no servidor; o frontend envia somente o prompt. |
 
 ### 4.2 Fluxo de chamada
 
 1. `DocumentGenerator` chama `GeminiService.generateOfficialDocument(docType, student, professionalName, role, context)`.
 2. O serviço injeta trechos opcionais (ex.: último resultado **IPO/Portage** a partir de `student.clinical.pp_data.ipoHistory`).
-3. **Retries:** até 3 tentativas com *backoff* exponencial em erros de cota / HTTP 429.
-4. Em falha definitiva, `DocumentGenerator` aciona **`TemplateService.getFallbackDocument`** (templates HTML/string institucionais, sem rede).
+3. O serviço obtém a sessão Supabase e envia `{ prompt }` para `POST /api/gemini/generate`.
+4. O endpoint valida a sessão e chama o provedor com credenciais exclusivamente server-side.
+5. **Retries:** até 3 tentativas com *backoff* exponencial em HTTP 429.
+6. Em falha definitiva, `DocumentGenerator` aciona **`TemplateService.getFallbackDocument`** (templates HTML/string institucionais, sem rede).
 
-### 4.3 Configuração de ambiente (Vite)
+### 4.3 Configuração de ambiente
 
-Em `vite.config.ts`, variáveis carregadas com `loadEnv(mode, '.', '')` e injetadas no bundle:
-
-```ts
-define: {
-  'process.env': {},
-  'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-  'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-}
-```
-
-O `geminiService.ts` usa `process.env.API_KEY` (preenchido a partir de **`GEMINI_API_KEY`** no arquivo `.env` da raiz em desenvolvimento/build).
-
-**Implicação de segurança:** chave definida assim no **build de front-end** tende a **estar embutida no JavaScript entregue ao navegador**. Para produção, avaliar:
-
-- Proxy backend (ex.: `server.mjs` ou Edge Function) que guarda a chave **somente no servidor**, ou
-- Restrições de chave API (HTTP referrer, escopo mínimo) no Google Cloud / AI Studio.
+O frontend usa apenas `VITE_API_URL` para localizar a API. `GEMINI_API_KEY` e `GEMINI_MODEL` são lidas exclusivamente no servidor quando `/api/gemini/generate` é chamado. A chave não usa prefixo `VITE_`, não é definida em `vite.config.ts` e não deve aparecer no bundle.
 
 ### 4.4 Chunk de build
 
-`vite.config.ts` agrupa `@google/genai` em **`vendor-ai`** para carregamento sob demanda junto com o lazy load de páginas que importam o gerador.
+O SDK `@google/genai` não faz parte dos chunks manuais do frontend; ele é consumido somente pelos entrypoints server-side.
 
 ---
 

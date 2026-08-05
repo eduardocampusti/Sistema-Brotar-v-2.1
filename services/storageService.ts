@@ -224,7 +224,6 @@ const SEED_USERS: User[] = [
         id: 'admin', 
         name: 'Administrador Geral', 
         username: 'admin', 
-        password: 'admin', 
         role: 'ADMIN', 
         isActive: true,
         scope: 'GLOBAL',
@@ -238,7 +237,6 @@ const SEED_USERS: User[] = [
         id: 'sede', 
         name: 'Secretária Sede', 
         username: 'sede', 
-        password: '123', 
         role: 'EDUCATION_SECRETARY', 
         isActive: true,
         scope: 'GLOBAL', // Acesso total
@@ -252,7 +250,6 @@ const SEED_USERS: User[] = [
         id: 'cocal', 
         name: 'Secretária Cocal', 
         username: 'cocal', 
-        password: '123', 
         role: 'EDUCATION_SECRETARY', 
         isActive: true,
         scope: 'COCAL', // Acesso restrito
@@ -266,7 +263,6 @@ const SEED_USERS: User[] = [
         id: 'psi', 
         name: 'Dra. Sofia Lima', 
         username: 'psi', 
-        password: '123', 
         role: 'SPECIALIST', 
         specialty: Specialty.PSYCHOLOGY,
         isActive: true,
@@ -280,7 +276,6 @@ const SEED_USERS: User[] = [
         id: 'pp', 
         name: 'Psicoped. Júlia', 
         username: 'pp', 
-        password: '123', 
         role: 'SPECIALIST', 
         specialty: Specialty.PSYCHOPEDAGOGY,
         isActive: true,
@@ -294,7 +289,6 @@ const SEED_USERS: User[] = [
         id: 'fono', 
         name: 'Fono. Beatriz', 
         username: 'fono', 
-        password: '123', 
         role: 'SPECIALIST', 
         specialty: Specialty.SPEECH_THERAPY,
         isActive: true,
@@ -308,7 +302,6 @@ const SEED_USERS: User[] = [
         id: 'to', 
         name: 'T.O. Roberto', 
         username: 'to', 
-        password: '123', 
         role: 'SPECIALIST', 
         specialty: Specialty.OCCUPATIONAL_THERAPY,
         isActive: true,
@@ -322,7 +315,6 @@ const SEED_USERS: User[] = [
         id: 'social', 
         name: 'Assist. Social Maria', 
         username: 'social', 
-        password: '123', 
         role: 'SPECIALIST', 
         specialty: Specialty.SOCIAL_WORK,
         isActive: true,
@@ -336,7 +328,6 @@ const SEED_USERS: User[] = [
         id: 'recepcao', 
         name: 'Recepção', 
         username: 'recepcao', 
-        password: '123', 
         role: 'ASSISTANT', 
         isActive: true,
         jobTitle: 'Recepcionista',
@@ -435,15 +426,9 @@ export class StorageService {
   }
 
   static authenticate(username: string, password: string): User | null {
-      // Backdoor for admin if deleted from localstorage
-      if (username === 'admin' && password === 'admin') {
-         const storedUsers = this.getUsers();
-         const storedAdmin = storedUsers.find(u => u.username === 'admin');
-         return storedAdmin || SEED_USERS[0];
-      }
-
-      const users = this.getUsers();
-      return users.find(u => u.username === username && u.password === password && u.isActive) || null;
+      void username;
+      void password;
+      return null;
   }
 
   // --- Schools ---

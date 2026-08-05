@@ -113,7 +113,7 @@ describe('AuthService', () => {
   describe('login', () => {
     it('should return token for valid credentials', async () => {
       // Arrange
-      const credentials = { email: 'test@test.com', password: 'pass123' };
+      const credentials = { email: 'test@test.com', password: process.env.SCRIPT_USER_PASSWORD };
       
       // Act
       const result = await authService.login(credentials);
@@ -124,7 +124,7 @@ describe('AuthService', () => {
 
     it('should throw for invalid password', async () => {
       // Arrange
-      const credentials = { email: 'test@test.com', password: 'wrong' };
+      const credentials = { email: 'test@test.com', password: process.env.SCRIPT_INVALID_PASSWORD };
       
       // Act & Assert
       await expect(authService.login(credentials)).rejects.toThrow('Invalid credentials');

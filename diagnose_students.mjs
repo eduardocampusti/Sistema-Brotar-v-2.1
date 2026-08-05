@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -11,8 +12,8 @@ async function diagnose() {
     // 1. Tentar logar como admin se possível, ou usar anon se RLS permitir leitura parcial
     // Como não sei a senha de admin atual (o script anterior sugeriu 123456), vou tentar
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: 'admin@brotar.com',
-        password: '123456'
+        email: requireEnv('SCRIPT_USER_EMAIL'),
+        password: requireEnv('SCRIPT_USER_PASSWORD')
     });
 
     if (authError) {

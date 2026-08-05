@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
@@ -12,8 +13,8 @@ async function inspectStructure() {
     
     // Login
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-        email: 'admin@brotar.com',
-        password: '123456'
+        email: requireEnv('SCRIPT_USER_EMAIL'),
+        password: requireEnv('SCRIPT_USER_PASSWORD')
     });
 
     if (authErr) {

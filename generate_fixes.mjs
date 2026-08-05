@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -9,8 +10,8 @@ async function diagnose() {
     console.log('--- MAPEAMENTO DE RECUPERAÇÃO ---');
 
     await supabase.auth.signInWithPassword({
-        email: 'admin@brotar.com',
-        password: '123456'
+        email: requireEnv('SCRIPT_USER_EMAIL'),
+        password: requireEnv('SCRIPT_USER_PASSWORD')
     });
 
     const { data: students } = await supabase

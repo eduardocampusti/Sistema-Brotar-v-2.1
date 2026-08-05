@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -15,8 +16,8 @@ async function listAllTables() {
     
     // Tenta primeiro via login admin
     await supabase.auth.signInWithPassword({
-        email: 'admin@brotar.com',
-        password: '123456'
+        email: requireEnv('SCRIPT_USER_EMAIL'),
+        password: requireEnv('SCRIPT_USER_PASSWORD')
     });
 
     // Infelizmente, o supabase-js não permite query direta em information_schema facilmente via .from()

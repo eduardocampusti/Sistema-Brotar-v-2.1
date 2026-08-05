@@ -1,8 +1,9 @@
+import { requireEnv } from '../scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://indshiztdvjgvgnzigqd.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImluZHNoaXp0ZHZqZ3ZnbnppZ3FkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODkxNDk0MiwiZXhwIjoyMDg0NDkwOTQyfQ.15-gfyCZ3eF5kmbnW47hRRqkHlPr5XOPgQkYMcQrup8';
+const supabaseUrl = requireEnv('SUPABASE_URL');
+const supabaseKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function cleanup() {
@@ -33,7 +34,7 @@ async function cleanup() {
         });
 
         if (cleanedDocuments.length !== originalCount) {
-            console.log(`Limpando documentos de: ${student.full_name} (${student.id})`);
+            console.log('Limpando documentos de um registro.');
             console.log(`- Originais: ${originalCount}, Limpos: ${cleanedDocuments.length}`);
             
             const { error: updateError } = await supabase
@@ -42,7 +43,7 @@ async function cleanup() {
                 .eq('id', student.id);
 
             if (updateError) {
-                console.error(`Erro ao atualizar aluno ${student.id}:`, updateError);
+                console.error('Erro ao atualizar um registro.');
             } else {
                 updatedCount++;
             }
@@ -70,9 +71,6 @@ async function cleanup() {
         
         console.log(`Logs verificados: ${logs.length}`);
         console.log(`Logs suspeitos encontrados: ${suspiciousLogs.length}`);
-        suspiciousLogs.forEach(log => {
-            console.log(`[${log.timestamp}] Ação: ${log.action} no módulo ${log.module} | Registro: ${log.affected_record}`);
-        });
     }
 }
 

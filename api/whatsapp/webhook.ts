@@ -1,10 +1,38 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicializa o cliente Supabase com a Service Role Key (necessária para Serverless Functions)
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+class MissingEnvironmentVariableError extends Error {
+    constructor(readonly variableName: string) {
+        super(`Missing required environment variable: ${variableName}`);
+        this.name = 'MissingEnvironmentVariableError';
+    }
+}
+
+function requireEnv(name: string): string {
+    const value = process.env[name]?.trim();
+    if (!value) {
+        throw new MissingEnvironmentVariableError(name);
+    }
+    return value;
+}
+
+function createSupabaseAdmin() {
+    return createClient(
+        requireEnv('SUPABASE_URL'),
+        requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+        { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+}
+
+type SupabaseAdmin = ReturnType<typeof createSupabaseAdmin>;
+
+function logConfigurationError(error: unknown) {
+    if (error instanceof MissingEnvironmentVariableError) {
+        console.error(`[Webhook] Configuração ausente: ${error.variableName}.`);
+        return;
+    }
+    console.error('[Webhook] Configuração de serviço inválida.');
+}
 
 // --- FUNÇÕES AUXILIARES WHATSAPP ---
 
@@ -23,7 +51,12 @@ function escapeIlikePattern(value: string): string {
 }
 
 /** Busca agendamento pendente por telefone: igualdades exatas primeiro, depois ILIKE com padrão escapado. */
-async function fetchPendingAppointmentByPhone(phoneClean: string, phoneShort: string, phoneWith55: string) {
+async function fetchPendingAppointmentByPhone(
+    supabase: SupabaseAdmin,
+    phoneClean: string,
+    phoneShort: string,
+    phoneWith55: string,
+) {
     const base = () =>
         supabase
             .from('appointments')
@@ -36,14 +69,14 @@ async function fetchPendingAppointmentByPhone(phoneClean: string, phoneShort: st
     const variants = [...new Set([phoneClean, phoneShort, phoneWith55].filter(Boolean))];
     for (const p of variants) {
         const { data, error } = await base().eq('telefone_responsavel', p);
-        if (error) console.error('[Webhook] Busca por telefone (eq):', error);
+        if (error) console.error('[Webhook] Falha na busca exata por telefone.');
         if (data?.[0]) return data;
     }
 
     if (phoneShort.length >= 6) {
         const pattern = `%${escapeIlikePattern(phoneShort)}%`;
         const { data, error } = await base().ilike('telefone_responsavel', pattern);
-        if (error) console.error('[Webhook] Busca por telefone (ilike):', error);
+        if (error) console.error('[Webhook] Falha na busca alternativa por telefone.');
         if (data?.[0]) return data;
     }
 
@@ -51,15 +84,17 @@ async function fetchPendingAppointmentByPhone(phoneClean: string, phoneShort: st
 }
 
 async function sendWhatsAppMessage(to: string, message: string) {
-    const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-    const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
-    
-    if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
-        console.error('[WhatsApp] Configurações ausentes para envio.');
+    let whatsappToken: string;
+    let whatsappPhoneNumberId: string;
+    try {
+        whatsappToken = requireEnv('WHATSAPP_TOKEN');
+        whatsappPhoneNumberId = requireEnv('WHATSAPP_PHONE_NUMBER_ID');
+    } catch (error: unknown) {
+        logConfigurationError(error);
         return;
     }
 
-    const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
+    const url = `https://graph.facebook.com/v19.0/${whatsappPhoneNumberId}/messages`;
     const messageBody = {
         messaging_product: "whatsapp",
         recipient_type: "individual",
@@ -72,21 +107,19 @@ async function sendWhatsAppMessage(to: string, message: string) {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                'Authorization': `Bearer ${whatsappToken}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(messageBody),
         });
-        const result = await response.json();
-        console.log(`[WhatsApp] Resposta envio para ${to}:`, result.messages?.[0]?.id ? 'Sucesso' : 'Falha');
-    } catch (error) {
-        console.error('[WhatsApp] Erro ao enviar mensagem:', error);
+        await response.json();
+        console.log(`[WhatsApp] Envio concluído com status ${response.status}.`);
+    } catch {
+        console.error('[WhatsApp] Falha no envio de mensagem.');
     }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'BROTAR_VERIFY_2026';
-
     console.log(`[Webhook] Nova requisição recebida: ${req.method}`);
 
     // --- VERIFICAÇÃO GET (Webhook Meta) ---
@@ -96,7 +129,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const challenge = req.query['hub.challenge'];
 
         if (mode && token) {
-            if (mode === 'subscribe' && token === WHATSAPP_VERIFY_TOKEN) {
+            let whatsappVerifyToken: string;
+            try {
+                whatsappVerifyToken = requireEnv('WHATSAPP_VERIFY_TOKEN');
+            } catch (error: unknown) {
+                if (error instanceof MissingEnvironmentVariableError) {
+                    return res.status(503).json({ error: `Configuração ausente: ${error.variableName}.` });
+                }
+                return res.status(503).json({ error: 'Configuração de serviço inválida.' });
+            }
+
+            if (mode === 'subscribe' && token === whatsappVerifyToken) {
                 console.log('WEBHOOK_VERIFIED');
                 return res.status(200).send(challenge);
             } else {
@@ -110,8 +153,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // --- RECEBIMENTO POST (Eventos Meta) ---
     if (req.method === 'POST') {
         const body = req.body;
-        console.log('[Webhook] Body completo recebido:', JSON.stringify(body, null, 2));
-
         if (body.object === 'whatsapp_business_account') {
             try {
                 const entry = body.entry?.[0];
@@ -122,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (!message) {
                     if (value?.statuses?.[0]) {
                         const status = value.statuses[0];
-                        console.log(`[Webhook] Status da mensagem: ${status.status} para ${status.recipient_id}`);
+                        console.log(`[Webhook] Status de mensagem recebido: ${status.status}.`);
                     } else {
                         console.log('[Webhook] Update sem mensagem ou status.');
                     }
@@ -132,7 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const from = message.from;
                 const msgType = message.type;
                 const msgId = message.id;
-                console.log(`[Webhook] Nova Mensagem | ID: ${msgId} | De: ${from} | Tipo: ${msgType}`);
+                console.log(`[Webhook] Mensagem recebida do tipo ${msgType}.`);
 
                 let newStatus = '';
                 let appointmentId = '';
@@ -144,8 +185,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const reply = message.interactive.button_reply;
                     const replyId = reply.id;
                     rawText = reply.title;
-                    console.log(`[Webhook] Botão Interativo Clicado: "${rawText}" (ID: ${replyId})`);
-
                     if (replyId.startsWith('CONFIRM_')) {
                         actionType = 'CONFIRM';
                         newStatus = 'CONFIRMADO';
@@ -164,8 +203,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 else if (msgType === 'button' && message.button?.payload) {
                     const payload = message.button.payload;
                     rawText = message.button.text;
-                    console.log(`[Webhook] Botão Template Clicado: "${rawText}" (Payload: ${payload})`);
-
                     if (payload.startsWith('CONFIRM_')) {
                         actionType = 'CONFIRM';
                         newStatus = 'CONFIRMADO';
@@ -184,8 +221,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 else if (msgType === 'text') {
                     rawText = message.text?.body || '';
                     const text = normalizeText(rawText);
-                    console.log(`[Webhook] Texto Recebido: "${rawText}" (Normalizado: "${text}")`);
-
                     if (text === 'confirmar' || text === 'confirmado' || text === 'sim' || text === '1') {
                         actionType = 'CONFIRM';
                         newStatus = 'CONFIRMADO';
@@ -198,10 +233,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     }
                 }
 
-                // 4. Execução das Ações no Supabase
-                if (newStatus) {
-                    console.log(`[Webhook] Processando Ação: ${actionType} | Novo Status: ${newStatus}`);
-                    
+            // 4. Execução das Ações no Supabase
+            if (newStatus) {
+                console.log(`[Webhook] Processando Ação: ${actionType} | Novo Status: ${newStatus}`);
+
+                let supabase: SupabaseAdmin;
+                try {
+                    supabase = createSupabaseAdmin();
+                } catch (error: unknown) {
+                    logConfigurationError(error);
+                    return res.status(200).send('EVENT_RECEIVED');
+                }
+
                     let targetId = appointmentId;
                     
                     if (!targetId) {
@@ -210,13 +253,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const phoneShort = phoneClean.startsWith('55') ? phoneClean.substring(2) : phoneClean;
                         const phoneWith55 = phoneClean.startsWith('55') ? phoneClean : `55${phoneClean}`;
 
-                        console.log(`[Webhook] Buscando agendamento pendente para: ${phoneClean} / ${phoneShort}`);
-
-                        const pending = await fetchPendingAppointmentByPhone(phoneClean, phoneShort, phoneWith55);
+                        const pending = await fetchPendingAppointmentByPhone(
+                            supabase,
+                            phoneClean,
+                            phoneShort,
+                            phoneWith55,
+                        );
 
                         if (pending?.[0]) {
                             targetId = pending[0].id;
-                            console.log(`[Webhook] Agendamento encontrado: ${targetId} (${pending[0].student_name})`);
+                            console.log('[Webhook] Agendamento pendente localizado.');
                         }
                     }
 
@@ -239,10 +285,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         .select();
 
                     if (error) {
-                        console.error('[Webhook] Erro ao atualizar Supabase:', error);
+                        console.error('[Webhook] Falha ao atualizar agendamento.');
                         await sendWhatsAppMessage(from, "Desculpe, ocorreu um erro técnico ao processar sua solicitação. Por favor, tente novamente mais tarde.");
                     } else if (data && data.length > 0) {
-                        console.log(`[Webhook] Sucesso! Agendamento ${targetId} atualizado para ${newStatus}`);
+                        console.log(`[Webhook] Agendamento atualizado para ${newStatus}.`);
                         
                         let feedbackMsg = "";
                         if (newStatus === 'CONFIRMADO') {
@@ -255,7 +301,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                         await sendWhatsAppMessage(from, feedbackMsg);
                     } else {
-                        console.log(`[Webhook] Falha na atualização: ID ${targetId} não encontrado.`);
+                        console.log('[Webhook] Agendamento não encontrado ou sem permissão para atualização.');
                         await sendWhatsAppMessage(from, "Não foi possível atualizar o agendamento. Ele pode ter sido alterado recentemente.");
                     }
                 } else if (msgType === 'text') {
@@ -263,8 +309,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
 
                 return res.status(200).send('EVENT_RECEIVED');
-            } catch (err: any) {
-                console.error('[Webhook] Erro Crítico:', err);
+            } catch {
+                console.error('[Webhook] Falha crítica ao processar evento.');
                 return res.status(200).send('EVENT_RECEIVED');
             }
         }

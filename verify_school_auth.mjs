@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -11,7 +12,7 @@ async function testSchoolLogin() {
     // Usando o INEP da primeira escola no script de restauração
     const inep = '29204410';
     const email = `${inep}@escola.brotar`;
-    const password = '123456';
+    const password = requireEnv('SCRIPT_USER_PASSWORD');
 
     console.log(`Tentando login para: ${email}`);
 

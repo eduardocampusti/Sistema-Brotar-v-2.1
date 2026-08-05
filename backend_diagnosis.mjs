@@ -1,3 +1,4 @@
+import { requireEnv } from './scripts/require-env.mjs';
 
 /**
  * DIAGNÓSTICO BACKEND COMPLETO - Sistema Brotar
@@ -55,8 +56,8 @@ async function runDiagnostics() {
     // TESTE 3: Autenticação do admin
     log('--- TESTE 3: Autenticação Admin ---');
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-        email: 'admin@brotar.com',
-        password: '123456'
+        email: requireEnv('SCRIPT_USER_EMAIL'),
+        password: requireEnv('SCRIPT_USER_PASSWORD')
     });
 
     if (authErr) {

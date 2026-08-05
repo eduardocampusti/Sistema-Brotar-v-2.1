@@ -1,13 +1,24 @@
 export const APP_VERSION = {
-  version: 'v2.4.157',
-  date: 'Jul 2026',
-  display: 'v2.4.157 • Jul 2026',
+  version: 'v2.4.158',
+  date: 'Ago 2026',
+  display: 'v2.4.158 • Ago 2026',
   changelog: [
-    'feat: cards de estatística do Lançamento Retroativo agora são clicáveis e funcionam como filtros',
-    'feat: clicar em Sem registro / Com registro / Total de alunos filtra a lista automaticamente',
-    'ui: card ativo recebe destaque de cor e sombra, cards inativos esmaecem — sincronizado com a barra de filtros',
+    'Atualização da camada de dados',
+    'Serviço de IA atualizado',
+    'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.158',
+      date: '5 Ago 2026',
+      title: 'Release v2.4.158 — 5 Ago 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização da camada de dados",
+        "Serviço de IA atualizado",
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.4.157',
       date: '30 Jul 2026',
