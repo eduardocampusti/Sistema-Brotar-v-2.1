@@ -1,11 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.159',
+  version: 'v2.4.160',
   date: 'Ago 2026',
-  display: 'v2.4.159 • Ago 2026',
+  display: 'v2.4.160 • Ago 2026',
   changelog: [
-    'Melhorias e correções gerais'  
+    'Classificação de especificidade nos dashboards das secretárias — cards confirmado/suspeito/sem identificação, alerta de alunos com CID sem laudo'
   ],
   releases: [
+    {
+      version: 'v2.4.160',
+      date: '6 Ago 2026',
+      title: 'Release v2.4.160 — 6 Ago 2026',
+      type: 'improvement',
+      changes: [
+        "Classificação de especificidade (confirmado/suspeito/sem identificação) nos dashboards da Secretaria de Educação, Sede e Cocal",
+        "Alerta de alunos com CID confirmado mas sem laudo anexado, para contato com a unidade escolar",
+        "Filtro de alunos duplicados (status Active) na listagem geral"
+      ]
+    },
     {
       version: 'v2.4.159',
       date: '6 Ago 2026',
