@@ -517,7 +517,17 @@ function AppContent() {
           <Route path="support-professionals/new" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
           <Route path="support-professionals/edit/:profId" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
           <Route path="support-professionals" element={<React.Suspense fallback={<PageLoading />}><SupportProfessionalManagement currentUser={user!} /></React.Suspense>} />
-          <Route path="admin" element={<React.Suspense fallback={<PageLoading />}><UserManagement /></React.Suspense>} />
+          <Route
+            path="admin"
+            element={
+              user?.role === 'ADMIN' ? (
+                <React.Suspense fallback={<PageLoading />}><UserManagement /></React.Suspense>
+              ) : (
+                // Guarda de interface; a autorização efetiva permanece nas policies RLS.
+                <Navigate to="/app" replace />
+              )
+            }
+          />
           <Route path="settings" element={<React.Suspense fallback={<PageLoading />}><SystemSettingsPanel /></React.Suspense>} />
           <Route path="letterhead-config" element={<React.Suspense fallback={<PageLoading />}><PapelTimbradoConfigPanel /></React.Suspense>} />
           <Route path="backup" element={<React.Suspense fallback={<PageLoading />}><BackupSystem currentUser={user!} /></React.Suspense>} />
