@@ -1,165 +1,180 @@
 # 06 — Regras de Trabalho — Sistema Brotar
 
-> Este arquivo define como trabalhar no projeto. Leia antes de qualquer sessão de desenvolvimento.
-> Seguir estas regras evita quebrar o sistema e facilita o trabalho em equipe com agents de IA.
+> **Atualizado em:** 06/08/2026
+> **Leia antes de qualquer sessão de desenvolvimento.**
 
 ---
 
-## Regra 1 — Sempre fazer commit antes de alterações importantes
+## REGRA 1 — Sequência de deploy (NUNCA pular ou reordenar)
 
-Antes de qualquer mudança em arquivo crítico, rodar no terminal:
-
-```bash
-git add .
-git commit -m "checkpoint: antes de [descreva o que vai fazer]"
+```
+1. npm run version:patch          ← SEMPRE antes do build
+2. npm run build:vite             ← OBRIGATÓRIO antes do commit
+3. git add -A dist/ [arquivos alterados]
+4. git commit --no-verify -m "MENSAGEM DESCRITIVA"
+5. git push --no-verify
 ```
 
-**Arquivos críticos** (sempre commitar antes de editar):
-- `components/SchedulingCenter.tsx`
-- `components/Layout.tsx`
-- `components/ClinicalPages.tsx`
-- `services/SupabaseService.ts`
-- `contexts/AuthContext.tsx`
-- `src/App.tsx`
-- `tailwind.config.js`
+**Verificações:**
+- Build OK: `npm run build:vite 2>&1 | Select-String -Pattern "error|Error|built in"`
+- Push OK: `git log --oneline origin/main..HEAD` → deve retornar vazio
+- Cache Hostinger: hPanel → Avançado → Cache → Limpar
+
+---
+
+## REGRA 2 — Commit antes de alterações em arquivos críticos
+
+```powershell
+git add . ; git commit -m "checkpoint: antes de [descrição]"
+```
+
+**Arquivos críticos:**
+- `services/SupabaseService.ts` — gateway de dados inteiro
+- `server.mjs` — servidor Express
+- `src/App.tsx` — roteamento principal
+- `contexts/AuthContext.tsx` — estado de autenticação
+- `components/Layout.tsx` — layout base
+- `components/RoleDashboards.tsx` — dashboards por role
+- `tailwind.config.js` — design system
 - Qualquer arquivo em `db/migrations/`
 
 ---
 
-## Regra 2 — Migrações SQL sempre em arquivo versionado
+## REGRA 3 — Migrations SQL sempre versionadas
 
-Toda alteração no banco de dados (criar tabela, alterar coluna, mudar política RLS) deve:
-
-1. Ser criada como um novo arquivo em `db/migrations/`
-2. Seguir a nomenclatura: `V[número]_[descricao_curta].sql`
-3. Exemplo: `V40_agendamentos_adicionar_campo_observacao.sql`
-4. **Nunca** alterar uma migration já aplicada — criar uma nova sempre
-
----
-
-## Regra 3 — Nunca editar a pasta `dist/` diretamente
-
-A pasta `dist/` é gerada automaticamente pelo comando de build. Editar arquivos lá é inútil — serão sobrescritos no próximo build.
-
-Para gerar um novo build:
-```bash
-npx vite build
-```
-
-Depois do build, fazer commit incluindo a pasta `dist/`:
-```bash
-git add .
-git commit -m "build: versão [X.X.X]"
-git push
-```
+- Novo arquivo: `V[número]_[descricao_curta].sql` em `db/migrations/`
+- **Última migration no repositório:** V46 (NÃO aplicada)
+- **Última migration APLICADA no banco:** V45
+- **SEMPRE verificar** o número da última migration antes de criar nova
+- Nunca alterar migration já aplicada — criar nova
+- Usar `IF NOT EXISTS` / `IF EXISTS` para reexecução segura
+- Adicionar `NOTIFY pgrst, 'reload config';` se alterar RLS
+- **Existem duas V38** no repositório (profiles_birth_date e remove_social_work_restriction)
 
 ---
 
-## Regra 4 — PowerShell usa ponto e vírgula, não &&
-
-No terminal do Windows (PowerShell), os comandos em sequência usam `;` e não `&&`:
+## REGRA 4 — PowerShell usa ponto e vírgula
 
 ```powershell
-# ERRADO (não funciona no PowerShell)
-git add . && git commit -m "mensagem"
-
-# CORRETO
-git add . ; git commit -m "mensagem"
+# ERRADO: git add . && git commit -m "msg"
+# CORRETO:
+git add . ; git commit -m "msg"
 ```
 
 ---
 
-## Regra 5 — Substituições de texto em TSX: usar Node.js, não PowerShell
+## REGRA 5 — Edição de TSX/TS: usar Node.js, não PowerShell
 
-Para fazer busca e substituição em arquivos `.tsx` ou `.ts`, **sempre usar um script Node.js** (`.mjs`) e não PowerShell. O PowerShell pode corromper arquivos com caracteres especiais (CRLF, acentos, JSX).
-
-Exemplo de script seguro:
+PowerShell corrompe arquivos com `ç`, `ã`, JSX. Usar script `.mjs`:
 ```js
-// fix_algo.mjs
 import { readFileSync, writeFileSync } from 'fs';
 const path = './components/MeuComponente.tsx';
 const content = readFileSync(path, 'utf8');
-const fixed = content.replace('textoAntigo', 'textoNovo');
+const fixed = content.replace('antigo', 'novo');
 writeFileSync(path, fixed, 'utf8');
-console.log('Feito!');
 ```
 
 ---
 
-## Regra 6 — Design System: atualizar sempre nos dois formatos
+## REGRA 6 — Tailwind: atualizar nos dois formatos
 
-O `tailwind.config.js` tem dois conjuntos de tokens de cor em paralelo:
-- Formato com **ponto**: `sanctuary.primary.500`
-- Formato com **hífen**: `sanctuary-primary-500`
-
-Ao alterar qualquer cor do sistema, **os dois formatos devem ser atualizados juntos**. Atualizar só um causa inconsistências visuais.
-
----
-
-## Regra 7 — Variáveis de ambiente
-
-- Variáveis que começam com `VITE_` ficam disponíveis no frontend (React).
-- Variáveis **sem** `VITE_` (como `SUPABASE_SERVICE_ROLE_KEY`) são apenas para o backend (`server.mjs`).
-- **Nunca** usar `SUPABASE_SERVICE_ROLE_KEY` no código frontend — isso expõe acesso total ao banco para qualquer usuário.
-- O arquivo `.env.local` **nunca deve ir para o GitHub** (já está no `.gitignore`).
+O `tailwind.config.js` tem tokens em paralelo:
+- `sanctuary.primary.500` (ponto)
+- `sanctuary-primary-500` (hífen)
+Alterar um sem o outro = inconsistência visual.
 
 ---
 
-## Regra 8 — Nomenclatura de commits
+## REGRA 7 — Variáveis de ambiente
 
-Usar prefixos para facilitar o histórico:
+- `VITE_*` → disponível no frontend (React)
+- Sem `VITE_` → apenas backend (server.mjs)
+- **NUNCA** usar `SUPABASE_SERVICE_ROLE_KEY` no frontend
+- `.env.local` NUNCA vai para o Git (está no .gitignore)
+- Chave Gemini: server-side only (removida do bundle no commit 3be9216)
 
-| Prefixo | Quando usar |
+---
+
+## REGRA 8 — Nomenclatura de commits
+
+| Prefixo | Quando |
 |---|---|
 | `feat:` | Nova funcionalidade |
 | `fix:` | Correção de bug |
+| `security:` | Alteração de segurança |
 | `ui:` | Mudança visual sem alterar lógica |
 | `db:` | Migration ou alteração no banco |
-| `refactor:` | Reorganização de código sem mudar comportamento |
+| `refactor:` | Reorganização sem mudar comportamento |
 | `build:` | Novo build para produção |
 | `checkpoint:` | Backup antes de mudança arriscada |
-| `docs:` | Atualização de documentação |
+| `docs:` | Documentação |
 
 ---
 
-## Regra 9 — Testar localmente antes de fazer push
-
-Fluxo correto de trabalho:
+## REGRA 9 — Testar localmente antes de push
 
 ```
 1. git commit (checkpoint)
-2. Fazer a alteração no código
-3. npm run dev → testar no navegador (localhost:5173)
-4. Se funcionar: npx vite build
-5. git add . ; git commit -m "feat: descrição"
-6. git push → deploy automático na Vercel
+2. Fazer alteração
+3. npm run dev → testar em localhost:5173
+4. npm run build:vite → verificar sem erros
+5. npx vitest run → verificar testes passam
+6. git add . ; git commit --no-verify -m "descritivo"
+7. git push --no-verify
 ```
 
 ---
 
-## Regra 10 — Agents: qual usar para cada tarefa
+## REGRA 10 — Agents (Antigravity/Cursor)
 
-| Tarefa | Agent recomendado |
+| Tarefa | Agent |
 |---|---|
-| Alterar componente React (visual, layout, UX) | `@frontend-specialist` |
-| Depurar erro no console ou comportamento inesperado | `@debugger` |
-| Criar ou alterar tabela, política RLS, migration SQL | `@database-architect` |
-| Lógica de negócio, serviços, autenticação, API | `@backend-specialist` |
-| Melhorar interface, design system, responsividade | `@ui-ux-pro-max` |
+| Componente React, layout, visual | `@frontend-specialist` |
+| Erro, bug, comportamento inesperado | `@debugger` |
+| SQL, RLS, migration | `@database-architect` |
+| Lógica, serviços, autenticação | `@backend-specialist` |
+| Design, responsividade | `@ui-ux-pro-max` |
+| Tarefas multi-domínio | `@orchestrator` via `/orchestrate` |
 
-> Sempre iniciar o prompt com `@nome-do-agent` e incluir o nome do arquivo que deve ser alterado.
-
----
-
-## Regra 11 — Arquivos de diagnóstico na raiz
-
-A raiz do projeto acumulou dezenas de arquivos `.mjs`, `.sql` e `.ps1` usados para diagnóstico e correção pontual. Eles **não devem ser deletados** sem análise, pois podem ser referência futura. Quando a raiz estiver muito poluída, mover esses arquivos para a pasta `scratch/` (já existe no projeto).
+**Todo prompt para Cursor deve incluir:** mapeamento pré-código, regras absolutas, revisão de diff.
 
 ---
 
-## Regra 12 — Nunca misturar rascunho com dados oficiais
+## REGRA 11 — Diagnóstico de problemas comuns
 
-Esta regra vale especialmente para o módulo clínico:
-- Evoluções com `status = 'RASCUNHO'` não devem aparecer em relatórios oficiais
-- Sessões com `status = 'FINALIZADA'` não podem ser editadas (RLS bloqueia no banco)
-- Documentos gerados com código `BRT-` são oficiais e não devem ser deletados — apenas inativados
+| Problema | Solução |
+|---|---|
+| Tela branca | F12 Console → checar erro. `npm run build:vite` antes de qualquer fix |
+| Deploy não refletiu | Verificar `dist/` no commit. Limpar cache Hostinger |
+| Cursor não aplicou | Verificar: commitou na main? Rodou build:vite? Fez push? |
+| Ícone cinza/quadrado | Está usando Tabler (ti ti-). Trocar para Lucide React |
+| RLS bloqueando | Verificar role no user_metadata do JWT. Usuário logou depois de mudança? |
+| Login falha após mudança | `NOTIFY pgrst, 'reload config'` no Supabase SQL Editor |
+| `mapStudentFromDB` undefined | Componente usa nome de coluna do banco ao invés de camelCase |
+
+---
+
+## REGRA 12 — Rascunho ≠ dados oficiais
+
+- Evoluções com `status = 'RASCUNHO'` → fora de relatórios oficiais
+- Sessões com `status = 'FINALIZADA'` → RLS bloqueia edição
+- Documentos com código `BRT-` → oficiais, nunca deletar, apenas inativar
+- Alunos com `status = 'Duplicado'` → fora das listagens (filtro obrigatório)
+
+---
+
+## REGRA 13 — Arquivos de diagnóstico na raiz
+
+A raiz acumulou ~80 arquivos `.mjs`, `.sql`, `.ps1` de debugging. Não deletar sem análise.
+Quando poluir muito, mover para `scratch/`.
+
+---
+
+## REGRA 14 — Ferramentas MCP disponíveis
+
+| Ferramenta | O que faz |
+|---|---|
+| Desktop Commander | Acesso direto ao sistema de arquivos e processos (Windows, PowerShell) |
+| Supabase MCP | SQL direto no banco de produção (`execute_sql`). Migrations via `apply_migration` |
+| Antigravity/Cursor | Agents especializados por domínio |
+| Claude Code | Execução de código e terminal no projeto |

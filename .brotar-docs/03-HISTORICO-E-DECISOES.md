@@ -1,105 +1,133 @@
 # 03 — Histórico e Decisões Técnicas — Sistema Brotar
 
-> Use este arquivo para entender **por que** algo foi feito de determinada forma.
-> Antes de refatorar uma solução existente, verifique aqui se há motivo documentado para ela ser assim.
+> **Atualizado em:** 06/08/2026
+> **REGRA:** Antes de refatorar qualquer solução existente, verifique aqui se há motivo documentado.
+> Decisões marcadas com ⚠️ são armadilhas comuns — IAs já erraram ao ignorá-las.
 
 ---
 
-## DECISÃO-01 — Supabase PRO com compute Small
-**Data:** fevereiro de 2026
-**Problema:** O banco de dados no plano Free pausava automaticamente após 7 dias sem uso. Além disso, queries complexas (RLS com subqueries) causavam timeout de 30 segundos e erros silenciosos.
-**Decisão:** Upgrade para Supabase PRO + instância Small compute.
-**Resultado:** Timeouts resolvidos, banco nunca pausa, performance estável.
+## ⚠️ DECISÃO-01 — dist/ DEVE estar no repositório Git
+**Motivo:** O deploy Hostinger serve o conteúdo de `dist/` diretamente do repositório.
+O script `"build"` do package.json é `echo 'dist already built' && exit 0`.
+**O que acontece se remover:** O site fica vazio. Deploy serve nada.
+**Histórico:** Em agosto/2026, o ChatGPT removeu `dist/` do Git e adicionou ao `.gitignore` como "melhoria de segurança". Isso quebrou o deploy. Foi revertido no commit `a8e9028`.
+**REGRA:** NUNCA adicionar `/dist/` ao `.gitignore`. NUNCA remover `dist/` do rastreamento Git.
+
+---
+
+## ⚠️ DECISÃO-02 — Role no user_metadata do JWT é obrigatório
+**Motivo:** As policies RLS em produção leem o role via `auth.jwt() -> 'user_metadata' ->> 'role'`.
+A função `get_user_role()` no banco também usa metadata.
+**O que acontece se remover:** Usuários novos não conseguem acessar nenhum dado via RLS.
+**Histórico:** Em agosto/2026, o ChatGPT removeu `role` do `user_metadata` no signup e createUser como "melhoria de segurança". Foi revertido no commit `8f7f6da`.
+**REGRA:** Ao criar/cadastrar usuário, SEMPRE incluir `role` no `options.data` do `supabase.auth.signUp()`.
+SEMPRE manter o upsert de perfil em `profiles` como rede de segurança.
+
+---
+
+## ⚠️ DECISÃO-03 — Upsert de perfil no signup é rede de segurança
+**Motivo:** Não há confirmação de que existe trigger no banco criando perfil automaticamente.
+O upsert no `signUp()` garante que o perfil existe mesmo se o trigger falhar.
+**O que acontece se remover:** Usuários podem ficar "órfãos" — existem no Auth mas sem perfil.
+**REGRA:** Manter o upsert de perfil em `signUp()` e verificar que `createUser()` também cria perfil.
+
+---
+
+## DECISÃO-04 — Supabase PRO com compute Small
+**Data:** fevereiro/2026
+**Motivo:** Plano Free causava timeouts de 30s em queries RLS complexas e pausava após 7 dias.
 **Custo:** ~$25/mês USD.
 
 ---
 
-## DECISÃO-02 — Keep-alive via n8n
-**Data:** fevereiro de 2026
-**Problema:** Mesmo no PRO, havia preocupação com inatividade em períodos de férias escolares.
-**Decisão:** Criar workflow automático no n8n que faz uma requisição ao banco a cada 5 dias.
-**Onde está:** Workflow externo no n8n (não está no repositório).
-**Como verificar:** Acessar o painel n8n e confirmar que o workflow está ativo.
+## DECISÃO-05 — RLS por role via JWT metadata + profiles como fonte de autorização
+**Data:** jan-ago/2026 (evolução contínua)
+**Estado atual (produção):**
+- RLS usa `auth.jwt() -> 'user_metadata' ->> 'role'` via funções helper (get_user_role, etc.)
+- Server-side (server.mjs, endpoints Vercel) usa `profiles` como fonte de verdade
+- Frontend (SupabaseService) valida via `profiles` mas mantém role no JWT por compatibilidade
+**Migração futura (V46 — NÃO APLICADA):**
+- A V46 migraria todas as policies para ler de `profiles` via schema `private`
+- Ela foi criada pelo ChatGPT mas tem bugs (não dropa `read_students_v12` antes do check final)
+- NÃO aplicar sem revisão e teste completo em ambiente descartável
 
 ---
 
-## DECISÃO-03 — RLS por role via JWT metadata (não via subquery em profiles)
-**Data:** janeiro/fevereiro de 2026
-**Problema:** As políticas RLS originais usavam subqueries na tabela `profiles` para descobrir o role do usuário. Isso causava recursão infinita (profiles consultava profiles) e timeouts.
-**Decisão:** Migrar para leitura do role diretamente do JWT (`auth.jwt() -> 'user_metadata' ->> 'role'`). O role é gravado nos metadados do usuário no momento do cadastro e lido diretamente, sem subquery.
-**Migration:** V11, V12 e subsequentes.
-**Atenção:** Quando criar um novo usuário, o role DEVE ser gravado em `user_metadata` no Supabase Auth, não apenas na tabela `profiles`.
-
----
-
-## DECISÃO-04 — Breakpoint lg para sidebar (não md)
-**Data:** maio de 2026
-**Problema:** O breakpoint `md` (768px) ativava a sidebar de 288px em tablets, deixando apenas 480px de espaço útil para tabelas e formulários densos.
-**Decisão:** Trocar `md:` por `lg:` no `Layout.tsx` para que a sidebar só apareça em telas ≥ 1024px. Em tablets (768–1023px), usar menu sanduíche igual ao celular.
+## DECISÃO-06 — Breakpoint lg para sidebar (não md)
+**Motivo:** O breakpoint `md` (768px) ativa sidebar de 288px em tablets, deixando 480px úteis.
 **Status:** ⏳ Ainda não implementado — documentado como BUG-03.
-**Arquivo:** `components/Layout.tsx` — linhas 301, 414, 491.
 
 ---
 
-## DECISÃO-05 — Gráfico Radar em modal para mobile (não inline)
-**Data:** maio de 2026
-**Problema:** O RadarChart do Recharts em telas de 375px encolhe tanto que os rótulos se sobrepõem e ficam ilegíveis.
-**Decisão:** Em vez de tentar redimensionar o gráfico (o que nunca fica bom), mostrar um botão "Expandir gráfico" que abre um modal em tela cheia (`fixed inset-0 z-50`).
-**Status:** ⏳ Ainda não implementado — documentado como BUG-05.
-**Arquivo:** `components/RoleDashboards.tsx`.
-
----
-
-## DECISÃO-06 — Política INSERT em clinical_sessions simplificada
-**Data:** maio de 2026
-**Problema:** A política antiga de INSERT usava subquery aninhada para verificar a especialidade do profissional. O PostgreSQL rejeitava o INSERT silenciosamente porque a subquery retornava NULL no contexto de segurança do RLS.
-**Decisão:** Simplificar para `WITH CHECK (professional_id = auth.uid())`. Segurança mantida: cada profissional só pode inserir sessões em seu próprio nome.
-**Migration:** V39 — `db/migrations/V39_fix_clinical_sessions_rls.sql`.
-
----
-
-## DECISÃO-07 — dist/ incluída no repositório Git
-**Data:** início do projeto
-**Motivo:** A hospedagem via Vercel + GitHub requer que a pasta `dist/` esteja no repositório para deploy funcionar corretamente na configuração atual do projeto.
-**Consequência:** Cada push de produção deve incluir um novo build (`npx vite build`) seguido de commit com a pasta `dist/`.
-**Atenção:** Nunca deletar a pasta `dist/` do `.gitignore` inadvertidamente.
+## DECISÃO-07 — INSERT em clinical_sessions simplificada (V39)
+**Motivo:** Subquery aninhada na policy antiga retornava NULL no contexto RLS.
+**Solução:** `WITH CHECK (professional_id = auth.uid())`.
 
 ---
 
 ## DECISÃO-08 — Comando de build customizado no package.json
-**Data:** durante configuração do Vercel
-**Problema:** O Vercel tentava rodar `npm run build` e isso conflitava com o build local já commitado.
-**Decisão:** O script `"build"` no `package.json` foi alterado para `echo 'dist already built' && exit 0`, sinalizando ao Vercel que o build já está pronto.
-**Para buildar de verdade:** usar `npm run build:vite` (que chama `vite build` de verdade).
+**Motivo:** O Hostinger (e antes Vercel) tentava rodar `npm run build`.
+**Solução:** `"build": "echo 'dist already built' && exit 0"`.
+**Para buildar de verdade:** `npm run build:vite`.
 
 ---
 
-## DECISÃO-09 — Perfis restritos por especialidade (perfilRestrito.ts)
-**Data:** março/abril de 2026
-**Problema:** Especialistas podiam ver a lista completa de alunos da rede, o que é uma violação de privacidade — um fonoaudiólogo não deveria ver alunos que nunca atendeu.
-**Decisão:** Criar arquivo `src/config/perfilRestrito.ts` que lista os roles que têm visão restrita. Para esses perfis, a lista de alunos é filtrada para mostrar apenas alunos com agendamento vinculado ao profissional (qualquer status ativo).
-**Impacto no banco:** A query em `SupabaseService.getAlunosPorPerfil` faz join com `appointments` para filtrar.
+## DECISÃO-09 — Perfis restritos por especialidade
+**Arquivo:** `src/config/perfilRestrito.ts`
+**Motivo:** Especialistas não devem ver todos os alunos da rede — apenas os com agendamento vinculado.
+**Especialidades restritas:** psicologia, psicopedagogia, terapia_ocupacional, fonoaudiologia, fisioterapia, nutricao.
 
 ---
 
 ## DECISÃO-10 — Dois formatos de token no tailwind.config.js
-**Data:** durante desenvolvimento do Design System
-**Problema:** Alguns componentes foram criados usando a notação de ponto do Tailwind (`sanctuary.primary.500`) e outros com hífen (`sanctuary-primary-500`). Padronizar teria exigido refatorar centenas de classes.
-**Decisão:** Manter os dois formatos em paralelo no `tailwind.config.js`. Ao alterar uma cor, sempre atualizar os dois.
-**Risco:** Inconsistência visual se apenas um for atualizado. Documentado em `06-REGRAS-DE-TRABALHO.md` como Regra 6.
+**Motivo:** Componentes antigos usam `sanctuary.primary.500`, novos usam `sanctuary-primary-500`.
+**REGRA:** Ao alterar uma cor, atualizar nos DOIS formatos.
 
 ---
 
-## DECISÃO-11 — WhatsApp Business API via webhook próprio
-**Data:** durante desenvolvimento
-**Implementação:** `api/whatsapp/send.ts` e `api/whatsapp/webhook.ts`
-**Motivo:** Integração direta com a API oficial do Meta/WhatsApp Business para notificações de agendamento.
-**Status atual:** Implementado, mas ainda não testado em produção com volume real.
-**Variáveis necessárias:** `WHATSAPP_PHONE_NUMBER_ID` e `WHATSAPP_TOKEN` no `.env.local`.
+## DECISÃO-11 — WhatsApp via webhook próprio
+**Status:** Implementado, endpoint protegido por autenticação (commit 25f2c67).
+**Problema ativo:** Apache no Hostinger intercepta `/api` antes do Node.js. Workaround manual via SSH.
 
 ---
 
-## DECISÃO-12 — Soft delete em profissionais de apoio (não hard delete)
-**Data:** abril de 2026
-**Motivo:** Profissionais de apoio vinculados a alunos não podem simplesmente ser deletados do banco — isso quebraria o histórico de vínculos. A solução foi soft delete: um campo `deleted_at` é preenchido, o registro continua no banco mas é filtrado na interface.
-**Migrations:** V29, V31, V34.
+## DECISÃO-12 — Soft delete em profissionais de apoio (V29, V31, V34)
+**Motivo:** Hard delete quebraria histórico de vínculos. Campo `deleted_at` + filtro na interface.
+
+---
+
+## DECISÃO-13 — Autorização server-side via profiles (agosto/2026)
+**Commits:** 25f2c67, 8f7f6da
+**O que foi feito:**
+- Endpoints Gemini e WhatsApp validam sessão + perfil ativo em `profiles`
+- server.mjs usa módulo `server/authorization.mjs` com permissões por role
+- SupabaseService valida role via set `TRUSTED_USER_ROLES` (inclui SOCIAL_WORKER)
+- Signup mantém role no JWT metadata (compatibilidade RLS) + upsert de perfil
+- Rota /admin tem guarda visual (só ADMIN renderiza UserManagement)
+**Coexistência:** RLS no banco ainda usa JWT metadata. Server-side usa profiles. Ambos devem ser mantidos.
+
+---
+
+## DECISÃO-14 — Alunos duplicados resolvidos via status 'Duplicado' (agosto/2026)
+**O que foi feito:** 3 registros marcados com `status = 'Duplicado'` (deleção lógica):
+- Dandara Maria Rodrigues de Souza (6344dc1a) — registro vazio idêntico
+- Helena Andrade de Oliveira (a3c89578) — Marechal Deodoro sem dados (mantido Timoteo Lopes com 3 agendamentos)
+- Lauany Moreira Novais (625721ad) — N.S. do Carmo sem dados (mantido D. Pedro II com 2 agendamentos + 1 sessão)
+**Pendente:** Eyglison Otávio Gomes da Silva — 2 registros com datas de nascimento e diagnósticos diferentes. Aguardando decisão do gestor.
+**REGRA:** Queries de listagem de alunos devem filtrar `.eq('status', 'Active')`.
+
+---
+
+## Linha do tempo do projeto
+
+| Período | Evento |
+|---|---|
+| Dez/2025 | v1.0 — cadastro básico de alunos e agendamentos |
+| Jan/2026 | Crise de RLS: loop infinito. Resolvido com V11-V12 |
+| Fev/2026 | Upgrade Supabase Free → PRO Small |
+| Mar/2026 | Prontuário clínico, módulo psicologia, serviço social |
+| Abr/2026 | RLS refinado ("parede de concreto" por especialidade) |
+| Mai/2026 | v2.4 — auditoria responsividade, V39, V40 nutrição |
+| Jun/2026 | Sistema estável em produção, foco em UX |
+| Jul/2026 | V41-V45: cadastro rápido, desvinculação, atestado, antropometria, lançamento retroativo |
+| Ago/2026 | Auditoria de segurança (ChatGPT), correções de autorização, classificação de especificidade |

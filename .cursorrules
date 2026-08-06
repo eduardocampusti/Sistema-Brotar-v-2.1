@@ -1,12 +1,48 @@
-
-# Regras de Comportamento da IA
+# Sistema Brotar — Regras para IA
 
 ## Idioma
-- **SEMPRE** responda em **Português do Brasil** (pt-BR).
-- Mantenha o código em inglês (nomes de variáveis, funções), mas os comentários e a documentação devem ser em **Português**.
-- Se o usuário falar em outro idioma, ainda assim responda em Português, a menos que solicitado o contrário.
+- SEMPRE responda em Português do Brasil (pt-BR)
+- Código em inglês, comentários em português
+- Commits e documentação em português
+
+## Leitura obrigatória ANTES de qualquer alteração
+- `.brotar-docs/00-LEIA-PRIMEIRO.md` — stack, roles, regras invioláveis
+- `.brotar-docs/03-HISTORICO-E-DECISOES.md` — POR QUE algo foi feito assim
+- `.brotar-docs/06-REGRAS-DE-TRABALHO.md` — como commitar, deployar, testar
+
+## Regras invioláveis (violações anteriores causaram quebra)
+1. dist/ DEVE estar no Git (deploy serve dist/ direto)
+2. Role no user_metadata JWT é OBRIGATÓRIO (RLS depende)
+3. Queries ao banco via SupabaseService.ts (nunca supabase.from() em componente)
+4. Mockup ANTES de implementar (aprovação visual obrigatória)
+5. Commits descritivos (NUNCA genéricos como "correções gerais")
+6. Deleção = lógica (soft-delete), nunca física
+7. Migrations versionadas em db/migrations/ (última aplicada: V45)
+
+## Stack
+React 18 + TypeScript 5.8 + Vite 6 + Tailwind CSS 3 + React Router 7
+Supabase (PostgreSQL + RLS + Auth) + Express (server.mjs)
+Lucide React 0.263 (NÃO usar Tabler — renderiza quadrados cinza)
+Recharts 2.12, jsPDF 4, DM Sans
+
+## Arquivos críticos (checkpoint obrigatório antes de editar)
+- services/SupabaseService.ts — gateway de dados
+- server.mjs — servidor Express
+- src/App.tsx — roteamento
+- contexts/AuthContext.tsx — autenticação
+- components/Layout.tsx — layout base
+- components/RoleDashboards.tsx — dashboards
+- tailwind.config.js — design system
+
+## Deploy
+1. npm run version:patch
+2. npm run build:vite
+3. git add -A dist/ [arquivos]
+4. git commit --no-verify -m "DESCRITIVO"
+5. git push --no-verify
 
 ## Estilo
-- Seja conciso e direto.
-- Evite desculpas excessivas ("Peço desculpas", "Sinto muito").
-- Foque na solução técnica.
+- Conciso e direto. Sem desculpas excessivas.
+- Foco na solução técnica.
+- Explicar riscos antes de mudanças.
+- Verificar diff antes de aplicar.

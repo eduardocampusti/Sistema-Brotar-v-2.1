@@ -1,173 +1,168 @@
 # Sistema Brotar — LEIA PRIMEIRO
 
-> **Objetivo deste arquivo**
-> Este arquivo é o ponto inicial obrigatório para qualquer conversa sobre o Sistema Brotar.
-> Antes de consultar outros arquivos do projeto, leia **apenas** este documento.
-> Não carregue todos os documentos automaticamente. Use os arquivos complementares somente quando forem necessários para a tarefa atual.
+> **Atualizado em:** 06/08/2026 | **Versão:** 2.4.159 (v2.4.161 no deploy)
+> **Este arquivo é o ponto de entrada obrigatório para qualquer IA ou desenvolvedor.**
+> Leia APENAS este documento primeiro. Use os demais sob demanda.
 
 ---
 
-## Sobre o Sistema Brotar
+## O que é o Sistema Brotar
 
-O **Sistema Brotar** é um sistema SaaS desenvolvido para organizar, centralizar e automatizar o atendimento multiprofissional dentro da Secretaria Municipal de Educação de **Brotas de Macaúbas – Bahia**.
+Plataforma SaaS de gestão educacional e atendimento clínico multiprofissional da **Secretaria Municipal de Educação de Brotas de Macaúbas – Bahia** (SMED).
+Centraliza cadastro de alunos com necessidades especiais, agendamentos, prontuários clínicos, relatórios e fluxos internos da rede pública municipal.
 
-O sistema tem como objetivo melhorar o acompanhamento de alunos com necessidades especiais, profissionais de apoio, agendamentos, atendimentos, triagens, relatórios e fluxos internos da rede pública municipal.
-
----
-
-## Como você deve me ajudar
-
-Atue como **programador sênior**, **analista de sistema** e **consultor estratégico**.
-
-Eu sou iniciante em programação (6 meses de experiência). Portanto:
-
-- Explique de forma simples
-- Use passo a passo
-- Não presuma que eu entendo termos técnicos
-- Avise riscos antes de mudanças importantes
-- Priorize segurança e estabilidade
-- Sempre pense em rollback
-- Sempre recomende criar checkpoint, backup ou commit antes de alterações relevantes
+**Produção:** https://brotar.smebrotas.com.br
+**Repositório:** https://github.com/eduardocampusti/Sistema-Brotar-v-2.1
 
 ---
 
-## Regra principal para economizar tokens
+## Stack tecnológico (estado real do repositório)
 
-Não leia todos os arquivos do projeto sem necessidade.
+| Camada | Tecnologia | Versão |
+|---|---|---|
+| Frontend | React + TypeScript + Vite + Tailwind CSS | 18.3.1 / 5.8.2 / 6.2.0 / 3.4.3 |
+| Backend (BaaS) | Supabase (PostgreSQL + RLS + Auth) | Plano PRO, compute Small |
+| Backend (API) | Express via server.mjs | Node.js 22.x |
+| Hospedagem | Hostinger (webhook GitHub) | Deploy automático via push |
+| Domínio | brotar.smebrotas.com.br | DNS via Hostinger |
+| IA integrada | Google Gemini (@google/genai) | Server-side apenas |
+| WhatsApp | WhatsApp Business Cloud API | Server-side apenas |
+| PDF | jsPDF + jsPDF-AutoTable | 4.0.0 / 5.0.7 |
+| Gráficos | Recharts | 2.12.7 |
+| Ícones | Lucide React | 0.263.1 |
+| Roteamento | React Router DOM | 7.13.0 |
 
-1. Primeiro leia este arquivo.
-2. Depois, pergunte qual área vamos trabalhar.
-3. Quando precisar de contexto adicional, solicite apenas o arquivo necessário:
-
-| Arquivo | Conteúdo |
-|---|---|
-| `01-CONTEXTO-GERAL.md` | Visão geral do projeto, histórico e decisões |
-| `02-MODULOS-DO-SISTEMA.md` | Descrição de cada módulo e suas funcionalidades |
-| `03-HISTORICO-E-DECISOES.md` | Decisões técnicas tomadas e motivos |
-| `04-BUGS-E-PENDENCIAS.md` | Lista de bugs conhecidos e pendências |
-| `05-PROMPTS-PRONTOS.md` | Prompts prontos para agents (Antigravity, Cursor, Claude Code) |
-| `06-REGRAS-DE-TRABALHO.md` | Regras de estilo, commits, nomenclatura e fluxo |
-
----
-
-## Ferramentas usadas no projeto
-
-| Camada | Tecnologia |
-|---|---|
-| **Frontend** | React 18 + TypeScript + Vite 6 + Tailwind CSS 3 |
-| **Backend** | Supabase (BaaS) + Express (server.mjs local/API) |
-| **Banco de dados** | PostgreSQL via Supabase (projeto: `indshiztdvjgvgnzigqd`) |
-| **Autenticação** | Supabase Auth (JWT + RLS — Row Level Security) |
-| **Hospedagem** | Vercel (produção) |
-| **Domínio** | brotar.smebrotas.com.br |
-| **Repositório GitHub** | Conectado via `.git` local (verificar remote) |
-| **Ambiente local** | `npm run dev` → http://localhost:5173 |
-| **Ambiente de produção** | https://brotar.smebrotas.com.br |
-| **API local** | `node server.mjs` → http://localhost:3000 |
-| **API produção** | https://api-brotar.smebrotas.com.br |
-| **IA integrada** | Google Gemini (`@google/genai`) |
-| **PDF** | jsPDF + jsPDF-AutoTable |
-| **Gráficos** | Recharts 2.12 |
-| **Ícones** | Lucide React 0.263 |
-| **WhatsApp** | API WhatsApp Business (webhook em `/api/whatsapp/`) |
+**Supabase Project ID:** `indshiztdvjgvgnzigqd`
 
 ---
 
-## Roles (perfis de usuário) do sistema
+## ⛔ REGRAS INVIOLÁVEIS — Qualquer IA deve respeitar
 
-| Role | Descrição |
-|---|---|
-| `ADMIN` | Acesso total — gerencia usuários, configurações e todos os módulos |
-| `EDUCATION_SECRETARY` | Secretária de Educação — visão gerencial completa |
-| `SECRETARIA_SEDE` | Secretaria central — agendamentos e alunos da sede |
-| `SECRETARIA_COCAL` | Secretaria do distrito de Cocal — acesso restrito à regional |
-| `SPECIALIST` | Profissional de saúde/educação especializado (psicólogo, fonoaudiólogo, etc.) |
-| `SOCIAL_WORKER` | Assistente social — acesso ao módulo de serviço social |
-| `SCHOOL` | Escola — acesso restrito à própria escola |
-| `SUPPORT_PROFESSIONAL` | Profissional de apoio vinculado a alunos específicos |
+### 1. dist/ DEVE estar no Git
+O deploy Hostinger serve `dist/` diretamente do repositório. O script `"build"` do package.json é `echo 'dist already built' && exit 0`. Sem `dist/` no Git = site vazio.
+**NUNCA remover dist/ do .gitignore. NUNCA adicionar /dist/ ao .gitignore.**
 
----
+### 2. Role no user_metadata do JWT é OBRIGATÓRIO
+As policies RLS em produção usam `auth.jwt() -> 'user_metadata' ->> 'role'` para autorização. Ao criar/cadastrar um usuário, o role DEVE ser gravado em `user_metadata` E na tabela `profiles`. Remover role do metadata = usuário sem acesso a nada.
 
-## Módulos principais (visão rápida)
+### 3. Todas as queries ao banco passam por SupabaseService.ts
+Nunca usar `supabase.from()` diretamente em componentes. Sempre via `SupabaseService`.
 
-- **Dashboard** → Painéis por perfil com métricas e gráficos (Recharts)
-- **Central de Agendamentos** (`SchedulingCenter.tsx`) → Agendamento multiprofissional ← *PRIORIDADE ATUAL*
-- **Prontuário do Aluno** (`PatientProfile.tsx`) → Ficha completa, histórico clínico e documentos
-- **Lista de Alunos** (`PatientList.tsx`) → Listagem com filtros e busca
-- **Agenda do Profissional** (`AgendaProfissional.tsx`) → Visualização por especialista
-- **Gestão de Escolas** (`SchoolManagement.tsx`) → Cadastro e vinculação de unidades
-- **Gestão de Usuários** (`UserManagement.tsx`) → Criação e controle de acessos
-- **Relatórios Gerenciais** (`RelatoriosGerenciais.tsx`) → Exportação PDF e CSV
-- **Serviço Social** (`SocialServiceHub.tsx`) → Entrevistas e acompanhamento social
-- **Configurações** (`SystemSettings.tsx`) → Configurações gerais do sistema
-- **Calculadora Portage** → Avaliação de desenvolvimento infantil
-- **Relatório TEA** → Rastreamento do Transtorno do Espectro Autista
+### 4. Mockup ANTES de implementar
+Qualquer alteração visual deve ser apresentada como mockup/preview para aprovação antes de codificar. Violar isso causa retrabalho.
+
+### 5. Commits descritivos — NUNCA genéricos
+"fix: correções gerais" será rejeitado. O commit e a descrição no package.json devem dizer exatamente o que mudou.
+
+### 6. Deleção de registros = lógica, nunca física
+Usar soft-delete (campo status, deleted_at, is_active). Restrito ao perfil ADMIN.
+
+### 7. Migrations SQL versionadas
+Toda alteração no banco = novo arquivo `V[número]_[descricao].sql` em `db/migrations/`. Nunca alterar uma migration já aplicada. Sempre verificar o número da última migration antes de criar uma nova.
+**Última migration no repositório:** V46 (NÃO APLICADA — ver detalhes em 03-HISTORICO).
+**Última migration APLICADA no banco:** V45.
 
 ---
 
-## Prioridades atuais do projeto
+## Roles do sistema (confirmados no banco de produção)
 
-1. ✅ Manter o sistema funcionando **sem quebrar o que já existe**
-2. 🔴 Melhorar a **Central de Agendamentos** (funcionalidade + UX)
-3. 🎨 Deixar a interface **mais moderna, premium e intuitiva**
-4. ⚡ Melhorar **desempenho** e organização do código
-5. 🐛 Corrigir **bugs com segurança** (verificar `04-BUGS-E-PENDENCIAS.md`)
-6. 📋 Criar **prompts prontos** para Antigravity, Cursor ou Claude Code
+| Role | Total no banco | Descrição |
+|---|---|---|
+| `ADMIN` | 1 | Acesso total — gerencia tudo |
+| `SPECIALIST` | 8 | Profissionais de saúde/educação (psicólogo, fono, TO, etc.) |
+| `ASSISTANT` | 3 | Assistentes administrativos |
+| `EDUCATION_SECRETARY` | 2 | Secretária de Educação — visão gerencial |
+| `SECRETARIA_SEDE` | 1 | Secretaria central — agendamentos Sede |
+| `SECRETARIA_COCAL` | 0 | Secretaria Cocal — ainda sem usuário |
+| `COORDENADOR` | 0 | Coordenador — previsto, sem usuário |
+| `ESCOLA` | 58 | Escolas — acesso restrito à própria escola |
+| `SOCIAL_WORKER` | 0 | Assistente social — previsto no código |
 
----
-
-## Forma correta de responder a pedidos de alteração
-
-Sempre que eu pedir uma alteração no sistema, responda **neste formato**:
-
-### 1. Entendimento do problema
-> O que está acontecendo e o que precisa ser resolvido.
-
-### 2. Riscos envolvidos
-> O que pode quebrar, quais arquivos são afetados, impacto no banco de dados.
-
-### 3. Plano de execução
-> Passo a passo do que será feito, em ordem.
-
-### 4. Checkpoint recomendado
-> Comando de commit Git sugerido antes de iniciar:
-> ```
-> git add . && git commit -m "checkpoint: antes de [descrição da mudança]"
-> ```
-
-### 5. Prompt pronto para o agent
-> Prompt formatado para colar diretamente no agent correto.
-
-### 6. Critério de teste
-> Como confirmar que a alteração funcionou corretamente.
+**Roles no TypeScript (types.ts):** ADMIN, SPECIALIST, ASSISTANT, EDUCATION_SECRETARY, SECRETARIA_SEDE, SECRETARIA_COCAL, COORDENADOR, ESCOLA, SOCIAL_WORKER
+**Roles que NÃO existem no código:** SECRETARIA_EDUCACAO, SUPPORT_PROFESSIONAL
 
 ---
 
-## Arquivos mais importantes do projeto
+## Sequência de deploy OBRIGATÓRIA
 
 ```
-Sistema-Brotar-v-2.1/
-├── src/
-│   ├── App.tsx                    → Roteamento principal
-│   ├── main.tsx                   → Entry point React
-│   └── routes/ProtectedRoute.tsx  → Proteção de rotas por role
-├── components/
-│   ├── SchedulingCenter.tsx       → 🔴 Central de Agendamentos (prioridade)
-│   ├── Dashboard.tsx              → Painel inicial
-│   ├── PatientProfile.tsx         → Prontuário do aluno
-│   ├── Layout.tsx                 → Layout base com menu
-│   └── Login.tsx                  → Tela de autenticação
-├── services/
-│   ├── supabaseClient.ts          → Conexão com Supabase
-│   └── SupabaseService.ts         → Todas as queries ao banco
-├── contexts/
-│   └── AuthContext.tsx            → Estado global de autenticação
-├── db/migrations/                 → Histórico de migrações SQL (V11 a V39)
-├── design-system/sistema-brotar/
-│   └── MASTER.md                  → Design system do projeto
-├── .env.local                     → Variáveis de ambiente (NÃO versionar)
-└── vercel.json                    → Configuração de deploy (SPA rewrites)
+1. npm run version:patch          ← SEMPRE antes do build
+2. npm run build:vite             ← OBRIGATÓRIO antes do commit
+3. git add -A dist/ [arquivos alterados]
+4. git commit --no-verify -m "MENSAGEM DESCRITIVA"
+5. git push --no-verify
 ```
+
+**Verificação pós-push:** `git log --oneline origin/main..HEAD` deve retornar vazio.
+**Cache não atualizou?** hPanel Hostinger → Avançado → Cache → Limpar.
+**PowerShell:** usar `;` e não `&&` para encadear comandos.
+
+---
+
+## Tabelas do banco (produção real — 20 tabelas)
+
+| Tabela | O que armazena |
+|---|---|
+| `profiles` | Usuários do sistema (role, specialty, scope, school_id) |
+| `students` | Ficha âncora dos alunos (dados admin + clinical_info JSONB) |
+| `appointments` | Agendamentos multiprofissionais |
+| `clinical_sessions` | Evoluções e sessões clínicas por especialidade |
+| `generated_documents` | Documentos gerados pelo sistema (código BRT-) |
+| `schools` | Unidades escolares (name, district, inep) |
+| `support_professionals` | Profissionais de apoio (cuidadores) |
+| `audit_logs` | Trilha de auditoria de todas as ações |
+| `system_messages` | Mensagens internas e notificações |
+| `system_settings` | Configurações gerais |
+| `letterhead_config` | Papel timbrado (id=1 Sede, id=2 Cocal) |
+| `attendance_certificates` | Atestados de comparecimento |
+| `nutrition_assessments` | Avaliações nutricionais |
+| `nutrition_anthropometry_history` | Histórico antropométrico |
+| `nutrition_nae` | Necessidades alimentares especiais |
+| `nutrition_ean_activities` | Atividades de educação alimentar |
+| `nutrition_evolution` | Evolução nutricional |
+| `portal_config` | Configuração do portal público |
+| `portal_perfis` | Perfis do portal |
+| `portal_sistemas` | Sistemas do portal |
+
+**Tabela NÃO existente no banco:** `student_documents` (documentos ficam no campo JSONB `students.documents`).
+**Tabela ausente de migrations:** `profissional_aluno_vinculo` (criada na V18 como tabela auxiliar).
+
+---
+
+## Funções SQL no banco (produção)
+
+| Função | Usada em |
+|---|---|
+| `prontuario_status_agendamento_vinculo()` | RLS de vínculo profissional↔aluno |
+| `prontuario_especialidades_restritas()` | RLS de perfis clínicos restritos |
+| `regional_district_cap()` | RLS regional (Sede/Cocal) |
+| `row_matches_regional_school()` | RLS por escola/distrito |
+| `appointments_is_scheduling_staff()` | RLS de agendamentos |
+| `appointments_is_admin()` | RLS de agendamentos |
+| `can_select_student()` | RLS de leitura de alunos |
+| `can_insert_student()` | RLS de inserção de alunos |
+| `can_update_student_clinical()` | RLS de update clínico |
+| `can_update_student_v38()` | RLS de update geral |
+| `support_professionals_can_manage()` | RLS de profissionais de apoio |
+| `support_professionals_escola_can_write_school()` | RLS escola↔profissional |
+| `delete_user_complete()` | RPC para exclusão de usuário |
+| `set_user_password()` | RPC para reset de senha |
+| `merge_students()` | RPC para merge de duplicados |
+| `get_user_role()` | Helper de role (usa user_metadata) |
+| `clear_must_change_password()` | RPC pós-troca de senha |
+
+---
+
+## Arquivos complementares (ler sob demanda)
+
+| Arquivo | Quando ler |
+|---|---|
+| `01-CONTEXTO-GERAL.md` | Visão geral, histórico, princípios, estrutura de pastas |
+| `02-MODULOS-DO-SISTEMA.md` | O que cada módulo faz, qual arquivo, quem acessa |
+| `03-HISTORICO-E-DECISOES.md` | Por que algo foi feito assim — consultar ANTES de refatorar |
+| `04-BUGS-E-PENDENCIAS.md` | Bugs ativos, pendências, estado de cada item |
+| `05-PROMPTS-PRONTOS.md` | Prompts para Cursor, Claude Code, Antigravity |
+| `06-REGRAS-DE-TRABALHO.md` | Commits, migrations, nomenclatura, deploy |
 
 ---
 
@@ -179,27 +174,8 @@ Sistema-Brotar-v-2.1/
 | Cor CTA | `#F97316` (laranja) |
 | Background | `#F8FAFC` |
 | Texto | `#1E293B` |
-| Fonte títulos | Satoshi / DM Sans |
-| Fonte corpo | General Sans / DM Sans |
+| Fonte | DM Sans (importada) |
 | Border radius cards | `12px` |
-| Estilo geral | Premium, acessível, WCAG compliant |
-
----
-
-## Estado atual do banco de dados
-
-- **Plano Supabase:** PRO com compute Small (upgrade realizado para resolver timeouts)
-- **Migrações aplicadas:** V11 até V39 (arquivos em `db/migrations/`)
-- **RLS ativo:** Sim — políticas de segurança por role em todas as tabelas principais
-- **Keep-alive:** Workflow n8n agendado a cada 5 dias para evitar pausas do banco
-
----
-
-## Observações importantes
-
-- ❌ **Não invente informações técnicas.** Quando faltar contexto, pergunte.
-- ⚠️ **Quando houver risco de quebrar o sistema, avise antes de qualquer ação.**
-- 📌 **Quando for gerar prompt para agent, coloque o nome do agent com `@` na frente.**
-- 🔒 **Nunca exponha ou reproduza chaves de API, tokens ou senhas em respostas.**
-- 💾 **Sempre sugira um commit Git antes de alterações em arquivos críticos.**
-- 🧪 **Toda mudança no banco de dados deve ser feita via arquivo `.sql` versionado em `db/migrations/`.**
+| Ícones | Lucide React (Tabler foi removido — renderizava quadrados cinza) |
+| Estilo | Premium, acessível, WCAG compliant |
+| Cards premium | Gradiente no ícone, sombra colorida, barra top colorida, hover elevation |
