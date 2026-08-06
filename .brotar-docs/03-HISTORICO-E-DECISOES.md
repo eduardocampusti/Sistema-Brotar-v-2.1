@@ -118,6 +118,15 @@ O upsert no `signUp()` garante que o perfil existe mesmo se o trigger falhar.
 
 ---
 
+## DECISÃO-15 — Classificação de especificidade é computada, não armazenada
+**Data:** agosto/2026
+**Motivo:** Evitar nova coluna/migration para um dado derivável dos campos já existentes.
+**Regra:** CONFIRMADO = `clinical_info.cid` preenchido OU documento tipo "Laudo Médico" anexado. SUSPEITO = `clinical_info.diagnosis` preenchido sem CID nem laudo. SEM_IDENTIFICACAO = sem diagnóstico.
+**Arquivo:** `src/utils/studentClassification.ts` — função pura, sem I/O, reutilizável em qualquer dashboard.
+**Consequência:** Se o formulário de anexo de documentos mudar o valor `type` de "Laudo Médico", a classificação quebra silenciosamente. Ao alterar esse campo, atualizar `temLaudoAnexado()` também.
+
+---
+
 ## Linha do tempo do projeto
 
 | Período | Evento |

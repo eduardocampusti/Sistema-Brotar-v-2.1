@@ -40,10 +40,12 @@
 - **Ação:** Gestor deve confirmar qual é o correto
 
 ### PEND-03 — Classificação de especificidade no dashboard
-- **Status:** 🔄 Em implementação
-- **O que faz:** Cards confirmados/suspeitos/sem identificação + alerta de alunos sem laudo
+- **Status:** ✅ Concluído (v2.4.160, commits 3045aed + 0d0b6b7)
+- **O que faz:** Cards confirmados/suspeitos/sem identificação + alerta de alunos com CID sem laudo
 - **Lógica:** CID preenchido OU laudo = CONFIRMADO; diagnóstico sem CID/laudo = SUSPEITO
-- **Escopo:** Dashboard SECRETARIA_SEDE e SECRETARIA_COCAL
+- **Escopo:** Dashboard EDUCATION_SECRETARY, SECRETARIA_SEDE e SECRETARIA_COCAL
+- **Arquivo utilitário:** `src/utils/studentClassification.ts`
+- **Filtro relacionado:** `getStudents` e `getAlunosDaProfissional` agora filtram `.eq('status', 'Active')`
 
 ### PEND-04 — WhatsApp workaround Apache
 - **Status:** ⏳ Pendente permanente
