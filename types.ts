@@ -16,7 +16,7 @@ export enum Specialty {
   NUTRITION = 'Nutrição'
 }
 
-export type UserRole = 'ADMIN' | 'SPECIALIST' | 'ASSISTANT' | 'EDUCATION_SECRETARY' | 'SECRETARIA_SEDE' | 'SECRETARIA_COCAL' | 'COORDENADOR' | 'ESCOLA';
+export type UserRole = 'ADMIN' | 'SPECIALIST' | 'ASSISTANT' | 'EDUCATION_SECRETARY' | 'SECRETARIA_SEDE' | 'SECRETARIA_COCAL' | 'COORDENADOR' | 'ESCOLA' | 'SOCIAL_WORKER';
 export type UserScope = 'GLOBAL' | 'SEDE' | 'COCAL'; // Escopo de acesso (Sede ou Distrito)
 
 // --- PERMISSION SYSTEM ---

@@ -4,6 +4,32 @@ import { Student, User, School, SupportProfessional, SupportProfessionalAttachme
 import { categorizeSecretaryDiagnosis } from '../utils/teaAutismCount';
 import { isPerfilRestritoProntuario, STATUS_AGENDAMENTO_VINCULO_PRONTUARIO } from '@/src/config/perfilRestrito';
 
+const TRUSTED_USER_ROLES: ReadonlySet<UserRole> = new Set([
+    'ADMIN',
+    'SPECIALIST',
+    'ASSISTANT',
+    'EDUCATION_SECRETARY',
+    'SECRETARIA_SEDE',
+    'SECRETARIA_COCAL',
+    'COORDENADOR',
+    'ESCOLA',
+    'SOCIAL_WORKER',
+]);
+
+function parseTrustedUserRole(value: unknown): UserRole | null {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim().toUpperCase() as UserRole;
+    return TRUSTED_USER_ROLES.has(normalized) ? normalized : null;
+}
+
+function parseTrustedUserScope(value: unknown): User['scope'] {
+    if (typeof value !== 'string') return undefined;
+    const normalized = value.trim().toUpperCase();
+    return normalized === 'GLOBAL' || normalized === 'SEDE' || normalized === 'COCAL'
+        ? normalized
+        : undefined;
+}
+
 /** Retry em timeout (57014 / statement timeout) para plano Supabase com limite rígido. */
 async function withRetry<T>(
     fn: () => Promise<T>,
@@ -383,23 +409,28 @@ export class SupabaseService {
             .eq('id', data.user.id)
             .single();
 
-        const userData = profileError || !profile ? null : profile;
+        const trustedRole = parseTrustedUserRole(profile?.role);
+        if (profileError || !profile || profile.is_active !== true || !trustedRole) {
+            console.warn('[SupabaseService] Login recusado: perfil ativo e autorizado não encontrado.');
+            await supabase.auth.signOut();
+            return null;
+        }
 
-        // Se o perfil não existir, usamos um fallback seguro baseado no metadata do Auth
+        // O nome em metadata é apenas informativo; autorização vem exclusivamente de profiles.
         const user: User = {
-            id: userData?.id || data.user.id,
-            name: userData?.full_name || data.user.user_metadata?.full_name || finalEmail.split('@')[0],
+            id: profile.id,
+            name: profile.full_name || data.user.user_metadata?.full_name || finalEmail.split('@')[0],
             username: email, // Usa o que o usuário digitou
-            role: (userData?.role?.toUpperCase() || (data.user.user_metadata?.role?.toUpperCase() as UserRole) || 'SPECIALIST') as UserRole,
-            isActive: userData?.is_active ?? true,
-            specialty: this.mapSpecialtyFromDB(userData?.specialty),
-            email: userData?.email || finalEmail,
-            photoUrl: userData?.photo_url,
-            scope: (userData?.scope || data.user.user_metadata?.scope)?.toUpperCase() as any,
-            schoolInep: userData?.school_inep || undefined,
-            schoolId: userData?.school_id || undefined,
-            mustChangePassword: userData?.must_change_password,
-            birthDate: userData?.birth_date || undefined,
+            role: trustedRole,
+            isActive: true,
+            specialty: this.mapSpecialtyFromDB(profile.specialty),
+            email: profile.email || finalEmail,
+            photoUrl: profile.photo_url,
+            scope: parseTrustedUserScope(profile.scope) || 'GLOBAL',
+            schoolInep: profile.school_inep || undefined,
+            schoolId: profile.school_id || undefined,
+            mustChangePassword: profile.must_change_password,
+            birthDate: profile.birth_date || undefined,
         };
 
         // Se ainda não tiver schoolId, tenta fazer o lookup pelo INEP como fallback
@@ -451,28 +482,9 @@ export class SupabaseService {
             .eq('id', userId)
             .single();
 
-        if (profileError || !profile) {
-            console.warn(`[SupabaseService] Perfil não encontrado no banco (ID: ${userId}). Motivo: ${profileError?.message || 'Dados vazios'}. Tentando recuperação via Metadados JWT...`);
-
-            const { data: { session } } = await supabase.auth.getSession();
-
-            if (session?.user && session.user.id === userId) {
-                console.log('[SupabaseService] Fallback de perfil bem-sucedido via JWT.');
-                const userFromJewt: User = {
-                    id: session.user.id,
-                    name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Usuário',
-                    username: session.user.email?.split('@')[0] || 'user',
-                    role: (session.user.user_metadata?.role as UserRole) || 'SPECIALIST',
-                    scope: (session.user.user_metadata?.scope as any) || 'GLOBAL',
-                    isActive: true,
-                    mustChangePassword: false,
-                    email: session.user.email || undefined,
-                    schoolId: session.user.user_metadata?.school_id // Tenta pegar do JWT se o banco falhar
-                };
-                this.userProfileCache.set(userId, userFromJewt);
-                return userFromJewt;
-            }
-            console.error('[SupabaseService] Falha crítica: Perfil ausente no banco e sem sessão JWT ativa.');
+        const trustedRole = parseTrustedUserRole(profile?.role);
+        if (profileError || !profile || profile.is_active !== true || !trustedRole) {
+            console.warn('[SupabaseService] Perfil ativo e autorizado não encontrado.');
             return null;
         }
 
@@ -480,12 +492,12 @@ export class SupabaseService {
             id: profile.id,
             name: profile.full_name,
             username: profile.username || (profile.email ? profile.email.split('@')[0] : 'user'),
-            role: profile.role?.toUpperCase() as UserRole,
-            isActive: profile.is_active,
+            role: trustedRole,
+            isActive: true,
             specialty: this.mapSpecialtyFromDB(profile.specialty),
             email: profile.email,
             photoUrl: profile.photo_url,
-            scope: (profile.scope?.toUpperCase() as any) || 'GLOBAL',
+            scope: parseTrustedUserScope(profile.scope) || 'GLOBAL',
             schoolInep: profile.school_inep || undefined,
             schoolId: profile.school_id || undefined,
             mustChangePassword: profile.must_change_password
@@ -501,7 +513,6 @@ export class SupabaseService {
             if (schoolRow?.id) {
                 user.schoolId = schoolRow.id;
                 console.log(`[SupabaseService] getUserProfile REFRESH: Escola ${user.schoolInep} → UUID: ${user.schoolId}`);
-                
                 // Atualiza o perfil no banco para não precisar repetir o lookup
                 await supabase.from('profiles').update({ school_id: user.schoolId }).eq('id', user.id);
             }
@@ -528,8 +539,7 @@ export class SupabaseService {
 
         if (error) return { user: null, error };
 
-        // O trigger no banco (se configurado) criará o profile. 
-        // Se não houver trigger, criamos aqui manualmente se a policy permitir.
+        // Rede de segurança: cria o perfil caso o trigger do banco falhe
         if (data.user) {
             const { error: profileError } = await supabase
                 .from('profiles')
@@ -538,7 +548,7 @@ export class SupabaseService {
                     full_name: fullName,
                     role: role,
                     is_active: true,
-                    username: email // Tenta salvar o original
+                    username: email
                 });
 
             if (profileError) console.warn('Erro ao criar perfil após signup:', profileError);
