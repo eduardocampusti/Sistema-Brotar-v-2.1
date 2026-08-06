@@ -24,6 +24,7 @@ import { WelcomeHeader } from './WelcomeHeader';
 import { countTeaAutismStudents } from '../utils/teaAutismCount';
 import { computeEducationSecretaryDerived } from '../utils/educationSecretaryMetrics';
 import { useEducationSecretaryPanelData } from '../hooks/useEducationSecretaryPanelData';
+import { gerarResumoClassificacao } from '../src/utils/studentClassification';
 
 const PHRASES_SPECIALIST: Record<string, string[]> = {
   psicologia: ['Boa {p}, {n}! 👋', 'Pronto para acolher? 💜', 'Cada sessão transforma ✨'],
@@ -1315,6 +1316,8 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
 
     const teaAutismStudentCount = useMemo(() => countTeaAutismStudents(scopedStudents), [scopedStudents]);
 
+    const resumoClassificacao = useMemo(() => gerarResumoClassificacao(scopedStudents), [scopedStudents]);
+
     const workloadDist = useMemo(() => {
         const bucket = new Map<string, number>();
         scopedSupportProfessionals.forEach(p => {
@@ -1643,6 +1646,60 @@ export const EducationSecretaryDashboard: React.FC<DashboardProps> = ({ students
                     </div>
                 </div>
             </div>
+
+            {/* === Classificação de Especificidade === */}
+            <div className="mt-6">
+                <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-500" />
+                    Classificação de especificidade
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderTop: '3px solid #10B981'}}>
+                        <p className="text-sm text-gray-500">Confirmados</p>
+                        <p className="text-2xl font-bold text-emerald-600">{resumoClassificacao.confirmados}</p>
+                        <p className="text-xs text-gray-400">Têm CID ou laudo</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderTop: '3px solid #F59E0B'}}>
+                        <p className="text-sm text-gray-500">Suspeitos</p>
+                        <p className="text-2xl font-bold text-amber-500">{resumoClassificacao.suspeitos}</p>
+                        <p className="text-xs text-gray-400">Diagnóstico sem CID/laudo</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderTop: '3px solid #D1D5DB'}}>
+                        <p className="text-sm text-gray-500">Sem identificação</p>
+                        <p className="text-2xl font-bold text-gray-600">{resumoClassificacao.semIdentificacao}</p>
+                        <p className="text-xs text-gray-400">Sem diagnóstico</p>
+                    </div>
+                </div>
+
+                {resumoClassificacao.confirmadosSemLaudo.length > 0 && (
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderLeft: '3px solid #EF4444'}}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <AlertTriangle className="w-5 h-5 text-red-500" />
+                            <div>
+                                <p className="font-semibold text-sm">Alunos confirmados sem laudo no sistema</p>
+                                <p className="text-xs text-gray-500">Têm CID preenchido mas o laudo não foi anexado — contatar a escola</p>
+                            </div>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                            {resumoClassificacao.confirmadosSemLaudo.slice(0, 5).map((aluno) => (
+                                <div key={aluno.id} className="py-2 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium">{aluno.nome}</p>
+                                        <p className="text-xs text-gray-500">{aluno.escola} · CID: {aluno.cid}</p>
+                                        <p className="text-xs text-gray-400">{aluno.diagnostico}</p>
+                                    </div>
+                                    <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">Confirmado</span>
+                                </div>
+                            ))}
+                            {resumoClassificacao.confirmadosSemLaudo.length > 5 && (
+                                <p className="text-center text-xs text-gray-400 py-2">
+                                    + {resumoClassificacao.confirmadosSemLaudo.length - 5} alunos
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -1852,6 +1909,8 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
         () => students.filter(s => sedeExcludeCocal(s.school?.district, s.school?.schoolName)),
         [students]
     );
+
+    const resumoClassificacao = useMemo(() => gerarResumoClassificacao(sedeStudents), [sedeStudents]);
 
     const sedeSchools = useMemo(
         () => schools.filter(s => sedeExcludeCocal(s.district, s.name)),
@@ -2266,6 +2325,60 @@ export const SecretariaSedeDashboard: React.FC<DashboardProps> = ({ students, cu
                 </section>
             </div>
 
+            {/* === Classificação de Especificidade === */}
+            <div className="mt-6">
+                <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-500" />
+                    Classificação de especificidade
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderTop: '3px solid #10B981'}}>
+                        <p className="text-sm text-gray-500">Confirmados</p>
+                        <p className="text-2xl font-bold text-emerald-600">{resumoClassificacao.confirmados}</p>
+                        <p className="text-xs text-gray-400">Têm CID ou laudo</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderTop: '3px solid #F59E0B'}}>
+                        <p className="text-sm text-gray-500">Suspeitos</p>
+                        <p className="text-2xl font-bold text-amber-500">{resumoClassificacao.suspeitos}</p>
+                        <p className="text-xs text-gray-400">Diagnóstico sem CID/laudo</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderTop: '3px solid #D1D5DB'}}>
+                        <p className="text-sm text-gray-500">Sem identificação</p>
+                        <p className="text-2xl font-bold text-gray-600">{resumoClassificacao.semIdentificacao}</p>
+                        <p className="text-xs text-gray-400">Sem diagnóstico</p>
+                    </div>
+                </div>
+
+                {resumoClassificacao.confirmadosSemLaudo.length > 0 && (
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderLeft: '3px solid #EF4444'}}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <AlertTriangle className="w-5 h-5 text-red-500" />
+                            <div>
+                                <p className="font-semibold text-sm">Alunos confirmados sem laudo no sistema</p>
+                                <p className="text-xs text-gray-500">Têm CID preenchido mas o laudo não foi anexado — contatar a escola</p>
+                            </div>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                            {resumoClassificacao.confirmadosSemLaudo.slice(0, 5).map((aluno) => (
+                                <div key={aluno.id} className="py-2 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium">{aluno.nome}</p>
+                                        <p className="text-xs text-gray-500">{aluno.escola} · CID: {aluno.cid}</p>
+                                        <p className="text-xs text-gray-400">{aluno.diagnostico}</p>
+                                    </div>
+                                    <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">Confirmado</span>
+                                </div>
+                            ))}
+                            {resumoClassificacao.confirmadosSemLaudo.length > 5 && (
+                                <p className="text-center text-xs text-gray-400 py-2">
+                                    + {resumoClassificacao.confirmadosSemLaudo.length - 5} alunos
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <section>
                 <h2 className="mb-4 text-lg font-bold text-slate-800">Ações rápidas da Sede</h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -2350,6 +2463,8 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
             }),
         [students]
     );
+
+    const resumoClassificacao = useMemo(() => gerarResumoClassificacao(cocalStudents), [cocalStudents]);
 
     const cocalSchools = useMemo(
         () => schools.filter(s => cocalIncludeTerritory(s.district, s.name)),
@@ -2791,6 +2906,60 @@ export const SecretariaCocalDashboard: React.FC<DashboardProps> = ({ students, c
                         </div>
                     </div>
                 </section>
+            </div>
+
+            {/* === Classificação de Especificidade === */}
+            <div className="mt-6">
+                <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-500" />
+                    Classificação de especificidade
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderTop: '3px solid #10B981'}}>
+                        <p className="text-sm text-gray-500">Confirmados</p>
+                        <p className="text-2xl font-bold text-emerald-600">{resumoClassificacao.confirmados}</p>
+                        <p className="text-xs text-gray-400">Têm CID ou laudo</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderTop: '3px solid #F59E0B'}}>
+                        <p className="text-sm text-gray-500">Suspeitos</p>
+                        <p className="text-2xl font-bold text-amber-500">{resumoClassificacao.suspeitos}</p>
+                        <p className="text-xs text-gray-400">Diagnóstico sem CID/laudo</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderTop: '3px solid #D1D5DB'}}>
+                        <p className="text-sm text-gray-500">Sem identificação</p>
+                        <p className="text-2xl font-bold text-gray-600">{resumoClassificacao.semIdentificacao}</p>
+                        <p className="text-xs text-gray-400">Sem diagnóstico</p>
+                    </div>
+                </div>
+
+                {resumoClassificacao.confirmadosSemLaudo.length > 0 && (
+                    <div className="bg-white rounded-xl p-4 border border-gray-100" style={{borderLeft: '3px solid #EF4444'}}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <AlertTriangle className="w-5 h-5 text-red-500" />
+                            <div>
+                                <p className="font-semibold text-sm">Alunos confirmados sem laudo no sistema</p>
+                                <p className="text-xs text-gray-500">Têm CID preenchido mas o laudo não foi anexado — contatar a escola</p>
+                            </div>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                            {resumoClassificacao.confirmadosSemLaudo.slice(0, 5).map((aluno) => (
+                                <div key={aluno.id} className="py-2 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium">{aluno.nome}</p>
+                                        <p className="text-xs text-gray-500">{aluno.escola} · CID: {aluno.cid}</p>
+                                        <p className="text-xs text-gray-400">{aluno.diagnostico}</p>
+                                    </div>
+                                    <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">Confirmado</span>
+                                </div>
+                            ))}
+                            {resumoClassificacao.confirmadosSemLaudo.length > 5 && (
+                                <p className="text-center text-xs text-gray-400 py-2">
+                                    + {resumoClassificacao.confirmadosSemLaudo.length - 5} alunos
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
             <section>

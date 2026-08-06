@@ -933,6 +933,7 @@ export class SupabaseService {
                 let q = supabase
                     .from('students')
                     .select(studentSelect)
+                    .eq('status', 'Active')
                     .order(orderCol, { ascending: true })
                     .range(from, to);
                 if (filtrarPorEscolaDoPerfil && profileSchoolId) {
@@ -1377,6 +1378,7 @@ export class SupabaseService {
                 const { data: page, error: qErr } = await supabase
                     .from('students')
                     .select(studentSelect)
+                    .eq('status', 'Active')
                     .in('id', chunk);
                 if (qErr) throw qErr;
                 if (page?.length) raw.push(...page);
