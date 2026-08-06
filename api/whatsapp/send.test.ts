@@ -1,9 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createClientMock, getUserMock } = vi.hoisted(() => ({
+const {
+    appointmentMaybeSingleMock,
+    createClientMock,
+    fromMock,
+    getUserMock,
+    profileMaybeSingleMock,
+} = vi.hoisted(() => ({
+    appointmentMaybeSingleMock: vi.fn(),
     createClientMock: vi.fn(),
+    fromMock: vi.fn(),
     getUserMock: vi.fn(),
+    profileMaybeSingleMock: vi.fn(),
 }));
 
 vi.mock('@supabase/supabase-js', () => ({
@@ -42,7 +51,39 @@ describe('POST /api/whatsapp/send', () => {
         vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'test-service-role-key');
         vi.stubEnv('WHATSAPP_TOKEN', 'test-whatsapp-token');
         vi.stubEnv('WHATSAPP_PHONE_NUMBER_ID', 'test-phone-number-id');
-        createClientMock.mockReturnValue({ auth: { getUser: getUserMock } });
+        const createQuery = (maybeSingle: ReturnType<typeof vi.fn>) => {
+            const query = { select: vi.fn(), eq: vi.fn(), maybeSingle };
+            query.select.mockReturnValue(query);
+            query.eq.mockReturnValue(query);
+            return query;
+        };
+        const profileQuery = createQuery(profileMaybeSingleMock);
+        const appointmentQuery = createQuery(appointmentMaybeSingleMock);
+        fromMock.mockImplementation((table: string) => (
+            table === 'profiles' ? profileQuery : appointmentQuery
+        ));
+        profileMaybeSingleMock.mockResolvedValue({
+            data: {
+                id: 'test-user-id',
+                role: 'ADMIN',
+                is_active: true,
+                specialty: null,
+                scope: 'GLOBAL',
+                school_id: null,
+            },
+            error: null,
+        });
+        appointmentMaybeSingleMock.mockResolvedValue({
+            data: {
+                id: 'appointment-test-id',
+                professional_id: 'professional-test-id',
+                specialty: 'PSICOLOGIA',
+                unit: 'SEDE',
+                students: { school_id: 'school-test-id', schools: { district: 'SEDE' } },
+            },
+            error: null,
+        });
+        createClientMock.mockReturnValue({ auth: { getUser: getUserMock }, from: fromMock });
     });
 
     afterEach(() => {

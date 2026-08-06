@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { authorizeAppointment, authorizeSession } from '../_shared/authorization';
 
 class MissingEnvironmentVariableError extends Error {
     constructor(readonly variableName: string) {
@@ -35,14 +36,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let supabaseUrl: string;
     let supabaseServiceKey: string;
-    let whatsappToken: string;
-    let phoneNumberId: string;
 
     try {
         supabaseUrl = requireEnv('SUPABASE_URL');
         supabaseServiceKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
-        whatsappToken = requireEnv('WHATSAPP_TOKEN');
-        phoneNumberId = requireEnv('WHATSAPP_PHONE_NUMBER_ID');
     } catch (error: unknown) {
         if (error instanceof MissingEnvironmentVariableError) {
             return res.status(503).json({ error: `Configuração ausente: ${error.variableName}.` });
@@ -53,14 +50,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
         auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-    if (authError || !user) {
-        return res.status(401).json({ error: 'Não autorizado.' });
+    const authorization = await authorizeSession(supabase, accessToken, 'whatsapp:send');
+    if ('status' in authorization) {
+        const message = authorization.status === 401 ? 'Não autorizado.' : 'Acesso negado.';
+        return res.status(authorization.status).json({ error: message });
     }
 
     const { telefone, nome, data, hora, appointmentId } = req.body ?? {};
     if (!telefone || !nome || !data || !hora || !appointmentId) {
         return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
+    }
+
+    const appointmentAuthorization = await authorizeAppointment(
+        supabase,
+        authorization.profile,
+        String(appointmentId),
+    );
+    if ('status' in appointmentAuthorization) {
+        if (appointmentAuthorization.status === 404) {
+            return res.status(404).json({ error: 'Agendamento não encontrado.' });
+        }
+        if (appointmentAuthorization.status === 500) {
+            return res.status(500).json({ error: 'Não foi possível validar o agendamento.' });
+        }
+        return res.status(403).json({ error: 'Acesso negado.' });
+    }
+
+    let whatsappToken: string;
+    let phoneNumberId: string;
+    try {
+        whatsappToken = requireEnv('WHATSAPP_TOKEN');
+        phoneNumberId = requireEnv('WHATSAPP_PHONE_NUMBER_ID');
+    } catch (error: unknown) {
+        if (error instanceof MissingEnvironmentVariableError) {
+            return res.status(503).json({ error: `Configuração ausente: ${error.variableName}.` });
+        }
+        return res.status(503).json({ error: 'Serviço de WhatsApp indisponível.' });
     }
 
     let formattedPhone = String(telefone).replace(/\D/g, '');

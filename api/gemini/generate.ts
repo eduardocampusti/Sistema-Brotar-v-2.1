@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
+import { authorizeSession } from '../_shared/authorization';
 import type {
   GeminiGenerateErrorResponse,
   GeminiGenerateRequest,
@@ -71,12 +72,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let supabaseUrl: string;
   let supabaseServiceKey: string;
-  let geminiApiKey: string;
 
   try {
     supabaseUrl = requireEnv('SUPABASE_URL');
     supabaseServiceKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
-    geminiApiKey = requireEnv('GEMINI_API_KEY');
   } catch (error: unknown) {
     if (error instanceof MissingEnvironmentVariableError) {
       return sendError(res, 503, `Configuração ausente: ${error.variableName}.`);
@@ -87,14 +86,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-  if (authError || !user) {
-    return sendError(res, 401, 'Não autorizado.');
+  const authorization = await authorizeSession(supabase, accessToken, 'gemini:generate');
+  if ('status' in authorization) {
+    const message = authorization.status === 401 ? 'Não autorizado.' : 'Acesso negado.';
+    return sendError(res, authorization.status, message);
   }
 
   const request = parseRequest(req.body as unknown);
   if (!request) {
     return sendError(res, 400, 'Prompt ausente ou acima do limite permitido.');
+  }
+
+  let geminiApiKey: string;
+  try {
+    geminiApiKey = requireEnv('GEMINI_API_KEY');
+  } catch (error: unknown) {
+    if (error instanceof MissingEnvironmentVariableError) {
+      return sendError(res, 503, `Configuração ausente: ${error.variableName}.`);
+    }
+    return sendError(res, 503, 'Serviço de IA indisponível.');
   }
 
   try {

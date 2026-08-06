@@ -69,14 +69,14 @@ describe.skipIf(!hasRecepCredentials)('RLS — recepcionista (Cocal) / SECRETARI
     if (error) throw new Error(`Login recepcionista Cocal: ${error.message}`);
     if (!data.session?.user) throw new Error('Sessão ausente após login');
 
-    const metaRole = normDistrict(
-      (data.session.user.user_metadata as { role?: string } | undefined)?.role
-    );
-    if (metaRole && metaRole !== 'SECRETARIA_COCAL') {
-      console.warn(
-        `[RLS test] JWT user_metadata.role=${metaRole} (esperado SECRETARIA_COCAL ou vazio confiando em profiles)`
-      );
-    }
+    const { data: trustedProfile, error: profileError } = await client
+      .from('profiles')
+      .select('role,is_active')
+      .eq('id', data.session.user.id)
+      .single();
+    if (profileError) throw new Error(`Perfil confiável indisponível: ${profileError.message}`);
+    expect(normDistrict(trustedProfile.role)).toBe('SECRETARIA_COCAL');
+    expect(trustedProfile.is_active).toBe(true);
   });
 
   afterAll(async () => {

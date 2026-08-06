@@ -5,6 +5,12 @@ import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import {
+    canAccessAppointment,
+    normalizeAppointmentAccess,
+    normalizeTrustedProfile,
+    profileHasPermission,
+} from './server/authorization.mjs';
 
 // Carrega variáveis de ambiente (localmente usa .env ou .env.local)
 dotenv.config({ path: '.env.local' });
@@ -78,7 +84,7 @@ function isRateLimitError(error) {
     return Boolean(error && typeof error === 'object' && (error.status === 429 || error.code === 429));
 }
 
-async function requireAuthenticatedUser(req, res) {
+async function requireAuthorizedUser(req, res, permission) {
     const authorization = req.headers.authorization || '';
     if (!authorization.startsWith('Bearer ')) {
         res.status(401).json({ error: 'Não autorizado.' });
@@ -105,7 +111,20 @@ async function requireAuthenticatedUser(req, res) {
         return null;
     }
 
-    return user;
+    const { data: profileRow, error: profileError } = await supabase
+        .from('profiles')
+        .select('id,role,is_active,specialty,scope,school_id')
+        .eq('id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+    const profile = normalizeTrustedProfile(profileRow, user.id);
+
+    if (profileError || !profile || !profileHasPermission(profile, permission)) {
+        res.status(403).json({ error: 'Acesso negado.' });
+        return null;
+    }
+
+    return { profile, supabase };
 }
 
 const GEMINI_SYSTEM_PERSONA = `
@@ -406,8 +425,8 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
 
 // 2. Envio de Mensagem (Confirmar Agendamento)
 app.post('/api/whatsapp/send', async (req, res) => {
-    const user = await requireAuthenticatedUser(req, res);
-    if (!user) return;
+    const authorization = await requireAuthorizedUser(req, res, 'whatsapp:send');
+    if (!authorization) return;
 
     let whatsappConfig;
     try {
@@ -420,6 +439,23 @@ app.post('/api/whatsapp/send', async (req, res) => {
 
     if (!telefone || !nome || !data || !hora || !appointmentId) {
         return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
+    }
+
+    const { data: appointmentRow, error: appointmentError } = await authorization.supabase
+        .from('appointments')
+        .select('id,professional_id,specialty,unit,students(school_id,schools(district))')
+        .eq('id', String(appointmentId))
+        .maybeSingle();
+    const appointment = normalizeAppointmentAccess(appointmentRow);
+
+    if (appointmentError) {
+        return res.status(500).json({ error: 'Não foi possível validar o agendamento.' });
+    }
+    if (!appointment) {
+        return res.status(404).json({ error: 'Agendamento não encontrado.' });
+    }
+    if (!canAccessAppointment(authorization.profile, appointment)) {
+        return res.status(403).json({ error: 'Acesso negado.' });
     }
 
     let formattedPhone = telefone.replace(/\D/g, '');
@@ -488,8 +524,8 @@ app.post('/api/whatsapp/send', async (req, res) => {
 });
 
 app.post('/api/gemini/generate', async (req, res) => {
-    const user = await requireAuthenticatedUser(req, res);
-    if (!user) return;
+    const authorization = await requireAuthorizedUser(req, res, 'gemini:generate');
+    if (!authorization) return;
 
     let geminiApiKey;
     try {
@@ -527,6 +563,9 @@ app.post('/api/gemini/generate', async (req, res) => {
 
 // 3. Endpoint de Teste (Envio Simples)
 app.post('/api/whatsapp/send-test', async (req, res) => {
+    const authorization = await requireAuthorizedUser(req, res, 'admin:manage');
+    if (!authorization) return;
+
     const { phone } = req.body;
 
     if (!phone) {

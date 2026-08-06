@@ -1,11 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createClientMock, generateContentMock, getUserMock, googleGenAiMock } = vi.hoisted(() => ({
+const {
+  createClientMock,
+  fromMock,
+  generateContentMock,
+  getUserMock,
+  googleGenAiMock,
+  profileMaybeSingleMock,
+} = vi.hoisted(() => ({
   createClientMock: vi.fn(),
+  fromMock: vi.fn(),
   generateContentMock: vi.fn(),
   getUserMock: vi.fn(),
   googleGenAiMock: vi.fn(),
+  profileMaybeSingleMock: vi.fn(),
 }));
 
 vi.mock('@supabase/supabase-js', () => ({
@@ -41,7 +50,27 @@ describe('POST /api/gemini/generate', () => {
     vi.stubEnv('SUPABASE_URL', 'https://project.example.test');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'test-service-role-key');
     vi.stubEnv('GEMINI_API_KEY', 'test-gemini-key');
-    createClientMock.mockReturnValue({ auth: { getUser: getUserMock } });
+    const profileQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: profileMaybeSingleMock,
+    };
+    profileQuery.select.mockReturnValue(profileQuery);
+    profileQuery.eq.mockReturnValue(profileQuery);
+    fromMock.mockReturnValue(profileQuery);
+    getUserMock.mockResolvedValue({ data: { user: { id: 'test-user-id' } }, error: null });
+    profileMaybeSingleMock.mockResolvedValue({
+      data: {
+        id: 'test-user-id',
+        role: 'SPECIALIST',
+        is_active: true,
+        specialty: 'PSICOLOGIA',
+        scope: 'GLOBAL',
+        school_id: null,
+      },
+      error: null,
+    });
+    createClientMock.mockReturnValue({ auth: { getUser: getUserMock }, from: fromMock });
     googleGenAiMock.mockImplementation(function GoogleGenAiMock() {
       return { models: { generateContent: generateContentMock } };
     });
@@ -73,7 +102,6 @@ describe('POST /api/gemini/generate', () => {
   });
 
   it('valida a sessão, chama o provedor no servidor e devolve texto compatível', async () => {
-    getUserMock.mockResolvedValue({ data: { user: { id: 'test-user-id' } }, error: null });
     generateContentMock.mockResolvedValue({ text: 'Documento gerado' });
     const response = createResponse();
 
