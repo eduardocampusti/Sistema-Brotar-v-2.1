@@ -1,11 +1,22 @@
 export const APP_VERSION = {
-  version: 'v2.4.160',
+  version: 'v2.4.161',
   date: 'Ago 2026',
-  display: 'v2.4.160 • Ago 2026',
+  display: 'v2.4.161 • Ago 2026',
   changelog: [
-    'Classificação de especificidade nos dashboards das secretárias — cards confirmado/suspeito/sem identificação, alerta de alunos com CID sem laudo'
+    'Atualização da camada de dados',
+    'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.161',
+      date: '14 Ago 2026',
+      title: 'Release v2.4.161 — 14 Ago 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização da camada de dados",
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.4.160',
       date: '6 Ago 2026',

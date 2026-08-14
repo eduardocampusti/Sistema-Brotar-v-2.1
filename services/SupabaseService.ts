@@ -1465,7 +1465,7 @@ export class SupabaseService {
         return data.map((s: any) => ({
             id: s.id,
             date: s.date,
-            specialty: s.specialty,
+            specialty: s.specialty ? (this.REVERSE_SPECIALTY_MAP[s.specialty] || s.specialty) : undefined,
             professionalName: 'Profissional',
             notes: s.content?.summary || s.content?.objetivo || s.content?.resumo || 'Atendimento realizado',
             content: s.content,
