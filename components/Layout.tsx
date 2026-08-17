@@ -299,6 +299,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     { id: 'dashboard', label: 'Visão Geral', icon: <LayoutDashboard size={20} /> },
     { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
     { id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> },
+    { id: 'relatorio-encaminhamento', label: 'Encaminhamento Escolar', sub: 'Relatório para o Centro', icon: <FileText size={18} /> },
   ];
 
   // Decide which menu structure to use
@@ -314,6 +315,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     return [
       { id: 'retroativo', label: 'Lançamentos Históricos', sub: 'Lançamento retroativo papel', icon: <Clock size={18} /> },
       { id: 'documents', label: 'Documentos', sub: 'Relatórios e laudos', icon: <FileText size={18} /> },
+      { id: 'relatorio-encaminhamento', label: 'Encaminhamento Escolar', sub: 'Relatório para o Centro', icon: <FileText size={18} /> },
     ];
   };
 

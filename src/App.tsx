@@ -32,6 +32,7 @@ const SystemSettingsPanel = React.lazy(() => import('../components/SystemSetting
 const PapelTimbradoConfigPanel = React.lazy(() => import('../components/PapelTimbradoConfig').then(m => ({ default: m.PapelTimbradoConfigPanel })));
 const AboutSystem = React.lazy(() => import('../components/AboutSystem').then(m => ({ default: m.AboutSystem })));
 const DocumentGenerator = React.lazy(() => import('../components/DocumentGenerator').then(m => ({ default: m.DocumentGenerator })));
+const RelatorioEncaminhamento = React.lazy(() => import('../components/RelatorioEncaminhamento').then(m => ({ default: m.RelatorioEncaminhamento })));
 const SchedulingRoutePage = React.lazy(() => import('../components/SchedulingRoutePage').then(m => ({ default: m.SchedulingRoutePage })));
 const AppointmentForm = React.lazy(() => import('../components/AppointmentForm').then(m => ({ default: m.AppointmentForm })));
 const DocumentVault = React.lazy(() => import('../components/DocumentVault').then(m => ({ default: m.DocumentVault })));
@@ -510,6 +511,7 @@ function AppContent() {
           />
 
           <Route path="documents" element={<React.Suspense fallback={<PageLoading />}><DocumentGenerator currentUser={user!} /></React.Suspense>} />
+          <Route path="relatorio-encaminhamento" element={<React.Suspense fallback={<PageLoading />}><RelatorioEncaminhamento currentUser={user!} /></React.Suspense>} />
           <Route path="relatorio-anual-tcm" element={<React.Suspense fallback={<PageLoading />}><RelatorioAnualTCM currentUser={user!} /></React.Suspense>} />
           <Route path="vault" element={<React.Suspense fallback={<PageLoading />}><DocumentVault currentUser={user!} students={students} onModelSelect={() => handleNavigate('documents')} onUpdate={refreshData} /></React.Suspense>} />
           <Route path="schools" element={<React.Suspense fallback={<PageLoading />}><SchoolManagement /></React.Suspense>} />
