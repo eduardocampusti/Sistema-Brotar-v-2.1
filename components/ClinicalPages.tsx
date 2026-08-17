@@ -3047,6 +3047,36 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                             </div>
                                         )}
 
+                                        {/* Histórico completo de sessões anteriores (colapsável) */}
+                                        {!currentSession.id && ppData.sessions.length > 1 && (
+                                            <details className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                                                <summary className="flex items-center justify-between cursor-pointer px-4 py-3 hover:bg-slate-50 transition-colors list-none outline-none">
+                                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                                                        <FileText size={13} className="text-[#8B1A3A]" />
+                                                        Histórico completo — {ppData.sessions.length} sessões anteriores
+                                                    </div>
+                                                    <ChevronDown size={14} className="text-slate-400" />
+                                                </summary>
+                                                <div className="border-t border-slate-100 max-h-[300px] overflow-y-auto divide-y divide-slate-100">
+                                                    {ppData.sessions.map((sess, idx) => (
+                                                        <div key={idx} className="px-4 py-3 hover:bg-slate-50 transition-colors">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-xs font-black text-slate-700">{new Date(sess.date).toLocaleDateString('pt-BR')}</span>
+                                                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${sess.status === 'Realizado' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{sess.status}</span>
+                                                                </div>
+                                                                <span className="text-[9px] text-slate-400 font-bold">Sessão #{ppData.sessions.length - idx}</span>
+                                                            </div>
+                                                            {sess.objetivo && <p className="text-[11px] text-slate-600 mt-1"><span className="font-bold text-slate-700">Objetivo:</span> {sess.objetivo}</p>}
+                                                            {sess.evolucao && <p className="text-[11px] text-slate-600"><span className="font-bold text-slate-700">Evolução:</span> {sess.evolucao}</p>}
+                                                            {sess.estrategias && <p className="text-[11px] text-slate-600"><span className="font-bold text-slate-700">Estratégias:</span> {sess.estrategias}</p>}
+                                                            {sess.observacoes && !sess.objetivo && <p className="text-[11px] text-slate-500 italic">{sess.observacoes}</p>}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </details>
+                                        )}
+
                                         {/* Bloco 1: Detalhes */}
                                         <div className="bg-white border border-slate-200 rounded-xl p-4">
                                             <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">

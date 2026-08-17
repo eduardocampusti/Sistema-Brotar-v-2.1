@@ -1,12 +1,21 @@
 export const APP_VERSION = {
-  version: 'v2.4.161',
+  version: 'v2.4.162',
   date: 'Ago 2026',
-  display: 'v2.4.161 • Ago 2026',
+  display: 'v2.4.162 • Ago 2026',
   changelog: [
-    'Atualização da camada de dados',
-    'Melhorias e correções gerais'  
+    'Histórico completo de sessões visível ao criar nova sessão'  
   ],
   releases: [
+    {
+      version: 'v2.4.162',
+      date: '17 Ago 2026',
+      title: 'Release v2.4.162 — Histórico de sessões na tela Nova Sessão',
+      type: 'improvement',
+      changes: [
+        "Seção colapsável 'Histórico completo' visível ao criar nova sessão — permite consultar todas as sessões anteriores sem sair do formulário",
+        "Corrige fluxo da Psicopedagoga: antes só aparecia a última sessão, agora todo o histórico fica acessível"
+      ]
+    },
     {
       version: 'v2.4.161',
       date: '14 Ago 2026',
