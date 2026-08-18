@@ -243,14 +243,33 @@ export const RelatorioEncaminhamento: React.FC<RelatorioEncaminhamentoProps> = (
     }
   };
 
-  const handlePrint = () => {
+  const buildTimbradoHtml = (config: any) => {
+    if (!config) return `<div class="header"><h1>Prefeitura Municipal de Brotas de Macaúbas</h1><h1>Secretaria Municipal de Educação</h1><h2>Coordenação de Educação Especial e Inclusiva</h2><p style="font-size:10pt;font-style:italic">Centro Multidisciplinar</p></div>`;
+    return `<div class="header">
+      ${config.showLogo && config.logoUrl ? `<img src="${config.logoUrl}" style="max-width:100%;max-height:140px;height:auto;object-fit:contain;margin-bottom:6px" alt="Logo">` : ''}
+      ${config.showTitulos ? `<h1>${config.tituloLinha1}</h1><h1>${config.tituloLinha2}</h1><h2>${config.tituloLinha3}</h2>` : ''}
+      ${config.showContato ? `<p style="font-size:8pt;color:#666;margin-top:4px">${config.cnpj ? `CNPJ: ${config.cnpj} | ` : ''}${config.endereco ? `${config.endereco} | ` : ''}${config.telefone ? `Tel: ${config.telefone}` : ''}</p>` : ''}
+    </div>`;
+  };
+
+  const buildRodapeHtml = (config: any) => {
+    if (!config) return '';
+    const parts = [];
+    if (config.rodapeImg) parts.push(`<img src="${config.rodapeImg}" style="max-width:100%;max-height:50px;object-fit:contain;opacity:0.8" alt="">`);
+    if (config.rodapeTexto) parts.push(`<p style="font-size:7pt;color:#999;margin:4px 0 0">${config.rodapeTexto}</p>`);
+    return parts.length ? `<div style="text-align:center;border-top:1px dashed #ccc;padding-top:8px;margin-top:16px">${parts.join('')}</div>` : '';
+  };
+
+  const handlePrint = async () => {
     const student = selectedStudent;
     const school = selectedSchool;
     if (!student || !school) return;
 
+    const config = await SupabaseService.getPapelTimbradoConfig();
+
     const aspectosHtml = Object.entries(ASPECTOS_CONFIG).map(([grupo, itens]) => {
       const checked = form.aspectos[grupo] || [];
-      return `<div style="margin-bottom:10px">
+      return `<div class="checklist-group">
         <p style="font-weight:bold;color:#1B4F72;margin:6px 0 4px">${grupo}</p>
         ${itens.map(item => `<p style="margin:2px 0 2px 12px">${checked.includes(item) ? '☑' : '☐'} ${item}</p>`).join('')}
         ${form.aspectosOutro[grupo] ? `<p style="margin:2px 0 2px 12px">☑ Outro: ${form.aspectosOutro[grupo]}</p>` : ''}
@@ -270,22 +289,21 @@ body{font-family:"Times New Roman",serif;font-size:12pt;line-height:1.5;color:#0
 .header{text-align:center;border-bottom:2px solid #1B4F72;padding-bottom:8px;margin-bottom:20px}
 .header h1{font-size:13pt;margin:0;text-transform:uppercase}
 .header h2{font-size:11pt;margin:2px 0;color:#1B4F72}
-.sec{margin:16px 0;border-bottom:1px solid #1B4F72;padding-bottom:3px;font-weight:bold;color:#1B4F72;font-size:12pt}
-table{width:100%;border-collapse:collapse;margin-bottom:12px}
+.sec{margin:16px 0;border-bottom:1px solid #1B4F72;padding-bottom:3px;font-weight:bold;color:#1B4F72;font-size:12pt;page-break-after:avoid}
+.section{page-break-inside:avoid;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;margin-bottom:12px;page-break-inside:avoid}
 td{padding:4px 8px;border:1px solid #ccc;font-size:11pt}
 td:first-child{font-weight:bold;background:#EBF5FB;width:38%}
+.checklist-group{page-break-inside:avoid;margin-bottom:10px}
+.signatures{page-break-inside:avoid;page-break-before:auto}
 .sig{display:inline-block;width:45%;text-align:center;margin-top:40px}
 .sig-line{border-top:1px solid #000;margin-top:40px;padding-top:4px;font-size:10pt}
 .note{font-size:9pt;color:#555;font-style:italic;margin-top:20px;border-top:1px solid #1B4F72;padding-top:8px}
 </style></head><body>
-<div class="header">
-  <h1>Prefeitura Municipal de Brotas de Macaúbas</h1>
-  <h1>Secretaria Municipal de Educação</h1>
-  <h2>Coordenação de Educação Especial e Inclusiva</h2>
-  <p style="font-size:10pt;font-style:italic">Centro Multidisciplinar</p>
-</div>
+${buildTimbradoHtml(config)}
 <h2 style="text-align:center;color:#1B4F72;font-size:14pt">RELATÓRIO PEDAGÓGICO DE ENCAMINHAMENTO</h2>
 
+<div class="section">
 <p class="sec">1. DADOS DA ESCOLA</p>
 <table>
   <tr><td>Nome da Escola</td><td>${school.name || ''}</td></tr>
@@ -295,7 +313,9 @@ td:first-child{font-weight:bold;background:#EBF5FB;width:38%}
   <tr><td>Diretor(a)</td><td>${(school as any).director || ''}</td></tr>
   <tr><td>Distrito</td><td>${(school as any).district || ''}</td></tr>
 </table>
+</div>
 
+<div class="section">
 <p class="sec">2. DADOS DO(A) ALUNO(A)</p>
 <table>
   <tr><td>Nome Completo</td><td>${student.fullName}</td></tr>
@@ -307,7 +327,9 @@ td:first-child{font-weight:bold;background:#EBF5FB;width:38%}
   <tr><td>Possui Laudo</td><td>${form.possuiLaudo ? 'Sim' : 'Não'}</td></tr>
   ${form.possuiLaudo ? `<tr><td>Diagnóstico</td><td>${form.diagnostico}</td></tr>` : ''}
 </table>
+</div>
 
+<div class="section">
 <p class="sec">3. MOTIVO DO ENCAMINHAMENTO</p>
 <p style="font-weight:bold;margin:8px 0 4px;color:#1B4F72">a) O que você tem observado no aluno?</p>
 <p style="text-align:justify">${form.observacoes || 'Não informado'}</p>
@@ -315,16 +337,22 @@ td:first-child{font-weight:bold;background:#EBF5FB;width:38%}
 <p style="text-align:justify">${form.impacto || 'Não informado'}</p>
 <p style="font-weight:bold;margin:8px 0 4px;color:#1B4F72">c) O que a escola já tentou fazer e qual foi o resultado? A família foi comunicada?</p>
 <p style="text-align:justify">${form.intervencoes_familia || 'Não informado'}</p>
+</div>
 
 <p class="sec">4. ASPECTOS DO DESENVOLVIMENTO E APRENDIZAGEM</p>
 ${aspectosHtml}
 
+<div class="section">
 <p class="sec">5. INFORMAÇÕES COMPLEMENTARES</p>
 <p style="text-align:justify">${form.complementares || 'Não informado'}</p>
+</div>
 
+<div class="section">
 <p class="sec">6. ENCAMINHAMENTO SOLICITADO</p>
 ${profsHtml}
+</div>
 
+<div class="signatures">
 <div style="margin-top:40px">
   <div class="sig"><div class="sig-line">Professor(a) Regente<br>Matrícula: ___________</div></div>
   <div class="sig" style="margin-left:8%"><div class="sig-line">Coordenador(a) Pedagógico(a)<br>Matrícula: ___________</div></div>
@@ -333,19 +361,23 @@ ${profsHtml}
   <div class="sig"><div class="sig-line">Diretor(a) da Escola<br>Matrícula: ___________</div></div>
   <div class="sig" style="margin-left:8%"><p style="margin-top:50px">Data: ____/____/________</p></div>
 </div>
+</div>
 <p class="note">OBSERVAÇÃO: Este relatório é de caráter confidencial. As informações serão utilizadas exclusivamente pelos profissionais do Centro Multidisciplinar para fins de avaliação e planejamento de intervenção. A escola deve manter uma cópia em arquivo.</p>
+${buildRodapeHtml(config)}
 </body></html>`);
     pw.document.close();
     pw.onload = () => { pw.focus(); pw.print(); };
   };
 
-  const handlePrintBlank = () => {
+  const handlePrintBlank = async () => {
+    const config = await SupabaseService.getPapelTimbradoConfig();
+
     const linhas = (n: number) => Array.from({ length: n }, () =>
       '<div style="border-bottom:1px dotted #999;height:28px;margin-bottom:2px"></div>'
     ).join('');
 
     const aspectosBlank = Object.entries(ASPECTOS_CONFIG).map(([grupo, itens]) =>
-      `<div style="margin-bottom:10px">
+      `<div class="checklist-group">
         <p style="font-weight:bold;color:#1B4F72;margin:6px 0 4px">${grupo}</p>
         ${itens.map(item => `<p style="margin:2px 0 2px 12px">☐ ${item}</p>`).join('')}
         <p style="margin:2px 0 2px 12px">☐ Outro: _______________________________________________</p>
@@ -365,23 +397,22 @@ body{font-family:"Times New Roman",serif;font-size:11pt;line-height:1.4;color:#0
 .header{text-align:center;border-bottom:2px solid #1B4F72;padding-bottom:8px;margin-bottom:16px}
 .header h1{font-size:12pt;margin:0;text-transform:uppercase}
 .header h2{font-size:10pt;margin:2px 0;color:#1B4F72}
-.sec{margin:14px 0 6px;border-bottom:1px solid #1B4F72;padding-bottom:2px;font-weight:bold;color:#1B4F72;font-size:11pt}
-table{width:100%;border-collapse:collapse;margin-bottom:10px}
+.sec{margin:14px 0 6px;border-bottom:1px solid #1B4F72;padding-bottom:2px;font-weight:bold;color:#1B4F72;font-size:11pt;page-break-after:avoid}
+.section{page-break-inside:avoid;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;margin-bottom:10px;page-break-inside:avoid}
 td{padding:3px 6px;border:1px solid #ccc;font-size:10pt;height:26px}
 td:first-child{font-weight:bold;background:#EBF5FB;width:35%}
+.checklist-group{page-break-inside:avoid;margin-bottom:10px}
+.signatures{page-break-inside:avoid;page-break-before:auto}
 .sig{display:inline-block;width:30%;text-align:center;margin-top:30px}
 .sig-line{border-top:1px solid #000;margin-top:35px;padding-top:4px;font-size:9pt}
 .note{font-size:8pt;color:#555;font-style:italic;margin-top:16px;border-top:1px solid #1B4F72;padding-top:6px}
-.orientadora{border-left:3px solid #27ae60;background:#f0faf4;padding:8px 12px;margin:8px 0 12px;font-size:10pt;font-style:italic;color:#2c6e49}
+.orientadora{border-left:3px solid #27ae60;background:#f0faf4;padding:8px 12px;margin:8px 0 12px;font-size:10pt;font-style:italic;color:#2c6e49;page-break-inside:avoid}
 </style></head><body>
-<div class="header">
-  <h1>Prefeitura Municipal de Brotas de Macaúbas</h1>
-  <h1>Secretaria Municipal de Educação</h1>
-  <h2>Coordenação de Educação Especial e Inclusiva</h2>
-  <p style="font-size:9pt;font-style:italic">Centro Multidisciplinar</p>
-</div>
+${buildTimbradoHtml(config)}
 <h2 style="text-align:center;color:#1B4F72;font-size:13pt;margin-bottom:14px">RELATÓRIO PEDAGÓGICO DE ENCAMINHAMENTO</h2>
 
+<div class="section">
 <p class="sec">1. DADOS DA ESCOLA</p>
 <table>
   <tr><td>Nome da Escola</td><td></td></tr>
@@ -391,7 +422,9 @@ td:first-child{font-weight:bold;background:#EBF5FB;width:35%}
   <tr><td>Diretor(a)</td><td></td></tr>
   <tr><td>Coordenador(a) Pedagógico(a)</td><td></td></tr>
 </table>
+</div>
 
+<div class="section">
 <p class="sec">2. DADOS DO(A) ALUNO(A)</p>
 <table>
   <tr><td>Nome Completo</td><td></td></tr>
@@ -407,38 +440,48 @@ td:first-child{font-weight:bold;background:#EBF5FB;width:35%}
   <tr><td>Diagnóstico</td><td colspan="3"></td></tr>
   <tr><td>Recebe Atendimento Externo?</td><td colspan="3">☐ Sim&nbsp;&nbsp;&nbsp;☐ Não&nbsp;&nbsp;&nbsp;Qual? ______________________________</td></tr>
 </table>
+</div>
 
 <div class="orientadora">Para que o encaminhamento possa ser melhor compreendido pela equipe, procure relatar situações observáveis e exemplos concretos, evitando diagnósticos ou rótulos.</div>
 
+<div class="section">
 <p class="sec">3. MOTIVO DO ENCAMINHAMENTO</p>
 <p style="font-weight:bold;color:#1B4F72;margin:6px 0 3px;font-size:10pt">a) O que você tem observado no aluno?</p>
 <p style="font-size:9pt;color:#555;margin:0 0 4px;font-style:italic">Descreva brevemente as principais dificuldades ou comportamentos observados, incluindo como isso aparece no dia a dia escolar.</p>
-${linhas(5)}
+${linhas(7)}
 <p style="font-weight:bold;color:#1B4F72;margin:10px 0 3px;font-size:10pt">b) Como essas dificuldades interferem na aprendizagem e/ou na convivência do aluno na escola?</p>
 <p style="font-size:9pt;color:#555;margin:0 0 4px;font-style:italic">Se possível, dê um exemplo de uma situação observada.</p>
-${linhas(5)}
+${linhas(7)}
 <p style="font-weight:bold;color:#1B4F72;margin:10px 0 3px;font-size:10pt">c) O que a escola já tentou fazer e qual foi o resultado? A família já foi comunicada sobre a situação?</p>
 <p style="font-size:9pt;color:#555;margin:0 0 4px;font-style:italic">Descreva brevemente as estratégias realizadas e o retorno da família, quando houver.</p>
-${linhas(5)}
+${linhas(7)}
+</div>
 
 <p class="sec">4. ASPECTOS DO DESENVOLVIMENTO E APRENDIZAGEM</p>
 <p style="font-size:9pt;color:#555;font-style:italic;margin-bottom:6px">Marque os itens observados:</p>
 ${aspectosBlank}
 
+<div class="section">
 <p class="sec">5. INFORMAÇÕES COMPLEMENTARES</p>
-${linhas(4)}
+${linhas(5)}
+</div>
 
+<div class="section">
 <p class="sec">6. ENCAMINHAMENTO SOLICITADO</p>
 <p style="font-size:9pt;color:#555;font-style:italic;margin-bottom:6px">Profissional(is) para o(s) qual(is) o aluno está sendo encaminhado:</p>
 <p style="line-height:2.2">${profsBlank}</p>
+</div>
 
+<div class="signatures">
 <div style="margin-top:30px">
   <div class="sig"><div class="sig-line">Professor(a) Regente<br>Matrícula: ___________</div></div>
   <div class="sig" style="margin-left:3%"><div class="sig-line">Coordenador(a) Pedagógico(a)<br>Matrícula: ___________</div></div>
   <div class="sig" style="margin-left:3%"><div class="sig-line">Diretor(a) da Escola<br>Matrícula: ___________</div></div>
 </div>
 <p style="text-align:right;margin-top:20px;font-size:10pt">Data: ____/____/________</p>
+</div>
 <p class="note">OBSERVAÇÃO: Este relatório é de caráter confidencial. As informações serão utilizadas exclusivamente pelos profissionais do Centro Multidisciplinar para fins de avaliação e planejamento de intervenção. A escola deve manter uma cópia em arquivo.</p>
+${buildRodapeHtml(config)}
 </body></html>`);
     pw.document.close();
     pw.onload = () => { pw.focus(); pw.print(); };
