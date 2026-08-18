@@ -38,6 +38,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  Inbox,
 } from 'lucide-react';
 import { User, Specialty, SystemSettings, hasPermission, canViewSystemAuditLogs } from '../types';
 import { APP_VERSION } from '../src/config/version';
@@ -163,6 +164,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       { id: 'scheduling', label: 'Central de Agendamentos', icon: <Calendar size={20} /> },
       { id: 'list', label: 'Alunos / Prontuários', icon: <Users size={20} /> },
       { id: 'documents', label: 'Documentos', icon: <FileText size={20} /> },
+      { id: 'encaminhamentos-recebidos', label: 'Encaminhamentos', sub: 'Relatórios das escolas', icon: <Inbox size={20} /> },
       { id: 'schools', label: 'Unidades Escolares', icon: <School size={20} /> },
       { id: 'relatorio-tea', label: 'Relatório TEA', icon: <Puzzle size={20} /> },
     ];
@@ -268,6 +270,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
       // Administradores, Secretárias e Assistentes (Recepção) veem profissionais de apoio
       items.push({ id: 'support-professionals', label: 'Profissionais de Apoio', icon: <UserCog size={20} /> });
+
+      if (['EDUCATION_SECRETARY', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'COORDENADOR'].includes(currentUser.role)) {
+        items.push({ id: 'encaminhamentos-recebidos', label: 'Encaminhamentos', sub: 'Relatórios das escolas', icon: <Inbox size={20} /> });
+      }
     }
 
     // Seção do Cofre e Documentos (Novo fluxo)
@@ -316,6 +322,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       { id: 'retroativo', label: 'Lançamentos Históricos', sub: 'Lançamento retroativo papel', icon: <Clock size={18} /> },
       { id: 'documents', label: 'Documentos', sub: 'Relatórios e laudos', icon: <FileText size={18} /> },
       { id: 'relatorio-encaminhamento', label: 'Encaminhamento Escolar', sub: 'Relatório para o Centro', icon: <FileText size={18} /> },
+      { id: 'encaminhamentos-recebidos', label: 'Encaminhamentos', sub: 'Relatórios das escolas', icon: <Inbox size={18} /> },
     ];
   };
 

@@ -5,7 +5,7 @@ import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import {
   FileText, Printer, Save, Send, ChevronDown, Building2,
-  User as UserIcon, Check, AlertCircle, FileDown, ArrowLeft, Loader2
+  User as UserIcon, Check, AlertCircle, FileDown, ArrowLeft, Loader2, Info
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,10 +50,11 @@ interface RelatorioEncaminhamentoProps {
 }
 
 interface FormData {
-  motivo: string;
+  observacoes: string;
+  impacto: string;
+  intervencoes_familia: string;
   aspectos: Record<string, string[]>;
   aspectosOutro: Record<string, string>;
-  intervencoes: string;
   complementares: string;
   profissionais: string[];
   possuiLaudo: boolean | null;
@@ -62,9 +63,19 @@ interface FormData {
 }
 
 const initialForm: FormData = {
-  motivo: '', aspectos: {}, aspectosOutro: {}, intervencoes: '',
+  observacoes: '', impacto: '', intervencoes_familia: '',
+  aspectos: {}, aspectosOutro: {},
   complementares: '', profissionais: [], possuiLaudo: null,
   diagnostico: '', atendimentoExterno: ''
+};
+
+const PROFISSIONAL_SPECIALTY_MAP: Record<string, string> = {
+  'Psicólogo(a)': 'PSICOLOGIA',
+  'Fonoaudiólogo(a)': 'FONOAUDIOLOGIA',
+  'Terapeuta Ocupacional': 'TERAPIA_OCUPACIONAL',
+  'Psicopedagogo(a)': 'PSICOPEDAGOGIA',
+  'Assistente Social': 'SERVICO_SOCIAL',
+  'Neuropsicólogo(a)': 'PSICOLOGIA',
 };
 
 export const RelatorioEncaminhamento: React.FC<RelatorioEncaminhamentoProps> = ({ currentUser }) => {
@@ -129,8 +140,16 @@ export const RelatorioEncaminhamento: React.FC<RelatorioEncaminhamentoProps> = (
       addToast('Selecione o aluno e a escola antes de salvar.', 'error');
       return;
     }
-    if (enviar && !form.motivo.trim()) {
-      addToast('O motivo do encaminhamento é obrigatório para enviar.', 'error');
+    if (enviar && !form.observacoes.trim()) {
+      addToast('O campo "O que você tem observado no aluno?" é obrigatório.', 'error');
+      return;
+    }
+    if (enviar && !form.impacto.trim()) {
+      addToast('O campo sobre o impacto na aprendizagem é obrigatório.', 'error');
+      return;
+    }
+    if (enviar && !form.intervencoes_familia.trim()) {
+      addToast('O campo sobre intervenções e família é obrigatório.', 'error');
       return;
     }
     if (enviar && form.profissionais.length === 0) {
@@ -142,25 +161,75 @@ export const RelatorioEncaminhamento: React.FC<RelatorioEncaminhamentoProps> = (
     try {
       const codigo = gerarCodigo();
       const now = new Date().toISOString();
-      const { error } = await supabase.from('relatorios_encaminhamento').insert({
+      const authUser = (await supabase.auth.getUser()).data.user;
+      const { data: inserted, error } = await supabase.from('relatorios_encaminhamento').insert({
         student_id: selectedStudentId,
         school_id: selectedSchoolId,
         status: enviar ? 'ENVIADO' : 'RASCUNHO',
-        motivo_encaminhamento: form.motivo,
+        observacoes_aluno: form.observacoes,
+        impacto_aprendizagem: form.impacto,
+        intervencoes_familia: form.intervencoes_familia,
         aspectos_desenvolvimento: form.aspectos,
-        intervencoes_realizadas: form.intervencoes,
         informacoes_complementares: form.complementares,
         profissionais_solicitados: form.profissionais,
         possui_laudo: form.possuiLaudo ?? false,
         diagnostico: form.diagnostico,
         atendimento_externo: form.atendimentoExterno,
-        preenchido_por: (await supabase.auth.getUser()).data.user?.id,
+        preenchido_por: authUser?.id,
         nome_preenchedor: currentUser.name,
         cargo_preenchedor: currentUser.jobTitle || currentUser.role,
         codigo,
         enviado_em: enviar ? now : null,
-      });
+        notificado: enviar ? true : false,
+      }).select('id').single();
       if (error) throw error;
+
+      if (enviar && authUser && inserted) {
+        const student = selectedStudent;
+        const school = selectedSchool;
+        const titulo = 'Novo Encaminhamento Recebido';
+        const mensagem = `Novo encaminhamento recebido: ${student?.fullName || 'Aluno'} — ${school?.name || 'Escola'}`;
+
+        const specialtiesNeeded = form.profissionais
+          .map(p => PROFISSIONAL_SPECIALTY_MAP[p])
+          .filter(Boolean);
+
+        const { data: adminRecipients } = await supabase
+          .from('profiles')
+          .select('id')
+          .in('role', ['ADMIN', 'EDUCATION_SECRETARY', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL'])
+          .eq('is_active', true);
+
+        let specialistRecipients: { id: string }[] = [];
+        if (specialtiesNeeded.length > 0) {
+          const { data: specData } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('role', 'SPECIALIST')
+            .in('specialty', specialtiesNeeded)
+            .eq('is_active', true);
+          specialistRecipients = specData || [];
+        }
+
+        const allRecipientIds = new Set<string>();
+        (adminRecipients || []).forEach(r => allRecipientIds.add(r.id));
+        specialistRecipients.forEach(r => allRecipientIds.add(r.id));
+        allRecipientIds.delete(authUser.id);
+
+        const notifications = Array.from(allRecipientIds).map(recipientId => ({
+          sender_id: authUser.id,
+          recipient_id: recipientId,
+          title: titulo,
+          content: mensagem,
+          priority: 'normal',
+          type: 'ALERT',
+        }));
+
+        if (notifications.length > 0) {
+          await supabase.from('system_messages').insert(notifications);
+        }
+      }
+
       addToast(enviar
         ? `Relatório enviado ao Centro Multidisciplinar! Código: ${codigo}`
         : `Rascunho salvo com sucesso. Código: ${codigo}`, 'success');
@@ -240,18 +309,20 @@ td:first-child{font-weight:bold;background:#EBF5FB;width:38%}
 </table>
 
 <p class="sec">3. MOTIVO DO ENCAMINHAMENTO</p>
-<p style="text-align:justify">${form.motivo || 'Não informado'}</p>
+<p style="font-weight:bold;margin:8px 0 4px;color:#1B4F72">a) O que você tem observado no aluno?</p>
+<p style="text-align:justify">${form.observacoes || 'Não informado'}</p>
+<p style="font-weight:bold;margin:8px 0 4px;color:#1B4F72">b) Como essas dificuldades interferem na aprendizagem e/ou na convivência?</p>
+<p style="text-align:justify">${form.impacto || 'Não informado'}</p>
+<p style="font-weight:bold;margin:8px 0 4px;color:#1B4F72">c) O que a escola já tentou fazer e qual foi o resultado? A família foi comunicada?</p>
+<p style="text-align:justify">${form.intervencoes_familia || 'Não informado'}</p>
 
 <p class="sec">4. ASPECTOS DO DESENVOLVIMENTO E APRENDIZAGEM</p>
 ${aspectosHtml}
 
-<p class="sec">5. INTERVENÇÕES PEDAGÓGICAS JÁ REALIZADAS</p>
-<p style="text-align:justify">${form.intervencoes || 'Não informado'}</p>
-
-<p class="sec">6. INFORMAÇÕES COMPLEMENTARES</p>
+<p class="sec">5. INFORMAÇÕES COMPLEMENTARES</p>
 <p style="text-align:justify">${form.complementares || 'Não informado'}</p>
 
-<p class="sec">7. ENCAMINHAMENTO SOLICITADO</p>
+<p class="sec">6. ENCAMINHAMENTO SOLICITADO</p>
 ${profsHtml}
 
 <div style="margin-top:40px">
@@ -393,14 +464,47 @@ ${profsHtml}
         )}
       </Section>
 
-      {/* ── SEÇÃO 3: MOTIVO ── */}
+      {/* ── SEÇÃO 3: MOTIVO (3 perguntas guiadas) ── */}
       <Section num={3} title="Motivo do encaminhamento" tag="✎ Preenchimento manual" tagColor="bg-blue-100 text-blue-700">
-        <textarea
-          className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-white text-sm placeholder:text-slate-300 resize-none min-h-[120px] leading-relaxed"
-          placeholder="Descreva de forma objetiva o(s) motivo(s) que levaram a escola a encaminhar o(a) aluno(a) ao Centro Multidisciplinar..."
-          value={form.motivo}
-          onChange={e => setForm(p => ({...p, motivo: e.target.value}))}
-        />
+        <div className="flex items-start gap-3 p-4 mb-5 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl">
+          <Info size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-emerald-800 leading-relaxed">
+            Para que o encaminhamento possa ser melhor compreendido pela equipe, procure relatar situações observáveis e exemplos concretos, evitando diagnósticos ou rótulos.
+          </p>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">a) O que você tem observado no aluno?</label>
+            <p className="text-xs text-slate-400 mb-2">Descreva brevemente as principais dificuldades ou comportamentos observados, incluindo como isso aparece no dia a dia escolar.</p>
+            <textarea
+              className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-white text-sm placeholder:text-slate-300 resize-none min-h-[100px] leading-relaxed"
+              placeholder="Ex.: O aluno apresenta dificuldade em acompanhar as atividades em sala..."
+              value={form.observacoes}
+              onChange={e => setForm(p => ({...p, observacoes: e.target.value}))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">b) Como essas dificuldades interferem na aprendizagem e/ou na convivência do aluno na escola?</label>
+            <p className="text-xs text-slate-400 mb-2">Se possível, dê um exemplo de uma situação observada.</p>
+            <textarea
+              className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-white text-sm placeholder:text-slate-300 resize-none min-h-[100px] leading-relaxed"
+              placeholder="Ex.: O aluno não consegue concluir as atividades propostas no tempo..."
+              value={form.impacto}
+              onChange={e => setForm(p => ({...p, impacto: e.target.value}))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">c) O que a escola já tentou fazer e qual foi o resultado? A família já foi comunicada sobre a situação?</label>
+            <p className="text-xs text-slate-400 mb-2">Descreva brevemente as estratégias realizadas e o retorno da família, quando houver.</p>
+            <textarea
+              className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-white text-sm placeholder:text-slate-300 resize-none min-h-[100px] leading-relaxed"
+              placeholder="Ex.: A escola realizou reforço escolar e reunião com a família..."
+              value={form.intervencoes_familia}
+              onChange={e => setForm(p => ({...p, intervencoes_familia: e.target.value}))}
+            />
+          </div>
+        </div>
       </Section>
 
       {/* ── SEÇÃO 4: CHECKLIST ASPECTOS ── */}
@@ -420,18 +524,8 @@ ${profsHtml}
         ))}
       </Section>
 
-      {/* ── SEÇÃO 5: INTERVENÇÕES ── */}
-      <Section num={5} title="Intervenções pedagógicas já realizadas" tag="✎ Preenchimento manual" tagColor="bg-blue-100 text-blue-700">
-        <textarea
-          className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-white text-sm placeholder:text-slate-300 resize-none min-h-[100px] leading-relaxed"
-          placeholder="Descreva as estratégias e intervenções que a escola já realizou para atender às necessidades do(a) aluno(a)..."
-          value={form.intervencoes}
-          onChange={e => setForm(p => ({...p, intervencoes: e.target.value}))}
-        />
-      </Section>
-
-      {/* ── SEÇÃO 6: COMPLEMENTARES ── */}
-      <Section num={6} title="Informações complementares" tag="✎ Preenchimento manual" tagColor="bg-blue-100 text-blue-700">
+      {/* ── SEÇÃO 5: COMPLEMENTARES ── */}
+      <Section num={5} title="Informações complementares" tag="✎ Preenchimento manual" tagColor="bg-blue-100 text-blue-700">
         <textarea
           className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-white text-sm placeholder:text-slate-300 resize-none min-h-[80px] leading-relaxed"
           placeholder="Registre qualquer informação adicional relevante sobre o(a) aluno(a), sua família ou contexto social (com sigilo e ética)..."
@@ -440,8 +534,8 @@ ${profsHtml}
         />
       </Section>
 
-      {/* ── SEÇÃO 7: PROFISSIONAIS ── */}
-      <Section num={7} title="Encaminhamento solicitado" tag="✎ Selecione os profissionais" tagColor="bg-blue-100 text-blue-700">
+      {/* ── SEÇÃO 6: PROFISSIONAIS ── */}
+      <Section num={6} title="Encaminhamento solicitado" tag="✎ Selecione os profissionais" tagColor="bg-blue-100 text-blue-700">
         <p className="text-xs text-slate-400 mb-3">Profissional(is) para o(s) qual(is) o aluno está sendo encaminhado</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {PROFISSIONAIS_DISPONIVEIS.map(prof => (
