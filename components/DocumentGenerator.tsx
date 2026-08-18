@@ -70,7 +70,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
   const canEmitAtestado = ['ADMIN', 'EDUCATION_SECRETARY', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'SPECIALIST']
     .includes((currentUser.role || '').toUpperCase());
 
-  const canEmitOficio = ['ADMIN', 'EDUCATION_SECRETARY', 'SPECIALIST']
+  const canEmitOficio = ['ADMIN', 'EDUCATION_SECRETARY', 'SPECIALIST', 'SECRETARIA_SEDE']
     .includes((currentUser.role || '').toUpperCase());
 
   useEffect(() => {
