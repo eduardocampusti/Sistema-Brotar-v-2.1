@@ -1,12 +1,58 @@
 export const APP_VERSION = {
-  version: 'v2.4.163',
+  version: 'v2.4.167',
   date: 'Ago 2026',
-  display: 'v2.4.163 • Ago 2026',
+  display: 'v2.4.167 • Ago 2026',
   changelog: [
-    'Ajustes no menu e navegação',
-    'Melhorias e correções gerais'  
+    'Ofício de Orientação — Encaminhamento Multidisciplinar no Gerador Inteli',
+    'Timbrado automático e correção de quebras de página na impressão',
+    'Ficha em branco do relatório de encaminhamento',
+    'Seção 3 reformulada com 3 perguntas guiadas + fluxo de notificação',
   ],
   releases: [
+    {
+      version: 'v2.4.167',
+      date: '18 Ago 2026',
+      title: 'Release v2.4.167 — Ofício de Orientação Multidisciplinar',
+      type: 'feature',
+      changes: [
+        "Novo modelo no Gerador Inteli: Ofício de Orientação — Encaminhamento Multidisciplinar (template fixo, sem IA)",
+        "Autopreenchimento de nome, cargo e data do usuário logado; número do ofício editável",
+        "Disponível para ADMIN, Secretária de Educação e Especialistas"
+      ]
+    },
+    {
+      version: 'v2.4.166',
+      date: '18 Ago 2026',
+      title: 'Release v2.4.166 — Timbrado e quebras de página',
+      type: 'fix',
+      changes: [
+        "Timbrado automático do sistema (PapelTimbradoConfig) nas impressões do relatório de encaminhamento",
+        "Correção de quebras de página que cortavam seções no meio",
+        "Mais linhas pontilhadas nas perguntas da ficha em branco"
+      ]
+    },
+    {
+      version: 'v2.4.165',
+      date: '18 Ago 2026',
+      title: 'Release v2.4.165 — Ficha em branco',
+      type: 'feature',
+      changes: [
+        "Botão 'Ficha em branco' no relatório de encaminhamento para preenchimento manual em papel",
+        "Versão impressa otimizada para A4 com linhas pontilhadas"
+      ]
+    },
+    {
+      version: 'v2.4.164',
+      date: '18 Ago 2026',
+      title: 'Release v2.4.164 — Encaminhamento reformulado + notificações',
+      type: 'feature',
+      changes: [
+        "Seção 3 reformulada: 3 perguntas guiadas substituem campo único de motivo",
+        "Fluxo de notificação automática ao enviar encaminhamento (ADMIN, secretárias e especialistas notificados)",
+        "Nova tela Encaminhamentos Recebidos para visualização dos relatórios enviados pelas escolas",
+        "Seção 5 (intervenções) removida; numeração ajustada"
+      ]
+    },
     {
       version: 'v2.4.163',
       date: '17 Ago 2026',
