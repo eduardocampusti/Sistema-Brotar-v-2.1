@@ -221,10 +221,10 @@ td:first-child{font-weight:bold;background:#EBF5FB;width:38%}
 <table>
   <tr><td>Nome da Escola</td><td>${school.name || ''}</td></tr>
   <tr><td>INEP</td><td>${(school as any).inep || ''}</td></tr>
-  <tr><td>Endereço</td><td>${(school as any).address || ''}</td></tr>
+  <tr><td>Endereço</td><td>${school.address ? `${(school.address as any).street || ''}, ${(school.address as any).number || ''} - ${(school.address as any).district || ''}` : ''}</td></tr>
   <tr><td>Telefone</td><td>${(school as any).phone || ''}</td></tr>
   <tr><td>Diretor(a)</td><td>${(school as any).director || ''}</td></tr>
-  <tr><td>Coordenador(a)</td><td>${(school as any).coordinator || ''}</td></tr>
+  <tr><td>Distrito</td><td>${(school as any).district || ''}</td></tr>
 </table>
 
 <p class="sec">2. DADOS DO(A) ALUNO(A)</p>
@@ -232,9 +232,9 @@ td:first-child{font-weight:bold;background:#EBF5FB;width:38%}
   <tr><td>Nome Completo</td><td>${student.fullName}</td></tr>
   <tr><td>Data de Nascimento</td><td>${student.birthDate ? new Date(student.birthDate).toLocaleDateString('pt-BR') : ''}</td></tr>
   <tr><td>Responsável</td><td>${student.guardians?.[0]?.name || ''}</td></tr>
-  <tr><td>Ano/Série</td><td>${student.grade || ''}</td></tr>
-  <tr><td>Turno</td><td>${student.shift || ''}</td></tr>
-  <tr><td>Professor(a) Regente</td><td>${student.regentTeacher || ''}</td></tr>
+  <tr><td>Ano/Série</td><td>${student.school?.grade || ''}</td></tr>
+  <tr><td>Turno</td><td>${student.school?.shift || ''}</td></tr>
+  <tr><td>Professor(a) Regente</td><td>${student.school?.regentTeacher || ''}</td></tr>
   <tr><td>Possui Laudo</td><td>${form.possuiLaudo ? 'Sim' : 'Não'}</td></tr>
   ${form.possuiLaudo ? `<tr><td>Diagnóstico</td><td>${form.diagnostico}</td></tr>` : ''}
 </table>
@@ -337,9 +337,9 @@ ${profsHtml}
           {selectedSchool && <>
             <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">INEP</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium text-slate-700">{(selectedSchool as any).inep || '—'}</div></div>
             <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Telefone</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium text-slate-700">{(selectedSchool as any).phone || '—'}</div></div>
-            <div className="col-span-2"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Endereço</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium text-slate-700">{(selectedSchool as any).address || '—'}</div></div>
+            <div className="col-span-2"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Endereço</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium text-slate-700">{selectedSchool.address ? `${(selectedSchool.address as any).street || ''}, ${(selectedSchool.address as any).number || ''} - ${(selectedSchool.address as any).district || ''}` : '—'}</div></div>
             <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Diretor(a)</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium text-slate-700">{(selectedSchool as any).director || '—'}</div></div>
-            <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Coordenador(a)</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium text-slate-700">{(selectedSchool as any).coordinator || '—'}</div></div>
+            <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Distrito</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium text-slate-700">{(selectedSchool as any).district || '—'}</div></div>
           </>}
         </div>
       </Section>
@@ -359,9 +359,9 @@ ${profsHtml}
         {selectedStudent && (
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Data de nascimento</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium">{selectedStudent.birthDate ? new Date(selectedStudent.birthDate).toLocaleDateString('pt-BR') : '—'}</div></div>
-            <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ano/Série</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium">{selectedStudent.grade || '—'}</div></div>
-            <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Turno</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium">{selectedStudent.shift || '—'}</div></div>
-            <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Professor(a) Regente</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium">{selectedStudent.regentTeacher || '—'}</div></div>
+            <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ano/Série</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium">{selectedStudent.school?.grade || '—'}</div></div>
+            <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Turno</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium">{selectedStudent.school?.shift || '—'}</div></div>
+            <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Professor(a) Regente</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium">{selectedStudent.school?.regentTeacher || '—'}</div></div>
             <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Responsável</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium">{selectedStudent.guardians?.[0]?.name || '—'}</div></div>
             <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Telefone</label><div className="py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-medium">{selectedStudent.guardians?.[0]?.phone || '—'}</div></div>
           </div>
