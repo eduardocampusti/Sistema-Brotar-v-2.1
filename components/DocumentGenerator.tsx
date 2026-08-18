@@ -10,6 +10,7 @@ import { AtestadoComparecimento } from './AtestadoComparecimento';
 
 // Documento administrativo que NÃO passa pela IA — roteado para componente próprio
 const ATESTADO_COMPARECIMENTO = 'Atestado de Comparecimento';
+const OFICIO_ORIENTACAO = 'Ofício de Orientação — Encaminhamento Multidisciplinar';
 
 interface DocumentGeneratorProps {
   currentUser: User;
@@ -69,6 +70,9 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
   const canEmitAtestado = ['ADMIN', 'EDUCATION_SECRETARY', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'SPECIALIST']
     .includes((currentUser.role || '').toUpperCase());
 
+  const canEmitOficio = ['ADMIN', 'EDUCATION_SECRETARY', 'SPECIALIST']
+    .includes((currentUser.role || '').toUpperCase());
+
   useEffect(() => {
     const loadStudents = async () => {
       if (currentUser.role === 'SPECIALIST') {
@@ -106,6 +110,107 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
     setIsGenerating(true);
     setError(null);
     const newCode = `BRT-${new Date().getFullYear()}-${Math.floor(Math.random() * 90000) + 10000}`;
+
+    // Ofício de Orientação — template fixo, sem IA
+    if (docType === OFICIO_ORIENTACAO) {
+      const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+      const now = new Date();
+      const dataExtenso = `${now.getDate()} de ${meses[now.getMonth()]} de ${now.getFullYear()}`;
+      const nomeUsuario = currentUser.name || 'Nome do Responsável';
+      const cargoUsuario = currentUser.jobTitle || 'Coordenador(a) de Educação Especial e Inclusiva';
+      const numOficio = context.trim() || '____';
+
+      const oficioHtml = `
+<div style="font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.8; color: #000; text-align: justify;">
+  <p style="text-align: right; font-weight: bold; font-size: 13pt; margin-bottom: 24px;">OFÍCIO Nº ${numOficio}/${now.getFullYear()}</p>
+
+  <p style="margin-bottom: 4px;">Secretaria Municipal de Educação</p>
+  <p style="margin-bottom: 4px;">Centro Multidisciplinar</p>
+  <p style="margin-bottom: 24px;">Brotas de Macaúbas – BA</p>
+
+  <p style="margin-bottom: 24px;"><strong>Assunto:</strong> Orientação para encaminhamento de estudantes à Equipe Multidisciplinar</p>
+
+  <p style="margin-bottom: 4px;">Às</p>
+  <p style="margin-bottom: 24px;">Unidades Escolares da Rede Municipal de Ensino</p>
+
+  <p style="margin-bottom: 16px;">Prezados(as) Diretores(as), Coordenadores(as) Pedagógicos(as) e Professores(as),</p>
+
+  <p style="margin-bottom: 16px; text-indent: 2em;">A Secretaria Municipal de Educação de Brotas de Macaúbas, por meio da Equipe Multidisciplinar do Centro Multidisciplinar, vem, por meio deste, orientar as Unidades Escolares quanto aos procedimentos necessários para o encaminhamento de crianças e estudantes para avaliação e/ou acompanhamento multidisciplinar.</p>
+
+  <p style="margin-bottom: 16px; text-indent: 2em;">Considerando que a escola constitui um espaço privilegiado de observação do desenvolvimento, da aprendizagem, da interação social e do comportamento do estudante, informamos que todo encaminhamento realizado à Equipe Multidisciplinar deverá ser acompanhado do respectivo <strong>RELATÓRIO ESCOLAR</strong>.</p>
+
+  <p style="margin-bottom: 16px; text-indent: 2em;">O relatório tem como finalidade fornecer informações que auxiliem os profissionais da equipe na compreensão das necessidades apresentadas pelo estudante, contribuindo para uma avaliação mais ampla, contextualizada e adequada à sua realidade escolar.</p>
+
+  <p style="margin-bottom: 8px; text-indent: 2em;">O documento deverá contemplar, sempre que possível, informações relacionadas a:</p>
+
+  <ul style="margin-left: 40px; margin-bottom: 16px; list-style-type: disc;">
+    <li>identificação do estudante e da unidade escolar;</li>
+    <li>ano/série e turma em que se encontra matriculado;</li>
+    <li>motivo que levou a escola a solicitar o encaminhamento;</li>
+    <li>aspectos relacionados à aprendizagem e ao desempenho pedagógico;</li>
+    <li>comportamento observado no ambiente escolar;</li>
+    <li>interação com professores, colegas e demais profissionais;</li>
+    <li>comunicação, participação e autonomia;</li>
+    <li>frequência escolar;</li>
+    <li>potencialidades, habilidades e interesses apresentados pelo estudante;</li>
+    <li>dificuldades observadas;</li>
+    <li>estratégias e intervenções pedagógicas já realizadas pela escola;</li>
+    <li>resultados percebidos após as intervenções;</li>
+    <li>informações adicionais consideradas relevantes para a avaliação multidisciplinar.</li>
+  </ul>
+
+  <p style="margin-bottom: 16px; text-indent: 2em;">Ressaltamos que o relatório não possui a finalidade de estabelecer diagnóstico, mas de registrar, de maneira objetiva e responsável, as observações realizadas pela equipe escolar no cotidiano do estudante.</p>
+
+  <p style="text-align: center; font-weight: bold; font-size: 13pt; margin: 24px 0 16px;">ENCAMINHAMENTO PELO SISTEMA BROTAR</p>
+
+  <p style="margin-bottom: 16px; text-indent: 2em;">Para facilitar e padronizar esse processo, o Sistema Brotar dispõe do módulo de Encaminhamento Escolar, no qual a própria escola poderá registrar o encaminhamento e preencher o Relatório Escolar, fornecendo as informações necessárias para análise da Equipe Multidisciplinar.</p>
+
+  <p style="margin-bottom: 16px; text-indent: 2em;">Dessa forma, solicitamos que os encaminhamentos sejam realizados por meio do Sistema Brotar, com o preenchimento completo das informações solicitadas.</p>
+
+  <p style="margin-bottom: 16px; text-indent: 2em;">Encaminhamentos sem o Relatório Escolar devidamente preenchido poderão ser devolvidos à Unidade Escolar para complementação das informações antes do prosseguimento do atendimento.</p>
+
+  <p style="margin-bottom: 16px; text-indent: 2em;">A adoção deste procedimento busca fortalecer a articulação entre escola, família e Equipe Multidisciplinar, proporcionando maior organização dos atendimentos e permitindo que cada estudante seja compreendido considerando sua realidade, suas necessidades e suas potencialidades.</p>
+
+  <p style="margin-bottom: 24px; text-indent: 2em;">Contamos com a colaboração de todos para o cumprimento desta orientação e para o fortalecimento do trabalho integrado em benefício dos nossos estudantes.</p>
+
+  <p style="margin-bottom: 40px;">Atenciosamente,</p>
+
+  <p style="text-align: center; margin-bottom: 4px; font-weight: bold;">${nomeUsuario}</p>
+  <p style="text-align: center; margin-bottom: 4px;">${cargoUsuario}</p>
+  <p style="text-align: center; margin-bottom: 4px;">Secretaria Municipal de Educação / Centro Multidisciplinar</p>
+  <p style="text-align: center; margin-bottom: 24px;">Brotas de Macaúbas – BA</p>
+
+  <p style="text-align: right; margin-top: 16px;">Brotas de Macaúbas, ${dataExtenso}.</p>
+</div>`.trim();
+
+      setGeneratedContent(oficioHtml);
+      setDocumentCode(newCode);
+
+      const newDoc: SavedDocument = {
+        id: crypto.randomUUID(),
+        studentId: student.id,
+        studentName: student.fullName,
+        docType,
+        code: newCode,
+        content: oficioHtml,
+        createdAt: new Date().toISOString(),
+        professionalName: currentUser.name
+      };
+
+      try {
+        await SupabaseService.saveDocument(newDoc);
+        if (activeTab === 'history') {
+          const data = await SupabaseService.getDocuments(selectedStudentId);
+          setHistory(data);
+        }
+      } catch (saveErr: any) {
+        console.error('Erro ao salvar ofício:', saveErr);
+        setError('O ofício foi gerado, mas não foi possível salvar no histórico.');
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
 
     let content: string;
     let usedTemplateFallback = false;
@@ -296,11 +401,12 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
       ])).sort();
     };
 
-    // Garante que o Atestado de Comparecimento apareça só para quem tem permissão
-    let list = build().filter(d => d !== ATESTADO_COMPARECIMENTO);
+    // Garante que documentos especiais apareçam só para quem tem permissão
+    let list = build().filter(d => d !== ATESTADO_COMPARECIMENTO && d !== OFICIO_ORIENTACAO);
     if (canEmitAtestado) list = [...list, ATESTADO_COMPARECIMENTO];
+    if (canEmitOficio) list = [...list, OFICIO_ORIENTACAO];
     return list;
-  }, [currentUser.specialty, currentUser.role, canEmitAtestado]);
+  }, [currentUser.specialty, currentUser.role, canEmitAtestado, canEmitOficio]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn pb-12 relative">
@@ -404,10 +510,14 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Diretrizes da IA (Opcional)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                    {docType === OFICIO_ORIENTACAO ? 'Número do Ofício' : 'Diretrizes da IA (Opcional)'}
+                  </label>
                   <textarea
                     className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary-500 bg-white text-sm placeholder:text-slate-300 resize-none min-h-[120px]"
-                    placeholder="Ex: Enfatizar dificuldades na alfabetização e sugerir encaminhamento para fonoaudiologia..."
+                    placeholder={docType === OFICIO_ORIENTACAO
+                      ? 'Digite o número do ofício (ex: 001). Deixe em branco para usar "____".'
+                      : 'Ex: Enfatizar dificuldades na alfabetização e sugerir encaminhamento para fonoaudiologia...'}
                     value={context}
                     onChange={e => setContext(e.target.value)}
                   />
@@ -419,7 +529,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
                   className="w-full py-4 bg-gradient-to-r from-primary-600 to-primary-500 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-primary-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95"
                 >
                   {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles size={18} />}
-                  Gerar Documento com IA
+                  {docType === OFICIO_ORIENTACAO ? 'Gerar Ofício' : 'Gerar Documento com IA'}
                 </button>
               </div>
             ) : (
