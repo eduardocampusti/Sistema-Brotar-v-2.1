@@ -339,6 +339,111 @@ ${profsHtml}
     pw.onload = () => { pw.focus(); pw.print(); };
   };
 
+  const handlePrintBlank = () => {
+    const linhas = (n: number) => Array.from({ length: n }, () =>
+      '<div style="border-bottom:1px dotted #999;height:28px;margin-bottom:2px"></div>'
+    ).join('');
+
+    const aspectosBlank = Object.entries(ASPECTOS_CONFIG).map(([grupo, itens]) =>
+      `<div style="margin-bottom:10px">
+        <p style="font-weight:bold;color:#1B4F72;margin:6px 0 4px">${grupo}</p>
+        ${itens.map(item => `<p style="margin:2px 0 2px 12px">☐ ${item}</p>`).join('')}
+        <p style="margin:2px 0 2px 12px">☐ Outro: _______________________________________________</p>
+      </div>`
+    ).join('');
+
+    const profsBlank = [...PROFISSIONAIS_DISPONIVEIS, 'Outro: ________________'].map(p =>
+      `<span style="margin-right:18px;white-space:nowrap">☐ ${p}</span>`
+    ).join('');
+
+    const pw = window.open('', '_blank', 'width=900,height=1100');
+    if (!pw) return;
+    pw.document.write(`<html><head><title>Ficha em Branco - Encaminhamento</title>
+<style>
+@page{size:A4;margin:20mm}
+body{font-family:"Times New Roman",serif;font-size:11pt;line-height:1.4;color:#000;margin:0;padding:0}
+.header{text-align:center;border-bottom:2px solid #1B4F72;padding-bottom:8px;margin-bottom:16px}
+.header h1{font-size:12pt;margin:0;text-transform:uppercase}
+.header h2{font-size:10pt;margin:2px 0;color:#1B4F72}
+.sec{margin:14px 0 6px;border-bottom:1px solid #1B4F72;padding-bottom:2px;font-weight:bold;color:#1B4F72;font-size:11pt}
+table{width:100%;border-collapse:collapse;margin-bottom:10px}
+td{padding:3px 6px;border:1px solid #ccc;font-size:10pt;height:26px}
+td:first-child{font-weight:bold;background:#EBF5FB;width:35%}
+.sig{display:inline-block;width:30%;text-align:center;margin-top:30px}
+.sig-line{border-top:1px solid #000;margin-top:35px;padding-top:4px;font-size:9pt}
+.note{font-size:8pt;color:#555;font-style:italic;margin-top:16px;border-top:1px solid #1B4F72;padding-top:6px}
+.orientadora{border-left:3px solid #27ae60;background:#f0faf4;padding:8px 12px;margin:8px 0 12px;font-size:10pt;font-style:italic;color:#2c6e49}
+</style></head><body>
+<div class="header">
+  <h1>Prefeitura Municipal de Brotas de Macaúbas</h1>
+  <h1>Secretaria Municipal de Educação</h1>
+  <h2>Coordenação de Educação Especial e Inclusiva</h2>
+  <p style="font-size:9pt;font-style:italic">Centro Multidisciplinar</p>
+</div>
+<h2 style="text-align:center;color:#1B4F72;font-size:13pt;margin-bottom:14px">RELATÓRIO PEDAGÓGICO DE ENCAMINHAMENTO</h2>
+
+<p class="sec">1. DADOS DA ESCOLA</p>
+<table>
+  <tr><td>Nome da Escola</td><td></td></tr>
+  <tr><td>INEP</td><td></td></tr>
+  <tr><td>Endereço</td><td></td></tr>
+  <tr><td>Telefone</td><td></td></tr>
+  <tr><td>Diretor(a)</td><td></td></tr>
+  <tr><td>Coordenador(a) Pedagógico(a)</td><td></td></tr>
+</table>
+
+<p class="sec">2. DADOS DO(A) ALUNO(A)</p>
+<table>
+  <tr><td>Nome Completo</td><td></td></tr>
+  <tr><td>Data de Nascimento</td><td style="width:30%"></td><td style="font-weight:bold;background:#EBF5FB;width:12%;border:1px solid #ccc">Idade</td><td style="border:1px solid #ccc"></td></tr>
+  <tr><td>Nome da Mãe/Responsável</td><td colspan="3"></td></tr>
+  <tr><td>Nome do Pai/Responsável</td><td colspan="3"></td></tr>
+  <tr><td>Telefone</td><td style="width:30%"></td><td style="font-weight:bold;background:#EBF5FB;width:12%;border:1px solid #ccc">Turma</td><td style="border:1px solid #ccc"></td></tr>
+  <tr><td>Endereço</td><td colspan="3"></td></tr>
+  <tr><td>Ano/Série</td><td style="width:30%"></td><td style="font-weight:bold;background:#EBF5FB;width:12%;border:1px solid #ccc">Turno</td><td style="border:1px solid #ccc"></td></tr>
+  <tr><td>Professor(a) Regente</td><td colspan="3"></td></tr>
+  <tr><td>Data de Matrícula</td><td colspan="3"></td></tr>
+  <tr><td>Possui Laudo Médico?</td><td colspan="3">☐ Sim&nbsp;&nbsp;&nbsp;☐ Não</td></tr>
+  <tr><td>Diagnóstico</td><td colspan="3"></td></tr>
+  <tr><td>Recebe Atendimento Externo?</td><td colspan="3">☐ Sim&nbsp;&nbsp;&nbsp;☐ Não&nbsp;&nbsp;&nbsp;Qual? ______________________________</td></tr>
+</table>
+
+<div class="orientadora">Para que o encaminhamento possa ser melhor compreendido pela equipe, procure relatar situações observáveis e exemplos concretos, evitando diagnósticos ou rótulos.</div>
+
+<p class="sec">3. MOTIVO DO ENCAMINHAMENTO</p>
+<p style="font-weight:bold;color:#1B4F72;margin:6px 0 3px;font-size:10pt">a) O que você tem observado no aluno?</p>
+<p style="font-size:9pt;color:#555;margin:0 0 4px;font-style:italic">Descreva brevemente as principais dificuldades ou comportamentos observados, incluindo como isso aparece no dia a dia escolar.</p>
+${linhas(5)}
+<p style="font-weight:bold;color:#1B4F72;margin:10px 0 3px;font-size:10pt">b) Como essas dificuldades interferem na aprendizagem e/ou na convivência do aluno na escola?</p>
+<p style="font-size:9pt;color:#555;margin:0 0 4px;font-style:italic">Se possível, dê um exemplo de uma situação observada.</p>
+${linhas(5)}
+<p style="font-weight:bold;color:#1B4F72;margin:10px 0 3px;font-size:10pt">c) O que a escola já tentou fazer e qual foi o resultado? A família já foi comunicada sobre a situação?</p>
+<p style="font-size:9pt;color:#555;margin:0 0 4px;font-style:italic">Descreva brevemente as estratégias realizadas e o retorno da família, quando houver.</p>
+${linhas(5)}
+
+<p class="sec">4. ASPECTOS DO DESENVOLVIMENTO E APRENDIZAGEM</p>
+<p style="font-size:9pt;color:#555;font-style:italic;margin-bottom:6px">Marque os itens observados:</p>
+${aspectosBlank}
+
+<p class="sec">5. INFORMAÇÕES COMPLEMENTARES</p>
+${linhas(4)}
+
+<p class="sec">6. ENCAMINHAMENTO SOLICITADO</p>
+<p style="font-size:9pt;color:#555;font-style:italic;margin-bottom:6px">Profissional(is) para o(s) qual(is) o aluno está sendo encaminhado:</p>
+<p style="line-height:2.2">${profsBlank}</p>
+
+<div style="margin-top:30px">
+  <div class="sig"><div class="sig-line">Professor(a) Regente<br>Matrícula: ___________</div></div>
+  <div class="sig" style="margin-left:3%"><div class="sig-line">Coordenador(a) Pedagógico(a)<br>Matrícula: ___________</div></div>
+  <div class="sig" style="margin-left:3%"><div class="sig-line">Diretor(a) da Escola<br>Matrícula: ___________</div></div>
+</div>
+<p style="text-align:right;margin-top:20px;font-size:10pt">Data: ____/____/________</p>
+<p class="note">OBSERVAÇÃO: Este relatório é de caráter confidencial. As informações serão utilizadas exclusivamente pelos profissionais do Centro Multidisciplinar para fins de avaliação e planejamento de intervenção. A escola deve manter uma cópia em arquivo.</p>
+</body></html>`);
+    pw.document.close();
+    pw.onload = () => { pw.focus(); pw.print(); };
+  };
+
   // ── CHECKBOX COMPONENT ──
   const Checkbox: React.FC<{ checked: boolean; onChange: () => void; label: string }> = ({ checked, onChange, label }) => (
     <label onClick={onChange} className="flex items-center gap-2.5 py-1.5 px-1 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors text-sm text-slate-700 select-none">
@@ -383,6 +488,9 @@ ${profsHtml}
       <div className="flex justify-end gap-2 mb-6">
         <button onClick={() => handleSave(false)} disabled={isSaving} className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50">
           {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salvar rascunho
+        </button>
+        <button onClick={handlePrintBlank} className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+          <FileDown size={14} /> Ficha em branco
         </button>
         <button onClick={handlePrint} className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
           <Printer size={14} /> Imprimir
@@ -560,6 +668,9 @@ ${profsHtml}
       <div className="flex justify-end gap-3 mt-6">
         <button onClick={() => handleSave(false)} disabled={isSaving} className="flex items-center gap-1.5 px-5 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50">
           {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salvar rascunho
+        </button>
+        <button onClick={handlePrintBlank} className="flex items-center gap-1.5 px-5 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+          <FileDown size={14} /> Ficha em branco
         </button>
         <button onClick={handlePrint} className="flex items-center gap-1.5 px-5 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
           <Printer size={14} /> Imprimir
