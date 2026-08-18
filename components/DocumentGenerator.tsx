@@ -116,8 +116,8 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({ currentUse
       const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
       const now = new Date();
       const dataExtenso = `${now.getDate()} de ${meses[now.getMonth()]} de ${now.getFullYear()}`;
-      const nomeUsuario = currentUser.name || 'Nome do Responsável';
-      const cargoUsuario = currentUser.jobTitle || 'Coordenador(a) de Educação Especial e Inclusiva';
+      const nomeUsuario = 'Carlos Eduardo Campos de Araújo';
+      const cargoUsuario = 'Coordenador de Educação Especial e Inclusiva';
       const numOficio = context.trim() || '____';
 
       const oficioHtml = `
