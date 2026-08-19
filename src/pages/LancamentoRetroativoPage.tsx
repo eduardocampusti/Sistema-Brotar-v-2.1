@@ -136,6 +136,33 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
         });
     }, [studentsList, searchQuery, filterStatus]);
 
+    // Mapeia especialidade do usuário para a rota do módulo clínico
+    const specialtyRouteMap: Record<string, string> = {
+        [Specialty.PSYCHOPEDAGOGY]: 'psychopedagogy',
+        [Specialty.PSYCHOLOGY]: 'psychology',
+        [Specialty.SPEECH_THERAPY]: 'speech-therapy',
+        [Specialty.OCCUPATIONAL_THERAPY]: 'occupational-therapy',
+        [Specialty.PHYSIOTHERAPY]: 'physiotherapy',
+        [Specialty.NUTRITION]: 'nutrition',
+        [Specialty.SOCIAL_WORK]: 'social-service-hub',
+        [Specialty.NURSING]: 'nursing',
+    };
+
+    const handleStudentClick = (student: StudentSummary) => {
+        const route = currentUser.specialty ? specialtyRouteMap[currentUser.specialty] : null;
+        if (route) {
+            onNavigate(route, {
+                state: {
+                    openStudentId: student.studentId,
+                    openTab: 'sessions',
+                    autoNewSession: true,
+                },
+            });
+        } else {
+            setSelectedStudent(student);
+        }
+    };
+
     // Retorna para a seleção de alunos
     const handleBackToGrid = () => {
         setSelectedStudent(null);
@@ -346,7 +373,7 @@ export const LancamentoRetroativoPage: React.FC<LancamentoRetroativoPageProps> =
                                     return (
                                         <button
                                             key={student.studentId}
-                                            onClick={() => setSelectedStudent(student)}
+                                            onClick={() => handleStudentClick(student)}
                                             className="flex flex-col gap-2 p-4 rounded-xl border text-left transition-all group relative overflow-hidden hover:shadow-md"
                                             style={{ background: cardBg, borderLeft: `3px solid ${borderColor}`, borderTop: `0.5px solid ${hasSession ? '#97C459' : '#e2e8f0'}`, borderRight: `0.5px solid ${hasSession ? '#97C459' : '#e2e8f0'}`, borderBottom: `0.5px solid ${hasSession ? '#97C459' : '#e2e8f0'}` }}
                                         >

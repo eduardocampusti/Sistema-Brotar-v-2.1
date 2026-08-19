@@ -15,7 +15,7 @@ export const agendaClinicalDeepLinkPreserveTabRef = { current: false };
 export function useAgendaClinicalDeepLink(
     setLoading: (v: boolean) => void,
     toastError: (msg: string) => void,
-    applyStudent: (student: Student, openTab: string | undefined) => void
+    applyStudent: (student: Student, openTab: string | undefined, autoNewSession?: boolean) => void
 ) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -23,7 +23,7 @@ export function useAgendaClinicalDeepLink(
     applyRef.current = applyStudent;
 
     useEffect(() => {
-        const raw = location.state as { openStudentId?: unknown; openTab?: unknown } | null;
+        const raw = location.state as { openStudentId?: unknown; openTab?: unknown; autoNewSession?: unknown } | null;
         const id = raw?.openStudentId;
         if (typeof id !== 'string' || !id) return;
 
@@ -44,7 +44,8 @@ export function useAgendaClinicalDeepLink(
                 if (cancelled) return;
                 const t = raw.openTab;
                 const tabStr = typeof t === 'string' ? t : undefined;
-                applyRef.current(full, tabStr);
+                const autoNew = raw.autoNewSession === true;
+                applyRef.current(full, tabStr, autoNew);
             } finally {
                 if (!cancelled) {
                     setLoading(false);

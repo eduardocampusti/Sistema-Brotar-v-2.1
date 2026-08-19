@@ -1878,15 +1878,30 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         if (students.length > 0) fetchSessionsInfo();
     }, [students]);
 
-    useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab) => {
+    useAgendaClinicalDeepLink(setLoading, toastError, (full, openTab, autoNewSession) => {
         setSelectedStudent(full);
-        const t = openTab;
-        if (t === 'anamnesis' || t === 'sessions' || t === 'diagnostic' || t === 'ipo' || t === 'reports') {
-            setActiveTab(t);
+        if (autoNewSession) {
+            setActiveTab('sessions');
+            setIsEditingSession(true);
+            const _now = new Date();
+            const _pad = (n: number) => String(n).padStart(2, '0');
+            const _hFim = _now.getHours() < 23 ? _now.getHours() + 1 : 23;
+            setCurrentSession({
+                date: _now.toISOString().split('T')[0],
+                startTime: `${_pad(_now.getHours())}:${_pad(_now.getMinutes())}`,
+                endTime: `${_pad(_hFim)}:${_pad(_now.getMinutes())}`,
+                status: 'Realizado',
+                humor: 'Neutro'
+            });
         } else {
-            setActiveTab('anamnesis');
+            const t = openTab;
+            if (t === 'anamnesis' || t === 'sessions' || t === 'diagnostic' || t === 'ipo' || t === 'reports') {
+                setActiveTab(t);
+            } else {
+                setActiveTab('anamnesis');
+            }
+            setIsEditingSession(false);
         }
-        setIsEditingSession(false);
     });
 
     const schoolOptions = useMemo(() => {
