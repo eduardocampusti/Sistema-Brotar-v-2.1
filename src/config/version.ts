@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.175',
+  version: 'v2.4.176',
   date: 'Ago 2026',
-  display: 'v2.4.175 • Ago 2026',
+  display: 'v2.4.176 • Ago 2026',
   changelog: [
-    'fix: corrigir botão Nova Sessão da nutricionista — redirecionar para seletor de escola/aluno'  
+    'feat: adicionar seletor de escola e aluno no formulário de avaliação nutricional'
   ],
   releases: [
+    {
+      version: 'v2.4.176',
+      date: '19 Ago 2026',
+      title: 'Release v2.4.176 — 19 Ago 2026',
+      type: 'feat',
+      changes: [
+        "feat: adicionar seletor de escola e aluno no formulário de avaliação nutricional"
+      ]
+    },
     {
       version: 'v2.4.175',
       date: '19 Ago 2026',

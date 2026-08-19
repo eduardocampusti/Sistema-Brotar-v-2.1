@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ChevronLeft, Check, AlertCircle, AlertTriangle,
+  ChevronLeft, ChevronRight, Check, AlertCircle, AlertTriangle,
   Scale, Sparkles, Save, CheckCircle, Upload, Clock,
   User, Users, Heart, FileText, BarChart2, ClipboardList,
   Info, Shield, Activity, Monitor, Thermometer, Repeat,
-  Calendar, Ruler,
+  Calendar, Ruler, Search, UserPlus, Building2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { SupabaseService } from '../services/SupabaseService';
 import { GeminiService } from '../services/geminiService';
-import type { NutritionAssessment as NAssessment, Student } from '../types';
+import type { NutritionAssessment as NAssessment, Student, School } from '../types';
+import CadastroRapidoModal from './CadastroRapidoModal';
 import {
   calcularIdadeCompleta,
   calcularIMC,
@@ -296,7 +297,7 @@ const EBIA_BADGE: Record<string, string> = {
 const NutritionAssessmentPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const studentIdParam = searchParams.get('studentId') ?? undefined;
   const assessmentIdParam = searchParams.get('id') ?? undefined;
@@ -310,12 +311,47 @@ const NutritionAssessmentPage: React.FC = () => {
   const [idadeCompleta, setIdadeCompleta] = useState<IdadeCompleta | null>(null);
   const [resultadoOms, setResultadoOms] = useState<ResultadoAntropometria | null>(null);
 
+  const [schools, setSchools] = useState<School[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [pickerSchoolId, setPickerSchoolId] = useState('');
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [showCadastroRapido, setShowCadastroRapido] = useState(false);
+
+  const showStudentPicker = !studentIdParam && !assessmentIdParam;
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstSave = useRef(true);
 
   const handleChange = useCallback((delta: Partial<NAssessment>) => {
     setFormData((prev) => ({ ...prev, ...delta }));
   }, []);
+
+  // Carregar dados do seletor de aluno
+  useEffect(() => {
+    if (!showStudentPicker) return;
+    setPickerLoading(true);
+    Promise.all([
+      SupabaseService.getSchools(),
+      SupabaseService.getStudents(undefined, { compactList: true }),
+    ]).then(([s, st]) => {
+      setSchools(s);
+      setAllStudents(st);
+    }).catch(() => {}).finally(() => setPickerLoading(false));
+  }, [showStudentPicker]);
+
+  const filteredStudents = allStudents.filter(s => {
+    if (!pickerSchoolId) return false;
+    const selectedSchool = schools.find(sc => sc.id === pickerSchoolId);
+    const matchSchool = s.school?.schoolId === pickerSchoolId
+      || (selectedSchool && s.school?.schoolName === selectedSchool.name);
+    const matchSearch = !pickerSearch || s.fullName.toLowerCase().includes(pickerSearch.toLowerCase());
+    return matchSchool && matchSearch;
+  });
+
+  const handleSelectStudent = (s: Student) => {
+    setSearchParams({ studentId: s.id });
+  };
 
   // Carregar student
   useEffect(() => {
@@ -567,6 +603,168 @@ const NutritionAssessmentPage: React.FC = () => {
   const progressPercent = Math.round((filledCount / SECTIONS.length) * 100);
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────
+
+  if (showStudentPicker) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC]">
+        <div className="max-w-3xl mx-auto px-4 pt-6 pb-20 space-y-4">
+
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/app/nutricion/dashboard')} className="p-2 rounded-xl hover:bg-white text-slate-400 transition-colors">
+              <ChevronLeft size={20} />
+            </button>
+            <div>
+              <h1 className="text-lg font-bold text-slate-800">Nova Avaliação Nutricional</h1>
+              <p className="text-sm text-slate-400">Selecione a escola e o aluno para iniciar</p>
+            </div>
+          </div>
+
+          {/* School selector */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                <Building2 size={16} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Unidade escolar</h3>
+                <p className="text-xs text-slate-400">Selecione a escola do aluno</p>
+              </div>
+            </div>
+            {pickerLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent" />
+              </div>
+            ) : (
+              <select
+                value={pickerSchoolId}
+                onChange={(e) => { setPickerSchoolId(e.target.value); setPickerSearch(''); }}
+                className="w-full h-12 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 px-4 text-sm font-medium outline-none transition bg-white"
+              >
+                <option value="">Selecione a escola...</option>
+                {schools.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Student list */}
+          {pickerSchoolId && (
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
+              <div className="p-4 border-b border-gray-100">
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Buscar aluno por nome..."
+                    value={pickerSearch}
+                    onChange={(e) => setPickerSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium outline-none transition"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
+                  {filteredStudents.length} {filteredStudents.length === 1 ? 'aluno encontrado' : 'alunos encontrados'}
+                </p>
+              </div>
+
+              <div className="max-h-[400px] overflow-y-auto">
+                {filteredStudents.length === 0 ? (
+                  <div className="text-center py-10 px-4">
+                    <User size={32} className="mx-auto mb-3 text-slate-300" />
+                    <p className="text-sm font-medium text-slate-500">Nenhum aluno encontrado</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {pickerSearch ? 'Tente outro nome ou cadastre um novo aluno' : 'Nenhum aluno cadastrado nesta escola'}
+                    </p>
+                    <button
+                      onClick={() => setShowCadastroRapido(true)}
+                      className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium text-sm transition-colors"
+                    >
+                      <UserPlus size={16} />
+                      Cadastro Rápido
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {filteredStudents.map(s => {
+                      const initials = s.fullName.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+                      const age = s.birthDate ? Math.floor((Date.now() - new Date(s.birthDate).getTime()) / 31557600000) : null;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => handleSelectStudent(s)}
+                          className="w-full flex items-center gap-3.5 px-5 py-3.5 hover:bg-blue-50/50 transition-all text-left group"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                            {initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-blue-700">{s.fullName}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {age !== null ? `${age} anos` : 'Idade n/d'}
+                              {s.school?.grade ? ` · ${s.school.grade}` : ''}
+                            </p>
+                          </div>
+                          <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 shrink-0" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {filteredStudents.length > 0 && (
+                <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+                  <button
+                    onClick={() => setShowCadastroRapido(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-colors"
+                  >
+                    <UserPlus size={15} />
+                    Aluno não encontrado? Cadastro Rápido
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Placeholder when no school selected */}
+          {!pickerSchoolId && !pickerLoading && (
+            <div className="text-center py-8">
+              <Building2 size={40} className="mx-auto mb-3 text-slate-300" />
+              <p className="text-sm text-slate-400">Selecione uma escola acima para ver os alunos</p>
+              <div className="mt-4 flex items-center justify-center gap-3">
+                <div className="flex-1 max-w-[100px] h-px bg-gray-200" />
+                <span className="text-xs text-slate-400">ou</span>
+                <div className="flex-1 max-w-[100px] h-px bg-gray-200" />
+              </div>
+              <button
+                onClick={() => setShowCadastroRapido(true)}
+                className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium text-sm transition-colors"
+              >
+                <UserPlus size={16} />
+                Cadastro Rápido
+              </button>
+            </div>
+          )}
+        </div>
+
+        {user && (
+          <CadastroRapidoModal
+            isOpen={showCadastroRapido}
+            onClose={() => setShowCadastroRapido(false)}
+            currentUserId={user.id}
+            currentUserName={user.name}
+            currentUserRole={user.role}
+            currentUserSpecialty={user.specialty}
+            onCreated={(newStudentId) => {
+              setShowCadastroRapido(false);
+              setSearchParams({ studentId: newStudentId });
+            }}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
