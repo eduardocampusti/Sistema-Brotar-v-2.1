@@ -1961,25 +1961,25 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
         }
     }, [selectedStudent, isPP, autoOpenSession]);
 
-    const handleStudentSelect = async (id: string) => {
-        setLoading(true);
-        // Busca imediata na lista local para transição visual
-        const s = students.find(st => st.id === id);
-        if (s) setSelectedStudent(s);
+    const selectingStudentIdRef = React.useRef<string | null>(null);
 
-        // Busca profunda dos dados para o prontuário (clinical_info, documentos, etc)
+    const handleStudentSelect = async (id: string) => {
+        selectingStudentIdRef.current = id;
+        setLoading(true);
+
         const fullStudent = await SupabaseService.getStudentById(id);
+        if (selectingStudentIdRef.current !== id) return;
         if (fullStudent) {
             try {
-                // Busca o histórico de sessões do aluno no banco de dados para evitar tela vazia
                 const sessions = await SupabaseService.getStudentSessions(id);
                 fullStudent.history = sessions;
             } catch (err) {
                 console.error("Erro ao carregar histórico de sessões no handleStudentSelect:", err);
             }
+            if (selectingStudentIdRef.current !== id) return;
             setSelectedStudent(fullStudent);
         }
-        
+
         setIpoEditMode(false);
         setLoading(false);
     };

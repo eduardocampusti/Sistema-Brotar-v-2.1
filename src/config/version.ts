@@ -1,14 +1,24 @@
 export const APP_VERSION = {
-  version: 'v2.4.167',
+  version: 'v2.4.168',
   date: 'Ago 2026',
-  display: 'v2.4.167 • Ago 2026',
+  display: 'v2.4.168 • Ago 2026',
   changelog: [
-    'Ofício de Orientação — Encaminhamento Multidisciplinar no Gerador Inteli',
-    'Timbrado automático e correção de quebras de página na impressão',
-    'Ficha em branco do relatório de encaminhamento',
-    'Seção 3 reformulada com 3 perguntas guiadas + fluxo de notificação',
+    'Módulos clínicos',
+    'Atualização da camada de dados',
+    'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.168',
+      date: '19 Ago 2026',
+      title: 'Release v2.4.168 — 19 Ago 2026',
+      type: 'improvement',
+      changes: [
+        "Módulos clínicos",
+        "Atualização da camada de dados",
+        "Melhorias e correções gerais"
+      ]
+    },
     {
       version: 'v2.4.167',
       date: '18 Ago 2026',

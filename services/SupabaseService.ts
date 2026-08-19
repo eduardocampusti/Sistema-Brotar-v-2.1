@@ -126,10 +126,10 @@ const mapStudentFromDB = (dbStudent: any, sessions: any[] = []): Student => {
         history: (sessions || []).map(s => ({
             id: s.id,
             date: s.date,
-            specialty: s.specialty,
-            professionalName: 'Profissional', // Join com profile seria ideal
+            specialty: s.specialty ? (SupabaseService.mapSpecialtyFromDB(s.specialty) || s.specialty) : undefined,
+            professionalName: 'Profissional',
             notes: s.content?.summary || s.content?.objetivo || s.content?.resumo || 'Atendimento realizado',
-            content: s.content, // Mapeia o JSON completo
+            content: s.content,
         })),
         status: dbStudent.status,
         createdAt: dbStudent.created_at,
@@ -259,7 +259,7 @@ export class SupabaseService {
         }
     }
 
-    private static mapSpecialtyFromDB(dbValue?: string): Specialty | undefined {
+    static mapSpecialtyFromDB(dbValue?: string): Specialty | undefined {
         if (!dbValue) return undefined;
         return this.REVERSE_SPECIALTY_MAP[dbValue] || (dbValue as any);
     }

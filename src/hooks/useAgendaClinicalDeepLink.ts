@@ -37,6 +37,11 @@ export function useAgendaClinicalDeepLink(
                     toastError('Não foi possível abrir o prontuário deste aluno.');
                     return;
                 }
+                try {
+                    const sessions = await SupabaseService.getStudentSessions(id);
+                    full.history = sessions;
+                } catch { /* sessões indisponíveis — continua sem history */ }
+                if (cancelled) return;
                 const t = raw.openTab;
                 const tabStr = typeof t === 'string' ? t : undefined;
                 applyRef.current(full, tabStr);
