@@ -3062,36 +3062,41 @@ const PsychopedagogySpecificDashboard: React.FC<BaseDashboardProps & { autoOpenS
                                             </div>
                                         )}
 
-                                        {/* Histórico completo de sessões anteriores (aberto por padrão) */}
+                                        {/* Histórico completo de sessões anteriores — cada sessão colapsável por data */}
                                         {!currentSession.id && ppData.sessions.length > 0 && (
-                                            <details open className="bg-white border border-slate-200 rounded-xl overflow-hidden group">
-                                                <summary className="flex items-center justify-between cursor-pointer px-4 py-3 hover:bg-slate-50 transition-colors list-none outline-none">
+                                            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                                                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                                                     <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                                                         <FileText size={13} className="text-[#8B1A3A]" />
                                                         Histórico completo — {ppData.sessions.length} {ppData.sessions.length === 1 ? 'sessão anterior' : 'sessões anteriores'}
                                                     </div>
-                                                    <ChevronDown size={14} className="text-slate-400 transition-transform group-open:rotate-180" />
-                                                </summary>
-                                                <div className="border-t border-slate-100 max-h-[400px] overflow-y-auto divide-y divide-slate-100">
+                                                </div>
+                                                <div className="max-h-[400px] overflow-y-auto divide-y divide-slate-100">
                                                     {ppData.sessions.map((sess, idx) => (
-                                                        <div key={idx} className="px-4 py-3 hover:bg-slate-50 transition-colors">
-                                                            <div className="flex items-center justify-between mb-1">
+                                                        <details key={sess.id || idx} className="group/sess">
+                                                            <summary className="flex items-center justify-between cursor-pointer px-4 py-2.5 hover:bg-slate-50 transition-colors list-none outline-none">
                                                                 <div className="flex items-center gap-2">
+                                                                    <ChevronRight size={12} className="text-slate-400 transition-transform group-open/sess:rotate-90" />
                                                                     <span className="text-xs font-black text-slate-700">{new Date(sess.date).toLocaleDateString('pt-BR')}</span>
                                                                     <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${sess.status === 'Realizado' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{sess.status}</span>
                                                                     {sess.humor && <span className="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">{sess.humor}</span>}
                                                                 </div>
-                                                                <span className="text-[9px] text-slate-400 font-bold">Sessão #{ppData.sessions.length - idx}</span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[9px] text-slate-400 font-bold">Sessão #{ppData.sessions.length - idx}</span>
+                                                                    <button onClick={(e) => { e.preventDefault(); setCurrentSession(sess); setIsEditingSession(true); }} className="text-slate-400 hover:text-[#8B1A3A] transition-colors p-1 rounded hover:bg-slate-100" title="Editar sessão"><Edit2 size={13} /></button>
+                                                                </div>
+                                                            </summary>
+                                                            <div className="px-4 pb-3 pt-1 ml-5 border-l-2 border-slate-200 space-y-1">
+                                                                {sess.objetivo && <p className="text-[11px] text-slate-600"><span className="font-bold text-slate-700">Objetivo:</span> {sess.objetivo}</p>}
+                                                                {sess.evolucao && <p className="text-[11px] text-slate-600"><span className="font-bold text-slate-700">Evolução:</span> {sess.evolucao}</p>}
+                                                                {sess.estrategias && <p className="text-[11px] text-slate-600"><span className="font-bold text-slate-700">Estratégias:</span> {sess.estrategias}</p>}
+                                                                {sess.observacoes && <p className="text-[11px] text-slate-500 italic"><span className="font-bold text-slate-700">Obs:</span> {sess.observacoes}</p>}
+                                                                {sess.startTime && <p className="text-[10px] text-slate-400">{sess.startTime}{sess.endTime ? ` — ${sess.endTime}` : ''}</p>}
                                                             </div>
-                                                            {sess.objetivo && <p className="text-[11px] text-slate-600 mt-1"><span className="font-bold text-slate-700">Objetivo:</span> {sess.objetivo}</p>}
-                                                            {sess.evolucao && <p className="text-[11px] text-slate-600"><span className="font-bold text-slate-700">Evolução:</span> {sess.evolucao}</p>}
-                                                            {sess.estrategias && <p className="text-[11px] text-slate-600"><span className="font-bold text-slate-700">Estratégias:</span> {sess.estrategias}</p>}
-                                                            {sess.observacoes && <p className="text-[11px] text-slate-500 italic"><span className="font-bold text-slate-700">Obs:</span> {sess.observacoes}</p>}
-                                                            {sess.startTime && <p className="text-[10px] text-slate-400 mt-1">{sess.startTime}{sess.endTime ? ` — ${sess.endTime}` : ''}</p>}
-                                                        </div>
+                                                        </details>
                                                     ))}
                                                 </div>
-                                            </details>
+                                            </div>
                                         )}
 
                                         {/* Bloco 1: Detalhes */}
