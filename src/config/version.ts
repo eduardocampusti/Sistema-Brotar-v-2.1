@@ -1,13 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.168',
+  version: 'v2.4.169',
   date: 'Ago 2026',
-  display: 'v2.4.168 • Ago 2026',
+  display: 'v2.4.169 • Ago 2026',
   changelog: [
-    'Módulos clínicos',
-    'Atualização da camada de dados',
-    'Melhorias e correções gerais'  
+    'Atualização de manutenção'  
   ],
   releases: [
+    {
+      version: 'v2.4.169',
+      date: '19 Ago 2026',
+      title: 'Release v2.4.169 — 19 Ago 2026',
+      type: 'improvement',
+      changes: [
+        "Atualização de manutenção"
+      ]
+    },
     {
       version: 'v2.4.168',
       date: '19 Ago 2026',
