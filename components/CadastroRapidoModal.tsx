@@ -152,17 +152,21 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
         }
       }
 
-      const secretariaIds = await SupabaseService.getSecretariaUserIds();
-      const schoolName = schools.find(s => s.id === schoolId)?.name || '';
-      for (const recipientId of secretariaIds) {
-        await SupabaseService.sendSystemMessage(
-          currentUserId,
-          recipientId,
-          'Novo cadastro rápido de aluno',
-          `${currentUserName} cadastrou rapidamente o aluno "${fullName}"${schoolName ? ` (escola: ${schoolName})` : ''}. Cadastro pendente de complementação.`,
-          'urgent',
-          'ALERT'
-        );
+      try {
+        const secretariaIds = await SupabaseService.getSecretariaUserIds();
+        const schoolName = schools.find(s => s.id === schoolId)?.name || '';
+        for (const recipientId of secretariaIds) {
+          await SupabaseService.sendSystemMessage(
+            currentUserId,
+            recipientId,
+            'Novo cadastro rápido de aluno',
+            `${currentUserName} cadastrou rapidamente o aluno "${fullName}"${schoolName ? ` (escola: ${schoolName})` : ''}. Cadastro pendente de complementação.`,
+            'urgent',
+            'ALERT'
+          );
+        }
+      } catch (notifErr) {
+        console.warn('[CadastroRapido] Notificação não enviada, cadastro prosseguiu:', notifErr);
       }
 
       setCreatedStudentId(studentId);

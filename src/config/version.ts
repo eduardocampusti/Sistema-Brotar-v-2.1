@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.176',
+  version: 'v2.4.177',
   date: 'Ago 2026',
-  display: 'v2.4.176 • Ago 2026',
+  display: 'v2.4.177 • Ago 2026',
   changelog: [
-    'feat: adicionar seletor de escola e aluno no formulário de avaliação nutricional'
+    'fix: cadastro rápido não avançava quando notificação à secretaria falhava'
   ],
   releases: [
+    {
+      version: 'v2.4.177',
+      date: '19 Ago 2026',
+      title: 'Release v2.4.177 — 19 Ago 2026',
+      type: 'fix',
+      changes: [
+        "fix: cadastro rápido não avançava quando notificação à secretaria falhava"
+      ]
+    },
     {
       version: 'v2.4.176',
       date: '19 Ago 2026',
