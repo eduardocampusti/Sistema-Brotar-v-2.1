@@ -1,11 +1,29 @@
 export const APP_VERSION = {
-  version: 'v2.4.177',
+  version: 'v2.4.179',
   date: 'Ago 2026',
-  display: 'v2.4.177 • Ago 2026',
+  display: 'v2.4.179 • Ago 2026',
   changelog: [
-    'fix: cadastro rápido não avançava quando notificação à secretaria falhava'
+    'Melhorias e correções gerais'  
   ],
   releases: [
+    {
+      version: 'v2.4.179',
+      date: '19 Ago 2026',
+      title: 'Release v2.4.179 — 19 Ago 2026',
+      type: 'improvement',
+      changes: [
+        "Melhorias e correções gerais"
+      ]
+    },
+    {
+      version: 'v2.4.178',
+      date: '19 Ago 2026',
+      title: 'Release v2.4.178 — 19 Ago 2026',
+      type: 'fix',
+      changes: [
+        "fix: cadastro rápido — exibe erro visível quando falha + auto-navega para avaliação após sucesso"
+      ]
+    },
     {
       version: 'v2.4.177',
       date: '19 Ago 2026',

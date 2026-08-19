@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Search, AlertTriangle, CheckCircle2, UserPlus, Loader2, Camera, User, Trash2, FileText, Clock, ArrowLeft, Check } from 'lucide-react';
+import { X, Search, AlertTriangle, AlertCircle, CheckCircle2, UserPlus, Loader2, Camera, User, Trash2, FileText, Clock, ArrowLeft, Check } from 'lucide-react';
 import { SupabaseService } from '../services/SupabaseService';
 import type { Student, School } from '../types';
 
@@ -55,6 +55,7 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
   const [isFromDuplicate, setIsFromDuplicate] = useState(false);
   const [selectedStudentName, setSelectedStudentName] = useState<string | null>(null);
@@ -91,6 +92,7 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
     setSelectedStudentName(null);
     setSelectedStudentStatus(null);
     setSelectedStudentPhoto(null);
+    setErrorMsg(null);
     setLoading(false);
   };
 
@@ -132,6 +134,7 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
 
   const handleConfirmCreate = async () => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const studentId = await SupabaseService.createStudentQuick({
         fullName,
@@ -170,9 +173,18 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
       }
 
       setCreatedStudentId(studentId);
+
+      if (onCreated) {
+        resetForm();
+        onClose();
+        onCreated(studentId);
+        return;
+      }
+
       setStep('success');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[CadastroRapido] Erro:', err);
+      setErrorMsg(err?.message || 'Erro ao cadastrar aluno. Verifique os dados e tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -495,6 +507,13 @@ const CadastroRapidoModal: React.FC<CadastroRapidoModalProps> = ({
                   O cadastro será criado como <strong>PENDENTE</strong>. A secretaria receberá uma notificação para completar os dados.
                 </p>
               </div>
+
+              {errorMsg && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-300">
+                  <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
+                  <p className="text-sm text-red-700 font-medium">{errorMsg}</p>
+                </div>
+              )}
             </>
           )}
 
