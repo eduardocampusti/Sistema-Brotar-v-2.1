@@ -3154,7 +3154,7 @@ export const SpeechTherapyDashboard: React.FC<DashboardProps> = props => (
 export const NutritionDashboard: React.FC<DashboardProps> = props => (
     <SpecialistClinicalHomeDashboard
         {...props}
-        registerSessionRoute="nutricion/avaliacao"
+        registerSessionRoute="nutrition/new-session"
         extraAction={{ label: 'Módulo Nutrição', route: 'nutricion/dashboard' }}
     />
 );

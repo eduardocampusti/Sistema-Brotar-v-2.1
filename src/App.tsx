@@ -65,6 +65,7 @@ const SpeechTherapySessionFormPage = React.lazy(() => import('../components/Clin
 const PhysiotherapyDashboardPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PhysiotherapyDashboardPage })));
 const PhysiotherapySessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.PhysiotherapySessionFormPage })));
 const NutritionClinicalPortal = React.lazy(() => import('../components/NutritionClinicalPortal'));
+const NutritionSessionFormPage = React.lazy(() => import('../components/ClinicalPages').then(m => ({ default: m.NutritionSessionFormPage })));
 // Módulo Nutricionista Escolar — Fase 3
 const NutricaoDashboard = React.lazy(() => import('../components/NutritionDashboard'));
 const NutricaoAvaliacao = React.lazy(() => import('../components/NutritionAssessment'));
@@ -463,6 +464,7 @@ function AppContent() {
           <Route path="physiotherapy/new-session" element={<React.Suspense fallback={<PageLoading />}><PhysiotherapySessionFormPage onCancel={() => handleNavigate('physiotherapy')} currentUser={user!} /></React.Suspense>} />
 
           <Route path="nutrition" element={<React.Suspense fallback={<PageLoading />}><NutritionClinicalPortal currentUser={user!} onNavigate={handleNavigate} /></React.Suspense>} />
+          <Route path="nutrition/new-session" element={<React.Suspense fallback={<PageLoading />}><NutritionSessionFormPage onCancel={() => handleNavigate('nutrition')} currentUser={user!} /></React.Suspense>} />
           {/* ── Módulo Nutricionista Escolar — Fase 3 ── */}
           <Route path="nutricion/dashboard" element={<React.Suspense fallback={<PageLoading />}><NutricaoDashboard /></React.Suspense>} />
           <Route path="nutricion/avaliacao" element={<React.Suspense fallback={<PageLoading />}><NutricaoAvaliacao /></React.Suspense>} />

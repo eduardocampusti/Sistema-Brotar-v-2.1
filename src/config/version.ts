@@ -1,12 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.174',
+  version: 'v2.4.175',
   date: 'Ago 2026',
-  display: 'v2.4.174 • Ago 2026',
+  display: 'v2.4.175 • Ago 2026',
   changelog: [
-    'Módulos clínicos',
-    'Melhorias e correções gerais'  
+    'fix: corrigir botão Nova Sessão da nutricionista — redirecionar para seletor de escola/aluno'  
   ],
   releases: [
+    {
+      version: 'v2.4.175',
+      date: '19 Ago 2026',
+      title: 'Release v2.4.175 — 19 Ago 2026',
+      type: 'fix',
+      changes: [
+        "fix: corrigir botão Nova Sessão da nutricionista — redirecionar para seletor de escola/aluno"
+      ]
+    },
     {
       version: 'v2.4.174',
       date: '19 Ago 2026',
