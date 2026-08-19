@@ -1451,18 +1451,29 @@ export class SupabaseService {
     }
 
     static async getStudentSessions(studentId: string): Promise<Session[]> {
-        const { data, error } = await supabase
-            .from('clinical_sessions')
-            .select('*')
-            .eq('student_id', studentId)
-            .order('date', { ascending: false });
+        const [clinicalResult, appointmentsResult] = await Promise.all([
+            supabase
+                .from('clinical_sessions')
+                .select('*')
+                .eq('student_id', studentId)
+                .order('date', { ascending: false }),
+            supabase
+                .from('appointments')
+                .select('*')
+                .eq('student_id', studentId)
+                .in('status', ['RETROATIVO', 'ATENDIDO', 'ENCERRADO'])
+                .or('excluido.is.null,excluido.eq.false')
+                .order('date', { ascending: false }),
+        ]);
 
-        if (error) {
-            console.error('[SupabaseService] Erro ao buscar sessões:', error);
-            return [];
+        if (clinicalResult.error) {
+            console.error('[SupabaseService] Erro ao buscar sessões clínicas:', clinicalResult.error);
+        }
+        if (appointmentsResult.error) {
+            console.error('[SupabaseService] Erro ao buscar atendimentos retroativos:', appointmentsResult.error);
         }
 
-        return data.map((s: any) => ({
+        const clinicalSessions: Session[] = (clinicalResult.data || []).map((s: any) => ({
             id: s.id,
             date: s.date,
             specialty: s.specialty ? (this.REVERSE_SPECIALTY_MAP[s.specialty] || s.specialty) : undefined,
@@ -1470,6 +1481,25 @@ export class SupabaseService {
             notes: s.content?.summary || s.content?.objetivo || s.content?.resumo || 'Atendimento realizado',
             content: s.content,
         }));
+
+        const seenIds = new Set(clinicalSessions.map(s => s.id));
+
+        const retroSessions: Session[] = (appointmentsResult.data || [])
+            .filter((a: any) => !seenIds.has(a.id))
+            .map((a: any) => ({
+                id: a.id,
+                date: a.date,
+                specialty: a.specialty ? (this.REVERSE_SPECIALTY_MAP[a.specialty] || a.specialty) : undefined,
+                professionalName: a.professional_name || 'Profissional',
+                notes: a.notes || 'Atendimento realizado',
+                startTime: a.start_time,
+                endTime: a.end_time,
+                serviceType: a.status === 'RETROATIVO' ? 'RETROATIVO' : undefined,
+            }));
+
+        const merged = [...clinicalSessions, ...retroSessions];
+        merged.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        return merged;
     }
 
     /**
