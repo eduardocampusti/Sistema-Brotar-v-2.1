@@ -34,13 +34,13 @@ CREATE POLICY students_complete_registration ON students
     AND EXISTS (
       SELECT 1 FROM profiles
       WHERE profiles.id = auth.uid()
-        AND profiles.role IN ('ADMIN', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'COORDENADOR')
+        AND profiles.role IN ('ADMIN', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'EDUCATION_SECRETARY')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM profiles
       WHERE profiles.id = auth.uid()
-        AND profiles.role IN ('ADMIN', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'COORDENADOR')
+        AND profiles.role IN ('ADMIN', 'SECRETARIA_SEDE', 'SECRETARIA_COCAL', 'EDUCATION_SECRETARY')
     )
   );

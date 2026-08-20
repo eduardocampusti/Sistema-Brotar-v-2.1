@@ -1,11 +1,20 @@
 export const APP_VERSION = {
-  version: 'v2.4.179',
+  version: 'v2.4.180',
   date: 'Ago 2026',
-  display: 'v2.4.179 • Ago 2026',
+  display: 'v2.4.180 • Ago 2026',
   changelog: [
-    'Melhorias e correções gerais'  
+    'Migração de banco de dados'  
   ],
   releases: [
+    {
+      version: 'v2.4.180',
+      date: '20 Ago 2026',
+      title: 'Release v2.4.180 — 20 Ago 2026',
+      type: 'feature',
+      changes: [
+        "Migração de banco de dados"
+      ]
+    },
     {
       version: 'v2.4.179',
       date: '19 Ago 2026',
